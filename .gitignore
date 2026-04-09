@@ -1,5 +1,6 @@
 # Credențiale și configurare locală
 .env
+CLAUDE.md
 *.db
 *.sqlite
 
