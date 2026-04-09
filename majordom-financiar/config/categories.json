@@ -1,0 +1,103 @@
+{
+  "categories": [
+    {
+      "id": "groceries",
+      "name": "Alimente & Băuturi",
+      "emoji": "🛒",
+      "keywords": [
+        "albert heijn", "jumbo", "lidl", "aldi", "plus supermarkt", "dirk", "coop",
+        "hoogvliet", "spar", "vomar", "picnic", "ah", "dekamarkt",
+        "kaufland", "mega image", "carrefour", "auchan", "penny", "profi"
+      ]
+    },
+    {
+      "id": "restaurants",
+      "name": "Restaurante & Cafenele",
+      "emoji": "🍽️",
+      "keywords": [
+        "restaurant", "cafe", "cafetaria", "eetcafe", "broodjeszaak",
+        "mcdonald", "kfc", "burger king", "subway", "dominos", "new york pizza",
+        "starbucks", "costa coffee", "bagels & beans", "la place",
+        "pizzerie", "cafenea", "fast food"
+      ]
+    },
+    {
+      "id": "transport",
+      "name": "Transport",
+      "emoji": "🚗",
+      "keywords": [
+        "ns ", "ovchipkaart", "9292", "connexxion", "arriva", "ret", "gvb", "htm",
+        "shell", "bp", "esso", "tinq", "tango", "neom", "tamoil",
+        "bolt", "uber", "greenwheels", "sixt",
+        "petrom", "omv", "mol", "rompetrol"
+      ]
+    },
+    {
+      "id": "utilities",
+      "name": "Utilități",
+      "emoji": "💡",
+      "keywords": [
+        "vattenfall", "eneco", "essent", "nuon", "greenchoice", "budget energie",
+        "ziggo", "kpn", "t-mobile", "vodafone", "tele2", "simpel",
+        "vitens", "dunea", "waternet", "evides",
+        "enel", "engie", "digi", "orange"
+      ]
+    },
+    {
+      "id": "health",
+      "name": "Sănătate",
+      "emoji": "💊",
+      "keywords": [
+        "etos", "kruidvat", "da drogist", "boots", "apotheek", "huisarts",
+        "ziekenhuis", "tandarts", "fysiotherapie",
+        "farmacia", "catena", "sensiblu", "helpnet", "medic"
+      ]
+    },
+    {
+      "id": "clothing",
+      "name": "Îmbrăcăminte",
+      "emoji": "👕",
+      "keywords": [
+        "h&m", "zara", "uniqlo", "primark", "c&a", "wehkamp", "coolblue fashion",
+        "only", "jack & jones", "scotch & soda", "the sting", "gsus",
+        "decathlon", "intersport", "reserved", "new yorker"
+      ]
+    },
+    {
+      "id": "home",
+      "name": "Casă & Grădină",
+      "emoji": "🏠",
+      "keywords": [
+        "ikea", "praxis", "gamma", "karwei", "hornbach", "intratuin",
+        "kwantum", "jysk", "xenos", "action", "blokker", "hema",
+        "dedeman", "leroy merlin"
+      ]
+    },
+    {
+      "id": "entertainment",
+      "name": "Divertisment",
+      "emoji": "🎬",
+      "keywords": [
+        "pathe", "vue cinema", "kinepolis", "spotify", "netflix", "videoland",
+        "ticketmaster", "eventbrite", "bol.com entertainment",
+        "cinema", "concert", "bilet"
+      ]
+    },
+    {
+      "id": "education",
+      "name": "Educație",
+      "emoji": "📚",
+      "keywords": [
+        "bol.com", "bruna", "selexyz", "donner", "readshop",
+        "studystore", "saxion", "tu delft", "uva",
+        "librarie", "carte", "curs"
+      ]
+    },
+    {
+      "id": "other",
+      "name": "Altele",
+      "emoji": "📦",
+      "keywords": []
+    }
+  ]
+}

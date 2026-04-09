@@ -1,0 +1,14 @@
+# Telegram Bot (cu job-queue pentru task-uri programate)
+python-telegram-bot[job-queue]==21.6
+
+# HTTP async (Ollama API)
+aiohttp==3.10.5
+
+# Actual Budget — librărie oficială Python
+actualpy
+
+# Resize imagini înainte de trimitere la Ollama
+Pillow==10.4.0
+
+# Utilități
+python-dotenv==1.0.1

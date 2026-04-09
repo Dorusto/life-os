@@ -1,0 +1,78 @@
+services:
+  actual-budget:
+    image: actualbudget/actual-server:latest
+    container_name: actual-budget
+    restart: unless-stopped
+    ports:
+      - "5006:5006"
+    volumes:
+      - actual-data:/data
+    networks:
+      - majordom-net
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5006/', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: majordom-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama-data:/root/.ollama
+      - ./scripts/ollama-entrypoint.sh:/entrypoint.sh
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    environment:
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5vl:3b}
+      - OLLAMA_FLASH_ATTENTION=1
+    networks:
+      - majordom-net
+    # --- GPU (NVIDIA) ---
+    # Necesită nvidia-container-toolkit pe host.
+    # Dacă nu ai GPU, șterge sau comentează blocul 'deploy' de mai jos.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "sh", "-c", "ollama list 2>/dev/null | grep -q ${OLLAMA_MODEL:-qwen2.5vl}"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 300s  # 5 minute pentru download la primul start
+
+  majordom-bot:
+    build: .
+    container_name: majordom-bot
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      actual-budget:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    networks:
+      - majordom-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  actual-data:
+    name: majordom-actual-data
+  ollama-data:
+    name: majordom-ollama-data
+
+networks:
+  majordom-net:
+    name: majordom-net
+    driver: bridge
