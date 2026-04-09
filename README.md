@@ -89,6 +89,16 @@ The name "Majordom" comes from the Romanian word for *majordomo* — the trusted
 
 ---
 
+## Built in Public
+
+This project is developed openly — every milestone documented, every decision explained.
+
+- 🌐 **Website:** [majordom.dorustoica.ro](https://majordom.dorustoica.ro/)
+- 📺 **YouTube:** [@dorulian](https://www.youtube.com/@dorulian) — build logs, demos, homelab
+- 📝 **Substack:** [@dorulian](https://substack.com/@dorulian) — dev logs and behind-the-scenes
+
+---
+
 ## License
 
 MIT — use it, modify it, make it your own.
