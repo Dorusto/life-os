@@ -106,6 +106,43 @@ def transaction_confirm_keyboard(tx_id: int) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(buttons)
 
 
+def csv_profile_confirm_keyboard() -> InlineKeyboardMarkup:
+    """Keyboard pentru confirmarea profilului detectat de Ollama."""
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ Da, e corect", callback_data="csv_pok"),
+            InlineKeyboardButton("❌ Nu e corect", callback_data="csv_pno"),
+        ]
+    ])
+
+
+def csv_account_keyboard(accounts: list[dict]) -> InlineKeyboardMarkup:
+    """
+    Keyboard pentru selectarea contului la import CSV.
+
+    accounts: [{"id": "...", "name": "..."}]
+    Indexul din listă e folosit în callback (nu ID-ul UUID) pentru a rămâne sub 64 bytes.
+    """
+    buttons = [
+        [InlineKeyboardButton(
+            f"💳 {acc['name']}",
+            callback_data=f"csv_asel_{i}",
+        )]
+        for i, acc in enumerate(accounts)
+    ]
+    buttons.append([InlineKeyboardButton("➕ Creează cont nou", callback_data="csv_anew")])
+    buttons.append([InlineKeyboardButton("❌ Anulează", callback_data="csv_acancel")])
+    return InlineKeyboardMarkup(buttons)
+
+
+def csv_import_keyboard(count: int) -> InlineKeyboardMarkup:
+    """Keyboard pentru confirmarea finală a importului."""
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton(f"✅ Importă {count} tranzacții", callback_data="csv_iok")],
+        [InlineKeyboardButton("❌ Anulează", callback_data="csv_icancel")],
+    ])
+
+
 def yes_no_keyboard(action_id: str) -> InlineKeyboardMarkup:
     """Keyboard simplu Da/Nu."""
     return InlineKeyboardMarkup([

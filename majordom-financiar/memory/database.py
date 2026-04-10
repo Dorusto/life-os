@@ -102,6 +102,25 @@ class MemoryDB:
                     ON transactions(date);
                 CREATE INDEX IF NOT EXISTS idx_transactions_category
                     ON transactions(category_id);
+
+                CREATE TABLE IF NOT EXISTS csv_profiles (
+                    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                    source_name  TEXT NOT NULL DEFAULT '',
+                    header_sig   TEXT NOT NULL UNIQUE,
+                    col_date     TEXT NOT NULL DEFAULT '',
+                    col_merchant TEXT NOT NULL DEFAULT '',
+                    col_amount   TEXT NOT NULL DEFAULT '',
+                    col_currency TEXT NOT NULL DEFAULT '',
+                    col_direction TEXT NOT NULL DEFAULT '',
+                    col_description TEXT NOT NULL DEFAULT '',
+                    expense_indicator TEXT NOT NULL DEFAULT '',
+                    date_format  TEXT NOT NULL DEFAULT '%Y-%m-%d',
+                    delimiter    TEXT NOT NULL DEFAULT ',',
+                    decimal_sep  TEXT NOT NULL DEFAULT '.',
+                    encoding     TEXT NOT NULL DEFAULT 'utf-8',
+                    confirmed    INTEGER NOT NULL DEFAULT 0,
+                    created_at   TEXT DEFAULT (datetime('now'))
+                );
             """)
             conn.commit()
             logger.info(f"Baza de date inițializată: {self.db_path}")
@@ -342,5 +361,79 @@ class MemoryDB:
                 (category_name,)
             ).fetchone()
             return row["monthly_limit"] if row else None
+        finally:
+            conn.close()
+
+    # --- CSV Profiles ---
+
+    def save_csv_profile(self, profile) -> int:
+        """Salvează un profil CSV și returnează ID-ul. Actualizează dacă există deja."""
+        conn = self._get_conn()
+        try:
+            cursor = conn.execute("""
+                INSERT INTO csv_profiles
+                    (source_name, header_sig, col_date, col_merchant, col_amount,
+                     col_currency, col_direction, col_description, expense_indicator,
+                     date_format, delimiter, decimal_sep, encoding, confirmed)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(header_sig) DO UPDATE SET
+                    source_name=excluded.source_name,
+                    col_date=excluded.col_date,
+                    col_merchant=excluded.col_merchant,
+                    col_amount=excluded.col_amount,
+                    col_currency=excluded.col_currency,
+                    col_direction=excluded.col_direction,
+                    col_description=excluded.col_description,
+                    expense_indicator=excluded.expense_indicator,
+                    date_format=excluded.date_format,
+                    delimiter=excluded.delimiter,
+                    decimal_sep=excluded.decimal_sep,
+                    encoding=excluded.encoding,
+                    confirmed=excluded.confirmed
+            """, (
+                profile.source_name, profile.header_sig,
+                profile.col_date, profile.col_merchant, profile.col_amount,
+                profile.col_currency, profile.col_direction, profile.col_description,
+                profile.expense_indicator, profile.date_format,
+                profile.delimiter, profile.decimal_sep, profile.encoding,
+                int(profile.confirmed),
+            ))
+            conn.commit()
+            return cursor.lastrowid
+        finally:
+            conn.close()
+
+    def get_csv_profile_by_sig(self, header_sig: str):
+        """Caută un profil CSV după header signature. Returnează CsvProfile sau None."""
+        from csv_importer.profiles import CsvProfile
+        conn = self._get_conn()
+        try:
+            row = conn.execute(
+                "SELECT * FROM csv_profiles WHERE header_sig = ?", (header_sig,)
+            ).fetchone()
+            if not row:
+                return None
+            d = dict(row)
+            d["confirmed"] = bool(d["confirmed"])
+            d.pop("created_at", None)
+            return CsvProfile(**d)
+        finally:
+            conn.close()
+
+    def get_all_csv_profiles(self) -> list:
+        """Returnează toate profilurile CSV salvate."""
+        from csv_importer.profiles import CsvProfile
+        conn = self._get_conn()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM csv_profiles ORDER BY source_name"
+            ).fetchall()
+            result = []
+            for row in rows:
+                d = dict(row)
+                d["confirmed"] = bool(d["confirmed"])
+                d.pop("created_at", None)
+                result.append(CsvProfile(**d))
+            return result
         finally:
             conn.close()

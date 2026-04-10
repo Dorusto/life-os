@@ -45,7 +45,11 @@ def main():
     app = setup_handlers(app)
 
     logger.info("Bot pornit. Aștept mesaje...")
-    app.run_polling(drop_pending_updates=True)
+    from telegram import Update
+    app.run_polling(
+        drop_pending_updates=True,
+        allowed_updates=Update.ALL_TYPES,
+    )
 
 
 if __name__ == "__main__":

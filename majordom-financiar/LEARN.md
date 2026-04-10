@@ -224,6 +224,218 @@ Dacă vezi `ERROR` sau `WARNING`, acea linie îți spune exact unde s-a rupt.
 
 ---
 
+## 8. Cum funcționează importul CSV
+
+### Fișierele implicate
+
+```
+csv_importer/
+├── profiles.py    ← dataclass-uri: CsvProfile, NormalizedTransaction
+├── normalizer.py  ← CsvNormalizer: detectează encoding/delimiter, parsează, normalizează
+├── detector.py    ← CsvProfileDetector: MD5 signature + Ollama pentru formate noi
+└── __init__.py    ← exportă cele 3 clase
+
+bot/csv_wizard.py  ← ConversationHandler cu 5 stări (fluxul de dialog)
+memory/database.py ← tabelul csv_profiles în SQLite
+```
+
+### Problema: fiecare bancă exportă altfel
+
+ING exportă cu `;` ca delimiter, suma `34,20` (virgulă decimală), coloana `Af Bij`
+pentru direcție. crypto.com exportă cu `,`, suma `34.20` (punct), fără coloană de
+direcție — suma negativă înseamnă cheltuiala. Revolut e iar altfel.
+
+Dacă ai scrie un parser separat pentru fiecare bancă, ai de actualizat codul de
+fiecare dată când o bancă schimbă formatul.
+
+### Soluția: profiluri salvate + AI pentru formate noi
+
+**Prima dată** când trimiți un CSV necunoscut:
+```
+CSV primit → Ollama analizează headerele + 3 rânduri →
+propune mapping → tu confirmi → salvat în SQLite ca "profil"
+```
+
+**A doua oară** același format:
+```
+CSV primit → MD5(coloane sortate) → găsit în SQLite → aplicat direct
+```
+Fără Ollama, instant.
+
+### State machine — fluxul de dialog (csv_wizard.py)
+
+ConversationHandler are 5 stări. Botul nu e un simplu if/else — e o mașină de stări
+care reține unde ești în conversație:
+
+```
+User trimite .csv
+       │
+       ▼
+[handle_csv_document]
+  ├─ format CUNOSCUT (MD5 în SQLite) ──────────────────────────────┐
+  │                                                                 │
+  └─ format NOU → Ollama → propune mapping                         │
+           │                                                        │
+           ▼                                                        ▼
+    CONFIRM_PROFILE                                         SELECT_ACCOUNT
+    ├─ "Da" → salvează profil în SQLite                     ├─ alege cont existent
+    └─ "Nu" → END                                           └─ "Cont nou" ──┐
+           │                                                         │       │
+           └──────────────────────────────────────────────────────────       │
+                                                                    ▼        ▼
+                                                             CREATE_ACCT_NAME
+                                                                    │
+                                                             CREATE_ACCT_BAL
+                                                                    │
+                                                                    ▼
+                                                             CONFIRM_IMPORT
+                                                              ├─ "Importă" → batch în Actual
+                                                              └─ "Anulează" → END
+```
+
+Stările sunt numere întregi (20-24) — python-telegram-bot le folosește intern
+ca chei de dicționar. Fiecare stare știe ce mesaje/butoane acceptă.
+
+### De ce MD5 pe coloanele sortate?
+
+Dacă ING adaugă o coloană nouă în viitor, semnătura se schimbă → bot-ul detectează
+un "format nou" și te întreabă din nou. E intentionat — mai bine o confirmare în
+plus decât să parsezi greșit.
+
+```python
+# detector.py — header_signature()
+normalized = ",".join(sorted(h.strip().lower() for h in headers))
+return hashlib.md5(normalized.encode()).hexdigest()[:12]
+# ex: ["Datum", "Bedrag", "Naam"] → "bedrag,datum,naam" → "a3f8c12d4e9b"
+```
+
+### Cum se normalizează suma (normalizer.py)
+
+ING: `"34,20"` cu `decimal_sep=","`:
+```python
+"34,20".replace(".", "").replace(",", ".") → "34.20" → float(34.20)
+```
+
+ING cu mii: `"1.234,56"`:
+```python
+"1.234,56".replace(".", "") → "1234,56" → .replace(",", ".") → "1234.56"
+```
+
+crypto.com: `"-15.99"` cu `decimal_sep="."` și fără coloană de direcție:
+```python
+float("-15.99") → suma negativă → is_expense=True, amount=15.99
+```
+
+### Ce stochează un CsvProfile (profiles.py)
+
+```python
+@dataclass
+class CsvProfile:
+    source_name: str    # "ING", "crypto.com"
+    header_sig: str     # MD5 → fingerprint formatului
+    col_date: str       # ex: "Datum"
+    col_merchant: str   # ex: "Naam / Omschrijving"
+    col_amount: str     # ex: "Bedrag (EUR)"
+    col_currency: str   # ex: "" (ING e mereu EUR)
+    col_direction: str  # ex: "Af of Bij"
+    expense_indicator: str  # ex: "Af"
+    date_format: str    # ex: "%d-%m-%Y"
+    delimiter: str      # ";" sau ","
+    decimal_sep: str    # "," sau "."
+```
+
+### Categoriile per tranzacție la import
+
+La import batch, `SmartCategorizer.predict()` e apelat pentru fiecare rând cu un **prag de 75%**:
+- Dacă confidence >= 75% → categoria se aplică direct în Actual Budget
+- Dacă confidence < 75% → importat fără categorie, bot trimite mesaj separat cu sugestie
+
+```
+Import finalizat (4 auto-categorizate)
+    │
+    ├── 🤔 "Claude.Ai Subscription -21.78 EUR"
+    │       Sugestie: Abonamente (42%) — Ești de acord? [Da] [Nu, altă categorie]
+    │
+    └── 🤔 "Patreon* Membership -10.89 EUR"
+            Sugestie: Abonamente (42%) — Ești de acord? [Da] [Nu, altă categorie]
+```
+
+Când confirmi o categorie → `categorizer.learn()` se apelează → data viitoare același
+merchant va fi recunoscut cu 95% confidență și categoriat automat.
+
+### Refund-uri — cum sunt tratate
+
+CSV-ul poate conține refund-uri (sume pozitive). Acestea NU sunt filtrate — sunt incluse
+în import ca tranzacții pozitive (income în Actual Budget), astfel totalul net e corect:
+
+```
+VPN charge:  -5.00 EUR (is_expense=True)  → -5 EUR în Actual Budget
+VPN refund:  +5.00 EUR (is_expense=False) → +5 EUR în Actual Budget
+Net:          0.00 EUR ✓
+```
+
+Preview-ul arată `-5.00` și `+5.00` cu semne explicite.
+
+### Deduplicare — cum evită dublurile la re-import
+
+Fiecare tranzacție importată din CSV primește un `imported_id` unic:
+```python
+# SHA256 din: source_name + data + merchant + suma
+imported_id = sha256(f"{source}:{date}:{merchant}:{amount}").hexdigest()[:16]
+```
+
+Înainte de a salva în Actual Budget, verifică dacă `imported_id` există deja în SQLite.
+Dacă da → skip. Dacă trimiți același CSV de două ori, a doua oară 0 tranzacții importate.
+
+---
+
+## 9. Transferuri între conturi — de ce e complicat
+
+### Cazul concret
+
+Transferi 500 EUR din ING în crypto.com. Apar în CSV-uri:
+
+```
+ING CSV:
+  20-03-2025 | CRO Pay Europe Ltd | 500,00 | Af ← cheltuială?
+
+crypto.com CSV:
+  2025-03-20 | Top Up | EUR | 500.00 | card_top_up ← venit (filtrat)
+```
+
+**Problema:** În ING apare ca ieșire de bani — corect din punct de vedere bancar,
+dar **incorect pentru buget**. Nu ai cheltuit 500 EUR, i-ai mutat.
+
+### Cum tratează Actual Budget transferurile
+
+Actual Budget are un tip special de tranzacție: **transfer**. E de fapt două
+tranzacții legate:
+- Cont ING: -500 EUR (ieșire)
+- Cont crypto.com: +500 EUR (intrare)
+
+Ambele sunt legate între ele și nu contează ca cheltuiala în statistici.
+
+### Ce face sistemul acum (v1)
+
+Importă transferul ca cheltuiala obișnuită din ING. Apare în statistici ca -500 EUR
+cheltuiți, ceea ce strică raportul lunar.
+
+**Workaround manual:** după import, în Actual Budget UI:
+1. Găsești tranzacția "CRO Pay Europe Ltd"
+2. O editezi → schimbi tipul din "Expense" în "Transfer"
+3. Selectezi contul destinatar (crypto.com)
+
+### Cum se va detecta automat (v2)
+
+Trei semnale:
+1. **Keyword în merchant:** "revolut", "bunq", "crypto", "n26", "bitvavo" → probabil transfer
+2. **ING-specific:** coloana `Code = OV` (Overschrijving) + `Tegenrekening` e alt cont al tău
+3. **Matching sume:** -500 EUR din ING pe 20.03 + +500 EUR în crypto.com pe 20-21.03
+
+Când toate trei se aliniază → creat ca transfer în Actual, nu ca cheltuiala.
+
+---
+
 ## Rezumat — ce să ții minte
 
 | Concept | Esența |
@@ -235,6 +447,9 @@ Dacă vezi `ERROR` sau `WARNING`, acea linie îți spune exact unde s-a rupt.
 | `download_budget()` | Sincronizare cu Actual Budget la fiecare operație |
 | `settings` singleton | Tot vine din `.env`, schimbi acolo nu în cod |
 | Docker networking | Serviciile se văd prin numele lor, nu `localhost` |
+| CSV header signature | MD5 pe coloane sortate → identifică formatul fără să parsezi tot |
+| `imported_id` SHA256 | Re-importul aceluiași CSV nu creează duplicate |
+| Transfer vs cheltuiala | Un transfer ING→crypto apare ca cheltuiala în CSV — corecție manuală în v1 |
 
 ---
 

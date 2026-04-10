@@ -193,3 +193,115 @@ class ActualBudgetClient:
     async def get_total_balance(self) -> float:
         accounts = await self.get_accounts()
         return sum(acc.balance for acc in accounts)
+
+    async def create_account(self, name: str, initial_balance: float = 0.0) -> Account:
+        """Creează un cont nou în Actual Budget."""
+        def _create():
+            from actual.queries import create_account as _create_account
+            from decimal import Decimal
+            with self._get_actual() as actual:
+                actual.download_budget()
+                acc = _create_account(
+                    actual.session,
+                    name=name,
+                    initial_balance=Decimal(str(initial_balance)),
+                )
+                actual.commit()
+                logger.info(f"Cont creat: {name} (sold inițial: {initial_balance})")
+                return Account(id=str(acc.id), name=acc.name, balance=initial_balance)
+        return await self._run(_create)
+
+    AUTO_CATEGORY_THRESHOLD = 0.75
+
+    async def add_transactions_batch(
+        self,
+        account_id: str,
+        transactions: list,
+        categorizer=None,
+    ) -> tuple[int, int, int, list]:
+        """
+        Importă mai multe tranzacții deodată într-un singur commit.
+
+        Args:
+            account_id: ID-ul contului din Actual Budget
+            transactions: list[NormalizedTransaction]
+            categorizer: SmartCategorizer opțional pentru auto-categorizare
+
+        Returns:
+            (imported, skipped_duplicates, errors, low_confidence_list)
+            low_confidence_list: [(NormalizedTransaction, prediction)] pentru confirmare manuală
+        """
+        def _batch():
+            import hashlib
+            from actual.queries import (
+                create_transaction, get_or_create_payee,
+                get_or_create_category, get_transactions,
+            )
+
+            with self._get_actual() as actual:
+                actual.download_budget()
+
+                existing_txs = get_transactions(actual.session)
+                existing_ids = {
+                    tx.financial_id for tx in existing_txs
+                    if tx.financial_id and not tx.tombstone
+                }
+
+                imported = 0
+                skipped = 0
+                errors = 0
+                low_confidence = []
+
+                for tx in transactions:
+                    try:
+                        sig = f"{tx.date.isoformat()}{tx.merchant}{tx.amount:.4f}"
+                        imported_id = hashlib.sha256(sig.encode()).hexdigest()[:16]
+
+                        if imported_id in existing_ids:
+                            skipped += 1
+                            continue
+
+                        payee_obj = get_or_create_payee(actual.session, tx.merchant)
+
+                        cat_obj = None
+                        pred = None
+                        if categorizer:
+                            pred = categorizer.predict(
+                                merchant=tx.merchant,
+                                ocr_text=tx.description,
+                            )
+                            if pred.confidence >= self.AUTO_CATEGORY_THRESHOLD and pred.category_name and pred.category_name != "Altele":
+                                cat_obj = get_or_create_category(
+                                    actual.session,
+                                    pred.category_name,
+                                    group_name="Majordom",
+                                )
+                            else:
+                                low_confidence.append((tx, pred))
+
+                        notes = tx.description or f"[Majordom CSV] {tx.merchant}"
+                        actual_amount = -abs(tx.amount) if tx.is_expense else abs(tx.amount)
+                        create_transaction(
+                            actual.session,
+                            date=tx.date,
+                            account=account_id,
+                            payee=payee_obj,
+                            notes=notes,
+                            amount=actual_amount,
+                            category=cat_obj,
+                            imported_id=imported_id,
+                        )
+                        existing_ids.add(imported_id)
+                        imported += 1
+
+                    except Exception as e:
+                        logger.warning(f"Eroare tranzacție {tx.merchant} {tx.amount}: {e}")
+                        errors += 1
+
+                if imported > 0:
+                    actual.commit()
+                    logger.info(f"CSV import: {imported} importate, {skipped} duplicate, {errors} erori, {len(low_confidence)} cu confidență mică")
+
+            return imported, skipped, errors, low_confidence
+
+        return await self._run(_batch)

@@ -41,14 +41,22 @@ majordom-financiar/
 ├── bot/
 │   ├── main.py          ← Entry point: pornește Application telegram
 │   ├── handlers.py      ← LOGICA PRINCIPALĂ: toate comenzile și fluxurile
-│   └── keyboards.py     ← InlineKeyboardMarkup refolosibile
+│   ├── keyboards.py     ← InlineKeyboardMarkup refolosibile
+│   ├── budget_wizard.py ← ConversationHandler pentru /setup_budget
+│   └── csv_wizard.py    ← ConversationHandler pentru import CSV (5 stări)
+├── csv_importer/
+│   ├── profiles.py      ← Dataclasses: CsvProfile, NormalizedTransaction
+│   ├── normalizer.py    ← Parsare CSV bytes → NormalizedTransaction[]
+│   └── detector.py      ← Detecție format: header signature + Ollama fallback
 ├── ocr/
 │   ├── vision_engine.py ← Trimite poza la Ollama, primește JSON structurat
-│   └── parser.py        ← Dataclasses: ReceiptData, ReceiptItem (folosite de vision_engine)
+│   └── parser.py        ← Dataclasses: ReceiptData, ReceiptItem
 ├── actual_client/
-│   └── client.py        ← Async wrapper peste actualpy (sync → async via ThreadPoolExecutor)
+│   └── client.py        ← Async wrapper peste actualpy:
+│                            add_transaction(), add_transactions_batch(),
+│                            create_account(), get_accounts(), get_categories()
 ├── memory/
-│   ├── database.py      ← SQLite: stochează tranzacții și limite buget
+│   ├── database.py      ← SQLite: tranzacții, limite buget, profiluri CSV
 │   └── categorizer.py   ← TF-IDF simplu: sugerează categoria pe baza istoricului
 ├── config/
 │   └── settings.py      ← Singleton Settings: toate variabilele din .env
@@ -88,6 +96,73 @@ handlers.py → handle_photo()
                 └── actualpy sync în ThreadPoolExecutor
                 └── actual.download_budget() → create_transaction() → actual.commit()
 ```
+
+---
+
+## Fluxul CSV — import tranzacții bancare
+
+```
+User trimite fișier .csv pe Telegram
+        │
+bot/csv_wizard.py → handle_csv_document()
+        │
+        ├── 1. CsvNormalizer.parse_csv(bytes)
+        │       └── detectează encoding (UTF-8, CP1252, Latin-1)
+        │       └── detectează delimiter (; , | tab)
+        │       └── returnează headers + rows (list[dict])
+        │
+        ├── 2. CsvProfileDetector.header_signature(headers)
+        │       └── MD5 pe coloanele sortate → fingerprint stabil
+        │
+        ├── 3a. MemoryDB.get_csv_profile_by_sig(sig)
+        │       ↳ GĂSIT → aplică profilul direct → salt la pasul 5
+        │
+        ├── 3b. NEGĂSIT → CsvProfileDetector.detect_with_ollama()
+        │       └── trimite headers + 3 rânduri la Ollama (text, fără imagine)
+        │       └── Ollama returnează JSON cu mapping coloane
+        │       └── afișează propunerea + 3 exemple normalizate
+        │       └── user confirmă → MemoryDB.save_csv_profile()
+        │
+        ├── 4. Selecție cont (sau creare cont nou via ActualBudgetClient.create_account())
+        │
+        ├── 5. CsvNormalizer.normalize(rows, profile)
+        │       └── include TOATE tranzacțiile (cheltuieli + refund-uri)
+        │       └── is_expense=True dacă suma negativă (sau direction col = "Af")
+        │       └── is_expense=False pentru refund-uri (suma pozitivă)
+        │       └── returnează list[NormalizedTransaction]
+        │
+        └── 6. La confirmare: ActualBudgetClient.add_transactions_batch()
+                └── AUTO_CATEGORY_THRESHOLD = 0.75
+                └── pentru fiecare tranzacție:
+                │     SmartCategorizer.predict() → categorie auto
+                │     dacă confidence >= 0.75 → aplică categoria în Actual Budget
+                │     dacă confidence < 0.75 → importă fără categorie, returnează în low_confidence
+                │     SHA256(data+merchant+suma) → financial_id determinist (câmpul se numește
+                │       financial_id în actualpy, nu imported_id!)
+                │     create_transaction() cu amount negativ (expense) sau pozitiv (refund)
+                │     skip dacă financial_id există deja
+                └── un singur actual.commit() la final
+                └── returnează (imported, skipped, errors, low_confidence_list)
+                └── csv_wizard trimite mesaj de confirmare categorie pentru fiecare din low_confidence
+```
+
+### Limitare importantă: transferuri între conturi
+
+Un transfer ING → crypto.com apare în CSV-ul ING ca o **cheltuială obișnuită**.
+Sistemul actual îl importă ca atare — incorect din perspectiva bugetului.
+
+```
+ING CSV:  | CRO Pay Europe Ltd | 500.00 | Af  → importat ca cheltuială ❌
+crypto.com: | Top Up | 500.00 | credit         → filtrat (venit) ✅
+```
+
+**Detectare planificată (v2):**
+- Merchant conține cuvânt cheie de cont cunoscut (revolut, bunq, crypto)
+- ING: coloana `Code = OV` + `Tegenrekening` e cont propriu
+- Matching pe sumă egală intrare/ieșire în aceeași zi între două conturi
+
+Până atunci: după import, corectează manual transferurile în Actual Budget UI
+(schimbă categoria în "Transfer" și marchează-le ca transferuri).
 
 ---
 
@@ -153,9 +228,68 @@ async def cmd_ceva_nou(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ...
 ```
 
-### 5. ConversationHandler (budget_wizard.py)
-Stările trebuie să returneze exact constantele `CHOOSING`, `STEP` sau `ConversationHandler.END`.
+### 5. ConversationHandler (budget_wizard.py, csv_wizard.py)
+Stările trebuie să returneze exact constantele definite sau `ConversationHandler.END`.
 Nu returna `None` sau alte valori.
+
+**CRITIC — pattern matching în CallbackQueryHandler:**
+`CallbackQueryHandler(callback, pattern=X)` folosește `re.match()` — ancorează la **începutul** stringului.
+Callback data JSON ca `'{"a": "pok"}'` **NU** se potrivește cu pattern-ul `'"a": "pok"'`
+pentru că stringul începe cu `{`, nu cu `"`.
+
+```python
+# GREȘIT — re.match('"a": "pok"', '{"a": "pok"}') → None
+CallbackQueryHandler(handler, pattern='"a": "pok"')
+
+# CORECT — strings simple, fără JSON
+# În keyboards.py: callback_data="csv_pok"
+# În wizard: pattern="^csv_pok$"
+CallbackQueryHandler(handler, pattern="^csv_pok$")
+```
+
+Toate butoanele CSV folosesc string-uri simple (nu JSON):
+- `csv_pok`, `csv_pno` — confirmare profil
+- `csv_asel_{idx}`, `csv_anew`, `csv_acancel` — selecție cont
+- `csv_iok`, `csv_icancel` — confirmare import
+
+### 6. CSV import — ordinea înregistrării handler-elor
+ConversationHandler-urile **trebuie** înregistrate ÎNAINTE de `CallbackQueryHandler` generic.
+Altfel, callback-urile din wizard sunt interceptate de handlerul general.
+
+```python
+# CORECT (handlers.py):
+app.add_handler(create_budget_conversation())  # mai întâi wizards
+app.add_handler(create_csv_conversation(...))
+app.add_handler(CallbackQueryHandler(handle_callback))  # la final
+```
+
+### 7. Deduplicare tranzacții CSV
+Fiecare tranzacție CSV primește un ID determinist: SHA256(data + merchant + suma).
+Re-importul aceluiași CSV nu creează duplicate; tranzacțiile existente sunt sărite.
+Tranzacțiile adăugate manual (bon foto, /add) folosesc UUID aleatoriu.
+
+**ATENȚIE — actualpy naming:** parametrul `imported_id` din `create_transaction()` se
+salvează intern ca `financial_id` în modelul `Transactions`. Când citești tranzacții
+existente pentru deduplicare, folosește `tx.financial_id`, nu `tx.imported_id`:
+```python
+existing_ids = {tx.financial_id for tx in existing_txs if tx.financial_id}
+```
+
+### 8. Polling — allowed_updates
+`app.run_polling()` trebuie să primească explicit `allowed_updates=Update.ALL_TYPES`.
+Fără acest parametru, Telegram poate filtra update-urile de tip document (CSV-uri)
+în funcție de setările anterioare ale bot-ului.
+```python
+from telegram import Update
+app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
+```
+
+### 9. Rebuild Docker după modificări de cod
+`docker compose restart majordom-bot` NU aplică modificările de cod — doar repornește
+containerul cu imaginea existentă. Trebuie rebuild explicit:
+```bash
+docker compose build majordom-bot && docker compose up -d majordom-bot
+```
 
 ---
 
@@ -197,10 +331,33 @@ Ollama poate fi extern (pe altă mașină din rețea) — setezi `OLLAMA_URL` co
 
 ---
 
-## Taskuri active / Roadmap
+## SQLite — schema completă
 
-Vezi `CLAUDE.md` (local, nu e pe GitHub — conține date financiare personale).
+```sql
+transactions        ← bonuri foto + tranzacții manuale (istoric local)
+merchant_mappings   ← merchant → categorie (pentru SmartCategorizer)
+category_keywords   ← cuvinte cheie → categorie (învățate din feedback)
+budget_limits       ← limite lunare per categorie (setate via /setup_budget)
+csv_profiles        ← profiluri CSV salvate (ING, crypto.com, etc.)
+                       detectate automat după header_sig (MD5)
+```
 
 ---
 
-*Ultima actualizare: 2026-04-10*
+## Funcționalități implementate
+
+- [x] Procesare bon foto (AI vision)
+- [x] Tranzacție manuală (/add)
+- [x] Sold și statistici (/balance, /stats)
+- [x] Wizard buget (/setup_budget)
+- [x] Import CSV cu detecție automată format (ING, crypto.com, Revolut, etc.)
+- [x] Creare cont din chat
+- [x] Refund-uri în CSV importate ca tranzacții pozitive (nu filtrate)
+- [~] Auto-categorizare la >75% confidență — codul există, dar fără istoric SmartCategorizer toate tx sunt sub prag. Categoriile confirmate în Telegram nu se propagă înapoi în Actual Budget (doar SQLite local).
+- [x] Deduplicare la re-import (SHA256 pe data+merchant+suma)
+
+**Roadmap și priorități** → vezi `CLAUDE.md` (gitignored — conține și context financiar personal).
+
+---
+
+*Ultima actualizare: 2026-04-10 (sesiunea 2 — CSV wizard complet funcțional)*

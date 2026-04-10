@@ -6,6 +6,9 @@
 # Date locale
 data/
 
+# CSV-uri de test (date financiare personale)
+tests/
+
 # Python
 __pycache__/
 *.py[cod]

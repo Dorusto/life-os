@@ -66,6 +66,7 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🏛️ *Majordom Financiar* — la dispoziția ta!\n\n"
         "Sunt asistentul tău financiar personal. Iată ce pot face:\n\n"
         "📷 *Trimite o poză cu un bon* → procesez automat\n"
+        "📎 *Trimite un fișier .csv* → import tranzacții bancare\n"
         "💰 `/add 150.50 Kaufland` → adaug tranzacție manuală\n"
         "📊 `/balance` → sold curent\n"
         "📈 `/stats` → statistici luna curentă\n"
@@ -95,6 +96,10 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "`/stats` — cheltuieli luna curentă\n"
         "`/stats 3 2025` — cheltuieli martie 2025\n"
         "`/categories` — lista categorii\n\n"
+        "*Import CSV bancar:*\n"
+        "Trimite direct un fișier `.csv` exportat din ING, crypto\\.com, Revolut etc\\.\n"
+        "Detectez automat formatul și îți arăt o previzualizare înainte de import\\.\n"
+        "La primul import dintr-o sursă nouă, AI\\.ul analizează structura și o salvează\\.\n\n"
         "_Botul învață preferințele tale! Cu cât îl folosești mai mult, "
         "cu atât categorizează mai precis._ 🧠",
         parse_mode="Markdown"
@@ -593,6 +598,10 @@ def setup_handlers(app: Application) -> Application:
     from bot.budget_wizard import create_budget_conversation
     app.add_handler(create_budget_conversation())
 
+    # Wizard import CSV (înainte de CallbackQueryHandler generic)
+    from bot.csv_wizard import create_csv_conversation
+    app.add_handler(create_csv_conversation(actual_client, categorizer, db))
+
     # Comenzi
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))
@@ -606,6 +615,11 @@ def setup_handlers(app: Application) -> Application:
 
     # Callback queries (butoane inline)
     app.add_handler(CallbackQueryHandler(handle_callback))
+
+    # Error handler global — prinde orice excepție din handlere
+    async def _error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+        logger.error(f"[ERROR] Excepție în handler: {context.error}", exc_info=context.error)
+    app.add_error_handler(_error_handler)
 
     # Job lunar — rezumat la 1 ale lunii ora 8:00
     if app.job_queue:
