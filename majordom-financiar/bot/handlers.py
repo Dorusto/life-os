@@ -1,14 +1,14 @@
 from __future__ import annotations
 """
-Handlere Telegram — logica principală a botului.
+Telegram handlers — main bot logic.
 
-Fluxuri:
-1. /start → Mesaj de bun venit
-2. Poză bon → OCR → Parsare → Categorizare → Confirmare → Actual Budget
-3. /add 150 Kaufland → Tranzacție manuală
-4. /balance → Sold curent
-5. /stats → Statistici luna curentă
-6. Callback queries → Confirmare/schimbare categorie
+Flows:
+1. /start → Welcome message
+2. Receipt photo → OCR → Parsing → Categorization → Confirmation → Actual Budget
+3. /add 150 Kaufland → Manual transaction
+4. /balance → Current balance
+5. /stats → Current month statistics
+6. Callback queries → Confirm/change category
 """
 import json
 import tempfile
@@ -35,7 +35,7 @@ from .keyboards import (
 
 logger = logging.getLogger(__name__)
 
-# Componente globale (inițializate la setup)
+# Global components (initialized in setup)
 db: MemoryDB
 categorizer: SmartCategorizer
 vision_engine: VisionEngine
@@ -43,13 +43,13 @@ actual_client: ActualBudgetClient
 
 
 def auth_required(func):
-    """Decorator — permite doar utilizatorilor autorizați."""
+    """Decorator — only allows authorized users."""
     async def wrapper(update: Update, context: ContextTypes.DEFAULT_TYPE):
         user_id = update.effective_user.id
         if user_id not in settings.telegram.allowed_user_ids:
-            logger.warning(f"Acces neautorizat de la user {user_id}")
+            logger.warning(f"Unauthorized access from user {user_id}")
             await update.message.reply_text(
-                "⛔ Nu ești autorizat să folosești acest bot."
+                "⛔ You are not authorized to use this bot."
             )
             return
         return await func(update, context)
@@ -57,23 +57,23 @@ def auth_required(func):
 
 
 # ============================================================
-# COMENZI
+# COMMANDS
 # ============================================================
 
 @auth_required
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handler /start — mesaj de bun venit."""
+    """Handler /start — welcome message."""
     await update.message.reply_text(
-        "🏛️ *Majordom Financiar* — la dispoziția ta!\n\n"
-        "Sunt asistentul tău financiar personal. Iată ce pot face:\n\n"
-        "📷 *Trimite o poză cu un bon* → procesez automat\n"
-        "📎 *Trimite un fișier .csv* → import tranzacții bancare\n"
-        "💰 `/add 150.50 Kaufland` → adaug tranzacție manuală\n"
-        "📊 `/balance` → sold curent\n"
-        "📈 `/stats` → statistici luna curentă\n"
-        "📂 `/categories` → categoriile disponibile\n"
-        "❓ `/help` → ajutor detaliat\n\n"
-        "_Toate datele rămân pe serverul tău. Zero cloud._ 🔒",
+        "🏛️ *Majordom* — at your service!\n\n"
+        "I'm your personal finance assistant. Here's what I can do:\n\n"
+        "📷 *Send a receipt photo* → I'll process it automatically\n"
+        "📎 *Send a .csv file* → import bank transactions\n"
+        "💰 `/add 150.50 Kaufland` → add a manual transaction\n"
+        "📊 `/balance` → current balance\n"
+        "📈 `/stats` → this month's statistics\n"
+        "📂 `/categories` → available categories\n"
+        "❓ `/help` → detailed help\n\n"
+        "_All data stays on your server. Zero cloud._ 🔒",
         parse_mode="Markdown"
     )
 
@@ -82,40 +82,40 @@ async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handler /help."""
     await update.message.reply_text(
-        "📖 *Ghid Majordom Financiar*\n\n"
-        "*Procesare bon:*\n"
-        "Trimite o poză cu un bon fiscal. Voi extrage automat:\n"
-        "- Numele magazinului\n"
-        "- Suma totală\n"
-        "- Data\n"
-        "Apoi te întreb confirmarea categoriei.\n\n"
-        "*Tranzacție manuală:*\n"
-        "`/add SUMA DESCRIERE`\n"
-        "Exemplu: `/add 49.99 Uber taxi aeroport`\n\n"
-        "*Comenzi:*\n"
-        "`/balance` — sold curent\n"
-        "`/stats` — cheltuieli luna curentă\n"
-        "`/stats 3 2025` — cheltuieli martie 2025\n"
-        "`/categories` — lista categorii\n\n"
-        "*Import CSV bancar:*\n"
-        "Trimite direct un fișier `.csv` exportat din ING, crypto\\.com, Revolut etc\\.\n"
-        "Detectez automat formatul și îți arăt o previzualizare înainte de import\\.\n"
-        "La primul import dintr-o sursă nouă, AI\\.ul analizează structura și o salvează\\.\n\n"
-        "_Botul învață preferințele tale! Cu cât îl folosești mai mult, "
-        "cu atât categorizează mai precis._ 🧠",
+        "📖 *Majordom Help*\n\n"
+        "*Receipt scanning:*\n"
+        "Send a photo of a receipt. I'll automatically extract:\n"
+        "- Merchant name\n"
+        "- Total amount\n"
+        "- Date\n"
+        "Then I'll ask you to confirm the category.\n\n"
+        "*Manual transaction:*\n"
+        "`/add AMOUNT DESCRIPTION`\n"
+        "Example: `/add 49.99 Uber airport taxi`\n\n"
+        "*Commands:*\n"
+        "`/balance` — current balance\n"
+        "`/stats` — this month's spending\n"
+        "`/stats 3 2025` — spending for March 2025\n"
+        "`/categories` — category list\n\n"
+        "*CSV bank import:*\n"
+        "Send a `.csv` file exported from ING, crypto\\.com, Revolut etc\\.\n"
+        "I auto\\-detect the format and show a preview before importing\\.\n"
+        "On first import from a new source, AI analyzes the structure and saves it\\.\n\n"
+        "_The bot learns your preferences\\! The more you use it, "
+        "the more accurate it gets\\._ 🧠",
         parse_mode="Markdown"
     )
 
 
 @auth_required
 async def cmd_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handler /balance — afișează soldul."""
+    """Handler /balance — show current balance."""
     try:
         balance = await actual_client.get_total_balance()
         accounts = await actual_client.get_accounts()
 
         currency = settings.default_currency
-        text = "💰 *Solduri curente:*\n\n"
+        text = "💰 *Current balances:*\n\n"
         for acc in accounts:
             emoji = "🟢" if acc.balance >= 0 else "🔴"
             text += f"{emoji} {acc.name}: *{acc.balance:,.2f} {currency}*\n"
@@ -124,19 +124,19 @@ async def cmd_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text(text, parse_mode="Markdown")
     except Exception as e:
-        logger.error(f"Eroare la balance: {e}")
+        logger.error(f"Balance error: {e}")
         await update.message.reply_text(
-            f"❌ Eroare la conectarea cu Actual Budget: {e}"
+            f"❌ Error connecting to Actual Budget: {e}"
         )
 
 
 @auth_required
 async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handler /add — tranzacție manuală."""
+    """Handler /add — manual transaction."""
     if not context.args or len(context.args) < 2:
         await update.message.reply_text(
-            "📝 Format: `/add SUMA DESCRIERE`\n"
-            "Exemplu: `/add 150.50 Kaufland cumpărături`",
+            "📝 Format: `/add AMOUNT DESCRIPTION`\n"
+            "Example: `/add 150.50 Kaufland groceries`",
             parse_mode="Markdown"
         )
         return
@@ -145,10 +145,10 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         amount = float(context.args[0])
         description = " ".join(context.args[1:])
     except ValueError:
-        await update.message.reply_text("❌ Suma trebuie să fie un număr valid.")
+        await update.message.reply_text("❌ Amount must be a valid number.")
         return
 
-    # Categorizare
+    # Categorize
     prediction = categorizer.predict(description)
 
     from memory.database import TransactionRecord
@@ -160,21 +160,20 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
         confidence=prediction.confidence,
     )
 
-    # Salvează local
+    # Save locally
     tx_id = db.save_transaction(record)
 
-    # Mesaj cu predicție
     confidence_bar = "🟢" if prediction.confidence > 0.8 else (
         "🟡" if prediction.confidence > 0.5 else "🔴"
     )
 
     currency = settings.default_currency
     await update.message.reply_text(
-        f"📝 *Tranzacție nouă*\n\n"
+        f"📝 *New transaction*\n\n"
         f"🏪 {description}\n"
         f"💰 {amount:.2f} {currency}\n"
         f"📅 {date.today().strftime('%d.%m.%Y')}\n"
-        f"{confidence_bar} Categorie: *{prediction.category_name}* "
+        f"{confidence_bar} Category: *{prediction.category_name}* "
         f"({prediction.confidence:.0%})\n"
         f"💡 _{prediction.reason}_",
         parse_mode="Markdown",
@@ -186,7 +185,7 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 @auth_required
 async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handler /stats — statistici lunare."""
+    """Handler /stats — monthly statistics."""
     month = None
     year = None
 
@@ -201,19 +200,19 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         stats = await actual_client.get_monthly_stats(month=month, year=year)
     except Exception as e:
-        logger.error(f"Eroare stats: {e}")
-        await update.message.reply_text(f"❌ Eroare la conectarea cu Actual Budget: {e}")
+        logger.error(f"Stats error: {e}")
+        await update.message.reply_text(f"❌ Error connecting to Actual Budget: {e}")
         return
 
     currency = settings.default_currency
     text = (
-        f"📈 *Statistici {stats['month']:02d}/{stats['year']}*\n\n"
-        f"Total cheltuieli: *{stats['total']:,.2f} {currency}*\n"
-        f"Tranzacții: {stats['count']}\n\n"
+        f"📈 *Statistics {stats['month']:02d}/{stats['year']}*\n\n"
+        f"Total spending: *{stats['total']:,.2f} {currency}*\n"
+        f"Transactions: {stats['count']}\n\n"
     )
 
     if stats["categories"]:
-        text += "*Pe categorii:*\n"
+        text += "*By category:*\n"
         for _, cat_stats in sorted(
             stats["categories"].items(),
             key=lambda x: x[1]["total"],
@@ -223,37 +222,37 @@ async def cmd_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pct = (cat_stats["total"] / stats["total"] * 100) if stats["total"] else 0
             text += (
                 f"• {name}: {cat_stats['total']:,.2f} {currency} "
-                f"({pct:.0f}%) — {cat_stats['count']} tranzacții\n"
+                f"({pct:.0f}%) — {cat_stats['count']} transactions\n"
             )
     else:
-        text += "_Nicio cheltuială în această lună._"
+        text += "_No spending this month._"
 
     await update.message.reply_text(text, parse_mode="Markdown")
 
 
 @auth_required
 async def cmd_categories(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handler /categories — listează categoriile din Actual Budget."""
+    """Handler /categories — list categories from Actual Budget."""
     try:
         cats = await actual_client.get_categories()
     except Exception as e:
-        await update.message.reply_text(f"❌ Eroare la conectarea cu Actual Budget: {e}")
+        await update.message.reply_text(f"❌ Error connecting to Actual Budget: {e}")
         return
 
     if not cats:
         await update.message.reply_text(
-            "📂 Nu există categorii în Actual Budget.\n"
-            "Adaugă tranzacții — categoriile se creează automat."
+            "📂 No categories in Actual Budget.\n"
+            "Add transactions — categories are created automatically."
         )
         return
 
-    # Grupează pe group_name
+    # Group by group_name
     groups: dict[str, list] = {}
     for cat in cats:
-        g = cat.group_name or "Fără grup"
+        g = cat.group_name or "No group"
         groups.setdefault(g, []).append(cat.name)
 
-    text = "📂 *Categorii în Actual Budget:*\n\n"
+    text = "📂 *Categories in Actual Budget:*\n\n"
     for group, names in sorted(groups.items()):
         text += f"*{group}*\n"
         for name in sorted(names):
@@ -264,26 +263,26 @@ async def cmd_categories(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ============================================================
-# PROCESARE POZE (flux principal)
+# PHOTO PROCESSING (main flow)
 # ============================================================
 
 @auth_required
 async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
-    Handler principal — procesează o poză de bon cu AI vision.
+    Main handler — processes a receipt photo with AI vision.
 
-    Flux:
-    1. Descarcă imaginea de la Telegram
-    2. Trimite la modelul AI vision (Ollama) → primește JSON structurat
-    3. Categorizează (memorie + keywords)
-    4. Trimite rezultatul cu inline keyboard
+    Flow:
+    1. Download image from Telegram
+    2. Send to AI vision model (Ollama) → receive structured JSON
+    3. Categorize (memory + keywords)
+    4. Send result with inline keyboard
     """
     msg = update.message
     image_path = None
-    await msg.reply_text("🤖 Analizez bonul cu AI... un moment.")
+    await msg.reply_text("🤖 Analyzing receipt with AI... one moment.")
 
     try:
-        # 1. Descarcă imaginea (cea mai mare rezoluție)
+        # 1. Download image (highest resolution)
         photo = msg.photo[-1]
         file = await photo.get_file()
 
@@ -291,24 +290,24 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await file.download_to_drive(tmp.name)
             image_path = tmp.name
 
-        # 2. Extragere cu AI vision
+        # 2. Extract with AI vision
         receipt = await vision_engine.extract_from_path(image_path)
 
         if not receipt.is_valid:
             await msg.reply_text(
-                "⚠️ Nu am reușit să identific un bon valid în imagine.\n\n"
-                "Încearcă o poză mai clară sau adaugă manual cu `/add SUMA MAGAZIN`",
+                "⚠️ Could not identify a valid receipt in the image.\n\n"
+                "Try a clearer photo or add manually with `/add AMOUNT MERCHANT`",
                 parse_mode="Markdown"
             )
             return
 
-        # 3. Categorizare
+        # 3. Categorize
         prediction = categorizer.predict(
             merchant=receipt.merchant,
             amount=receipt.total
         )
 
-        # 4. Salvează local
+        # 4. Save locally
         from memory.database import TransactionRecord
         record = TransactionRecord(
             merchant=receipt.merchant,
@@ -320,24 +319,24 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         tx_id = db.save_transaction(record)
 
-        # 5. Răspuns cu detalii
+        # 5. Send result
         confidence_bar = "🟢" if prediction.confidence > 0.8 else (
             "🟡" if prediction.confidence > 0.5 else "🔴"
         )
-        date_str = receipt.date.strftime("%d.%m.%Y") if receipt.date else "azi"
+        date_str = receipt.date.strftime("%d.%m.%Y") if receipt.date else "today"
 
         text = (
-            f"🧾 *Bon procesat!*\n\n"
-            f"🏪 Magazin: *{receipt.merchant}*\n"
+            f"🧾 *Receipt processed!*\n\n"
+            f"🏪 Merchant: *{receipt.merchant}*\n"
             f"💰 Total: *{receipt.total:.2f} {receipt.currency}*\n"
-            f"📅 Data: {date_str}\n"
+            f"📅 Date: {date_str}\n"
         )
 
         if receipt.items:
-            text += f"📋 Articole: {len(receipt.items)}\n"
+            text += f"📋 Items: {len(receipt.items)}\n"
 
         text += (
-            f"\n{confidence_bar} Categorie: *{prediction.category_name}* "
+            f"\n{confidence_bar} Category: *{prediction.category_name}* "
             f"({prediction.confidence:.0%})\n"
             f"💡 _{prediction.reason}_"
         )
@@ -356,17 +355,17 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await msg.reply_text(text, parse_mode="Markdown")
             await msg.reply_text(
-                "🤔 Nu sunt sigur de categorie. Te rog alege:",
+                "🤔 Not sure about the category. Please choose:",
                 reply_markup=category_selection_keyboard(
                     tx_id, categorizer.get_all_categories()
                 )
             )
 
     except Exception as e:
-        logger.error(f"Eroare procesare poză: {e}", exc_info=True)
+        logger.error(f"Photo processing error: {e}", exc_info=True)
         await msg.reply_text(
-            f"❌ Eroare la procesare: {str(e)[:200]}\n"
-            "Încearcă din nou sau adaugă manual cu `/add`"
+            f"❌ Processing error: {str(e)[:200]}\n"
+            "Try again or add manually with `/add`"
         )
     finally:
         if image_path:
@@ -377,15 +376,15 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # ============================================================
-# CALLBACK QUERIES (butoane inline)
+# CALLBACK QUERIES (inline buttons)
 # ============================================================
 
 async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Handler pentru butoane inline (confirmare categorie etc.)."""
+    """Handler for inline buttons (category confirmation etc.)."""
     query = update.callback_query
     await query.answer()
 
-    # Verifică autorizare
+    # Check authorization
     if query.from_user.id not in settings.telegram.allowed_user_ids:
         return
 
@@ -409,24 +408,24 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await _handle_select_account(query, data)
 
         elif action == "cancel_tx":
-            await query.edit_message_text("🗑️ Tranzacție anulată.")
+            await query.edit_message_text("🗑️ Transaction cancelled.")
 
     except json.JSONDecodeError:
-        logger.error(f"Callback data invalid: {query.data}")
+        logger.error(f"Invalid callback data: {query.data}")
     except Exception as e:
-        logger.error(f"Eroare callback: {e}", exc_info=True)
-        await query.edit_message_text(f"❌ Eroare: {str(e)[:200]}")
+        logger.error(f"Callback error: {e}", exc_info=True)
+        await query.edit_message_text(f"❌ Error: {str(e)[:200]}")
 
 
 async def _handle_confirm_category(query, data: dict):
-    """Utilizatorul confirmă categoria prezisă."""
+    """User confirms the predicted category."""
     tx_id = data["tx_id"]
     category_id = data["cat"]
 
-    # Marchează ca confirmat
+    # Mark as confirmed
     db.update_transaction_category(tx_id, category_id)
 
-    # Învață din confirmare și propagă categoria în Actual Budget
+    # Learn from confirmation and propagate category to Actual Budget
     transactions = db.get_transactions(limit=500)
     already_in_actual = False
     for tx in transactions:
@@ -440,31 +439,31 @@ async def _handle_confirm_category(query, data: dict):
             break
 
     if already_in_actual:
-        await query.edit_message_text("✅ Categorie confirmată și salvată în Actual Budget!")
+        await query.edit_message_text("✅ Category confirmed and saved to Actual Budget!")
     else:
         await query.edit_message_text(
-            "✅ Categorie confirmată!",
+            "✅ Category confirmed!",
             reply_markup=transaction_confirm_keyboard(tx_id)
         )
 
 
 async def _handle_change_category(query, data: dict):
-    """Utilizatorul vrea să schimbe categoria."""
+    """User wants to change the category."""
     tx_id = data["tx_id"]
     categories = categorizer.get_all_categories()
 
     await query.edit_message_text(
-        "📂 Alege categoria corectă:",
+        "📂 Choose the correct category:",
         reply_markup=category_selection_keyboard(tx_id, categories)
     )
 
 
 async def _handle_set_category(query, data: dict):
-    """Utilizatorul selectează o categorie nouă."""
+    """User selects a new category."""
     tx_id = data["tx_id"]
     category_id = data["cat"]
 
-    # Actualizează și învață
+    # Update and learn
     db.update_transaction_category(tx_id, category_id)
 
     transactions = db.get_transactions(limit=100)
@@ -476,22 +475,22 @@ async def _handle_set_category(query, data: dict):
             if tx.actual_budget_id:
                 await actual_client.update_transaction_category(tx.actual_budget_id, cat_name)
                 await query.edit_message_text(
-                    f"✅ Categorie setată: {cat_name}\n"
-                    f"🧠 Am învățat — data viitoare voi ști!"
+                    f"✅ Category set: {cat_name}\n"
+                    f"🧠 Learned — I'll remember next time!"
                 )
             else:
                 await query.edit_message_text(
-                    f"✅ Categorie setată: {cat_name}\n"
-                    f"🧠 Am învățat — data viitoare voi ști!",
+                    f"✅ Category set: {cat_name}\n"
+                    f"🧠 Learned — I'll remember next time!",
                     reply_markup=transaction_confirm_keyboard(tx_id)
                 )
             return
 
-    await query.edit_message_text("✅ Categorie actualizată!")
+    await query.edit_message_text("✅ Category updated!")
 
 
 async def _handle_save_to_actual(query, data: dict):
-    """Salvează tranzacția în Actual Budget."""
+    """Save transaction to Actual Budget."""
     tx_id = data["tx_id"]
 
     transactions = db.get_transactions(limit=500)
@@ -502,20 +501,20 @@ async def _handle_save_to_actual(query, data: dict):
             break
 
     if not tx:
-        await query.edit_message_text("❌ Tranzacție negăsită.")
+        await query.edit_message_text("❌ Transaction not found.")
         return
 
     try:
         accounts = await actual_client.get_accounts()
         if not accounts:
-            await query.edit_message_text("❌ Nu am găsit niciun cont în Actual Budget.")
+            await query.edit_message_text("❌ No account found in Actual Budget.")
             return
 
-        # Dacă există mai multe conturi, întreabă utilizatorul
+        # If multiple accounts exist, ask the user
         if len(accounts) > 1:
             acc_list = [{"id": a.id, "name": a.name} for a in accounts]
             await query.edit_message_text(
-                "🏦 În ce cont salvez tranzacția?",
+                "🏦 Which account should I save this transaction to?",
                 reply_markup=account_select_keyboard(tx_id, acc_list),
             )
             return
@@ -524,38 +523,38 @@ async def _handle_save_to_actual(query, data: dict):
         await _do_save_transaction(query, tx, account)
 
     except Exception as e:
-        logger.error(f"Eroare salvare Actual: {e}")
+        logger.error(f"Actual Budget save error: {e}")
         await query.edit_message_text(
-            f"❌ Eroare la salvare în Actual Budget:\n{str(e)[:200]}"
+            f"❌ Error saving to Actual Budget:\n{str(e)[:200]}"
         )
 
 
 async def _handle_select_account(query, data: dict):
-    """Utilizatorul a ales contul — salvează tranzacția."""
+    """User selected an account — save the transaction."""
     tx_id = data["tx_id"]
     acc_idx = data["i"]
 
     transactions = db.get_transactions(limit=500)
     tx = next((t for t in transactions if t.id == tx_id), None)
     if not tx:
-        await query.edit_message_text("❌ Tranzacție negăsită.")
+        await query.edit_message_text("❌ Transaction not found.")
         return
 
     try:
         accounts = await actual_client.get_accounts()
         if acc_idx >= len(accounts):
-            await query.edit_message_text("❌ Cont invalid.")
+            await query.edit_message_text("❌ Invalid account.")
             return
         await _do_save_transaction(query, tx, accounts[acc_idx])
     except Exception as e:
-        logger.error(f"Eroare salvare Actual: {e}")
-        await query.edit_message_text(f"❌ Eroare la salvare:\n{str(e)[:200]}")
+        logger.error(f"Actual Budget save error: {e}")
+        await query.edit_message_text(f"❌ Save error:\n{str(e)[:200]}")
 
 
 async def _do_save_transaction(query, tx, account):
-    """Salvează efectiv tranzacția în Actual Budget și afișează rezultatul."""
+    """Save transaction to Actual Budget and display result."""
     category_name = categorizer.categories.get(tx.category_id, {}).get("name", "")
-    source_notes = "[foto bon]" if tx.raw_ocr_text else "[/add manual]"
+    source_notes = "[receipt photo]" if tx.raw_ocr_text else "[/add manual]"
     actual_id = await actual_client.add_transaction(
         account_id=account.id,
         amount=tx.amount,
@@ -568,24 +567,24 @@ async def _do_save_transaction(query, tx, account):
     currency = settings.default_currency
     if actual_id is None:
         await query.edit_message_text(
-            f"⚠️ Tranzacție deja existentă — probabil importată din CSV.\n\n"
+            f"⚠️ Transaction already exists — probably imported from CSV.\n\n"
             f"🏪 {tx.merchant}\n"
             f"💰 {tx.amount:.2f} {currency}\n\n"
-            f"Nu am adăugat-o din nou pentru a evita duplicatele."
+            f"Not added again to avoid duplicates."
         )
         return
 
     await query.edit_message_text(
-        f"💾 Salvat în Actual Budget!\n\n"
+        f"💾 Saved to Actual Budget!\n\n"
         f"🏪 {tx.merchant}\n"
         f"💰 {tx.amount:.2f} {currency}\n"
-        f"🏦 Cont: {account.name}"
+        f"🏦 Account: {account.name}"
     )
     await _check_budget_alert(query, category_name, tx.amount)
 
 
 async def _check_budget_alert(query, category_name: str, new_amount: float):
-    """Verifică limita de buget și trimite alertă dacă e depășită."""
+    """Check budget limit and send alert if exceeded."""
     if not category_name:
         return
     limit = db.get_budget_limit(category_name)
@@ -609,24 +608,24 @@ async def _check_budget_alert(query, category_name: str, new_amount: float):
         if spent > limit:
             overage = spent - limit
             await query.message.reply_text(
-                f"⚠️ *Depășire buget!*\n\n"
+                f"⚠️ *Budget exceeded!*\n\n"
                 f"📂 {category_name}\n"
-                f"💸 Cheltuit: *{spent:.2f} {currency}*\n"
-                f"🎯 Limită: {limit:.0f} {currency}\n"
-                f"🔴 Depășire: *+{overage:.2f} {currency}*",
+                f"💸 Spent: *{spent:.2f} {currency}*\n"
+                f"🎯 Limit: {limit:.0f} {currency}\n"
+                f"🔴 Over by: *+{overage:.2f} {currency}*",
                 parse_mode="Markdown"
             )
         elif spent > limit * 0.85:
             remaining = limit - spent
             await query.message.reply_text(
-                f"🟡 *Atenție buget!*\n\n"
+                f"🟡 *Budget warning!*\n\n"
                 f"📂 {category_name}\n"
-                f"💸 Cheltuit: *{spent:.2f} {currency}* ({spent/limit*100:.0f}%)\n"
-                f"📊 Mai ai: *{remaining:.2f} {currency}* din {limit:.0f} {currency}",
+                f"💸 Spent: *{spent:.2f} {currency}* ({spent/limit*100:.0f}%)\n"
+                f"📊 Remaining: *{remaining:.2f} {currency}* of {limit:.0f} {currency}",
                 parse_mode="Markdown"
             )
     except Exception as e:
-        logger.warning(f"Nu am putut verifica bugetul: {e}")
+        logger.warning(f"Could not check budget: {e}")
 
 
 # ============================================================
@@ -634,10 +633,10 @@ async def _check_budget_alert(query, category_name: str, new_amount: float):
 # ============================================================
 
 def setup_handlers(app: Application) -> Application:
-    """Înregistrează toate handlerele pe aplicație."""
+    """Register all handlers on the application."""
     global db, categorizer, vision_engine, actual_client
 
-    # Inițializează componentele
+    # Initialize components
     db = MemoryDB(settings.memory.db_path)
     categorizer = SmartCategorizer(db)
     vision_engine = VisionEngine(
@@ -650,15 +649,15 @@ def setup_handlers(app: Application) -> Application:
         sync_id=settings.actual.sync_id,
     )
 
-    # Wizard buget (trebuie înregistrat înainte de CallbackQueryHandler generic)
+    # Budget wizard (must be registered before generic CallbackQueryHandler)
     from bot.budget_wizard import create_budget_conversation
     app.add_handler(create_budget_conversation())
 
-    # Wizard import CSV (înainte de CallbackQueryHandler generic)
+    # CSV import wizard (before generic CallbackQueryHandler)
     from bot.csv_wizard import create_csv_conversation
     app.add_handler(create_csv_conversation(actual_client, categorizer, db))
 
-    # Comenzi
+    # Commands
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("help", cmd_help))
     app.add_handler(CommandHandler("balance", cmd_balance))
@@ -666,18 +665,18 @@ def setup_handlers(app: Application) -> Application:
     app.add_handler(CommandHandler("stats", cmd_stats))
     app.add_handler(CommandHandler("categories", cmd_categories))
 
-    # Poze
+    # Photos
     app.add_handler(MessageHandler(filters.PHOTO, handle_photo))
 
-    # Callback queries (butoane inline)
+    # Callback queries (inline buttons)
     app.add_handler(CallbackQueryHandler(handle_callback))
 
-    # Error handler global — prinde orice excepție din handlere
+    # Global error handler — catches any exception from handlers
     async def _error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
-        logger.error(f"[ERROR] Excepție în handler: {context.error}", exc_info=context.error)
+        logger.error(f"[ERROR] Exception in handler: {context.error}", exc_info=context.error)
     app.add_error_handler(_error_handler)
 
-    # Job lunar — rezumat la 1 ale lunii ora 8:00
+    # Monthly job — summary on the 1st at 08:00
     if app.job_queue:
         app.job_queue.run_monthly(
             _monthly_summary_job,
@@ -685,19 +684,19 @@ def setup_handlers(app: Application) -> Application:
             day=1,
             chat_id=settings.telegram.allowed_user_ids[0] if settings.telegram.allowed_user_ids else None,
         )
-        logger.info("Job lunar înregistrat ✓")
+        logger.info("Monthly summary job registered ✓")
 
-    logger.info("Handlere Telegram înregistrate ✓")
+    logger.info("Telegram handlers registered ✓")
     return app
 
 
 async def _monthly_summary_job(context: ContextTypes.DEFAULT_TYPE):
-    """Trimite rezumatul lunar la 1 ale lunii."""
+    """Send monthly summary on the 1st of each month."""
     from datetime import date as _date
     import calendar
 
     today = _date.today()
-    # Luna precedentă
+    # Previous month
     first_of_month = today.replace(day=1)
     last_month = first_of_month - __import__("datetime").timedelta(days=1)
     month, year = last_month.month, last_month.year
@@ -707,12 +706,12 @@ async def _monthly_summary_job(context: ContextTypes.DEFAULT_TYPE):
         limits = db.get_budget_limits()
         currency = settings.default_currency
 
-        text = f"📅 *Rezumat {calendar.month_name[month]} {year}*\n\n"
-        text += f"Total cheltuieli: *{stats['total']:,.2f} {currency}*\n"
-        text += f"Tranzacții: {stats['count']}\n\n"
+        text = f"📅 *Summary for {calendar.month_name[month]} {year}*\n\n"
+        text += f"Total spending: *{stats['total']:,.2f} {currency}*\n"
+        text += f"Transactions: {stats['count']}\n\n"
 
         if stats["categories"]:
-            text += "*Pe categorii:*\n"
+            text += "*By category:*\n"
             for _, cat_stats in sorted(
                 stats["categories"].items(),
                 key=lambda x: x[1]["total"],
@@ -735,4 +734,4 @@ async def _monthly_summary_job(context: ContextTypes.DEFAULT_TYPE):
                 parse_mode="Markdown"
             )
     except Exception as e:
-        logger.error(f"Eroare job lunar: {e}")
+        logger.error(f"Monthly summary job error: {e}")

@@ -1,5 +1,5 @@
 """
-Entry point — pornește botul Telegram.
+Entry point — starts the Telegram bot.
 """
 import logging
 import sys
@@ -8,7 +8,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from telegram.ext import Application
 
-# Adaugă root-ul proiectului în path
+# Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 load_dotenv()
@@ -32,19 +32,19 @@ def main():
     setup_logging()
     logger = logging.getLogger(__name__)
 
-    # Validare configurare
+    # Validate configuration
     errors = settings.validate()
     if errors:
         for err in errors:
-            logger.error(f"Configurare lipsă: {err}")
+            logger.error(f"Missing configuration: {err}")
         sys.exit(1)
 
-    logger.info("Pornesc Majordom Financiar...")
+    logger.info("Starting Majordom...")
 
     app = Application.builder().token(settings.telegram.bot_token).build()
     app = setup_handlers(app)
 
-    logger.info("Bot pornit. Aștept mesaje...")
+    logger.info("Bot started. Waiting for messages...")
     from telegram import Update
     app.run_polling(
         drop_pending_updates=True,

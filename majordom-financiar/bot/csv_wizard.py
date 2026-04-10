@@ -1,21 +1,21 @@
 from __future__ import annotations
 """
-Wizard import CSV — ConversationHandler multi-step.
+CSV import wizard — multi-step ConversationHandler.
 
-Fluxul complet:
-  1. User trimite fișier .csv
-  2. Bot parsează, detectează formatul (DB sau Ollama)
-  3. [dacă format nou] → arată mapping-ul propus → user confirmă
-  4. User alege contul (sau creează unul nou)
-  5. Bot arată preview primele 5 tranzacții + totaluri
-  6. User confirmă → import batch în Actual Budget
+Full flow:
+  1. User sends a .csv file
+  2. Bot parses it, detects format (DB or Ollama)
+  3. [if new format] → shows proposed mapping → user confirms
+  4. User selects account (or creates a new one)
+  5. Bot shows preview of first 5 transactions + totals
+  6. User confirms → batch import into Actual Budget
 
 State machine:
-  CONFIRM_PROFILE  → User confirmă mapping-ul detectat de Ollama
-  SELECT_ACCOUNT   → User alege contul
-  CREATE_ACCT_NAME → User tastează numele contului nou
-  CREATE_ACCT_BAL  → User tastează soldul inițial
-  CONFIRM_IMPORT   → User confirmă preview și pornește importul
+  CONFIRM_PROFILE  → User confirms Ollama-detected mapping
+  SELECT_ACCOUNT   → User selects account
+  CREATE_ACCT_NAME → User types new account name
+  CREATE_ACCT_BAL  → User types initial balance
+  CONFIRM_IMPORT   → User confirms preview and starts import
 """
 import hashlib
 import json
@@ -43,7 +43,7 @@ CREATE_ACCT_NAME = 22
 CREATE_ACCT_BAL = 23
 CONFIRM_IMPORT = 24
 
-# Emojis per categorie (refolosit din categorizer)
+# Emoji per category
 _CAT_EMOJI = {
     "groceries": "🛒", "restaurants": "🍽️", "transport": "🚗",
     "utilities": "💡", "health": "💊", "clothing": "👕",
@@ -54,8 +54,8 @@ _CAT_EMOJI = {
 
 def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandler:
     """
-    Creează ConversationHandler-ul pentru import CSV.
-    Primește componentele prin parametri (fără import circular).
+    Creates the ConversationHandler for CSV import.
+    Receives components as parameters (avoids circular imports).
     """
 
     # -----------------------------------------------------------------------
@@ -69,19 +69,19 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         await context.bot.send_message(chat_id=chat_id, text=text, **kwargs)
 
     def _build_preview_text(pending: dict) -> str:
-        """Construiește textul de preview pentru confirmare import."""
+        """Build preview text for import confirmation."""
         transactions = pending.get("transactions", [])
         profile = pending.get("profile")
         account_name = pending.get("account_name", "?")
         total_rows = pending.get("total_rows", 0)
 
         if not transactions:
-            return "⚠️ Nicio cheltuială găsită în CSV."
+            return "⚠️ No expenses found in CSV."
 
         sorted_txs = sorted(transactions, key=lambda t: t.date)
         preview = sorted_txs[:5]
 
-        # Categorizare pentru afișare (doar preview, nu se salvează)
+        # Categorize for display only (not saved)
         lines = []
         for tx in preview:
             pred = categorizer.predict(merchant=tx.merchant, ocr_text=tx.description)
@@ -91,7 +91,7 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
             sign = "-" if tx.is_expense else "+"
             lines.append(f"• {date_str}  {merchant:<22}  {sign}{tx.amount:>7.2f} {tx.currency} {emoji}")
 
-        # Total net: cheltuieli positive, refund-uri negative
+        # Net total: expenses positive, refunds negative
         total = sum(t.amount if t.is_expense else -t.amount for t in transactions)
         currency = settings.default_currency
         min_date = min(t.date for t in transactions).strftime("%d.%m.%Y")
@@ -100,19 +100,19 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         skipped = total_rows - len(transactions)
 
         text = (
-            f"📋 *Previzualizare import*\n\n"
-            f"Sursă: *{source}* • Cont: *{account_name}*\n\n"
-            f"*Primele {len(preview)} din {len(transactions)}:*\n"
+            f"📋 *Import preview*\n\n"
+            f"Source: *{source}* • Account: *{account_name}*\n\n"
+            f"*First {len(preview)} of {len(transactions)}:*\n"
             "```\n" + "\n".join(lines) + "\n```\n\n"
             f"💰 Total: *{total:,.2f} {currency}*\n"
             f"📅 {min_date} – {max_date}\n"
         )
         if skipped > 0:
-            text += f"⚡ {skipped} rânduri ignorate (venituri sau zero)\n"
+            text += f"⚡ {skipped} rows skipped (income or zero)\n"
         return text
 
     # -----------------------------------------------------------------------
-    # Entry point: document CSV primit
+    # Entry point: CSV document received
     # -----------------------------------------------------------------------
 
     async def handle_csv_document(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -123,13 +123,13 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         if not doc.file_name.lower().endswith(".csv"):
             return ConversationHandler.END
 
-        await update.message.reply_text("🔍 Analizez fișierul CSV...")
+        await update.message.reply_text("🔍 Analyzing CSV file...")
 
-        # Descarcă fișierul
+        # Download file
         file = await doc.get_file()
         raw = bytes(await file.download_as_bytearray())
 
-        # Parsează CSV
+        # Parse CSV
         normalizer = CsvNormalizer()
         try:
             enc = normalizer.detect_encoding(raw)
@@ -138,16 +138,16 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
             headers, rows = normalizer.parse_csv(raw, delimiter=delimiter, encoding=enc)
         except Exception as e:
             await update.message.reply_text(
-                f"❌ Nu pot citi fișierul CSV: {e}\n"
-                "Asigură-te că este un export valid din aplicația băncii."
+                f"❌ Cannot read CSV file: {e}\n"
+                "Make sure it is a valid export from your banking app."
             )
             return ConversationHandler.END
 
         if not rows:
-            await update.message.reply_text("❌ CSV-ul este gol sau nu are rânduri de date.")
+            await update.message.reply_text("❌ CSV is empty or has no data rows.")
             return ConversationHandler.END
 
-        # Header signature → căutare în DB
+        # Header signature → look up in DB
         detector = CsvProfileDetector(settings.ollama.url, settings.ollama.model)
         sig = detector.header_signature(headers)
         profile = db.get_csv_profile_by_sig(sig)
@@ -155,29 +155,29 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         chat_id = update.effective_chat.id
 
         if profile:
-            # Format cunoscut — continuăm direct la selecția contului
+            # Known format — proceed directly to account selection
             transactions = normalizer.normalize(rows, profile)
             context.user_data["csv_pending"] = {
                 "profile": profile,
                 "transactions": transactions,
                 "total_rows": len(rows),
             }
-            logger.info(f"CSV: profil cunoscut '{profile.source_name}', {len(transactions)} cheltuieli")
+            logger.info(f"CSV: known profile '{profile.source_name}', {len(transactions)} transactions")
             await _show_account_selection(chat_id, context, profile.source_name, len(transactions))
             return SELECT_ACCOUNT
 
         else:
-            # Format necunoscut → Ollama
+            # Unknown format → Ollama
             await update.message.reply_text(
-                "🤖 Format CSV necunoscut. Trimit la AI pentru analiză...\n"
-                "⏳ Poate dura 30–60 secunde..."
+                "🤖 Unknown CSV format. Sending to AI for analysis...\n"
+                "⏳ This may take 30–60 seconds..."
             )
             proposed = await detector.detect_with_ollama(headers, rows[:3], delimiter)
 
             if not proposed:
                 await update.message.reply_text(
-                    "❌ Nu am putut identifica structura CSV-ului.\n\n"
-                    "Încearcă cu un export fresh din aplicație sau scrie-mi ce coloane are."
+                    "❌ Could not identify the CSV structure.\n\n"
+                    "Try a fresh export from your bank app or describe the columns to me."
                 )
                 return ConversationHandler.END
 
@@ -188,29 +188,29 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
                 "delimiter": delimiter,
             }
 
-            logger.info(f"Profil propus de Ollama: {proposed.source_name}, intrând în CONFIRM_PROFILE")
+            logger.info(f"Ollama proposed profile: {proposed.source_name}, entering CONFIRM_PROFILE")
             await _show_profile_proposal(chat_id, context, proposed, rows[:3], normalizer)
-            logger.info("Propunere trimisă utilizatorului, aștept confirmare")
+            logger.info("Proposal sent to user, waiting for confirmation")
             return CONFIRM_PROFILE
 
     # -----------------------------------------------------------------------
-    # CONFIRM_PROFILE — User confirmă/respinge mapping-ul Ollama
+    # CONFIRM_PROFILE — User confirms/rejects Ollama mapping
     # -----------------------------------------------------------------------
 
     async def handle_profile_ok(update: Update, context: ContextTypes.DEFAULT_TYPE):
-        logger.info("handle_profile_ok chemat")
+        logger.info("handle_profile_ok called")
         query = update.callback_query
         await query.answer()
 
         pending = context.user_data.get("csv_pending", {})
         proposed: CsvProfile = pending.get("proposed_profile")
         if not proposed:
-            await query.edit_message_text("❌ Date lipsă. Trimite din nou fișierul.")
+            await query.edit_message_text("❌ Missing data. Please send the file again.")
             return ConversationHandler.END
 
         proposed.confirmed = True
         db.save_csv_profile(proposed)
-        logger.info(f"Profil CSV salvat: {proposed.source_name}")
+        logger.info(f"CSV profile saved: {proposed.source_name}")
 
         normalizer = CsvNormalizer()
         transactions = normalizer.normalize(pending["raw_rows"], proposed)
@@ -219,8 +219,8 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         context.user_data["csv_pending"] = pending
 
         await query.edit_message_text(
-            f"✅ *Profil {proposed.source_name} salvat!*\n"
-            f"Data viitoare detectez automat acest format.",
+            f"✅ *{proposed.source_name} profile saved!*\n"
+            f"Next time I'll detect this format automatically.",
             parse_mode="Markdown",
         )
 
@@ -233,14 +233,13 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         await query.answer()
         context.user_data.pop("csv_pending", None)
         await query.edit_message_text(
-            "❌ Import anulat.\n\n"
-            "Dacă vrei să adaugi suport pentru alt format, descrie-mi coloanele "
-            "și le configurez manual."
+            "❌ Import cancelled.\n\n"
+            "If you want to add support for another format, describe the columns to me."
         )
         return ConversationHandler.END
 
     # -----------------------------------------------------------------------
-    # SELECT_ACCOUNT — User alege contul (sau creează unul nou)
+    # SELECT_ACCOUNT — User selects account (or creates a new one)
     # -----------------------------------------------------------------------
 
     async def handle_account_select(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -253,7 +252,7 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         accounts = pending.get("accounts", [])
 
         if idx >= len(accounts):
-            await query.edit_message_text("❌ Cont invalid. Trimite din nou fișierul.")
+            await query.edit_message_text("❌ Invalid account. Please send the file again.")
             return ConversationHandler.END
 
         acc = accounts[idx]
@@ -261,7 +260,7 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         pending["account_name"] = acc["name"]
         context.user_data["csv_pending"] = pending
 
-        await query.edit_message_text(f"💳 Cont selectat: *{acc['name']}*", parse_mode="Markdown")
+        await query.edit_message_text(f"💳 Account selected: *{acc['name']}*", parse_mode="Markdown")
 
         preview_text = _build_preview_text(pending)
         transactions = pending.get("transactions", [])
@@ -277,9 +276,9 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         query = update.callback_query
         await query.answer()
         await query.edit_message_text(
-            "➕ *Cont nou*\n\nCum vrei să numești contul?\n"
-            "Exemplu: `crypto.com Card`, `ING Checking`, `Revolut`\n\n"
-            "/cancel pentru a anula",
+            "➕ *New account*\n\nWhat would you like to name it?\n"
+            "Example: `crypto.com Card`, `ING Checking`, `Revolut`\n\n"
+            "/cancel to abort",
             parse_mode="Markdown",
         )
         return CREATE_ACCT_NAME
@@ -288,17 +287,17 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         query = update.callback_query
         await query.answer()
         context.user_data.pop("csv_pending", None)
-        await query.edit_message_text("❌ Import anulat.")
+        await query.edit_message_text("❌ Import cancelled.")
         return ConversationHandler.END
 
     # -----------------------------------------------------------------------
-    # CREATE_ACCT_NAME + CREATE_ACCT_BAL — Creare cont nou
+    # CREATE_ACCT_NAME + CREATE_ACCT_BAL — Create new account
     # -----------------------------------------------------------------------
 
     async def handle_account_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
         name = update.message.text.strip()
         if not name:
-            await update.message.reply_text("❌ Numele nu poate fi gol. Încearcă din nou sau /cancel.")
+            await update.message.reply_text("❌ Name cannot be empty. Try again or /cancel.")
             return CREATE_ACCT_NAME
 
         pending = context.user_data.get("csv_pending", {})
@@ -306,9 +305,9 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         context.user_data["csv_pending"] = pending
 
         await update.message.reply_text(
-            f"💰 Sold inițial pentru *{name}*?\n"
-            "Scrie suma (ex: `0` sau `1500.50`) sau `0` dacă nu știi.\n\n"
-            "/cancel pentru a anula",
+            f"💰 Initial balance for *{name}*?\n"
+            "Enter an amount (e.g. `0` or `1500.50`) or `0` if unsure.\n\n"
+            "/cancel to abort",
             parse_mode="Markdown",
         )
         return CREATE_ACCT_BAL
@@ -318,19 +317,19 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         try:
             balance = float(text)
         except ValueError:
-            await update.message.reply_text("❌ Trimite un număr (ex: `0` sau `1500.50`).")
+            await update.message.reply_text("❌ Please enter a number (e.g. `0` or `1500.50`).")
             return CREATE_ACCT_BAL
 
         pending = context.user_data.get("csv_pending", {})
-        name = pending.get("new_account_name", "Cont nou")
+        name = pending.get("new_account_name", "New account")
 
-        await update.message.reply_text(f"⏳ Creez contul *{name}*...", parse_mode="Markdown")
+        await update.message.reply_text(f"⏳ Creating account *{name}*...", parse_mode="Markdown")
 
         try:
             account = await actual_client.create_account(name, balance)
         except Exception as e:
-            logger.error(f"Eroare creare cont: {e}")
-            await update.message.reply_text(f"❌ Eroare la crearea contului: {e}")
+            logger.error(f"Account creation error: {e}")
+            await update.message.reply_text(f"❌ Error creating account: {e}")
             return ConversationHandler.END
 
         pending["account_id"] = account.id
@@ -338,7 +337,7 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         context.user_data["csv_pending"] = pending
 
         await update.message.reply_text(
-            f"✅ Cont *{account.name}* creat cu sold inițial *{balance:.2f} EUR*!",
+            f"✅ Account *{account.name}* created with initial balance *{balance:.2f} EUR*!",
             parse_mode="Markdown",
         )
 
@@ -352,7 +351,7 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         return CONFIRM_IMPORT
 
     # -----------------------------------------------------------------------
-    # CONFIRM_IMPORT — User confirmă/anulează importul
+    # CONFIRM_IMPORT — User confirms/cancels the import
     # -----------------------------------------------------------------------
 
     async def handle_import_ok(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -364,12 +363,12 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         account_id = pending.get("account_id")
 
         if not transactions or not account_id:
-            await query.edit_message_text("❌ Date lipsă. Trimite din nou fișierul.")
+            await query.edit_message_text("❌ Missing data. Please send the file again.")
             return ConversationHandler.END
 
         await query.edit_message_text(
-            f"⏳ Import în curs... ({len(transactions)} tranzacții)\n"
-            "Poate dura câteva secunde."
+            f"⏳ Importing... ({len(transactions)} transactions)\n"
+            "This may take a few seconds."
         )
 
         try:
@@ -379,8 +378,8 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
                 categorizer=categorizer,
             )
         except Exception as e:
-            logger.error(f"Eroare import batch: {e}", exc_info=True)
-            await query.edit_message_text(f"❌ Eroare la import: {str(e)[:200]}")
+            logger.error(f"Batch import error: {e}", exc_info=True)
+            await query.edit_message_text(f"❌ Import error: {str(e)[:200]}")
             return ConversationHandler.END
 
         currency = settings.default_currency
@@ -389,26 +388,26 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         total = expenses - refunds
 
         result_text = (
-            f"✅ *Import finalizat!*\n\n"
-            f"📥 Importate: *{imported}*\n"
+            f"✅ *Import complete!*\n\n"
+            f"📥 Imported: *{imported}*\n"
         )
         if skipped:
-            result_text += f"⏭️ Duplicate omise: {skipped}\n"
+            result_text += f"⏭️ Duplicates skipped: {skipped}\n"
         if errors:
-            result_text += f"⚠️ Erori: {errors}\n"
-        result_text += f"💰 Total net: *{total:,.2f} {currency}*\n"
-        result_text += f"🏦 Cont: {pending.get('account_name', '?')}"
+            result_text += f"⚠️ Errors: {errors}\n"
+        result_text += f"💰 Net total: *{total:,.2f} {currency}*\n"
+        result_text += f"🏦 Account: {pending.get('account_name', '?')}"
         if low_confidence:
-            result_text += f"\n\n🤔 *{len(low_confidence)} tranzacții* au nevoie de confirmare categorie:"
+            result_text += f"\n\n🤔 *{len(low_confidence)} transactions* need category confirmation:"
 
         await query.edit_message_text(result_text, parse_mode="Markdown")
 
-        # Trimite mesaj de confirmare categorie pentru fiecare tranzacție cu confidență mică
+        # Send category confirmation for each low-confidence transaction
         chat_id = query.message.chat_id
         for tx, pred in low_confidence:
             try:
                 sign = "-" if tx.is_expense else "+"
-                # Același hash ca în add_transactions_batch — permite legătura cu Actual Budget
+                # Same hash as in add_transactions_batch — links to Actual Budget
                 actual_budget_id = hashlib.sha256(
                     f"{tx.date.isoformat()}{tx.merchant}{tx.amount:.4f}".encode()
                 ).hexdigest()[:16]
@@ -423,27 +422,27 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
                 tx_id = db.save_transaction(record)
 
                 conf_bar = "🟡" if (pred and pred.confidence > 0.4) else "🔴"
-                cat_name = pred.category_name if pred else "Necunoscut"
+                cat_name = pred.category_name if pred else "Unknown"
                 conf_pct = f"{pred.confidence:.0%}" if pred else "0%"
 
-                # HTML în loc de Markdown — merchant poate conține *, _, [ etc.
+                # HTML instead of Markdown — merchant names may contain *, _, [ etc.
                 merchant_escaped = tx.merchant.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
                 cat_name_escaped = cat_name.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
                 await context.bot.send_message(
                     chat_id=chat_id,
                     text=(
-                        f"🤔 <b>Categorie necesară</b>\n\n"
+                        f"🤔 <b>Category needed</b>\n\n"
                         f"🏪 {merchant_escaped}\n"
                         f"💰 {sign}{tx.amount:.2f} {tx.currency}  •  {tx.date.strftime('%d.%m.%Y')}\n"
-                        f"{conf_bar} Sugestie: <b>{cat_name_escaped}</b> ({conf_pct})\n\n"
-                        f"Ești de acord?"
+                        f"{conf_bar} Suggestion: <b>{cat_name_escaped}</b> ({conf_pct})\n\n"
+                        f"Does this look right?"
                     ),
                     parse_mode="HTML",
                     reply_markup=category_confirmation_keyboard(tx_id, pred.category_id if pred else "other", pred.confidence if pred else 0.0),
                 )
             except Exception as e:
-                logger.error(f"Eroare trimitere confirmare categorie pentru '{tx.merchant}': {e}", exc_info=True)
+                logger.error(f"Error sending category confirmation for '{tx.merchant}': {e}", exc_info=True)
 
         context.user_data.pop("csv_pending", None)
         return ConversationHandler.END
@@ -452,7 +451,7 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         query = update.callback_query
         await query.answer()
         context.user_data.pop("csv_pending", None)
-        await query.edit_message_text("❌ Import anulat.")
+        await query.edit_message_text("❌ Import cancelled.")
         return ConversationHandler.END
 
     # -----------------------------------------------------------------------
@@ -461,11 +460,11 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
 
     async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data.pop("csv_pending", None)
-        await update.message.reply_text("❌ Import CSV anulat.")
+        await update.message.reply_text("❌ CSV import cancelled.")
         return ConversationHandler.END
 
     # -----------------------------------------------------------------------
-    # Helpers interne
+    # Internal helpers
     # -----------------------------------------------------------------------
 
     async def _show_profile_proposal(
@@ -475,23 +474,23 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         sample_rows: list[dict],
         normalizer: CsvNormalizer,
     ):
-        """Arată mapping-ul propus de Ollama cu exemple de rânduri normalizate."""
+        """Show the Ollama-proposed mapping with normalized row examples."""
         lines = [
-            f"🤖 *Propun interpretarea:*",
+            f"🤖 *Proposed mapping:*",
             f"",
-            f"• Sursă: *{profile.source_name}*",
-            f"• Data → `{profile.col_date}`",
+            f"• Source: *{profile.source_name}*",
+            f"• Date → `{profile.col_date}`",
             f"• Merchant → `{profile.col_merchant}`",
-            f"• Sumă → `{profile.col_amount}`",
+            f"• Amount → `{profile.col_amount}`",
         ]
         if profile.col_currency:
-            lines.append(f"• Monedă → `{profile.col_currency}`")
+            lines.append(f"• Currency → `{profile.col_currency}`")
         if profile.col_direction:
-            lines.append(f"• Direcție → `{profile.col_direction}` (cheltuiala = `{profile.expense_indicator}`)")
+            lines.append(f"• Direction → `{profile.col_direction}` (expense = `{profile.expense_indicator}`)")
         if profile.col_description:
-            lines.append(f"• Note → `{profile.col_description}`")
+            lines.append(f"• Notes → `{profile.col_description}`")
 
-        # Exemple normalizate
+        # Normalized examples
         example_txs = []
         for row in sample_rows[:3]:
             try:
@@ -505,9 +504,9 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
                 pass
 
         if example_txs:
-            lines += ["", "*Exemple:*", "```"] + example_txs + ["```"]
+            lines += ["", "*Examples:*", "```"] + example_txs + ["```"]
 
-        lines += ["", "Interpretarea e corectă?"]
+        lines += ["", "Is this mapping correct?"]
 
         await context.bot.send_message(
             chat_id=chat_id,
@@ -522,11 +521,11 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         source_name: str,
         tx_count: int,
     ):
-        """Arată lista de conturi din Actual Budget pentru selecție."""
+        """Show the list of Actual Budget accounts for selection."""
         try:
             accounts = await actual_client.get_accounts()
         except Exception as e:
-            await context.bot.send_message(chat_id=chat_id, text=f"❌ Eroare Actual Budget: {e}")
+            await context.bot.send_message(chat_id=chat_id, text=f"❌ Actual Budget error: {e}")
             return
 
         pending = context.user_data.get("csv_pending", {})
@@ -538,9 +537,9 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         total = sum(t.amount if t.is_expense else -t.amount for t in txs)
 
         text = (
-            f"📊 *{source_name}* — {tx_count} tranzacții\n"
+            f"📊 *{source_name}* — {tx_count} transactions\n"
             f"💰 Total: {total:,.2f} {currency}\n\n"
-            f"Alege contul pentru import:"
+            f"Select account for import:"
         )
         await context.bot.send_message(
             chat_id=chat_id,
@@ -550,7 +549,7 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         )
 
     # -----------------------------------------------------------------------
-    # Construiește și returnează ConversationHandler
+    # Build and return ConversationHandler
     # -----------------------------------------------------------------------
 
     return ConversationHandler(

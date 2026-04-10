@@ -1,10 +1,10 @@
 """
-Inline keyboards pentru interacțiunea cu utilizatorul.
+Inline keyboards for user interaction.
 
-Folosite pentru:
-- Confirmarea/corectarea categoriei
-- Selectarea categoriei corecte
-- Confirmarea tranzacției
+Used for:
+- Confirming/correcting the predicted category
+- Selecting the correct category
+- Confirming a transaction
 """
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import json
@@ -16,13 +16,13 @@ def category_confirmation_keyboard(
     confidence: float
 ) -> InlineKeyboardMarkup:
     """
-    Keyboard pentru confirmarea categoriei prezise.
-    Apare după procesarea unui bon.
+    Keyboard for confirming the predicted category.
+    Shown after processing a receipt.
     """
     buttons = [
         [
             InlineKeyboardButton(
-                "✅ Corect",
+                "✅ Correct",
                 callback_data=json.dumps({
                     "action": "confirm_cat",
                     "tx_id": tx_id,
@@ -30,7 +30,7 @@ def category_confirmation_keyboard(
                 })
             ),
             InlineKeyboardButton(
-                "❌ Schimbă",
+                "❌ Change",
                 callback_data=json.dumps({
                     "action": "change_cat",
                     "tx_id": tx_id
@@ -46,8 +46,8 @@ def category_selection_keyboard(
     categories: list[dict]
 ) -> InlineKeyboardMarkup:
     """
-    Keyboard pentru selectarea categoriei corecte.
-    Afișează toate categoriile disponibile.
+    Keyboard for selecting the correct category.
+    Displays all available categories.
     """
     buttons = []
     row = []
@@ -63,7 +63,7 @@ def category_selection_keyboard(
         )
         row.append(btn)
 
-        # 2 butoane per rând
+        # 2 buttons per row
         if len(row) == 2:
             buttons.append(row)
             row = []
@@ -75,11 +75,11 @@ def category_selection_keyboard(
 
 
 def transaction_confirm_keyboard(tx_id: int) -> InlineKeyboardMarkup:
-    """Keyboard pentru confirmarea finală a tranzacției."""
+    """Keyboard for final transaction confirmation."""
     buttons = [
         [
             InlineKeyboardButton(
-                "💾 Salvează în Actual Budget",
+                "💾 Save to Actual Budget",
                 callback_data=json.dumps({
                     "action": "save_actual",
                     "tx_id": tx_id
@@ -88,14 +88,14 @@ def transaction_confirm_keyboard(tx_id: int) -> InlineKeyboardMarkup:
         ],
         [
             InlineKeyboardButton(
-                "✏️ Editează suma",
+                "✏️ Edit amount",
                 callback_data=json.dumps({
                     "action": "edit_amount",
                     "tx_id": tx_id
                 })
             ),
             InlineKeyboardButton(
-                "🗑️ Anulează",
+                "🗑️ Cancel",
                 callback_data=json.dumps({
                     "action": "cancel_tx",
                     "tx_id": tx_id
@@ -107,19 +107,19 @@ def transaction_confirm_keyboard(tx_id: int) -> InlineKeyboardMarkup:
 
 
 def csv_profile_confirm_keyboard() -> InlineKeyboardMarkup:
-    """Keyboard pentru confirmarea profilului detectat de Ollama."""
+    """Keyboard for confirming the Ollama-detected profile."""
     return InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("✅ Da, e corect", callback_data="csv_pok"),
-            InlineKeyboardButton("❌ Nu e corect", callback_data="csv_pno"),
+            InlineKeyboardButton("✅ Yes, correct", callback_data="csv_pok"),
+            InlineKeyboardButton("❌ Not correct", callback_data="csv_pno"),
         ]
     ])
 
 
 def account_select_keyboard(tx_id: int, accounts: list[dict]) -> InlineKeyboardMarkup:
     """
-    Keyboard pentru selectarea contului la salvarea unui bon/tranzacție manuală.
-    Indexul e folosit în callback pentru a rămâne sub 64 bytes.
+    Keyboard for selecting an account when saving a receipt/manual transaction.
+    Index is used in callback to stay under 64 bytes.
     """
     buttons = [
         [InlineKeyboardButton(
@@ -133,10 +133,10 @@ def account_select_keyboard(tx_id: int, accounts: list[dict]) -> InlineKeyboardM
 
 def csv_account_keyboard(accounts: list[dict]) -> InlineKeyboardMarkup:
     """
-    Keyboard pentru selectarea contului la import CSV.
+    Keyboard for selecting an account during CSV import.
 
     accounts: [{"id": "...", "name": "..."}]
-    Indexul din listă e folosit în callback (nu ID-ul UUID) pentru a rămâne sub 64 bytes.
+    List index is used in callback (not UUID) to stay under 64 bytes.
     """
     buttons = [
         [InlineKeyboardButton(
@@ -145,29 +145,29 @@ def csv_account_keyboard(accounts: list[dict]) -> InlineKeyboardMarkup:
         )]
         for i, acc in enumerate(accounts)
     ]
-    buttons.append([InlineKeyboardButton("➕ Creează cont nou", callback_data="csv_anew")])
-    buttons.append([InlineKeyboardButton("❌ Anulează", callback_data="csv_acancel")])
+    buttons.append([InlineKeyboardButton("➕ New account", callback_data="csv_anew")])
+    buttons.append([InlineKeyboardButton("❌ Cancel", callback_data="csv_acancel")])
     return InlineKeyboardMarkup(buttons)
 
 
 def csv_import_keyboard(count: int) -> InlineKeyboardMarkup:
-    """Keyboard pentru confirmarea finală a importului."""
+    """Keyboard for final import confirmation."""
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton(f"✅ Importă {count} tranzacții", callback_data="csv_iok")],
-        [InlineKeyboardButton("❌ Anulează", callback_data="csv_icancel")],
+        [InlineKeyboardButton(f"✅ Import {count} transactions", callback_data="csv_iok")],
+        [InlineKeyboardButton("❌ Cancel", callback_data="csv_icancel")],
     ])
 
 
 def yes_no_keyboard(action_id: str) -> InlineKeyboardMarkup:
-    """Keyboard simplu Da/Nu."""
+    """Simple Yes/No keyboard."""
     return InlineKeyboardMarkup([
         [
             InlineKeyboardButton(
-                "✅ Da",
+                "✅ Yes",
                 callback_data=json.dumps({"action": "yes", "id": action_id})
             ),
             InlineKeyboardButton(
-                "❌ Nu",
+                "❌ No",
                 callback_data=json.dumps({"action": "no", "id": action_id})
             )
         ]

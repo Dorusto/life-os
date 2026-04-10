@@ -1,14 +1,14 @@
 from __future__ import annotations
 
 """
-Wizard de configurare buget lunar.
+Monthly budget setup wizard.
 
-Flux:
-1. /setup_budget → afișează lista cu limite sugerate
-2. User apasă "Confirmă toate" → salvează direct
-   User apasă "Ajustează" → intră în mod pas-cu-pas
-3. Pentru fiecare categorie: user trimite sumă sau apasă "Păstrează"
-4. La final → salvează toate și afișează rezumatul
+Flow:
+1. /setup_budget → shows list with suggested limits
+2. User presses "Confirm all" → saves directly
+   User presses "Adjust" → enters step-by-step mode
+3. For each category: user sends amount or presses "Keep"
+4. At the end → saves all and shows summary
 """
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -20,47 +20,44 @@ from telegram.ext import (
 logger = logging.getLogger(__name__)
 
 BUDGET_ITEMS = [
-    ("Alimente & Băuturi",      1000.0),
-    ("Restaurante & Cafenele",   200.0),
+    ("Groceries",               1200.0),
+    ("Restaurants",              100.0),
     ("Transport",                350.0),
-    ("Sănătate",                 100.0),
-    ("Îmbrăcăminte",             150.0),
-    ("Casă & Grădină",           150.0),
-    ("Divertisment",              80.0),
-    ("Educație",                  80.0),
-    ("Utilități",                180.0),
-    ("Telefoane",                 30.0),
-    ("Abonamente",                30.0),
-    ("Donații",                   20.0),
-    ("Bani personali",           400.0),
-    ("Copii",                    200.0),
-    ("Altele",                   100.0),
+    ("Utilities",                200.0),
+    ("Health",                   100.0),
+    ("Clothing",                 150.0),
+    ("Home & Maintenance",       150.0),
+    ("Entertainment & Travel",    80.0),
+    ("Children",                 200.0),
+    ("Personal",                 400.0),
+    ("Investments & Savings",    700.0),
+    ("Other",                    100.0),
 ]
 
-CHOOSING = 0  # Asteapta "Confirma" sau "Ajusteaza"
-STEP = 1      # Parcurge categoriile una cate una
+CHOOSING = 0  # Waiting for "Confirm" or "Adjust"
+STEP = 1      # Stepping through categories one by one
 
 
 async def cmd_setup_budget(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Pornește wizard-ul."""
+    """Start the wizard."""
     from memory import MemoryDB
     from config import settings
     db = MemoryDB(settings.memory.db_path)
     current = db.get_budget_limits()
 
-    # Inițializează starea wizard-ului cu limitele curente sau default
+    # Initialize wizard state with current limits or defaults
     items = [(name, current.get(name, default)) for name, default in BUDGET_ITEMS]
     context.user_data["wizard_items"] = items
     context.user_data["wizard_step"] = 0
 
-    text = "📋 *Configurare buget lunar*\n\n"
+    text = "📋 *Monthly budget setup*\n\n"
     for i, (name, limit) in enumerate(items, 1):
         text += f"{i}. {name}: *{limit:.0f} EUR*\n"
-    text += "\nConfirmă limitele de mai sus sau ajustează-le una câte una."
+    text += "\nConfirm the limits above or adjust them one by one."
 
     keyboard = InlineKeyboardMarkup([[
-        InlineKeyboardButton("✅ Confirmă toate", callback_data="bw_confirm_all"),
-        InlineKeyboardButton("✏️ Ajustează", callback_data="bw_adjust"),
+        InlineKeyboardButton("✅ Confirm all", callback_data="bw_confirm_all"),
+        InlineKeyboardButton("✏️ Adjust", callback_data="bw_adjust"),
     ]])
 
     await update.message.reply_text(text, parse_mode="Markdown", reply_markup=keyboard)
@@ -68,7 +65,7 @@ async def cmd_setup_budget(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_confirm_all(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Utilizatorul confirmă toate limitele."""
+    """User confirms all limits."""
     query = update.callback_query
     await query.answer()
     await _save_and_show(query, context)
@@ -76,7 +73,7 @@ async def handle_confirm_all(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 async def handle_adjust(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Utilizatorul vrea să ajusteze — trece la pas-cu-pas."""
+    """User wants to adjust — switch to step-by-step mode."""
     query = update.callback_query
     await query.answer()
     context.user_data["wizard_step"] = 0
@@ -85,7 +82,7 @@ async def handle_adjust(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_step_keep(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Utilizatorul apasă 'Păstrează' pentru categoria curentă."""
+    """User presses 'Keep' for the current category."""
     query = update.callback_query
     await query.answer()
     context.user_data["wizard_step"] = context.user_data.get("wizard_step", 0) + 1
@@ -99,14 +96,14 @@ async def handle_step_keep(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_step_amount(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Utilizatorul trimite o sumă numerică."""
+    """User sends a numeric amount."""
     text = update.message.text.strip().replace(",", ".")
     try:
         amount = float(text)
         if amount < 0:
             raise ValueError
     except ValueError:
-        await update.message.reply_text("❌ Trimite un număr pozitiv (ex: 850) sau /skip.")
+        await update.message.reply_text("❌ Please enter a positive number (e.g. 850) or /skip.")
         return STEP
 
     step = context.user_data.get("wizard_step", 0)
@@ -116,7 +113,7 @@ async def handle_step_amount(update: Update, context: ContextTypes.DEFAULT_TYPE)
     context.user_data["wizard_step"] = step + 1
 
     await update.message.reply_text(
-        f"✅ *{name}*: {amount:.0f} EUR salvat.", parse_mode="Markdown"
+        f"✅ *{name}*: {amount:.0f} EUR saved.", parse_mode="Markdown"
     )
 
     if context.user_data["wizard_step"] >= len(items):
@@ -128,7 +125,7 @@ async def handle_step_amount(update: Update, context: ContextTypes.DEFAULT_TYPE)
 
 
 async def handle_step_skip(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/skip — păstrează valoarea curentă și merge mai departe."""
+    """/skip — keep current value and move on."""
     context.user_data["wizard_step"] = context.user_data.get("wizard_step", 0) + 1
 
     if context.user_data["wizard_step"] >= len(context.user_data["wizard_items"]):
@@ -140,26 +137,26 @@ async def handle_step_skip(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def handle_cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """/cancel — anulează wizard-ul."""
-    await update.message.reply_text("❌ Configurare anulată.")
+    """/cancel — abort the wizard."""
+    await update.message.reply_text("❌ Setup cancelled.")
     return ConversationHandler.END
 
 
 async def _show_current_step(msg_or_query, context: ContextTypes.DEFAULT_TYPE, edit: bool):
-    """Afișează pasul curent din wizard."""
+    """Display the current wizard step."""
     step = context.user_data.get("wizard_step", 0)
     items = context.user_data["wizard_items"]
     total = len(items)
     name, limit = items[step]
 
     text = (
-        f"*Pasul {step + 1}/{total}*\n\n"
+        f"*Step {step + 1}/{total}*\n\n"
         f"📂 *{name}*\n"
-        f"Limită curentă: *{limit:.0f} EUR/lună*\n\n"
-        f"Trimite noua valoare sau apasă butonul de mai jos."
+        f"Current limit: *{limit:.0f} EUR/month*\n\n"
+        f"Send a new value or press the button below."
     )
     keyboard = InlineKeyboardMarkup([[
-        InlineKeyboardButton(f"✅ Păstrează {limit:.0f} EUR", callback_data="bw_keep"),
+        InlineKeyboardButton(f"✅ Keep {limit:.0f} EUR", callback_data="bw_keep"),
     ]])
 
     if edit and hasattr(msg_or_query, "edit_message_text"):
@@ -169,7 +166,7 @@ async def _show_current_step(msg_or_query, context: ContextTypes.DEFAULT_TYPE, e
 
 
 async def _save_and_show(msg_or_query, context: ContextTypes.DEFAULT_TYPE):
-    """Salvează toate limitele și afișează rezumatul."""
+    """Save all limits and show summary."""
     from memory import MemoryDB
     from config import settings
     db = MemoryDB(settings.memory.db_path)
@@ -179,13 +176,13 @@ async def _save_and_show(msg_or_query, context: ContextTypes.DEFAULT_TYPE):
         db.set_budget_limit(name, limit)
 
     currency = settings.default_currency
-    text = "✅ *Buget salvat!*\n\n"
+    text = "✅ *Budget saved!*\n\n"
     total = 0.0
     for name, limit in items:
         text += f"• {name}: {limit:.0f} {currency}\n"
         total += limit
-    text += f"\n📊 *Total monitorizat: {total:.0f} {currency}/lună*\n"
-    text += "_Vei fi alertat când depășești o limită._ 🔔"
+    text += f"\n📊 *Total monitored: {total:.0f} {currency}/month*\n"
+    text += "_You'll be alerted when you exceed a limit._ 🔔"
 
     if hasattr(msg_or_query, "edit_message_text"):
         await msg_or_query.edit_message_text(text, parse_mode="Markdown")
