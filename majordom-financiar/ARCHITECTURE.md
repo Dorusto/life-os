@@ -263,10 +263,11 @@ app.add_handler(create_csv_conversation(...))
 app.add_handler(CallbackQueryHandler(handle_callback))  # la final
 ```
 
-### 7. Deduplicare tranzacții CSV
-Fiecare tranzacție CSV primește un ID determinist: SHA256(data + merchant + suma).
-Re-importul aceluiași CSV nu creează duplicate; tranzacțiile existente sunt sărite.
-Tranzacțiile adăugate manual (bon foto, /add) folosesc UUID aleatoriu.
+### 7. Deduplicare tranzacții — bon foto + CSV
+**Toate** tranzacțiile (bon foto, /add, CSV) primesc acum un ID determinist:
+`SHA256(data + merchant + suma)[:16]`. Dacă aceeași tranzacție există deja în Actual Budget
+(de ex. importată anterior din CSV), `add_transaction()` returnează `None` și botul
+afișează mesaj "deja existentă" în loc să creeze duplicat.
 
 **ATENȚIE — actualpy naming:** parametrul `imported_id` din `create_transaction()` se
 salvează intern ca `financial_id` în modelul `Transactions`. Când citești tranzacții
@@ -353,11 +354,15 @@ csv_profiles        ← profiluri CSV salvate (ING, crypto.com, etc.)
 - [x] Import CSV cu detecție automată format (ING, crypto.com, Revolut, etc.)
 - [x] Creare cont din chat
 - [x] Refund-uri în CSV importate ca tranzacții pozitive (nu filtrate)
-- [~] Auto-categorizare la >75% confidență — codul există, dar fără istoric SmartCategorizer toate tx sunt sub prag. Categoriile confirmate în Telegram nu se propagă înapoi în Actual Budget (doar SQLite local).
-- [x] Deduplicare la re-import (SHA256 pe data+merchant+suma)
+- [x] Auto-categorizare bazată pe istoric confirmat (from_history) — nu pe prag AI
+- [x] Categorii confirmate în Telegram propagate înapoi în Actual Budget
+- [x] Deduplicare la re-import și la salvare bon foto (SHA256 pe data+merchant+suma)
+- [x] Selecție cont la salvare bon foto / /add (dacă există mai multe conturi)
+- [x] Câmpuri standardizate: payee = merchant, notes = [foto bon]/[/add manual]/[import CSV]
+- [x] 12 categorii curate cu keywords pentru comercianți NL + RO
 
 **Roadmap și priorități** → vezi `CLAUDE.md` (gitignored — conține și context financiar personal).
 
 ---
 
-*Ultima actualizare: 2026-04-10 (sesiunea 2 — CSV wizard complet funcțional)*
+*Ultima actualizare: 2026-04-11 (sesiunea 3 — categorizare, conturi, categorii restructurate)*

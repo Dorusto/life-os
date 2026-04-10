@@ -116,30 +116,62 @@ RTX 4070 Mobile are 8GB — la 512px tot intră. La mai mare, cade pe CPU.
 ### Ce stochează SQLite
 ```
 memory.db
-├── transactions   ← istoricul: merchant, amount, category, date
-└── budget_limits  ← limitele setate cu /setup_budget
+├── transactions      ← istoricul: merchant, amount, category, date, actual_budget_id
+├── merchant_mappings ← merchant → categorie confirmată de tine
+├── category_keywords ← cuvinte cheie → categorie (învățate din feedback)
+├── budget_limits     ← limitele setate cu /setup_budget
+└── csv_profiles      ← profiluri CSV salvate (ING, crypto.com, etc.)
 ```
 
-### Cum sugerează categoria (TF-IDF simplu)
-Algoritmul nu e magic — e matematică simplă:
+### Cum sugerează categoria — 3 niveluri
 
-1. Ia textul bonului: "Kaufland supermarket"
-2. Îl rupe în cuvinte: ["kaufland", "supermarket"]
-3. Caută în istoricul tău ce categorie ai dat pentru "kaufland" în trecut
-4. Categoria care apare cel mai des cu acele cuvinte → câștigă
-
+**Nivel 1 — Istoric confirmat de tine (from_history=True):**
 ```
-"kaufland" → a apărut de 15 ori cu categoria "Alimente" → scor mare
-"kaufland" → a apărut de 2 ori cu categoria "Îmbrăcăminte" → scor mic
-→ Sugestie: "Alimente" cu 87% încredere
+"Lidl" → ai confirmat anterior că e "Alimente & Băuturi"
+→ auto-categorizat la import, fără să te întrebe
 ```
 
-**Pragul de 0.8 (80%):** dacă e mai sigur de 80%, categorizează automat fără să
-te întrebe. Sub 80% → îți arată opțiuni. Poți schimba din `.env`:
+**Nivel 2 — Keywords din config/categories.json:**
 ```
-CATEGORIZE_AUTO_THRESHOLD=0.9  # mai conservator, te întreabă mai des
-CATEGORIZE_AUTO_THRESHOLD=0.6  # mai agresiv, mai puține întrebări
+"albert heijn" → keyword în categoria "Alimente & Băuturi"
+→ sugestie, DAR te întreabă oricum — nu e auto
 ```
+
+**Nivel 3 — TF-IDF pe textul OCR:**
+```
+Text bon conține "supermarkt" → similar cu bonuri anterioare din "Alimente"
+→ sugestie slabă, te întreabă
+```
+
+**Regula de aur:** auto-categorizare **doar** dacă tu ai confirmat anterior acel
+merchant exact. Un merchant nou te întreabă mereu, indiferent cât de sigur e AI-ul.
+Asta previne greșeli silențioase.
+
+### Cum "înveți" botul
+
+Când confirmi o categorie pentru "Patreon* Membership":
+1. Se salvează în `merchant_mappings`: `patreon* membership → entertainment`
+2. La importul următor: `from_history=True` → auto-categorizat direct
+3. Categoria se propagă și în Actual Budget via `update_transaction_category()`
+
+### Cele 12 categorii
+
+Definite în `config/categories.json`. Fiecare are `id`, `name`, `emoji`, `keywords`:
+
+| ID | Nume | Exemple merchants |
+|----|------|-------------------|
+| groceries | Alimente & Băuturi | Lidl, Albert Heijn, Jumbo |
+| restaurants | Restaurante & Cafenele | McDonald's, Thuisbezorgd |
+| transport | Transport | NS, Shell, Uber, Bolt |
+| utilities | Utilități | Vattenfall, Ziggo, KPN |
+| health | Sănătate | Apotheek, Kruidvat, Tandarts |
+| clothing | Îmbrăcăminte | H&M, Zara, Zalando |
+| home | Casă & Întreținere | IKEA, Coolblue, Praxis |
+| entertainment | Divertisment & Vacanță | Netflix, Patreon, Booking.com |
+| children | Copii | School, Speelgoed, BSO |
+| personal | Bani Personali | Cadouri, donații, discreționari |
+| investments | Investiții & Economii | DEGIRO, ETF contributions |
+| other | Altele | Catch-all |
 
 ---
 
@@ -346,22 +378,22 @@ class CsvProfile:
 
 ### Categoriile per tranzacție la import
 
-La import batch, `SmartCategorizer.predict()` e apelat pentru fiecare rând cu un **prag de 75%**:
-- Dacă confidence >= 75% → categoria se aplică direct în Actual Budget
-- Dacă confidence < 75% → importat fără categorie, bot trimite mesaj separat cu sugestie
+La import batch, pentru fiecare tranzacție:
+- Merchant **confirmat anterior de tine** (`from_history=True`) → aplicat direct în Actual Budget
+- Merchant **nou** (inclusiv dacă AI-ul e "sigur") → importat fără categorie, bot trimite mesaj
 
 ```
-Import finalizat (4 auto-categorizate)
+Import finalizat (2 auto-categorizate din istoric, 3 necesită confirmare)
     │
     ├── 🤔 "Claude.Ai Subscription -21.78 EUR"
-    │       Sugestie: Abonamente (42%) — Ești de acord? [Da] [Nu, altă categorie]
+    │       Sugestie: Utilități (keyword match) — Ești de acord? [✅ Corect] [❌ Schimbă]
     │
     └── 🤔 "Patreon* Membership -10.89 EUR"
-            Sugestie: Abonamente (42%) — Ești de acord? [Da] [Nu, altă categorie]
+            Sugestie: Divertisment & Vacanță (keyword match) — Ești de acord?
 ```
 
-Când confirmi o categorie → `categorizer.learn()` se apelează → data viitoare același
-merchant va fi recunoscut cu 95% confidență și categoriat automat.
+Când confirmi → `categorizer.learn()` + categoria se propagă în Actual Budget automat.
+Data viitoare, același merchant e recunoscut și auto-categorizat fără întrebare.
 
 ### Refund-uri — cum sunt tratate
 
@@ -448,9 +480,16 @@ Când toate trei se aliniază → creat ca transfer în Actual, nu ca cheltuiala
 | `settings` singleton | Tot vine din `.env`, schimbi acolo nu în cod |
 | Docker networking | Serviciile se văd prin numele lor, nu `localhost` |
 | CSV header signature | MD5 pe coloane sortate → identifică formatul fără să parsezi tot |
-| `imported_id` SHA256 | Re-importul aceluiași CSV nu creează duplicate |
+| SHA256 pe toate tx | Bon foto + /add + CSV — același hash → nu creează duplicate |
+| `from_history` flag | Auto-categorizare doar dacă TU ai confirmat acel merchant |
+| payee / notes | payee = merchant, notes = [foto bon] / [/add manual] / [import CSV] |
+| Selecție cont | La bon foto cu mai multe conturi, botul te întreabă înainte de a salva |
 | Transfer vs cheltuiala | Un transfer ING→crypto apare ca cheltuiala în CSV — corecție manuală în v1 |
 
 ---
 
 *Dacă un concept tot nu e clar după ce l-ai citit, întreabă — nu lăsa nelămuriri acumulate.*
+
+---
+
+*Ultima actualizare: 2026-04-11 (sesiunea 3)*
