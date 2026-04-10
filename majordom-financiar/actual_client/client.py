@@ -161,15 +161,33 @@ class ActualBudgetClient:
         category_name: str = "",
         tx_date: date | None = None,
         notes: str = "",
-    ) -> str:
+    ) -> str | None:
+        """Adaugă o tranzacție. Returnează ID-ul sau None dacă e duplicat."""
         if tx_date is None:
             tx_date = date.today()
 
         def _add():
-            import uuid
-            from actual.queries import create_transaction, get_or_create_payee, get_or_create_category
+            import hashlib
+            from actual.queries import (
+                create_transaction, get_or_create_payee,
+                get_or_create_category, get_transactions,
+            )
             with self._get_actual() as actual:
                 actual.download_budget()
+
+                # Hash deterministc — aceeași tranzacție (dată+merchant+sumă) → același ID
+                sig = f"{tx_date.isoformat()}{payee}{abs(amount):.4f}"
+                imported_id = hashlib.sha256(sig.encode()).hexdigest()[:16]
+
+                # Verifică dacă există deja (ex: importat anterior din CSV)
+                existing_ids = {
+                    tx.financial_id for tx in get_transactions(actual.session)
+                    if tx.financial_id and not tx.tombstone
+                }
+                if imported_id in existing_ids:
+                    logger.info(f"Duplicat omis: {payee} {amount:.2f} ({tx_date})")
+                    return None
+
                 payee_obj = get_or_create_payee(actual.session, payee)
                 cat_obj = None
                 if category_name:
@@ -179,10 +197,10 @@ class ActualBudgetClient:
                     date=tx_date,
                     account=account_id,
                     payee=payee_obj,
-                    notes=notes or f"[Majordom] {payee}",
+                    notes=notes,
                     amount=-abs(amount),
                     category=cat_obj,
-                    imported_id=str(uuid.uuid4()),
+                    imported_id=imported_id,
                 )
                 actual.commit()
                 logger.info(f"Tranzacție adăugată: {payee} {amount:.2f} → {tx.id}")
@@ -279,7 +297,7 @@ class ActualBudgetClient:
                             else:
                                 low_confidence.append((tx, pred))
 
-                        notes = tx.description or f"[Majordom CSV] {tx.merchant}"
+                        notes = "[import CSV]"
                         actual_amount = -abs(tx.amount) if tx.is_expense else abs(tx.amount)
                         create_transaction(
                             actual.session,

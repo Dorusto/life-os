@@ -499,16 +499,28 @@ async def _handle_save_to_actual(query, data: dict):
 
         # Adaugă tranzacția (categoria e creată automat în Actual dacă nu există)
         category_name = categorizer.categories.get(tx.category_id, {}).get("name", "")
+        # Sursa: dacă are text OCR → bon foto, altfel → adăugat manual cu /add
+        source_notes = "[foto bon]" if tx.raw_ocr_text else "[/add manual]"
         actual_id = await actual_client.add_transaction(
             account_id=account.id,
             amount=tx.amount,
             payee=tx.merchant,
             category_name=category_name,
             tx_date=date.fromisoformat(tx.date) if tx.date else None,
-            notes="[Majordom] Categorizat automat",
+            notes=source_notes,
         )
 
         currency = settings.default_currency
+        if actual_id is None:
+            await query.edit_message_text(
+                f"⚠️ *Tranzacție deja existentă* — probabil importată din CSV.\n\n"
+                f"🏪 {tx.merchant}\n"
+                f"💰 {tx.amount:.2f} {currency}\n\n"
+                f"_Nu am adăugat-o din nou pentru a evita duplicatele._",
+                parse_mode="Markdown"
+            )
+            return
+
         await query.edit_message_text(
             f"💾 *Salvat în Actual Budget!*\n\n"
             f"🏪 {tx.merchant}\n"
