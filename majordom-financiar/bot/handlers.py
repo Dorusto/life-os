@@ -422,11 +422,15 @@ async def _handle_confirm_category(query, data: dict):
     # Marchează ca confirmat
     db.update_transaction_category(tx_id, category_id)
 
-    # Învață din confirmare
+    # Învață din confirmare și propagă categoria în Actual Budget
     transactions = db.get_transactions(limit=500)
     for tx in transactions:
         if tx.id == tx_id:
             categorizer.learn(tx.merchant, category_id, tx.raw_ocr_text)
+            if tx.actual_budget_id:
+                cat_data = categorizer.categories.get(category_id, {})
+                cat_name = cat_data.get("name", category_id)
+                await actual_client.update_transaction_category(tx.actual_budget_id, cat_name)
             break
 
     await query.edit_message_text(
@@ -461,6 +465,8 @@ async def _handle_set_category(query, data: dict):
             categorizer.learn(tx.merchant, category_id, tx.raw_ocr_text)
             cat_data = categorizer.categories.get(category_id, {})
             cat_name = cat_data.get("name", category_id)
+            if tx.actual_budget_id:
+                await actual_client.update_transaction_category(tx.actual_budget_id, cat_name)
 
             await query.edit_message_text(
                 f"✅ Categorie actualizată: *{cat_name}*\n"

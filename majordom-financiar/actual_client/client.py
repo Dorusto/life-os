@@ -208,6 +208,27 @@ class ActualBudgetClient:
 
         return await self._run(_add)
 
+    async def update_transaction_category(self, financial_id: str, category_name: str) -> bool:
+        """Actualizează categoria unei tranzacții existente după financial_id."""
+        def _update():
+            from actual.queries import get_or_create_category
+            from actual.database import Transactions
+            with self._get_actual() as actual:
+                actual.download_budget()
+                tx = actual.session.query(Transactions).filter(
+                    Transactions.financial_id == financial_id,
+                    Transactions.tombstone == 0,
+                ).first()
+                if not tx:
+                    logger.warning(f"Tranzacție negăsită pentru update categorie: {financial_id}")
+                    return False
+                cat = get_or_create_category(actual.session, category_name, group_name="Majordom")
+                tx.category_id = cat.id
+                actual.commit()
+                logger.info(f"Categorie actualizată în Actual Budget: {financial_id} → {category_name}")
+                return True
+        return await self._run(_update)
+
     async def get_total_balance(self) -> float:
         accounts = await self.get_accounts()
         return sum(acc.balance for acc in accounts)

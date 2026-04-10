@@ -17,6 +17,7 @@ State machine:
   CREATE_ACCT_BAL  → User tastează soldul inițial
   CONFIRM_IMPORT   → User confirmă preview și pornește importul
 """
+import hashlib
 import json
 import logging
 import tempfile
@@ -406,12 +407,17 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         chat_id = query.message.chat_id
         for tx, pred in low_confidence:
             sign = "-" if tx.is_expense else "+"
+            # Același hash ca în add_transactions_batch — permite legătura cu Actual Budget
+            actual_budget_id = hashlib.sha256(
+                f"{tx.date.isoformat()}{tx.merchant}{tx.amount:.4f}".encode()
+            ).hexdigest()[:16]
             record = TransactionRecord(
                 merchant=tx.merchant,
                 amount=tx.amount,
                 category_id=pred.category_id if pred else "other",
                 date=tx.date.isoformat(),
                 confidence=pred.confidence if pred else 0.0,
+                actual_budget_id=actual_budget_id,
             )
             tx_id = db.save_transaction(record)
 
