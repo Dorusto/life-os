@@ -406,37 +406,44 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
         # Trimite mesaj de confirmare categorie pentru fiecare tranzacție cu confidență mică
         chat_id = query.message.chat_id
         for tx, pred in low_confidence:
-            sign = "-" if tx.is_expense else "+"
-            # Același hash ca în add_transactions_batch — permite legătura cu Actual Budget
-            actual_budget_id = hashlib.sha256(
-                f"{tx.date.isoformat()}{tx.merchant}{tx.amount:.4f}".encode()
-            ).hexdigest()[:16]
-            record = TransactionRecord(
-                merchant=tx.merchant,
-                amount=tx.amount,
-                category_id=pred.category_id if pred else "other",
-                date=tx.date.isoformat(),
-                confidence=pred.confidence if pred else 0.0,
-                actual_budget_id=actual_budget_id,
-            )
-            tx_id = db.save_transaction(record)
+            try:
+                sign = "-" if tx.is_expense else "+"
+                # Același hash ca în add_transactions_batch — permite legătura cu Actual Budget
+                actual_budget_id = hashlib.sha256(
+                    f"{tx.date.isoformat()}{tx.merchant}{tx.amount:.4f}".encode()
+                ).hexdigest()[:16]
+                record = TransactionRecord(
+                    merchant=tx.merchant,
+                    amount=tx.amount,
+                    category_id=pred.category_id if pred else "other",
+                    date=tx.date.isoformat(),
+                    confidence=pred.confidence if pred else 0.0,
+                    actual_budget_id=actual_budget_id,
+                )
+                tx_id = db.save_transaction(record)
 
-            conf_bar = "🟡" if (pred and pred.confidence > 0.4) else "🔴"
-            cat_name = pred.category_name if pred else "Necunoscut"
-            conf_pct = f"{pred.confidence:.0%}" if pred else "0%"
+                conf_bar = "🟡" if (pred and pred.confidence > 0.4) else "🔴"
+                cat_name = pred.category_name if pred else "Necunoscut"
+                conf_pct = f"{pred.confidence:.0%}" if pred else "0%"
 
-            await context.bot.send_message(
-                chat_id=chat_id,
-                text=(
-                    f"🤔 *Categorie necesară*\n\n"
-                    f"🏪 {tx.merchant}\n"
-                    f"💰 {sign}{tx.amount:.2f} {tx.currency}  •  {tx.date.strftime('%d.%m.%Y')}\n"
-                    f"{conf_bar} Sugestie: *{cat_name}* ({conf_pct})\n\n"
-                    f"Ești de acord?"
-                ),
-                parse_mode="Markdown",
-                reply_markup=category_confirmation_keyboard(tx_id, pred.category_id if pred else "other", pred.confidence if pred else 0.0),
-            )
+                # HTML în loc de Markdown — merchant poate conține *, _, [ etc.
+                merchant_escaped = tx.merchant.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+                cat_name_escaped = cat_name.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+                await context.bot.send_message(
+                    chat_id=chat_id,
+                    text=(
+                        f"🤔 <b>Categorie necesară</b>\n\n"
+                        f"🏪 {merchant_escaped}\n"
+                        f"💰 {sign}{tx.amount:.2f} {tx.currency}  •  {tx.date.strftime('%d.%m.%Y')}\n"
+                        f"{conf_bar} Sugestie: <b>{cat_name_escaped}</b> ({conf_pct})\n\n"
+                        f"Ești de acord?"
+                    ),
+                    parse_mode="HTML",
+                    reply_markup=category_confirmation_keyboard(tx_id, pred.category_id if pred else "other", pred.confidence if pred else 0.0),
+                )
+            except Exception as e:
+                logger.error(f"Eroare trimitere confirmare categorie pentru '{tx.merchant}': {e}", exc_info=True)
 
         context.user_data.pop("csv_pending", None)
         return ConversationHandler.END
