@@ -30,6 +30,7 @@ class CategoryPrediction:
     category_name: str
     confidence: float  # 0.0 - 1.0
     reason: str  # Explicație pentru utilizator
+    from_history: bool = False  # True doar dacă vine din merchant_mappings confirmat de user
 
     @property
     def emoji(self) -> str:
@@ -114,7 +115,7 @@ class SmartCategorizer:
         merchant_lower = merchant.lower().strip()
         text_lower = ocr_text.lower() if ocr_text else merchant_lower
 
-        # --- Nivel 1: Istoric exact ---
+        # --- Nivel 1: Istoric exact (confirmat de user) ---
         mapping = self.db.get_merchant_category(merchant_lower)
         if mapping and mapping.times_seen >= 1:
             # Confidența crește cu numărul de confirmări
@@ -124,7 +125,8 @@ class SmartCategorizer:
                 category_id=mapping.category_id,
                 category_name=cat.get("name", mapping.category_id),
                 confidence=conf,
-                reason=f"Merchant cunoscut (văzut de {mapping.times_seen}x)"
+                reason=f"Merchant cunoscut (văzut de {mapping.times_seen}x)",
+                from_history=True,
             )
 
         # --- Nivel 2: Cuvinte cheie ---

@@ -116,6 +116,21 @@ def csv_profile_confirm_keyboard() -> InlineKeyboardMarkup:
     ])
 
 
+def account_select_keyboard(tx_id: int, accounts: list[dict]) -> InlineKeyboardMarkup:
+    """
+    Keyboard pentru selectarea contului la salvarea unui bon/tranzacție manuală.
+    Indexul e folosit în callback pentru a rămâne sub 64 bytes.
+    """
+    buttons = [
+        [InlineKeyboardButton(
+            f"💳 {acc['name']}",
+            callback_data=json.dumps({"action": "sel_acc", "tx_id": tx_id, "i": i}),
+        )]
+        for i, acc in enumerate(accounts)
+    ]
+    return InlineKeyboardMarkup(buttons)
+
+
 def csv_account_keyboard(accounts: list[dict]) -> InlineKeyboardMarkup:
     """
     Keyboard pentru selectarea contului la import CSV.

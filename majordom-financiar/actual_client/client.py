@@ -250,8 +250,6 @@ class ActualBudgetClient:
                 return Account(id=str(acc.id), name=acc.name, balance=initial_balance)
         return await self._run(_create)
 
-    AUTO_CATEGORY_THRESHOLD = 0.75
-
     async def add_transactions_batch(
         self,
         account_id: str,
@@ -309,7 +307,10 @@ class ActualBudgetClient:
                                 merchant=tx.merchant,
                                 ocr_text=tx.description,
                             )
-                            if pred.confidence >= self.AUTO_CATEGORY_THRESHOLD and pred.category_name and pred.category_name != "Altele":
+                            # Auto-categorizare doar dacă merchantul a fost confirmat
+                            # anterior de user (from_history=True).
+                            # Keywords/AI singure nu sunt suficiente — întotdeauna întrebăm.
+                            if pred.from_history and pred.category_name and pred.category_name != "Altele":
                                 cat_obj = get_or_create_category(
                                     actual.session,
                                     pred.category_name,

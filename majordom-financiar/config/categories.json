@@ -6,8 +6,10 @@
       "emoji": "🛒",
       "keywords": [
         "albert heijn", "jumbo", "lidl", "aldi", "plus supermarkt", "dirk", "coop",
-        "hoogvliet", "spar", "vomar", "picnic", "ah", "dekamarkt",
-        "kaufland", "mega image", "carrefour", "auchan", "penny", "profi"
+        "hoogvliet", "spar", "vomar", "picnic", "dekamarkt", "jan linders",
+        "kaufland", "mega image", "carrefour", "auchan", "penny", "profi",
+        "supermarkt", "supermarket", "boodschappen", "vers", "bakker", "slager",
+        "markt", "versmarkt", "poelier", "vishandel", "groente"
       ]
     },
     {
@@ -15,10 +17,12 @@
       "name": "Restaurante & Cafenele",
       "emoji": "🍽️",
       "keywords": [
-        "restaurant", "cafe", "cafetaria", "eetcafe", "broodjeszaak",
+        "restaurant", "cafe", "cafetaria", "eetcafe", "broodjeszaak", "lunchroom",
         "mcdonald", "kfc", "burger king", "subway", "dominos", "new york pizza",
-        "starbucks", "costa coffee", "bagels & beans", "la place",
-        "pizzerie", "cafenea", "fast food"
+        "thuisbezorgd", "deliveroo", "uber eats", "just eat",
+        "starbucks", "costa coffee", "bagels beans", "la place", "bagel",
+        "pizzerie", "cafenea", "fast food", "snackbar", "frituur", "shoarma",
+        "sushi", "thai", "chinees", "indiaas", "grieks", "italiaans"
       ]
     },
     {
@@ -26,10 +30,13 @@
       "name": "Transport",
       "emoji": "🚗",
       "keywords": [
-        "ns ", "ovchipkaart", "9292", "connexxion", "arriva", "ret", "gvb", "htm",
-        "shell", "bp", "esso", "tinq", "tango", "neom", "tamoil",
-        "bolt", "uber", "greenwheels", "sixt",
-        "petrom", "omv", "mol", "rompetrol"
+        "ns ", "ovchipkaart", "ov-chipkaart", "9292", "connexxion", "arriva", "ret", "gvb", "htm", "qbuzz",
+        "shell", "bp", "esso", "tinq", "tango", "neom", "tamoil", "total",
+        "bolt", "uber", "greenwheels", "sixt", "enterprise", "hertz",
+        "parkeergarage", "parkeren", "parkmobile", "yellowbrick", "q-park",
+        "rdw", "apk", "autogarage", "bandenservice", "kwikfit",
+        "petrom", "omv", "mol", "rompetrol",
+        "benzine", "diesel", "tankstation", "brandstof"
       ]
     },
     {
@@ -37,10 +44,11 @@
       "name": "Utilități",
       "emoji": "💡",
       "keywords": [
-        "vattenfall", "eneco", "essent", "nuon", "greenchoice", "budget energie",
-        "ziggo", "kpn", "t-mobile", "vodafone", "tele2", "simpel",
-        "vitens", "dunea", "waternet", "evides",
-        "enel", "engie", "digi", "orange"
+        "vattenfall", "eneco", "essent", "nuon", "greenchoice", "budget energie", "oxxio",
+        "ziggo", "kpn", "t-mobile", "vodafone", "tele2", "simpel", "ben ", "hollandsnieuwe",
+        "vitens", "dunea", "waternet", "evides", "brabant water",
+        "enel", "engie", "digi", "orange", "telekom",
+        "energie", "stroom", "gas ", "water ", "internet", "glasvezel"
       ]
     },
     {
@@ -48,9 +56,13 @@
       "name": "Sănătate",
       "emoji": "💊",
       "keywords": [
-        "etos", "kruidvat", "da drogist", "boots", "apotheek", "huisarts",
-        "ziekenhuis", "tandarts", "fysiotherapie",
-        "farmacia", "catena", "sensiblu", "helpnet", "medic"
+        "apotheek", "pharmacie", "farmacie",
+        "etos", "kruidvat", "da drogist", "boots", "trekpleister",
+        "huisarts", "dokter", "ziekenhuis", "tandarts", "fysiotherapie",
+        "optician", "specsavers", "pearle", "brillen",
+        "gym", "sportschool", "fitness", "basic fit", "onefit",
+        "catena", "sensiblu", "helpnet", "medic", "spital",
+        "drogist", "gezondheid", "kapper", "schoonheid", "beauty"
       ]
     },
     {
@@ -58,39 +70,78 @@
       "name": "Îmbrăcăminte",
       "emoji": "👕",
       "keywords": [
-        "h&m", "zara", "uniqlo", "primark", "c&a", "wehkamp", "coolblue fashion",
-        "only", "jack & jones", "scotch & soda", "the sting", "gsus",
-        "decathlon", "intersport", "reserved", "new yorker"
+        "h&m", "zara", "uniqlo", "primark", "c&a", "mango", "cos ",
+        "only", "jack jones", "scotch soda", "the sting", "gsus", "g-star",
+        "nike", "adidas", "puma", "asics", "new balance",
+        "decathlon", "intersport",
+        "wehkamp", "zalando", "about you",
+        "reserved", "new yorker", "peek cloppenburg",
+        "schoenen", "kleding", "mode", "fashion"
       ]
     },
     {
       "id": "home",
-      "name": "Casă & Grădină",
+      "name": "Casă & Întreținere",
       "emoji": "🏠",
       "keywords": [
-        "ikea", "praxis", "gamma", "karwei", "hornbach", "intratuin",
-        "kwantum", "jysk", "xenos", "action", "blokker", "hema",
-        "dedeman", "leroy merlin"
+        "ikea", "praxis", "gamma", "karwei", "hornbach", "intratuin", "formido",
+        "kwantum", "jysk", "xenos", "action", "blokker", "hema", "casa",
+        "coolblue", "mediamarkt", "expert", "bol.com", "amazon", "wehkamp elektronica",
+        "apple", "samsung", "dyson",
+        "schoonmaak", "cleaning", "woningbouw", "onderhoud",
+        "loodgieter", "elektricien", "schilder", "aannemer",
+        "dedeman", "leroy merlin", "bricolage",
+        "wonen", "tuin", "meubel", "lamp", "gereedschap"
       ]
     },
     {
       "id": "entertainment",
-      "name": "Divertisment",
+      "name": "Divertisment & Vacanță",
       "emoji": "🎬",
       "keywords": [
-        "pathe", "vue cinema", "kinepolis", "spotify", "netflix", "videoland",
-        "ticketmaster", "eventbrite", "bol.com entertainment",
-        "cinema", "concert", "bilet"
+        "netflix", "spotify", "videoland", "disney", "hbo", "amazon prime", "apple tv",
+        "patreon", "twitch", "youtube premium", "adobe", "canva",
+        "pathe", "vue cinema", "kinepolis", "cinema", "bioscoop",
+        "ticketmaster", "eventbrite", "concert", "theater", "museum",
+        "booking.com", "airbnb", "hotels.com", "expedia", "trivago",
+        "ryanair", "klm", "transavia", "easyjet", "wizz",
+        "vakantie", "reizen", "hotel", "vlucht", "bilet avion",
+        "steam", "playstation", "nintendo", "xbox", "games"
       ]
     },
     {
-      "id": "education",
-      "name": "Educație",
-      "emoji": "📚",
+      "id": "children",
+      "name": "Copii",
+      "emoji": "👨‍👩‍👧‍👦",
       "keywords": [
-        "bol.com", "bruna", "selexyz", "donner", "readshop",
-        "studystore", "saxion", "tu delft", "uva",
-        "librarie", "carte", "curs"
+        "school", "scoala", "schoolboeken", "schoolspullen",
+        "speelgoed", "toys", "intertoys", "smyths",
+        "kinderopvang", "bso", "naschoolse",
+        "sportclub", "voetbal", "zwemles", "muziekles", "dansles",
+        "kinderfietsen", "kinderkleding", "baby"
+      ]
+    },
+    {
+      "id": "personal",
+      "name": "Bani Personali",
+      "emoji": "💰",
+      "keywords": [
+        "bol.com boeken", "bruna", "selexyz", "donner", "readshop", "libris",
+        "kapper", "barbier", "nagels", "spa ", "wellness",
+        "cadeau", "gift", "present", "card", "bon cadeau",
+        "donatie", "goededoelen", "aidsfonds", "amnesty",
+        "lunch", "koffie werk"
+      ]
+    },
+    {
+      "id": "investments",
+      "name": "Investiții & Economii",
+      "emoji": "📈",
+      "keywords": [
+        "degiro", "nse", "vanguard", "etf", "beurs",
+        "brand new day", "meesman", "northern trust",
+        "spaarrekening", "sparen", "deposito",
+        "investitie", "economii"
       ]
     },
     {

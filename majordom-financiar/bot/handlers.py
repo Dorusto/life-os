@@ -27,6 +27,7 @@ from ocr.vision_engine import VisionEngine
 from memory import MemoryDB, SmartCategorizer
 from actual_client import ActualBudgetClient
 from .keyboards import (
+    account_select_keyboard,
     category_confirmation_keyboard,
     category_selection_keyboard,
     transaction_confirm_keyboard,
@@ -404,6 +405,9 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif action == "save_actual":
             await _handle_save_to_actual(query, data)
 
+        elif action == "sel_acc":
+            await _handle_select_account(query, data)
+
         elif action == "cancel_tx":
             await query.edit_message_text("🗑️ Tranzacție anulată.")
 
@@ -424,6 +428,7 @@ async def _handle_confirm_category(query, data: dict):
 
     # Învață din confirmare și propagă categoria în Actual Budget
     transactions = db.get_transactions(limit=500)
+    already_in_actual = False
     for tx in transactions:
         if tx.id == tx_id:
             categorizer.learn(tx.merchant, category_id, tx.raw_ocr_text)
@@ -431,13 +436,16 @@ async def _handle_confirm_category(query, data: dict):
                 cat_data = categorizer.categories.get(category_id, {})
                 cat_name = cat_data.get("name", category_id)
                 await actual_client.update_transaction_category(tx.actual_budget_id, cat_name)
+                already_in_actual = True
             break
 
-    await query.edit_message_text(
-        query.message.text + "\n\n✅ *Categorie confirmată!*",
-        parse_mode="Markdown",
-        reply_markup=transaction_confirm_keyboard(tx_id)
-    )
+    if already_in_actual:
+        await query.edit_message_text("✅ Categorie confirmată și salvată în Actual Budget!")
+    else:
+        await query.edit_message_text(
+            "✅ Categorie confirmată!",
+            reply_markup=transaction_confirm_keyboard(tx_id)
+        )
 
 
 async def _handle_change_category(query, data: dict):
@@ -467,13 +475,16 @@ async def _handle_set_category(query, data: dict):
             cat_name = cat_data.get("name", category_id)
             if tx.actual_budget_id:
                 await actual_client.update_transaction_category(tx.actual_budget_id, cat_name)
-
-            await query.edit_message_text(
-                f"✅ Categorie actualizată: *{cat_name}*\n"
-                f"🧠 Am învățat — data viitoare voi ști!",
-                parse_mode="Markdown",
-                reply_markup=transaction_confirm_keyboard(tx_id)
-            )
+                await query.edit_message_text(
+                    f"✅ Categorie setată: {cat_name}\n"
+                    f"🧠 Am învățat — data viitoare voi ști!"
+                )
+            else:
+                await query.edit_message_text(
+                    f"✅ Categorie setată: {cat_name}\n"
+                    f"🧠 Am învățat — data viitoare voi ști!",
+                    reply_markup=transaction_confirm_keyboard(tx_id)
+                )
             return
 
     await query.edit_message_text("✅ Categorie actualizată!")
@@ -495,55 +506,82 @@ async def _handle_save_to_actual(query, data: dict):
         return
 
     try:
-        # Găsește contul implicit
-        account = await actual_client.get_default_account()
-        if not account:
+        accounts = await actual_client.get_accounts()
+        if not accounts:
+            await query.edit_message_text("❌ Nu am găsit niciun cont în Actual Budget.")
+            return
+
+        # Dacă există mai multe conturi, întreabă utilizatorul
+        if len(accounts) > 1:
+            acc_list = [{"id": a.id, "name": a.name} for a in accounts]
             await query.edit_message_text(
-                "❌ Nu am găsit niciun cont în Actual Budget."
+                "🏦 În ce cont salvez tranzacția?",
+                reply_markup=account_select_keyboard(tx_id, acc_list),
             )
             return
 
-        # Adaugă tranzacția (categoria e creată automat în Actual dacă nu există)
-        category_name = categorizer.categories.get(tx.category_id, {}).get("name", "")
-        # Sursa: dacă are text OCR → bon foto, altfel → adăugat manual cu /add
-        source_notes = "[foto bon]" if tx.raw_ocr_text else "[/add manual]"
-        actual_id = await actual_client.add_transaction(
-            account_id=account.id,
-            amount=tx.amount,
-            payee=tx.merchant,
-            category_name=category_name,
-            tx_date=date.fromisoformat(tx.date) if tx.date else None,
-            notes=source_notes,
-        )
-
-        currency = settings.default_currency
-        if actual_id is None:
-            await query.edit_message_text(
-                f"⚠️ *Tranzacție deja existentă* — probabil importată din CSV.\n\n"
-                f"🏪 {tx.merchant}\n"
-                f"💰 {tx.amount:.2f} {currency}\n\n"
-                f"_Nu am adăugat-o din nou pentru a evita duplicatele._",
-                parse_mode="Markdown"
-            )
-            return
-
-        await query.edit_message_text(
-            f"💾 *Salvat în Actual Budget!*\n\n"
-            f"🏪 {tx.merchant}\n"
-            f"💰 {tx.amount:.2f} {currency}\n"
-            f"🏦 Cont: {account.name}\n"
-            f"✅ ID: `{actual_id}`",
-            parse_mode="Markdown"
-        )
-
-        # Verifică dacă s-a depășit limita de buget
-        await _check_budget_alert(query, category_name, tx.amount)
+        account = accounts[0]
+        await _do_save_transaction(query, tx, account)
 
     except Exception as e:
         logger.error(f"Eroare salvare Actual: {e}")
         await query.edit_message_text(
             f"❌ Eroare la salvare în Actual Budget:\n{str(e)[:200]}"
         )
+
+
+async def _handle_select_account(query, data: dict):
+    """Utilizatorul a ales contul — salvează tranzacția."""
+    tx_id = data["tx_id"]
+    acc_idx = data["i"]
+
+    transactions = db.get_transactions(limit=500)
+    tx = next((t for t in transactions if t.id == tx_id), None)
+    if not tx:
+        await query.edit_message_text("❌ Tranzacție negăsită.")
+        return
+
+    try:
+        accounts = await actual_client.get_accounts()
+        if acc_idx >= len(accounts):
+            await query.edit_message_text("❌ Cont invalid.")
+            return
+        await _do_save_transaction(query, tx, accounts[acc_idx])
+    except Exception as e:
+        logger.error(f"Eroare salvare Actual: {e}")
+        await query.edit_message_text(f"❌ Eroare la salvare:\n{str(e)[:200]}")
+
+
+async def _do_save_transaction(query, tx, account):
+    """Salvează efectiv tranzacția în Actual Budget și afișează rezultatul."""
+    category_name = categorizer.categories.get(tx.category_id, {}).get("name", "")
+    source_notes = "[foto bon]" if tx.raw_ocr_text else "[/add manual]"
+    actual_id = await actual_client.add_transaction(
+        account_id=account.id,
+        amount=tx.amount,
+        payee=tx.merchant,
+        category_name=category_name,
+        tx_date=date.fromisoformat(tx.date) if tx.date else None,
+        notes=source_notes,
+    )
+
+    currency = settings.default_currency
+    if actual_id is None:
+        await query.edit_message_text(
+            f"⚠️ Tranzacție deja existentă — probabil importată din CSV.\n\n"
+            f"🏪 {tx.merchant}\n"
+            f"💰 {tx.amount:.2f} {currency}\n\n"
+            f"Nu am adăugat-o din nou pentru a evita duplicatele."
+        )
+        return
+
+    await query.edit_message_text(
+        f"💾 Salvat în Actual Budget!\n\n"
+        f"🏪 {tx.merchant}\n"
+        f"💰 {tx.amount:.2f} {currency}\n"
+        f"🏦 Cont: {account.name}"
+    )
+    await _check_budget_alert(query, category_name, tx.amount)
 
 
 async def _check_budget_alert(query, category_name: str, new_amount: float):
