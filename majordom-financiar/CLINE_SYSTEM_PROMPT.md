@@ -69,159 +69,39 @@ frontend/src/
 
 ## Tasks ready to implement (prepared for async work)
 
-These tasks are self-contained and can be implemented without backend changes.
-When done, the user will review and integrate with Claude Code.
+✅ **Task 1** — Chat UI: implemented in `ChatPage.tsx` + wired to `/api/chat`
+✅ **Task 2** — CSV Import wizard UI: implemented in `ImportPage.tsx` (4-step wizard, mock data)
+✅ **Task 3** — ChatService + system prompt: implemented in `backend/services/chat_service.py`
+✅ **Task 4** — Chat API endpoint: implemented in `backend/api/chat.py`
 
----
+### Next task for Cline — Connect CSV import to real backend
 
-### Task 1 — Chat page UI (frontend only, no backend)
+**Goal:** wire the `ImportPage.tsx` wizard to real backend endpoints (replace mock data).
 
-**File to replace:** `frontend/src/pages/ChatPage.tsx`
+**Step 1 — Backend: two new endpoints in `backend/api/csv_import.py`**
 
-Replace the current placeholder with a full chat UI:
+```python
+# POST /api/import/csv
+# Body: multipart/form-data with file + account_id
+# Returns: ImportPreview (list of parsed rows + duplicates flagged)
 
-- Scrollable message list: user messages right (indigo bubble), assistant messages left (surface bubble)
-- Auto-scroll to latest message on new message
-- Fixed input bar at `bottom-16` (above bottom nav), with send button (disabled when empty)
-- Welcome message from Majordom on first load: *"Hello! I'm Majordom, your financial assistant. Ask me anything about your spending."*
-- Loading indicator: 3 animated dots (pulse) while waiting for reply
-- Message type: `{ id: string, role: 'user' | 'assistant', content: string, timestamp: Date }`
-- `handleSend(message: string)` — adds user message, then after 1s adds a mock assistant reply: *"Chat backend coming soon. I'll be able to answer questions about your finances shortly."*
-- No real API calls — just local state with mock response
-- Style: matches existing dark theme (background `#0F0F0F`, surface `#1A1A1A`, accent `#6366F1`)
+# POST /api/import/csv/confirm
+# Body: { account_id, rows: [{date, merchant, amount, category_id, is_duplicate}] }
+# Returns: { imported: int, skipped: int }
+```
 
----
+Reuse existing logic from `bot/csv_wizard.py` and `backend/core/csv_importer/`.
+Use `ActualBudgetClient` to save confirmed transactions (same as receipt confirm flow).
+Deduplication: use the same SHA256(date+merchant+amount) hash as receipts.
 
-### Task 2 — CSV Import wizard UI (frontend only, no backend)
+**Step 2 — Frontend: replace mock data in `ImportPage.tsx`**
 
-**File to replace:** `frontend/src/pages/ImportPage.tsx`
+In Step 1 (upload): on file select, call `POST /api/import/csv` with the file + selected account.
+Replace `MOCK_ROWS` with real response. Replace `MOCK_ACCOUNTS` with `getAccounts()` from api.ts.
+In Step 3 (confirm): call `POST /api/import/csv/confirm` and show real imported/skipped counts.
 
-Multi-step wizard with 4 steps and a progress indicator at top:
-
-**Step 1 — Upload**
-- Drag & drop zone + file picker button (`accept=".csv"`)
-- On file select: show filename + size, enable "Next" button
-- Mock: clicking Next goes to Step 2
-
-**Step 2 — Preview**
-- Table with columns: Date | Merchant | Amount | Category
-- 8 hardcoded mock rows (mix of dates, merchants, amounts)
-- 2 rows marked as duplicate: grey row + badge "already imported"
-- Category column: `<select>` dropdown with hardcoded categories matching `backend/core/config/categories.json` names
-- Account selector at top: `<select>` with 2 mock accounts
-- "Back" + "Confirm Import" buttons
-
-**Step 3 — Confirm**
-- Summary card: "6 transactions to import · 2 duplicates skipped · Total: €234.50"
-- "Back" + "Import" buttons
-- Clicking Import goes to Step 4
-
-**Step 4 — Done**
-- Same success animation as `ReceiptFlow.SuccessScreen` (reuse the component or copy the pattern)
-- "Back to Home" button → navigate('/')
-
-Types to use (same as existing api.ts):
+**New api.ts functions to add:**
 ```typescript
-interface Category { id: string; name: string; emoji: string }
-interface AccountOption { id: string; name: string }
-```
-
----
-
-### Task 3 — Financial assistant system prompt
-
-**New file:** `backend/services/chat_service.py`
-
-Create a `ChatService` class with:
-
-```python
-class ChatService:
-    def build_system_prompt(self, context: dict) -> str:
-        """
-        context keys:
-          accounts: list[dict]  — [{name, balance}]
-          stats: dict           — {month, year, total, count, categories: [{name, total, percentage}]}
-          recent_transactions: list[dict]  — [{date, merchant, amount, category}] last 10
-          user_profile: dict | None  — {income, fixed_costs, goals} if onboarding complete
-        """
-        ...
-
-    async def chat(self, message: str, history: list[dict]) -> str:
-        """
-        Calls Ollama /api/chat with qwen2.5:7b.
-        history format: [{"role": "user"|"assistant", "content": str}]
-        Returns assistant reply as string.
-        """
-        ...
-```
-
-System prompt requirements:
-- Inject real financial data from context (formatted as readable text, not JSON)
-- Personality: concise, practical, friendly — not a generic chatbot
-- Language: auto-detect from user message (respond in same language: RO/EN/NL)
-- Scope: only financial topics — politely redirect off-topic questions
-- Tool support: include Ollama function calling schema for:
-  - `get_balance()` — returns current account balances
-  - `get_monthly_stats(month, year)` — returns spending breakdown
-  - `add_transaction(merchant, amount, date, category_id, account_id)` — adds expense
-
-Use `aiohttp` (already in requirements) for Ollama HTTP calls. Base URL: `settings.ollama.url` (already in config).
-
----
-
-### Task 4 — Chat API endpoint
-
-**New file:** `backend/api/chat.py`
-
-```python
-from fastapi import APIRouter, Depends
-from pydantic import BaseModel
-from backend.api.auth import get_current_user
-from backend.services.chat_service import ChatService
-
-router = APIRouter()
-
-class ChatMessage(BaseModel):
-    role: str   # "user" or "assistant"
-    content: str
-
-class ChatRequest(BaseModel):
-    message: str
-    history: list[ChatMessage] = []
-
-class ChatResponse(BaseModel):
-    reply: str
-
-@router.post("/chat", response_model=ChatResponse)
-async def chat(
-    req: ChatRequest,
-    current_user: str = Depends(get_current_user),
-):
-    ...
-```
-
-Implementation:
-- Instantiate `ChatService`
-- Fetch context: call `ActualBudgetClient` for accounts + monthly stats + last 10 transactions
-- Call `chat_service.chat(req.message, req.history)`
-- Return `ChatResponse(reply=...)`
-- Wrap in try/except — return 503 if Ollama is unreachable
-
-Also add to `backend/main.py`:
-```python
-from backend.api import chat
-app.include_router(chat.router, prefix="/api")
-```
-
-And add to `frontend/src/lib/api.ts`:
-```typescript
-export async function sendChatMessage(
-  message: string,
-  history: { role: string; content: string }[]
-): Promise<{ reply: string }> {
-  return request('/chat', {
-    method: 'POST',
-    body: JSON.stringify({ message, history }),
-  })
-}
+export async function previewCsvImport(file: File, accountId: string): Promise<ImportPreview> { ... }
+export async function confirmCsvImport(data: ImportConfirm): Promise<ImportResult> { ... }
 ```
