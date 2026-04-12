@@ -146,8 +146,8 @@ export default function Home() {
         </section>
       )}
 
-      {/* Recent transactions */}
-      <section className="px-5 pb-10">
+      {/* Recent transactions — pb-24 leaves space for the fixed bottom nav */}
+      <section className="px-5 pb-24">
         <h2 className="text-muted text-xs uppercase tracking-wide mb-3">Recent</h2>
 
         {isLoading && (
