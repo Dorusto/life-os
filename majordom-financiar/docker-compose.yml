@@ -25,13 +25,11 @@ services:
       - ./scripts/ollama-entrypoint.sh:/entrypoint.sh
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
     environment:
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen2.5vl:3b}
+      - OLLAMA_VISION_MODEL=${OLLAMA_VISION_MODEL:-qwen2.5vl:7b}
+      - OLLAMA_CHAT_MODEL=${OLLAMA_CHAT_MODEL:-qwen2.5:7b}
       - OLLAMA_FLASH_ATTENTION=1
     networks:
       - majordom-net
-    # --- GPU (NVIDIA) ---
-    # Necesită nvidia-container-toolkit pe host.
-    # Dacă nu ai GPU, șterge sau comentează blocul 'deploy' de mai jos.
     deploy:
       resources:
         reservations:
@@ -40,14 +38,63 @@ services:
               count: all
               capabilities: [gpu]
     healthcheck:
-      test: ["CMD", "sh", "-c", "ollama list 2>/dev/null | grep -q ${OLLAMA_MODEL:-qwen2.5vl}"]
+      test: ["CMD", "sh", "-c", "ollama list 2>/dev/null | grep -q qwen2.5"]
       interval: 30s
       timeout: 10s
       retries: 20
-      start_period: 300s  # 5 minute pentru download la primul start
+      start_period: 300s
 
+  majordom-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: majordom-api
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      actual-budget:
+        condition: service_healthy
+    networks:
+      - majordom-net
+    # majordom-api is NOT exposed directly to the host.
+    # All traffic goes through majordom-web (Nginx) which proxies /api/ here.
+    # This keeps the API off the network and forces all requests through Nginx.
+    # For local dev without Docker, uncomment the line below:
+    # ports:
+    #   - "8000:8000"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  majordom-web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: majordom-web
+    restart: unless-stopped
+    ports:
+      # Change WEB_PORT in .env to use a different port (default: 3000)
+      - "${WEB_PORT:-3000}:80"
+    depends_on:
+      majordom-api:
+        condition: service_healthy
+    networks:
+      - majordom-net
+
+  # --- Telegram bot (optional transport) ---
+  # The web UI is the primary interface. The bot is kept as a fallback.
+  # Start both with: docker compose --profile telegram up
+  # Start web only:  docker compose up  (default)
   majordom-bot:
-    build: .
+    profiles: ["telegram"]
+    build:
+      context: .
+      dockerfile: Dockerfile.bot
     container_name: majordom-bot
     restart: unless-stopped
     env_file: .env

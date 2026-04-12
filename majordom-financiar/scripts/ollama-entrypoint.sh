@@ -1,32 +1,43 @@
 #!/bin/sh
 set -e
 
-MODEL="${OLLAMA_MODEL:-qwen2.5vl:3b}"
+VISION_MODEL="${OLLAMA_VISION_MODEL:-qwen2.5vl:7b}"
+CHAT_MODEL="${OLLAMA_CHAT_MODEL:-qwen2.5:7b}"
 
 echo "=== Majordom Ollama ==="
-echo "Model: $MODEL"
+echo "Vision model: $VISION_MODEL"
+echo "Chat model:   $CHAT_MODEL"
 
-# Pornește Ollama server în background
+# Start Ollama server in the background
 ollama serve &
 OLLAMA_PID=$!
 
-# Așteaptă până când serverul răspunde
-echo "Aștept Ollama să pornească..."
+# Wait until the server responds
+echo "Waiting for Ollama to start..."
 until ollama list > /dev/null 2>&1; do
   sleep 2
 done
-echo "Ollama pornit."
+echo "Ollama started."
 
-# Verifică modelul exact (nu doar prefixul)
-if ! ollama list 2>/dev/null | grep -q "^${MODEL} \|^${MODEL}	"; then
-  echo "Descarc modelul $MODEL (poate dura câteva minute)..."
-  ollama pull "$MODEL"
-  echo "Model descărcat."
+# Pull vision model if not present
+if ! ollama list 2>/dev/null | grep -q "^${VISION_MODEL} \|^${VISION_MODEL}	"; then
+  echo "Downloading vision model $VISION_MODEL (this may take a few minutes)..."
+  ollama pull "$VISION_MODEL"
+  echo "Vision model downloaded."
 else
-  echo "Modelul $MODEL este deja prezent."
+  echo "Vision model $VISION_MODEL already present."
 fi
 
-echo "Ollama gata."
+# Pull chat model if not present
+if ! ollama list 2>/dev/null | grep -q "^${CHAT_MODEL} \|^${CHAT_MODEL}	"; then
+  echo "Downloading chat model $CHAT_MODEL (this may take a few minutes)..."
+  ollama pull "$CHAT_MODEL"
+  echo "Chat model downloaded."
+else
+  echo "Chat model $CHAT_MODEL already present."
+fi
 
-# Reia procesul principal în prim-plan
+echo "Ollama ready."
+
+# Hand back to the foreground process
 wait $OLLAMA_PID

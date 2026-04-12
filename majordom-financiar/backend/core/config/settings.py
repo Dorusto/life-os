@@ -35,11 +35,18 @@ class ActualBudgetConfig:
 @dataclass
 class OllamaConfig:
     url: str = ""
-    model: str = ""
+    vision_model: str = ""   # for receipt OCR (qwen2.5vl:7b)
+    chat_model: str = ""     # for financial assistant chat (qwen2.5:7b)
 
     def __post_init__(self):
         self.url = os.getenv("OLLAMA_URL", "http://ollama:11434")
-        self.model = os.getenv("OLLAMA_MODEL", "qwen2.5vl:7b")
+        self.vision_model = os.getenv("OLLAMA_VISION_MODEL", "qwen2.5vl:7b")
+        self.chat_model = os.getenv("OLLAMA_CHAT_MODEL", "qwen2.5:7b")
+
+    @property
+    def model(self) -> str:
+        """Backward-compat alias for vision model (used by VisionEngine)."""
+        return self.vision_model
 
 
 @dataclass

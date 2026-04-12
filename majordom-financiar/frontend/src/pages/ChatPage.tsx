@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send } from 'lucide-react'
+import { sendChatMessage } from '../lib/api'
 
 interface Message {
   id: string
@@ -41,17 +42,29 @@ export default function ChatPage() {
     setInput('')
     setLoading(true)
 
-    // TODO: replace with real API call (sendChatMessage from api.ts)
-    await new Promise(r => setTimeout(r, 1000))
+    // Build history from current messages (exclude the welcome message role-wise)
+    const history = messages
+      .filter(m => m.id !== 'welcome')
+      .map(m => ({ role: m.role, content: m.content }))
 
-    const assistantMsg: Message = {
-      id: crypto.randomUUID(),
-      role: 'assistant',
-      content: 'Chat backend coming soon. I\'ll be able to answer questions about your finances shortly.',
-      timestamp: new Date(),
+    try {
+      const { reply } = await sendChatMessage(text, history)
+      setMessages(prev => [...prev, {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: reply,
+        timestamp: new Date(),
+      }])
+    } catch {
+      setMessages(prev => [...prev, {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: 'Sorry, I could not reach the assistant right now. Please try again.',
+        timestamp: new Date(),
+      }])
+    } finally {
+      setLoading(false)
     }
-    setMessages(prev => [...prev, assistantMsg])
-    setLoading(false)
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
