@@ -1,0 +1,24 @@
+# Dockerfile for the FastAPI backend (web UI transport).
+# Separate from Dockerfile.bot so the two transports can evolve independently.
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# System libraries required by Pillow for image processing
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libjpeg-dev libpng-dev libwebp-dev curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.backend.txt .
+RUN pip install --no-cache-dir -r requirements.backend.txt
+
+COPY . .
+
+# PYTHONPATH=/app makes `from backend.core.ocr...` and `from backend.api...`
+# work from any file inside the container without path hacks.
+ENV PYTHONPATH=/app
+
+# Directory for uploaded receipt images (persisted via Docker volume ./data)
+RUN mkdir -p /app/data/uploads
+
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

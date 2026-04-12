@@ -1,0 +1,114 @@
+# docker-compose.coolify.yml
+#
+# Variant for Coolify deployments.
+#
+# Differences from docker-compose.yml:
+#   - No hardcoded ports on actual-budget (Coolify assigns them via its proxy)
+#   - majordom-web exposes port 80 for Coolify's reverse proxy to route to
+#   - GPU block commented out — uncomment if your Coolify host has NVIDIA GPU + toolkit
+#   - Networks managed by Coolify (no explicit network definition needed)
+#
+# In Coolify: New Resource → Docker Compose → point to this file.
+# Set all environment variables in the Coolify UI (not in a .env file).
+
+services:
+  actual-budget:
+    image: actualbudget/actual-server:latest
+    container_name: actual-budget
+    restart: unless-stopped
+    volumes:
+      - actual-data:/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:5006/', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 20s
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: majordom-ollama
+    restart: unless-stopped
+    volumes:
+      - ollama-data:/root/.ollama
+      - ./scripts/ollama-entrypoint.sh:/entrypoint.sh
+    entrypoint: ["/bin/sh", "/entrypoint.sh"]
+    environment:
+      - OLLAMA_VISION_MODEL=${OLLAMA_VISION_MODEL:-qwen2.5vl:7b}
+      - OLLAMA_CHAT_MODEL=${OLLAMA_CHAT_MODEL:-qwen2.5:7b}
+      - OLLAMA_FLASH_ATTENTION=1
+    # Uncomment the block below if your Coolify host has an NVIDIA GPU
+    # and the NVIDIA Container Toolkit is installed:
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "sh", "-c", "ollama list 2>/dev/null | grep -q qwen2.5"]
+      interval: 30s
+      timeout: 10s
+      retries: 20
+      start_period: 300s
+
+  majordom-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: majordom-api
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      actual-budget:
+        condition: service_healthy
+    # API is not exposed to the outside — traffic goes through majordom-web (Nginx)
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  majordom-web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: majordom-web
+    restart: unless-stopped
+    # Port 80 — Coolify's reverse proxy routes external traffic here.
+    # Coolify assigns the public domain/port in its UI.
+    ports:
+      - "80"
+    depends_on:
+      majordom-api:
+        condition: service_healthy
+
+  # --- Telegram bot (optional transport) ---
+  # Uncomment the entire block below to enable the Telegram bot.
+  # Make sure TELEGRAM_BOT_TOKEN and TELEGRAM_ALLOWED_USER_IDS are set
+  # in the Coolify environment variable editor.
+  #
+  # majordom-bot:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.bot
+  #   container_name: majordom-bot
+  #   restart: unless-stopped
+  #   env_file: .env
+  #   volumes:
+  #     - ./data:/app/data
+  #   depends_on:
+  #     actual-budget:
+  #       condition: service_healthy
+  #     ollama:
+  #       condition: service_healthy
+
+volumes:
+  actual-data:
+    name: majordom-actual-data
+  ollama-data:
+    name: majordom-ollama-data

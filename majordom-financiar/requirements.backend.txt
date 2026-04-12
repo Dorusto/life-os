@@ -1,0 +1,16 @@
+# Backend (FastAPI) dependencies — separate from requirements.txt (Telegram bot)
+# so Docker layer cache is not invalidated when only one transport changes.
+
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+python-multipart==0.0.12   # required for file upload (UploadFile)
+python-jose[cryptography]==3.3.0  # JWT tokens
+passlib[bcrypt]==1.7.4     # password hashing (bcrypt)
+bcrypt==3.2.2              # pinned: passlib 1.7.4 is incompatible with bcrypt 4.x+
+aiofiles==23.2.1           # async file I/O for saving receipt images
+
+# Shared with bot (same versions to avoid drift)
+aiohttp==3.10.5
+actualpy
+Pillow==10.4.0
+python-dotenv==1.0.1

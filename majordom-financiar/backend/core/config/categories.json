@@ -2,7 +2,7 @@
   "categories": [
     {
       "id": "groceries",
-      "name": "Alimente & Băuturi",
+      "name": "Groceries & Drinks",
       "emoji": "🛒",
       "keywords": [
         "albert heijn", "jumbo", "lidl", "aldi", "plus supermarkt", "dirk", "coop",
@@ -14,7 +14,7 @@
     },
     {
       "id": "restaurants",
-      "name": "Restaurante & Cafenele",
+      "name": "Restaurants & Cafes",
       "emoji": "🍽️",
       "keywords": [
         "restaurant", "cafe", "cafetaria", "eetcafe", "broodjeszaak", "lunchroom",
@@ -41,7 +41,7 @@
     },
     {
       "id": "utilities",
-      "name": "Utilități",
+      "name": "Utilities",
       "emoji": "💡",
       "keywords": [
         "vattenfall", "eneco", "essent", "nuon", "greenchoice", "budget energie", "oxxio",
@@ -53,7 +53,7 @@
     },
     {
       "id": "health",
-      "name": "Sănătate",
+      "name": "Health",
       "emoji": "💊",
       "keywords": [
         "apotheek", "pharmacie", "farmacie",
@@ -67,7 +67,7 @@
     },
     {
       "id": "clothing",
-      "name": "Îmbrăcăminte",
+      "name": "Clothing",
       "emoji": "👕",
       "keywords": [
         "h&m", "zara", "uniqlo", "primark", "c&a", "mango", "cos ",
@@ -81,7 +81,7 @@
     },
     {
       "id": "home",
-      "name": "Casă & Întreținere",
+      "name": "Home & Maintenance",
       "emoji": "🏠",
       "keywords": [
         "ikea", "praxis", "gamma", "karwei", "hornbach", "intratuin", "formido",
@@ -96,7 +96,7 @@
     },
     {
       "id": "entertainment",
-      "name": "Divertisment & Vacanță",
+      "name": "Entertainment & Vacation",
       "emoji": "🎬",
       "keywords": [
         "netflix", "spotify", "videoland", "disney", "hbo", "amazon prime", "apple tv",
@@ -111,7 +111,7 @@
     },
     {
       "id": "children",
-      "name": "Copii",
+      "name": "Children",
       "emoji": "👨‍👩‍👧‍👦",
       "keywords": [
         "school", "scoala", "schoolboeken", "schoolspullen",
@@ -123,7 +123,7 @@
     },
     {
       "id": "personal",
-      "name": "Bani Personali",
+      "name": "Personal",
       "emoji": "💰",
       "keywords": [
         "bol.com boeken", "bruna", "selexyz", "donner", "readshop", "libris",
@@ -135,7 +135,7 @@
     },
     {
       "id": "investments",
-      "name": "Investiții & Economii",
+      "name": "Investments & Savings",
       "emoji": "📈",
       "keywords": [
         "degiro", "nse", "vanguard", "etf", "beurs",
@@ -145,8 +145,22 @@
       ]
     },
     {
+      "id": "income",
+      "name": "Income",
+      "emoji": "💵",
+      "keywords": [
+        "salaris", "loon", "salary", "wages",
+        "kinderbijslag", "alocatie", "child benefit", "kinderopvangtoeslag",
+        "huurtoeslag", "zorgtoeslag", "toeslag",
+        "huur ontvangen", "rent received", "verhuur",
+        "dividend", "rente ontvangen", "interest received",
+        "bonus", "vakantiegeld", "dertiende maand",
+        "terugbetaling belasting", "teruggave"
+      ]
+    },
+    {
       "id": "other",
-      "name": "Altele",
+      "name": "Other",
       "emoji": "📦",
       "keywords": []
     }

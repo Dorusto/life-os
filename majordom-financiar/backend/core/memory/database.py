@@ -405,7 +405,7 @@ class MemoryDB:
 
     def get_csv_profile_by_sig(self, header_sig: str):
         """Caută un profil CSV după header signature. Returnează CsvProfile sau None."""
-        from csv_importer.profiles import CsvProfile
+        from backend.core.csv_importer.profiles import CsvProfile
         conn = self._get_conn()
         try:
             row = conn.execute(
@@ -422,7 +422,7 @@ class MemoryDB:
 
     def get_all_csv_profiles(self) -> list:
         """Returnează toate profilurile CSV salvate."""
-        from csv_importer.profiles import CsvProfile
+        from backend.core.csv_importer.profiles import CsvProfile
         conn = self._get_conn()
         try:
             rows = conn.execute(

@@ -1,0 +1,20 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Apply dark background globally — avoids flash of white on load */
+html, body, #root {
+  background-color: #0F0F0F;
+  color: #FAFAFA;
+  min-height: 100dvh; /* dvh = dynamic viewport height, correct on mobile with browser chrome */
+}
+
+/* Remove tap highlight on mobile — looks more native */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Custom scrollbar — subtle, matches dark theme */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2A2A2A; border-radius: 2px; }

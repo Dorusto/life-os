@@ -171,6 +171,60 @@ export interface MonthlyStats {
   categories: CategoryStat[]
 }
 
+// --- CSV Import ---
+
+export interface ImportRow {
+  id: string
+  date: string
+  merchant: string
+  amount: number
+  is_expense: boolean
+  currency: string
+  category_id: string
+  category_confirmed: boolean
+  duplicate: boolean
+}
+
+export interface ImportPreview {
+  source_name: string
+  rows: ImportRow[]
+  total_rows: number
+  accounts: AccountOption[]
+}
+
+export interface ImportRowConfirm {
+  date: string
+  merchant: string
+  amount: number
+  is_expense: boolean
+  category_id: string
+  duplicate: boolean
+  notes?: string
+}
+
+export interface ImportConfirm {
+  account_id: string
+  rows: ImportRowConfirm[]
+}
+
+export interface ImportResult {
+  imported: number
+  skipped: number
+}
+
+export async function previewCsvImport(file: File): Promise<ImportPreview> {
+  const form = new FormData()
+  form.append('file', file)
+  return request<ImportPreview>('/import/csv', { method: 'POST', body: form })
+}
+
+export async function confirmCsvImport(data: ImportConfirm): Promise<ImportResult> {
+  return request<ImportResult>('/import/csv/confirm', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
 // --- Chat ---
 
 export async function sendChatMessage(

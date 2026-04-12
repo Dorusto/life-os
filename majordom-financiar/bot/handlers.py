@@ -22,10 +22,10 @@ from telegram.ext import (
     ContextTypes, filters
 )
 
-from config import settings
-from ocr.vision_engine import VisionEngine
-from memory import MemoryDB, SmartCategorizer
-from actual_client import ActualBudgetClient
+from backend.core.config import settings
+from backend.core.ocr.vision_engine import VisionEngine
+from backend.core.memory import MemoryDB, SmartCategorizer
+from backend.core.actual_client import ActualBudgetClient
 from .keyboards import (
     account_select_keyboard,
     category_confirmation_keyboard,

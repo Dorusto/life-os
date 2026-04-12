@@ -14,7 +14,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from backend.api import auth, receipts, transactions, chat
+from backend.api import auth, receipts, transactions, chat, csv_import
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +62,7 @@ app.include_router(auth.router, prefix="/api")
 app.include_router(receipts.router, prefix="/api")
 app.include_router(transactions.router, prefix="/api")
 app.include_router(chat.router, prefix="/api")
+app.include_router(csv_import.router, prefix="/api")
 
 
 @app.get("/api/health")

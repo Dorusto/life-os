@@ -13,7 +13,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 load_dotenv()
 
-from config import settings
+from backend.core.config import settings
 from bot.handlers import setup_handlers
 
 

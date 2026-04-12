@@ -20,7 +20,7 @@ from pathlib import Path
 import aiohttp
 from PIL import Image
 
-from ocr.parser import ReceiptData, ReceiptItem
+from backend.core.ocr.parser import ReceiptData, ReceiptItem
 
 logger = logging.getLogger(__name__)
 
@@ -69,11 +69,11 @@ class VisionEngine:
         b64_image = base64.b64encode(resized).decode("utf-8")
         return await self._call_ollama(b64_image)
 
-    def _resize_image(self, image_bytes: bytes, max_size: int = 512) -> bytes:
+    def _resize_image(self, image_bytes: bytes, max_size: int = 1000) -> bytes:
         """
-        Redimensionează imaginea la max 512px pe latura lungă.
-        512px → ~1300 tokeni vizuali (față de ~5300 la 1024px).
-        Încape în 8GB VRAM cu tot modelul pe GPU.
+        Redimensionează imaginea la max 1000px pe latura lungă.
+        1000px → ~4000 tokeni vizuali — mai bună acuratețe OCR pe bonuri mici,
+        acceptabil ca timp (~60-90s pe CPU). Anterior era 512px (mai rapid dar mai puțin precis).
         """
         img = Image.open(io.BytesIO(image_bytes))
         w, h = img.size

@@ -1,0 +1,22 @@
+# Dockerfile for the Telegram bot transport (optional, --profile telegram).
+# Same codebase, different entry point — both transports share backend/core/.
+FROM python:3.11-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libjpeg-dev libpng-dev libwebp-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --root-user-action=ignore -r requirements.txt
+
+COPY . .
+
+RUN mkdir -p /app/data
+
+ENV PYTHONPATH=/app
+ENV MEMORY_DB_PATH=/app/data/memory.db
+ENV PYTHONUNBUFFERED=1
+
+CMD ["python", "bot/main.py"]

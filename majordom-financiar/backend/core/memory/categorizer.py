@@ -78,7 +78,7 @@ class SmartCategorizer:
                 }
         except FileNotFoundError:
             logger.warning(f"Fișier categorii negăsit: {path}")
-            return {"other": {"id": "other", "name": "Altele", "keywords": []}}
+            return {"other": {"id": "other", "name": "Other", "keywords": []}}
 
     def _rebuild_keyword_index(self):
         """Reconstruiește indexul de cuvinte cheie."""
@@ -157,9 +157,9 @@ class SmartCategorizer:
         # --- Fallback ---
         return CategoryPrediction(
             category_id="other",
-            category_name="Altele",
+            category_name="Other",
             confidence=0.0,
-            reason="Categorie necunoscută — te rog confirmă"
+            reason="Unknown category — please confirm"
         )
 
     def _match_keywords(self, text: str) -> tuple[str, str] | None:

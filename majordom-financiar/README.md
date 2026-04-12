@@ -1,8 +1,8 @@
-# Majordom — Personal Finance Bot
+# Majordom — Personal Finance Assistant
 
-A self-hosted Telegram bot that turns receipts and bank exports into a clean, categorized budget — without sending your financial data to any cloud service.
+A self-hosted personal finance assistant. Photograph receipts, import bank statements, and chat with an AI that knows your actual numbers — all without sending your financial data to any cloud service.
 
-> Built with AI assistance (Claude). Co-authored by a human who understands ~3% of the code and an AI that wrote the rest.
+> Built with AI assistance (Claude + DeepSeek). Co-authored by a human who understands ~3% of the code and an AI that wrote the rest.
 
 ---
 
@@ -10,11 +10,11 @@ A self-hosted Telegram bot that turns receipts and bank exports into a clean, ca
 
 | Action | Result |
 |--------|--------|
-| 📷 Send a receipt photo | AI extracts merchant, amount, date → asks for category → saves to Actual Budget |
-| 📎 Send a CSV bank export | Auto-detects format (ING, crypto.com, Revolut…) → imports all transactions → asks category for unknown merchants |
-| ✅ Confirm a category | Bot learns: next time same merchant is auto-categorized |
-| 💬 `/add 49.99 Uber` | Manually add a transaction |
-| 📊 `/balance` `/stats` | Current balance and monthly spending by category |
+| 📷 Photograph a receipt | AI extracts merchant, amount, date → you confirm → saved to Actual Budget |
+| 📄 Import a CSV bank export | Auto-detects format → shows preview → you set categories → saved to Actual Budget |
+| 💬 Chat with the assistant | Ask questions about your spending, balances, and categories |
+| 📊 Dashboard | Monthly spending by category (donut chart) + recent transactions |
+| 📱 Telegram bot *(optional)* | Same receipt + CSV import flow, directly in Telegram |
 
 **Everything runs on your own server. Zero cloud. Zero subscriptions.**
 
@@ -22,10 +22,10 @@ A self-hosted Telegram bot that turns receipts and bank exports into a clean, ca
 
 ## Prerequisites
 
-- A server, NAS, or PC that runs 24/7 (Linux recommended)
+- A machine that runs 24/7 (Linux recommended — Raspberry Pi, NAS, home server, VPS)
 - [Docker](https://docs.docker.com/get-docker/) + [Docker Compose](https://docs.docker.com/compose/install/)
-- A Telegram account
-- A GPU is optional but speeds up receipt scanning (CPU works fine, ~60s/image)
+- ~6 GB disk for AI models (downloaded automatically on first start)
+- NVIDIA GPU is optional but speeds up receipt scanning (~3s vs ~60s on CPU)
 
 ---
 
@@ -38,103 +38,146 @@ git clone https://github.com/Dorusto/life-os.git
 cd life-os/majordom-financiar
 ```
 
-### 2. Create your Telegram bot
-
-1. Open Telegram → search for **@BotFather**
-2. Send `/newbot` → follow the instructions
-3. Copy the **bot token** (looks like `123456789:ABCdef...`)
-
-### 3. Find your Telegram user ID
-
-1. Open Telegram → search for **@userinfobot**
-2. Send `/start`
-3. Copy the **Id** number shown
-
-### 4. Configure
+### 2. Configure
 
 ```bash
 cp .env.example .env
-nano .env  # or any text editor
+nano .env
 ```
 
-Fill in at minimum:
-- `TELEGRAM_BOT_TOKEN` — from step 2
-- `TELEGRAM_ALLOWED_USER_IDS` — from step 3
-- `ACTUAL_BUDGET_PASSWORD` — choose any password
+Fill in the required values:
 
-### 5. Start
+| Variable | What to set |
+|----------|-------------|
+| `USER1_USERNAME` / `USER1_PASSWORD` | Your web UI login credentials |
+| `USER2_USERNAME` / `USER2_PASSWORD` | Second user (spouse, partner) — delete if not needed |
+| `JWT_SECRET` | Run: `python3 -c "import secrets; print(secrets.token_hex(32))"` |
+| `ACTUAL_BUDGET_PASSWORD` | Choose any password for Actual Budget |
+| `WEB_PORT` | Port for the web UI (default: `3000`) |
+
+Leave Ollama and Actual Budget URLs as-is if running everything with Docker Compose (the defaults point to internal container names).
+
+### 3. Start the services
 
 ```bash
 docker compose up -d
 ```
 
-This starts three services:
-- **actual-budget** — the budget app (open `http://your-server:5006` to set it up)
-- **ollama** — local AI for receipt scanning (downloads model automatically, ~2GB)
-- **majordom-bot** — the Telegram bot
+This starts four services:
+- **actual-budget** — open-source budget app (`:5006`)
+- **ollama** — local AI for receipt OCR and chat (downloads models automatically, ~5-6 GB)
+- **majordom-api** — FastAPI backend
+- **majordom-web** — React web app (`:3000` or your `WEB_PORT`)
 
-### 6. Set up Actual Budget
+First start takes 5–10 minutes while Ollama downloads the AI models.
 
-1. Open `http://your-server:5006` in your browser
-2. Create a new budget file with any name
+### 4. Set up Actual Budget
+
+1. Open `http://your-server:5006`
+2. Create a new budget file (name doesn't matter)
 3. Go to **Settings → Advanced** → copy the **Sync ID**
-4. Add it to your `.env`:
+4. Add it to `.env`:
    ```
    ACTUAL_BUDGET_SYNC_ID=paste-your-sync-id-here
    ```
-5. Restart the bot:
+5. Restart the API:
    ```bash
-   docker compose restart majordom-bot
+   docker compose restart majordom-api
    ```
 
-### 7. Test it
+### 5. Open the web app
 
-Open Telegram, find your bot, send `/start`. You should get a welcome message.
+Go to `http://your-server:3000` (or whatever `WEB_PORT` you set).
+
+Log in with the credentials from your `.env` (`USER1_USERNAME` / `USER1_PASSWORD`).
 
 ---
 
 ## Usage
 
-### Receipt photo
-Send any photo of a receipt. The bot will extract the data and ask you to confirm or change the category. After confirmation, it's saved to Actual Budget.
+### Web UI (primary interface)
 
-### CSV bank export
-Export transactions from your bank as CSV and send the file directly to the bot. Supported banks: **ING** (Netherlands), **crypto.com**, Revolut, and any bank whose CSV format Ollama can figure out.
+| Screen | How to access | What it does |
+|--------|---------------|--------------|
+| **Home** | Default screen | Recent transactions, monthly spending chart, receipt scan button |
+| **Import** | Bottom nav → Import | Upload CSV bank export → preview → set categories → confirm |
+| **Chat** | Bottom nav → Chat | Ask the AI about your finances |
 
-First time sending a new format: the bot shows the detected column mapping for your confirmation. After that, it's remembered.
+**Scanning a receipt:**
+1. On the Home screen, tap the camera button
+2. Take or upload a photo of the receipt
+3. Review the extracted data (merchant, amount, date, category)
+4. Confirm → saved to Actual Budget
 
-### Commands
+**Importing a CSV:**
+1. Export transactions from your bank as CSV (ING, Rabobank, crypto.com, Revolut, or any format Ollama can figure out)
+2. Go to Import → drop the CSV file
+3. Review rows, set categories, pick the account
+4. Confirm → saved to Actual Budget
+
+Duplicate detection is automatic — re-importing the same CSV is safe.
+
+---
+
+### Telegram bot *(optional)*
+
+The bot offers the same receipt and CSV import flow via Telegram messages. It's optional and disabled by default.
+
+**Enable the bot:**
+
+1. Create a bot via [@BotFather](https://t.me/botfather) → copy the token
+2. Find your Telegram user ID: send `/start` to [@userinfobot](https://t.me/userinfobot)
+3. Add to `.env`:
+   ```
+   TELEGRAM_BOT_TOKEN=your_token_here
+   TELEGRAM_ALLOWED_USER_IDS=your_id_here
+   ```
+4. Start with the `telegram` profile:
+   ```bash
+   docker compose --profile telegram up -d
+   ```
+
+**Bot commands:**
 
 | Command | Description |
 |---------|-------------|
-| `/start` | Welcome message + feature overview |
-| `/add 49.99 Kaufland groceries` | Add a transaction manually |
-| `/balance` | Show current account balances |
+| `/start` | Welcome + feature overview |
+| `/add 49.99 Kaufland` | Add a transaction manually |
+| `/balance` | Current account balances |
 | `/stats` | Monthly spending by category |
 | `/stats 3 2025` | Spending for a specific month |
-| `/categories` | List all categories |
+| `/categories` | List all categories in Actual Budget |
 | `/help` | Full help |
+
+Send a **receipt photo** or a **.csv file** directly — no command needed.
 
 ---
 
 ## Categories
 
-12 default categories (edit `config/categories.json` to customize):
+12 built-in categories:
 
 🛒 Groceries · 🍽️ Restaurants · 🚗 Transport · 💡 Utilities · 💊 Health · 👕 Clothing · 🏠 Home & Maintenance · 🎬 Entertainment & Travel · 👨‍👩‍👧‍👦 Children · 💰 Personal · 📈 Investments & Savings · 📦 Other
 
-Each category has keywords for common merchants. When you confirm a category for a merchant, it's remembered permanently.
+The assistant learns: once you confirm a category for a merchant, that merchant is auto-categorized on every future import.
 
 ---
 
-## Multi-user (family)
+## Multi-user
 
-Add multiple Telegram user IDs separated by commas:
+Add multiple users in `.env`:
+
+```env
+USER1_USERNAME=doru
+USER1_PASSWORD=...
+USER2_USERNAME=sotie
+USER2_PASSWORD=...
+```
+
+For the Telegram bot, separate multiple IDs with commas:
 ```
 TELEGRAM_ALLOWED_USER_IDS=422151041,987654321
 ```
-
-To find someone's ID: they send `/start` to @userinfobot.
 
 ---
 
@@ -142,54 +185,78 @@ To find someone's ID: they send `/start` to @userinfobot.
 
 ```
 majordom-financiar/
-├── bot/              # Telegram handlers, CSV wizard, keyboards
-├── ocr/              # AI vision via Ollama (receipt → structured data)
-├── csv_importer/     # CSV parsing, format detection, normalization
-├── actual_client/    # Async wrapper for Actual Budget API
-├── memory/           # SQLite: transaction history, learned categories, CSV profiles
-└── config/           # Settings, categories
+├── backend/
+│   ├── api/           # FastAPI routes (auth, receipts, transactions, CSV import, chat)
+│   ├── services/      # Business logic (receipt processing)
+│   └── core/
+│       ├── actual_client/   # Async wrapper for Actual Budget
+│       ├── csv_importer/    # CSV parsing, format detection, normalization
+│       ├── memory/          # SQLite: learned categories, CSV profiles
+│       ├── ocr/             # AI vision via Ollama
+│       └── config/          # Settings (loaded from .env)
+├── frontend/          # React + Vite + Tailwind (PWA)
+├── bot/               # Telegram bot (optional transport)
+├── scripts/           # Ollama entrypoint, dev helpers
+├── data/              # SQLite DB + uploaded images (Docker volume)
+├── docker-compose.yml
+├── Dockerfile.backend
+├── Dockerfile.bot
+└── .env
 ```
 
-Tech stack: Python 3.11 · python-telegram-bot v21 · Ollama (qwen2.5vl) · Actual Budget · SQLite · Docker
-
-Full technical documentation: [ARCHITECTURE.md](ARCHITECTURE.md)
+**Tech stack:** Python 3.11 · FastAPI · React 18 · Vite · TypeScript · Tailwind CSS · Ollama (qwen2.5vl:7b + qwen2.5:7b) · Actual Budget · SQLite · Docker Compose
 
 ---
 
 ## Troubleshooting
 
-**Bot doesn't respond**
+**Web app shows blank or "Cannot connect"**
 ```bash
-docker compose logs majordom-bot --tail=50
+docker compose logs majordom-api --tail=50
+docker compose logs majordom-web --tail=20
 ```
 
 **Receipt scanning is slow (~60s)**
-Normal on CPU. If you have an NVIDIA GPU, Ollama will use it automatically if the container has GPU access configured in `docker-compose.yml`.
+Normal on CPU. If you have an NVIDIA GPU, add GPU access to the `ollama` service in `docker-compose.yml` — the configuration is already there, just verify your NVIDIA Container Toolkit is installed.
 
 **"No account found" error**
-Complete the Actual Budget setup (step 6) and make sure `ACTUAL_BUDGET_SYNC_ID` is set correctly in `.env`.
+Complete Actual Budget setup (step 4 above) and verify `ACTUAL_BUDGET_SYNC_ID` is set in `.env`.
 
-**Duplicate transactions after CSV import**
-Re-importing the same CSV is safe — duplicates are detected via SHA256 hash and skipped automatically.
+**Ollama models not downloading**
+```bash
+docker compose logs ollama --tail=50
+```
+The first start downloads ~5-6 GB. Check your disk space and internet connection.
+
+**Check service health:**
+```bash
+docker compose ps
+```
+All services should show `healthy` before the app works correctly.
 
 ---
 
 ## Roadmap
 
-- [ ] `/setup` wizard — guided onboarding through Telegram
-- [ ] Category management via bot commands (no JSON editing)
-- [ ] Automatic bank sync via open banking (GoCardless/Nordigen)
-- [ ] Monthly summary report sent automatically on the 1st
-- [ ] Ghostfolio integration for investment portfolio tracking
+See [CLAUDE.md](CLAUDE.md) for the full roadmap with implementation status.
+
+Short version of what's coming:
+- FIRE calculator (financial independence timeline)
+- Savings goals with progress tracking
+- Monthly budget limits + alerts
+- Investment portfolio tracking (Ghostfolio)
+- Automatic bank sync via open banking (GoCardless/Nordigen NL)
 
 ---
 
 ## Built with
 
-- [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot)
 - [Actual Budget](https://actualbudget.org/) — open source budgeting
 - [Ollama](https://ollama.ai/) — local AI inference
 - [actualpy](https://github.com/bvanelli/actualpy) — Python client for Actual Budget
+- [FastAPI](https://fastapi.tiangolo.com/) — async Python web framework
+- [React](https://react.dev/) + [Vite](https://vitejs.dev/) + [Tailwind CSS](https://tailwindcss.com/)
+- [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot)
 
 ---
 

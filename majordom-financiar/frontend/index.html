@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- PWA: allows "Add to Home Screen" on iOS and Android -->
+    <link rel="manifest" href="/manifest.json" />
+
+    <!-- iOS-specific: makes the app look native when added to home screen -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Majordom" />
+
+    <!-- Theme color: matches background color so browser chrome blends in -->
+    <meta name="theme-color" content="#0F0F0F" />
+
+    <title>Majordom Financiar</title>
+  </head>
+  <body>
+    <!-- React mounts here -->
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
