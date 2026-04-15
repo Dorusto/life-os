@@ -4,7 +4,7 @@ import Login from './pages/Login'
 import Home from './pages/Home'
 import ReceiptFlow from './pages/ReceiptFlow'
 import ImportPage from './pages/ImportPage'
-import ChatPage from './pages/ChatPage'
+import Chat from './pages/Chat'
 import BottomNav from './components/BottomNav'
 
 /**
@@ -61,7 +61,7 @@ function Layout() {
           path="/chat"
           element={
             <ProtectedRoute>
-              <ChatPage />
+              <Chat />
             </ProtectedRoute>
           }
         />

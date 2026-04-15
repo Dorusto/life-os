@@ -5,6 +5,7 @@ Used for:
 - Confirming/correcting the predicted category
 - Selecting the correct category
 - Confirming a transaction
+- Selecting an account when saving a receipt or manual transaction
 """
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 import json
@@ -116,21 +117,6 @@ def csv_profile_confirm_keyboard() -> InlineKeyboardMarkup:
     ])
 
 
-def account_select_keyboard(tx_id: int, accounts: list[dict]) -> InlineKeyboardMarkup:
-    """
-    Keyboard for selecting an account when saving a receipt/manual transaction.
-    Index is used in callback to stay under 64 bytes.
-    """
-    buttons = [
-        [InlineKeyboardButton(
-            f"💳 {acc['name']}",
-            callback_data=json.dumps({"action": "sel_acc", "tx_id": tx_id, "i": i}),
-        )]
-        for i, acc in enumerate(accounts)
-    ]
-    return InlineKeyboardMarkup(buttons)
-
-
 def csv_account_keyboard(accounts: list[dict]) -> InlineKeyboardMarkup:
     """
     Keyboard for selecting an account during CSV import.
@@ -156,6 +142,21 @@ def csv_import_keyboard(count: int) -> InlineKeyboardMarkup:
         [InlineKeyboardButton(f"✅ Import {count} transactions", callback_data="csv_iok")],
         [InlineKeyboardButton("❌ Cancel", callback_data="csv_icancel")],
     ])
+
+
+def account_select_keyboard(tx_id: int, accounts: list[dict]) -> InlineKeyboardMarkup:
+    """
+    Keyboard for selecting an account when saving a receipt/manual transaction.
+    Index is used in callback to stay under 64 bytes.
+    """
+    buttons = [
+        [InlineKeyboardButton(
+            f"💳 {acc['name']}",
+            callback_data=json.dumps({"action": "sel_acc", "tx_id": tx_id, "i": i}),
+        )]
+        for i, acc in enumerate(accounts)
+    ]
+    return InlineKeyboardMarkup(buttons)
 
 
 def yes_no_keyboard(action_id: str) -> InlineKeyboardMarkup:

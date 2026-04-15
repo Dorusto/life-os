@@ -231,10 +231,109 @@ export async function sendChatMessage(
   message: string,
   history: { role: string; content: string }[],
 ): Promise<{ reply: string }> {
-  return request('/chat', {
+  // Use streaming endpoint but accumulate response for backward compatibility
+  const token = getToken()
+  const headers: Record<string, string> = {}
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  headers['Content-Type'] = 'application/json'
+  
+  const body = JSON.stringify({ message, history })
+  
+  const res = await fetch(`${BASE}/chat`, {
     method: 'POST',
-    body: JSON.stringify({ message, history }),
+    headers,
+    body,
   })
+  
+  if (res.status === 401) {
+    clearAuth()
+    window.location.href = '/login'
+    throw new ApiError(401, 'Session expired')
+  }
+  
+  if (!res.ok) {
+    const errorBody = await res.json().catch(() => ({ detail: res.statusText }))
+    throw new ApiError(res.status, errorBody.detail || 'Request failed')
+  }
+  
+  // Stream the response and accumulate
+  const reader = res.body?.getReader()
+  if (!reader) {
+    throw new ApiError(500, 'No response body')
+  }
+  
+  const decoder = new TextDecoder()
+  let accumulated = ''
+  
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    accumulated += decoder.decode(value, { stream: true })
+  }
+  
+  return { reply: accumulated }
+}
+
+export async function sendChatMessageStreaming(
+  message: string,
+  history: { role: string; content: string }[],
+  onChunk: (chunk: string) => void,
+  onComplete: () => void,
+  onError: (error: string) => void
+): Promise<void> {
+  const token = getToken()
+  const headers: Record<string, string> = {}
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  headers['Content-Type'] = 'application/json'
+  
+  const body = JSON.stringify({ message, history })
+  
+  try {
+    const res = await fetch(`${BASE}/chat`, {
+      method: 'POST',
+      headers,
+      body,
+    })
+    
+    if (res.status === 401) {
+      clearAuth()
+      window.location.href = '/login'
+      onError('Session expired')
+      return
+    }
+    
+    if (!res.ok) {
+      const errorBody = await res.json().catch(() => ({ detail: res.statusText }))
+      onError(errorBody.detail || 'Request failed')
+      return
+    }
+    
+    // Stream the response as text
+    const reader = res.body?.getReader()
+    if (!reader) {
+      onError('No response body')
+      return
+    }
+    
+    const decoder = new TextDecoder()
+    let accumulated = ''
+    
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      const chunk = decoder.decode(value, { stream: true })
+      accumulated += chunk
+      onChunk(chunk)
+    }
+    
+    onComplete()
+  } catch (err) {
+    onError(err instanceof Error ? err.message : 'Unknown error')
+  }
 }
 
 export async function getMonthlyStats(month?: number, year?: number): Promise<MonthlyStats> {

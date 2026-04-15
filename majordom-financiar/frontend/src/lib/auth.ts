@@ -41,3 +41,30 @@ export function isAuthenticated(): boolean {
     return false
   }
 }
+
+/**
+ * Authenticated fetch wrapper that automatically adds the JWT token.
+ * Returns the raw Response object for streaming or custom handling.
+ */
+export async function authFetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
+  const token = getToken()
+  const headers = new Headers(init?.headers)
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+  // If Content-Type not set and body is not FormData, default to JSON
+  if (!headers.has('Content-Type') && init?.body && !(init.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json')
+  }
+  const res = await fetch(input, {
+    ...init,
+    headers,
+  })
+  if (res.status === 401) {
+    // Token expired or invalid — clear local auth and redirect to login
+    clearAuth()
+    window.location.href = '/login'
+    throw new Error('Session expired')
+  }
+  return res
+}

@@ -25,3 +25,6 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Planificare privată (strategie, monetizare, roadmap personal)
+PLANNING.md

@@ -492,4 +492,208 @@ Când toate trei se aliniază → creat ca transfer în Actual, nu ca cheltuiala
 
 ---
 
-*Ultima actualizare: 2026-04-11 (sesiunea 3)*
+## 10. Arhitectura v2 — Web UI în loc de Telegram
+
+### Ce s-a schimbat
+
+Interfața Telegram a fost înlocuită cu o aplicație web (PWA). Logica de business
+nu s-a schimbat — doar "transportul" prin care ajunge la tine.
+
+**Înainte (v1):**
+```
+Tu → Telegram → bot/handlers.py → ocr/ + memory/ + actual_client/
+```
+
+**Acum (v2):**
+```
+Tu → Browser → backend/api/ → backend/services/ → backend/core/
+```
+
+Telegram încă funcționează ca transport opțional (pornit cu `--profile telegram`).
+
+---
+
+### Structura v2
+
+```
+majordom-financiar/
+├── backend/
+│   ├── core/               ← logica de business (mutat din rădăcină)
+│   │   ├── ocr/            ← VisionEngine — extrage date din bonuri
+│   │   ├── memory/         ← MemoryDB + SmartCategorizer
+│   │   ├── actual_client/  ← ActualBudgetClient
+│   │   ├── csv_importer/   ← parsare CSV
+│   │   └── config/         ← settings.py, categories.json
+│   ├── api/                ← route handlers FastAPI (înlocuiesc bot/handlers.py)
+│   │   ├── auth.py         ← POST /api/auth/login → JWT
+│   │   ├── receipts.py     ← POST /api/receipts + /receipts/{id}/confirm
+│   │   └── transactions.py ← GET /api/transactions + /accounts
+│   ├── services/
+│   │   └── receipt_service.py  ← logică pură, fără dependențe HTTP sau Telegram
+│   └── main.py             ← FastAPI app
+├── bot/                    ← Telegram (opțional, neschimbat)
+└── frontend/               ← React PWA
+    ├── src/
+    │   ├── pages/          ← Login, Home, ReceiptFlow
+    │   ├── components/     ← TransactionItem, etc.
+    │   └── lib/            ← api.ts (toate fetch-urile), auth.ts (JWT storage)
+    └── Dockerfile          ← build React → Nginx
+```
+
+---
+
+### Conceptul cheie: Service Layer
+
+`backend/services/receipt_service.py` este noul centru al aplicației.
+Conține logica de business fără să știe dacă e apelat din web sau din Telegram.
+
+```python
+# receipt_service.py — apelat din ambele locuri:
+service = ReceiptService()
+result = await service.process_image(image_bytes)  # OCR + categorize
+tx = await service.confirm(merchant, amount, ...)   # save to Actual Budget
+```
+
+```python
+# backend/api/receipts.py (web) — formatează rezultatul ca JSON
+return ReceiptDraft(merchant=result["merchant"], ...)
+
+# bot/handlers.py (Telegram) — formatează rezultatul ca mesaj Telegram
+await update.message.reply_text(f"Merchant: {result['merchant']}")
+```
+
+Același service, două formate de răspuns. Dacă schimbi logica (ex: adaugi validare
+pe sumă), o schimbi într-un singur loc.
+
+---
+
+### Fluxul bon foto în v2
+
+```
+User selectează poza în browser
+        │
+        ▼
+Home.tsx — stochează poza în sessionStorage, navighează la /receipt
+        │
+        ▼
+ReceiptFlow.tsx — uploadă poza imediat la montare
+        │
+        ▼
+POST /api/receipts (backend/api/receipts.py)
+  ├── salvează poza pe disk: /app/data/uploads/{uuid}.jpg
+  └── apelează ReceiptService.process_image()
+              ├── VisionEngine.extract_from_bytes() → Ollama (~30-60s)
+              ├── SmartCategorizer.predict() → sugestie categorie
+              └── ActualBudgetClient.get_accounts() → lista conturi
+        │
+        ▼
+ReceiptDraft JSON → ReceiptFlow.tsx afișează formularul pre-completat
+        │
+        ▼
+User editează + apasă Confirm
+        │
+        ▼
+POST /api/receipts/{id}/confirm
+  └── ReceiptService.confirm()
+              ├── ActualBudgetClient.add_transaction() → Actual Budget
+              └── SmartCategorizer.learn() → actualizează memoria
+        │
+        ▼
+Animație checkmark → navigare înapoi la Home
+```
+
+---
+
+### Docker Compose v2 — 4 servicii default + 1 opțional
+
+```
+actual-budget   ← neschimbat (port 5006)
+ollama          ← neschimbat (port 11434)
+majordom-api    ← nou: FastAPI, nu e expus direct la host
+majordom-web    ← nou: Nginx cu React, port ${WEB_PORT:-3000}
+majordom-bot    ← opțional: --profile telegram
+```
+
+**De ce `majordom-api` nu e expus direct?**
+Tot traficul trece prin Nginx (`majordom-web`). Nginx proxiază `/api/` la
+`http://majordom-api:8000/api/`. Avantaj: un singur port, un singur certificat SSL,
+API-ul nu poate fi accesat direct din afara rețelei Docker.
+
+---
+
+### Auth — JWT tokens
+
+Utilizatorii sunt definiți în `.env`:
+```
+USER1_USERNAME=doru
+USER1_PASSWORD=parola_mea
+```
+
+La login:
+1. POST `/api/auth/login` cu `{username, password}`
+2. Backend verifică parola (bcrypt), returnează un JWT token
+3. Token-ul se salvează în `localStorage` (7 zile)
+4. Toate requesturile ulterioare trimit `Authorization: Bearer <token>`
+
+**De ce localStorage și nu cookies?**
+Pe o rețea privată Tailscale (fără internet public), CSRF nu e o amenințare reală.
+localStorage e mai simplu și funcționează identic pe iOS, Android, și desktop.
+
+---
+
+### Cameră și Galerie pe mobil
+
+Două butoane separate în `Home.tsx`:
+
+```html
+<!-- Camera: capture="environment" deschide camera din spate direct -->
+<input type="file" accept="image/*" capture="environment">
+
+<!-- Gallery: fără capture → utilizatorul alege din bibliotecă -->
+<input type="file" accept="image/*">
+```
+
+**Cerință:** HTTPS pentru acces la cameră în browser.
+- Tailscale: `tailscale cert device.tail-xxx.ts.net` → certificat Let's Encrypt gratuit
+- Coolify cu domeniu propriu: gestionează Let's Encrypt automat
+- Dezvoltare locală: `localhost` funcționează fără HTTPS
+
+---
+
+### Unde să cauți când ceva nu merge
+
+| Problemă | Unde să cauți |
+|----------|---------------|
+| Login nu funcționează | `docker compose logs majordom-api` — verifică USER1_USERNAME/PASSWORD în .env |
+| Poza nu se procesează | `docker compose logs majordom-api` — verifică că Ollama e pornit |
+| Tranzacția nu apare | Verifică `ACTUAL_BUDGET_SYNC_ID` și `ACTUAL_BUDGET_PASSWORD` |
+| Frontend alb/erori JS | `docker compose logs majordom-web` — verifică build-ul React |
+| Telegram bot nu merge | `docker compose --profile telegram logs majordom-bot` |
+
+```bash
+# Pornire normală (web UI)
+docker compose up -d
+
+# Web UI + Telegram bot
+docker compose --profile telegram up -d
+
+# Rebuild după modificări de cod
+docker compose build majordom-api majordom-web && docker compose up -d
+```
+
+---
+
+| Concept v2 | Esența |
+|---|---|
+| `ReceiptService` | Logică pură, fără Telegram/HTTP — apelat din API și bot |
+| `backend/core/` | Modulele mutate din rădăcină — `from backend.core.ocr...` |
+| `PYTHONPATH=/app` | Face `from backend.core...` să funcționeze în Docker |
+| JWT 7 zile | Token-ul durează o săptămână — nu trebuie să te loghezi des |
+| Nginx proxy | Ascunde API-ul, proxiază `/api/` → `majordom-api:8000` |
+| `--profile telegram` | Botul nu pornește implicit — opt-in explicit |
+| sessionStorage | Poza se transferă de la Home la ReceiptFlow fără re-upload |
+| Multi-stage Docker | Node compilează React → Nginx servește — imaginea finală e mică |
+
+---
+
+*Ultima actualizare: 2026-04-12 (sesiunea 4 — web UI v2)*

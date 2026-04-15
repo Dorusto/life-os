@@ -250,6 +250,62 @@ class ActualBudgetClient:
                 return Account(id=str(acc.id), name=acc.name, balance=initial_balance)
         return await self._run(_create)
 
+    async def get_recent_transactions(self, limit: int = 20) -> list[dict]:
+        """
+        Return the most recent transactions from Actual Budget, sorted by date descending.
+
+        Returns plain dicts (not dataclasses) because the caller needs flexible
+        access to fields that may or may not be set (category, payee, etc.).
+
+        Each dict has:
+          id, date, merchant, amount_cents, category_name, category_id,
+          account_name, notes
+        """
+        def _get():
+            from actual.queries import get_transactions
+            with self._get_actual() as actual:
+                actual.download_budget()
+                all_txs = get_transactions(actual.session)
+
+                result = []
+                for tx in all_txs:
+                    # Skip soft-deleted rows and the synthetic "starting balance" entry
+                    if tx.tombstone or tx.starting_balance_flag:
+                        continue
+
+                    # Payee name: prefer the named payee object, fall back to
+                    # imported_payee (the raw string from bank imports)
+                    merchant = ""
+                    if tx.payee:
+                        merchant = tx.payee.name or ""
+                    if not merchant and hasattr(tx, "imported_payee"):
+                        merchant = tx.imported_payee or ""
+
+                    category_name = None
+                    category_id = None
+                    if tx.category:
+                        category_name = tx.category.name
+                        category_id = str(tx.category.id) if tx.category.id else None
+
+                    account_name = tx.account.name if tx.account else ""
+
+                    result.append({
+                        "id": str(tx.id),
+                        "date": tx.date,
+                        "merchant": merchant,
+                        "amount_cents": int(tx.amount or 0),
+                        "category_name": category_name,
+                        "category_id": category_id,
+                        "account_name": account_name,
+                        "notes": tx.notes or "",
+                    })
+
+                # Sort newest-first then slice — get_transactions() order is not guaranteed
+                result.sort(key=lambda t: str(t["date"]), reverse=True)
+                return result[:limit]
+
+        return await self._run(_get)
+
     async def add_transactions_batch(
         self,
         account_id: str,

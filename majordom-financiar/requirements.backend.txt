@@ -14,3 +14,4 @@ aiohttp==3.10.5
 actualpy
 Pillow==10.4.0
 python-dotenv==1.0.1
+httpx==0.28.1
