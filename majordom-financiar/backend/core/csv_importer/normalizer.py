@@ -117,7 +117,10 @@ class CsvNormalizer:
 
         # Data
         date_raw = (row.get(profile.col_date) or "").strip()
-        tx_date = self._parse_date(date_raw, profile.date_format) or date.today()
+        tx_date = self._parse_date(date_raw, profile.date_format)
+        if tx_date is None:
+            logger.warning("Could not parse date %r (format: %s) — row skipped", date_raw, profile.date_format)
+            return None
 
         # Merchant
         merchant = (row.get(profile.col_merchant) or "").strip() or "Necunoscut"
