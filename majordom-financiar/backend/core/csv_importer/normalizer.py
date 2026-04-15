@@ -155,7 +155,9 @@ class CsvNormalizer:
         # Fallback-uri comune
         clean = date_str[:19]  # taie microsecundele / timezone
         for fmt in (
+            "%Y%m%d",
             "%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%d.%m.%Y",
+            "%d.%m.%y", "%m/%d/%Y",
             "%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S",
         ):
             try:
