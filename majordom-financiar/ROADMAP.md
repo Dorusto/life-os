@@ -124,7 +124,7 @@ Each user builds their profile through conversation with Majordom (income, fixed
 8. **Foreign currency** → "Do you have transactions in currencies other than EUR? (e.g. RON, GBP)" → if yes: set up conversion rules via Rule Action Templating; ask current exchange rate
 
 *Block D — Fixed obligations & recurring transactions*
-9. **Recurring transactions** → "What payments happen automatically every month?" (rent/mortgage, subscriptions, insurance, loan payments, salary credit date) → Majordom creates schedules linked to the correct categories
+9. **Recurring transactions** → "What payments happen automatically every month?" (rent/mortgage, subscriptions, insurance, loan payments, salary credit date) → Majordom creates schedules linked to the correct categories; for income schedules (salary, rent received) the "approximately" option is enabled automatically (±7.5% match tolerance) to handle normal monthly variations; variance vs expected amount is reported via `income_variance` notification after each import
 10. **Loans & debts** → "Do you have any loans or outstanding debts besides your mortgage?" → for each: monthly payment + remaining balance → dedicated category + payoff goal template; if credit card debt already captured in Block C, skip here
 
 *Block E — Goals*
@@ -440,6 +440,9 @@ Rule types:
 - `budget_alert` — triggered after each new transaction and daily; alert when a category exceeds X% of the configured monthly limit
 - `goal_risk` — weekly check; calculates if the current contribution pace meets the target (emergency fund, savings goals) on time; alert if the target date risks being delayed
 - `vehicle_reminder` — daily check; two subtypes: by date (ITP/APK, service due, X days before) and by km (oil change every N km, based on `vehicle_log`)
+- `income_variance` — triggered when a recurring income transaction (matched via schedule) differs from the expected amount; notifies the user of the difference and its impact on the monthly budget
+
+**Income variance detail:** Actual Budget schedules use "approximately" matching (±7.5%) — a salary scheduled at X EUR will auto-match amounts within that range from CSV import. However, the actual amount (not the schedule amount) enters "To Budget". Majordom must detect the variance after import and notify: *"Salary received: [actual] EUR (expected [scheduled] EUR, [diff] EUR). Your available budget this month is lower than planned — do you want to adjust any category allocations?"*
 
 Delivery: **Web Push primary** (PWA), Telegram secondary/fallback.
 
