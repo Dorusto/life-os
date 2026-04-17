@@ -168,9 +168,9 @@ The assistant learns: once you confirm a category for a merchant, that merchant 
 Add multiple users in `.env`:
 
 ```env
-USER1_USERNAME=doru
+USER1_USERNAME=partner1
 USER1_PASSWORD=...
-USER2_USERNAME=sotie
+USER2_USERNAME=partner2
 USER2_PASSWORD=...
 ```
 
@@ -238,9 +238,11 @@ All services should show `healthy` before the app works correctly.
 
 ## Roadmap
 
-See [CLAUDE.md](CLAUDE.md) for the full roadmap with implementation status.
+See [ROADMAP.md](ROADMAP.md) for the full roadmap with implementation details, database schemas, and priorities.
 
 Short version of what's coming:
+- Document Management — scan invoices, warranties, vehicle docs, insurance policies
+- Vehicle Management — full Fuelino replacement: fuel log, consumption charts, maintenance reminders
 - FIRE calculator (financial independence timeline)
 - Savings goals with progress tracking
 - Monthly budget limits + alerts
