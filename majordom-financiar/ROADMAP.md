@@ -82,7 +82,7 @@ Fiecare utilizator își construiește profilul prin conversație cu Majordom (v
 Ghid pas cu pas: Docker, Telegram bot token, Actual Budget, configurare `.env`, primul start.
 
 #### Sincronizare automată bancă
-GoCardless/Nordigen (open banking NL) când CSV-urile vor fi calibrate bine.
+GoCardless/Nordigen (open banking NL) — **on hold**: accesul pentru dezvoltatori individuali în UE este restricționat; de urmărit evoluția reglementărilor PSD2/PSD3.
 
 ---
 
