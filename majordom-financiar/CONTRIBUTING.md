@@ -26,7 +26,7 @@ Most contributions right now will land in the Financial module.
 - **Bug fixes** — especially around receipt OCR edge cases and CSV parsing
 - **Translations** — merchant keyword lists in `categories.json` for new regions
 - **Documentation** — setup guides, troubleshooting, video walkthroughs
-- **New features** — see the roadmap in [CLAUDE.md](CLAUDE.md)
+- **New features** — see the roadmap in [ROADMAP.md](ROADMAP.md)
 
 ### What we're not looking for (yet)
 
