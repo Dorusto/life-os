@@ -263,3 +263,4 @@ Short version of what's coming:
 ---
 
 *Self-hosted. Your data stays yours.*
+
