@@ -228,7 +228,7 @@ ZZP (Netherlands) for YouTube clips/paid activity. Separate deductible expenses.
 ## Low Priority
 
 - **GPU inference Ollama** — currently CPU (~60s/image); revisit with smaller models or quantization optimizations
-- **RON support** — transactions from Romania (apartment in Galați, visits)
+- **RON support** — transactions in Romanian leu
 - **Automatic monthly report** — summary sent via Telegram/web on the 1st of the month
 - **Setup wizard via Telegram** — `/setup` command that guides the new user: creates first account, configures preferred categories, tests connection with Actual Budget
 
