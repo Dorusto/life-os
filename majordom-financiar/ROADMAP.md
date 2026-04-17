@@ -111,20 +111,20 @@ Delivery: **Web Push primary** (PWA), Telegram secondary/fallback.
 **Goal:** completely replace Fuelio, including import of existing history.
 
 **Existing vehicles:**
-- Car — purchased April 2026
-- Suzuki VZ 800 motorcycle (2006), license plate `50 MN-VJ`, alias "Suzi" / "Wabi Sabi" — history from 2023 in Fuelio
+- Car — recently purchased
+- Motorcycle — history from 2023 available for import
 
 **SQLite schema:**
 ```sql
 CREATE TABLE vehicles (
     id INTEGER PRIMARY KEY,
     user_id INTEGER,
-    name TEXT,               -- "Suzi", "Car"
-    make TEXT,               -- "Suzuki", "..."
-    model TEXT,              -- "VZ 800"
+    name TEXT,               -- "Motorcycle", "Car"
+    make TEXT,               -- "Toyota", "Suzuki", etc.
+    model TEXT,              -- "Yaris", "VZ 800", etc.
     year INTEGER,
     vin TEXT,
-    plate TEXT,              -- "50 MN-VJ"
+    plate TEXT,              -- license plate number
     fuel_type TEXT,          -- "petrol", "diesel", "electric"
     tank_capacity REAL,      -- liters
     km_initial INTEGER,      -- km at the time of adding to Majordom
@@ -213,7 +213,7 @@ Import sets `source = "fuelio_import"` and `fuelio_unique_id` to prevent duplica
 - Calculation of `remind_odo` on save: `current_odo + repeat_odo` (if `repeat_odo > 0`)
 
 **Conversational calculations via AI chat** (not dedicated calculator):
-- "How much does a trip to Galați cost me?" → AI uses average consumption + distance + current fuel price
+- "How much does a 200km trip cost me?" → AI uses average consumption + distance + current fuel price
 - "When do I need to change the oil?" → AI checks last service + current km
 - "What is the monthly cost of the motorcycle?" → AI aggregates from vehicle_log
 

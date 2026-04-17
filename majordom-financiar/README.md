@@ -176,7 +176,7 @@ USER2_PASSWORD=...
 
 For the Telegram bot, separate multiple IDs with commas:
 ```
-TELEGRAM_ALLOWED_USER_IDS=422151041,987654321
+TELEGRAM_ALLOWED_USER_IDS=111111111,222222222
 ```
 
 ---
