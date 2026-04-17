@@ -31,29 +31,78 @@ When the Chat AI needs financial data to answer a question, it queries Actual Bu
 - **Intelligent auto-categorization** — only from `merchant_mappings` confirmed by user (`from_history`), not from AI threshold; new merchant → always asked with suggestion
 - **Standardized fields** — payee = merchant, notes = `[receipt photo]` / `[/add manual]` / `[import CSV]`
 - **Universal anti-duplicate** — receipt photo + /add + CSV use the same SHA256 hash(date+merchant+amount)
-- **Account selection on receipt photo** — if multiple accounts exist, the bot asks before saving
+- **Account selection on receipt photo (Telegram)** — if multiple accounts exist, the bot asks before saving
 - **12 clean categories** — Food, Restaurants, Transport, Utilities, Health, Clothing, Home & Maintenance, Entertainment & Vacation, Children, Personal Money, Investments & Savings, Other
 - **Web UI (PWA) v2** — FastAPI backend + React frontend, JWT authentication, receipt photo flow in browser, monthly spending chart
 
+---
+
 ### 🔲 Up Next
+
+#### Account selection on web PWA
+
+Port the Telegram account selection flow to the web interface. When the user adds a transaction (receipt photo, manual entry, or CSV import) and has multiple accounts configured, the PWA must ask which account to use — same behavior as the Telegram bot.
+
+Applies to:
+- Receipt photo flow in browser
+- Manual transaction entry via chat
+- CSV import (select target account before processing)
+
+This must be implemented **before** the Actual Budget alignment work below, as it is a prerequisite for correct transaction routing.
+
+---
+
+#### Budget status dashboard (home page)
+
+The home page shows a budget overview for the current month — one row per category, with allocated vs spent visualized as a progress bar. Data comes directly from Actual Budget via ActualQL, nothing stored separately.
+
+**Visual states per category:**
+- 🟢 Green — within budget
+- 🟡 Yellow — above 80% of allocation
+- 🔴 Red — over budget
+
+**Conversational rebalancing:**
+When a category goes over budget (detected after each new transaction), Majordom initiates in chat:
+
+*"You've gone over budget on Restaurants by €23. Which category would you like to move money from to cover it?"*
+
+User replies: *"from Personal"* → Majordom moves the funds between categories in Actual Budget via `setBudgetAmount()`. No manual intervention in Actual Budget needed.
+
+This makes active budget management conversational — the user rebalances directly from chat without opening Actual Budget.
+
+**Implementation notes:**
+- Query: `q('budgets').filter({month: currentMonth}).select(['category', 'budgeted', 'spent'])` via ActualQL
+- Overspend detection: triggered after each transaction import or manual entry
+- Rebalancing: `setBudgetAmount(month, categoryId, newAmount)` for both source and destination categories
+- `budget_alert` notification rule (from the notification system) feeds into this flow
+
+---
 
 #### Bottom navigation bar
 Home / Import / Chat tabs for quick navigation in the PWA.
 
+---
+
 #### Chat AI assistant (web)
 Dedicated page with a conversational financial assistant. Has access to real data (accounts, statistics, transactions). Can answer financial questions and execute actions (create account, add expense).
+
+---
 
 #### Interactive messages in chat (rich actions)
 Equivalent of Telegram buttons, but richer. AI includes structured blocks in the response (e.g., `<action type="category_select" options="..."/>`). The React frontend parses and renders interactive components: category buttons, date picker, transaction confirmation. After the user's action, the result is sent back as a user message.
 
 Requires:
-1. Extend `Message` interface with optional `actions` field
-2. Parser for structured blocks from stream
-3. React components per action type
-4. Updated Ollama prompt to generate structured blocks when appropriate
+- Extend `Message` interface with optional `actions` field
+- Parser for structured blocks from stream
+- React components per action type
+- Updated Ollama prompt to generate structured blocks when appropriate
+
+---
 
 #### CSV import UI (web)
 Dedicated page for uploading and processing bank CSV. Port the wizard from Telegram to the web interface.
+
+---
 
 #### Document Management System
 Upload file (photo/PDF) → Ollama detects the type → user confirms → extracts type-specific fields → saves to SQLite. Storage of original files: deferred (phase 2, when deciding between local storage vs. encrypted DB).
@@ -97,319 +146,488 @@ CREATE TABLE documents (
 );
 ```
 
+---
+
 #### Financial profile per user (onboarding)
-Each user builds their profile through conversation with Majordom (income, fixed expenses, goals). Reflected as budgets in Actual Budget. Not pre-configured.
 
-**Approach:** conversational chat flow (not a wizard UI) — Majordom asks questions naturally and configures Actual Budget in the background. Two phases:
+Each user builds their profile through conversation with Majordom. Majordom configures Actual Budget in the background — the user never touches Actual Budget directly.
 
-**Phase 1 — Discovery (chat questions)**
+**Approach:** conversational chat flow (not a wizard UI). Two phases: Phase 1 collects information, Phase 2 executes the configuration in Actual Budget.
 
-*Block A — Budgeting style*
-1. **Budgeting style** → "Do you want to allocate every euro to a category (envelope — more control) or just track spending against a plan (tracking — simpler)?" — recommend envelope; explain that overspending in envelope mode automatically reduces next month's available money
+---
 
-*Block B — Household & income*
-2. **Household size** → "How many people are in your household?" → determines category suggestions (Children, per-person personal money)
-3. **Monthly net income** → "What's your total monthly take-home pay?" (all sources: salary, rent, freelance) — if freelance/variable: "What's your minimum reliable monthly income?" → budget on that floor
-4. **Income regularity** → "Is your income the same every month, or does it vary?" → if variable → recommend "live on last month's income" strategy (holdBudgetForNextMonth)
-5. **Partner finances** → "Do you manage finances together with a partner?" → if yes: ask partner's income too; recommend shared Majordom instance (Strategy A); explain contribution split by income percentage; note that multi-user requires OpenID setup
+### Phase 1 — Discovery
 
-*Block C — Accounts*
-6. **Bank accounts** → "What bank accounts do you use? (e.g. ING current, Revolut, savings at ASN)" → for each: current balance; Majordom auto-classifies:
-   - Current/checking → on-budget
-   - Savings used for expenses → on-budget
-   - Investment/ETF/pension → off-budget (tracking only, no budget impact)
-   - Mortgage → off-budget
-   - Cash → on-budget, create "Cash" account
-7. **Credit cards** → "Do you have any credit cards?" → if yes: "Do you pay the full balance each month, or do you carry a balance?" → paying in full: on-budget, no special setup; carrying debt: create "Credit Card Debt" category group + enable rollover overspending
-8. **Foreign currency** → "Do you have transactions in currencies other than EUR? (e.g. RON, GBP)" → if yes: set up conversion rules via Rule Action Templating; ask current exchange rate
+Questions are grouped into blocks. Majordom asks them in order, skipping irrelevant ones based on previous answers.
 
-*Block D — Fixed obligations & recurring transactions*
-9. **Recurring transactions** → "What payments happen automatically every month?" (rent/mortgage, subscriptions, insurance, loan payments, salary credit date) → Majordom creates schedules linked to the correct categories; for income schedules (salary, rent received) the "approximately" option is enabled automatically (±7.5% match tolerance) to handle normal monthly variations; variance vs expected amount is reported via `income_variance` notification after each import
-10. **Loans & debts** → "Do you have any loans or outstanding debts besides your mortgage?" → for each: monthly payment + remaining balance → dedicated category + payoff goal template; if credit card debt already captured in Block C, skip here
+---
 
-*Block E — Goals*
-11. **Financial goals** → "What do you want to achieve financially? Pick any that apply:"
-    - Emergency fund → current amount + target + timeline
-    - Vacation → destination + amount + date
-    - Car purchase → amount + date
-    - House purchase → down payment + date
-    - FIRE / early retirement → target age or target portfolio
-    - Pay off debt faster → which debt, extra monthly amount
-    - Other → free text
-    → for each goal: Majordom calculates required monthly contribution and creates the appropriate goal template
+#### Block A — Budgeting style
 
-*Block F — End-of-month behavior*
-12. **Surplus redistribution** → "What should happen to money left over at the end of the month?" → options:
-    - Roll it over in each category (default — money stays where it was budgeted)
-    - Send everything to emergency fund → `#cleanup sink` on that category
-    - Split between savings and personal money → `#cleanup sink` with weights
-    - I'll decide manually each month → no automation
-13. **Buffer strategy** → "Do you want to build a one-month buffer? (spend this month's income only next month — more financial stability)" → if yes: guide through holdBudgetForNextMonth until buffer is built
+**Q1. How do you want to budget?**
 
-*Block G — Historical data*
-14. **Past transactions** → "Do you want to import past transactions from your bank? (CSV or OFX/QFX)" → if yes: trigger CSV import flow after onboarding completes; note that OFX/QFX is preferred over CSV for better deduplication
-15. **Transfer detection** → after historical import: automatically detect transfer pairs across accounts (same amount, opposite sign, within 3 days) → present to user for confirmation before linking
+"Do you want to allocate every euro to a category (envelope — more control) or just track spending against a plan (tracking — simpler)?"
 
-**Phase 2 — Configuration (executed in Actual Budget)**
-1. Create accounts with initial balances (on-budget and off-budget per Block C answers)
-2. If credit card debt: create "Credit Card Debt" category group + enable rollover overspending on those categories
-3. If foreign currency: create conversion rules via Rule Action Templating with the provided exchange rate
-4. Create schedules for all recurring transactions identified in Block D
-5. Propose category list based on household profile; user confirms, adds, removes, or renames before Majordom creates anything in Actual Budget
-6. If surplus redistribution chosen (Block F): add `#cleanup source` / `#cleanup sink` notes to relevant categories with correct weights
-7. Suggest monthly allocations per category based on income; user adjusts inline; zero-sum enforced (To Budget = 0)
-8. Create goal templates in category notes per Block E goals. Supported types:
-   - `#template AMOUNT` — fixed monthly amount
-   - `#template AMOUNT by YYYY-MM` — save toward a goal by date
-   - `#template AMOUNT repeat every N weeks/months starting DATE` — periodic
-   - `#template N% of CATEGORY` — percentage of income
-   - `#template schedule NAME` — based on an existing schedule
-   - `#template average N months` — based on spending average
-   - `#template copy` — copy budgeted amount from previous month
-   - `#template X remainder` — distribute leftover "To Budget" funds with optional weighting
-   - `#goal AMOUNT` — override goal indicator to track long-term balance target
-9. If buffer strategy chosen (Block F): trigger holdBudgetForNextMonth for the full monthly income amount
-10. Summary: X accounts, X schedules, X categories, X goals, X rules created — budget fully allocated
-11. If historical import requested (Block G): hand off to CSV/OFX import flow → run transfer detection afterward
+Recommend envelope. Explain: in envelope mode, if you overspend a category this month, the deficit is automatically deducted from next month's available money.
 
-**Transfers between accounts**
-When money moves between two on-budget accounts (e.g. ING → Revolut), Actual Budget requires it to be recorded as a transfer — not as an expense + income. Transfers between on-budget accounts have no category and don't affect the budget.
+---
 
-Majordom must handle this in three places:
-- **Onboarding** — explain to user that moving money between own accounts must be marked as a transfer
-- **CSV import** — auto-detect transfer pairs (matching amount, close dates, different accounts) and ask for confirmation before importing: *"This looks like a transfer ING → Revolut. Confirm?"*
+#### Block B — Household & income
+
+**Q2. How many people are in your household?**
+
+Determines which categories to suggest (Children category, per-person personal money allocations).
+
+**Q3. What is your total monthly take-home pay?**
+
+All sources: salary, rental income, freelance. If freelance or variable income: "What is your minimum reliable monthly amount?" — budget on that floor, not the average.
+
+**Q4. Is your income the same every month, or does it vary?**
+
+If variable → recommend the "live on last month's income" strategy (`holdBudgetForNextMonth`). Majordom explains: "You save this month's income and live off it next month — more stability when income fluctuates."
+
+**Q5. Do you manage finances together with a partner?**
+
+If yes: ask partner's income too; recommend a shared Majordom instance (Strategy A — shared budget file); explain contribution split proportional to income. Note: multi-user requires OpenID Provider setup.
+
+---
+
+#### Block C — Accounts
+
+**Q6. What bank accounts do you use?**
+
+"For example: ING current account, Revolut, savings at ASN Bank." For each account: name + current balance.
+
+Majordom auto-classifies:
+- Current / checking account → **on-budget**
+- Savings used for day-to-day expenses → **on-budget**
+- Investment / ETF / pension → **off-budget** (tracking only, no budget impact)
+- Mortgage → **off-budget**
+- Cash → **on-budget**, creates a "Cash" account
+
+Explain: off-budget accounts appear in net worth reports but don't affect monthly budget allocations.
+
+**Q7. Do you have any credit cards?**
+
+If yes: "Do you pay the full balance each month, or do you carry a balance?"
+
+- Paying in full → on-budget account, no special setup needed
+- Carrying debt → create a "Credit Card Debt" category group + enable rollover overspending on those categories
+
+**Q8. Do you have transactions in currencies other than EUR?**
+
+"For example: Romanian leu (RON), British pounds (GBP)."
+
+If yes: set up currency conversion rules via Rule Action Templating. Ask for the current exchange rate. Majordom creates two rules per foreign currency: one to detect the account, one to convert and store the EUR equivalent.
+
+---
+
+#### Block D — Fixed obligations & recurring transactions
+
+**Q9. What payments happen automatically every month?**
+
+"For example: rent or mortgage, subscriptions (Netflix, Spotify), insurance, loan payments, salary deposit date."
+
+For each: Majordom creates a schedule linked to the correct category.
+
+For **income schedules** (salary, received rent): the "approximately" option is enabled automatically (±7.5% match tolerance) to handle normal monthly variations. If the actual amount differs from the scheduled amount after CSV import, Majordom notifies via `income_variance` alert: *"Salary received: [actual] EUR (expected [scheduled] EUR, [diff] EUR). Your available budget this month is affected — do you want to adjust any category allocations?"*
+
+**Q10. Do you have loans or outstanding debts besides your mortgage?**
+
+For each: monthly payment + remaining balance → dedicated repayment category + payoff goal template. Skip credit card debt if already captured in Q7.
+
+---
+
+#### Block E — Financial goals
+
+**Q11. What do you want to achieve financially?**
+
+Pick any that apply:
+- **Emergency fund** → current saved amount + target amount + target date
+- **Vacation** → destination + amount + date
+- **Car purchase** → amount + date
+- **House purchase** → down payment amount + date
+- **FIRE / early retirement** → target age or target portfolio size
+- **Pay off debt faster** → which debt, extra monthly amount
+- **Other** → free text
+
+For each goal: Majordom calculates the required monthly contribution and creates the appropriate goal template in the category notes.
+
+---
+
+#### Block F — End-of-month behavior
+
+**Q12. What should happen to money left over at the end of the month?**
+
+Options:
+- **Roll it over per category** (default — surplus stays in the category for next month)
+- **Send everything to emergency fund** → `#cleanup sink` on the emergency fund category
+- **Split between savings and personal money** → `#cleanup sink` with weights on both
+- **I'll decide manually each month** → no automation
+
+**Q13. Do you want to build a one-month buffer?**
+
+"This means you save this month's income and spend it only next month — more financial stability, especially with variable income."
+
+If yes: guide through `holdBudgetForNextMonth` until the buffer is fully built.
+
+---
+
+#### Block G — Historical data
+
+**Q14. Do you want to import past transactions from your bank?**
+
+"You can upload a CSV or OFX/QFX file. OFX/QFX is preferred — it has unique transaction IDs that prevent duplicates."
+
+If yes: trigger the CSV/OFX import flow after onboarding completes.
+
+**Q15. Transfer detection (automatic, after historical import)**
+
+After bulk import from multiple accounts: automatically detect transfer pairs (same amount, opposite sign, within 3 days) and present them for confirmation: *"Found X likely transfers between your accounts. Review and confirm?"* Majordom links confirmed pairs as proper transfers in Actual Budget.
+
+---
+
+### Phase 2 — Configuration in Actual Budget
+
+Executed after Phase 1 is complete. Majordom performs each step and confirms with the user before moving to the next.
+
+**Step 1 — Accounts**
+Create all accounts with their initial balances. On-budget and off-budget per Block C answers.
+
+**Step 2 — Credit card debt setup** *(if applicable)*
+Create "Credit Card Debt" category group. Enable rollover overspending on those categories. Enter opening debt balance.
+
+**Step 3 — Currency conversion rules** *(if applicable)*
+Create Rule Action Templating rules for each foreign currency using the rate provided in Q8.
+
+**Step 4 — Schedules**
+Create schedules for all recurring transactions from Block D. Income schedules use "approximately" matching.
+
+**Step 5 — Categories**
+Propose a category list based on the household profile. User confirms, adds, removes, or renames before Majordom creates anything.
+
+**Step 6 — End-of-month automation** *(if applicable)*
+Add `#cleanup source` / `#cleanup sink` notes to relevant categories with correct weights per Q12 answer.
+
+**Step 7 — Monthly allocations**
+Suggest amounts per category based on income. User adjusts inline. Zero-sum enforced: To Budget must reach 0.
+
+**Step 8 — Goal templates**
+Create goal templates in category notes per Block E answers. Supported types:
+- `#template AMOUNT` — fixed monthly amount
+- `#template AMOUNT by YYYY-MM` — save toward a goal by date
+- `#template AMOUNT repeat every N weeks/months starting DATE` — periodic
+- `#template N% of CATEGORY` — percentage of income
+- `#template schedule NAME` — based on an existing schedule
+- `#template average N months` — based on N-month spending average
+- `#template copy` — copy budgeted amount from previous month
+- `#template X remainder` — distribute leftover "To Budget" with optional weighting
+- `#goal AMOUNT` — override goal indicator for long-term balance target
+
+**Step 9 — Buffer** *(if applicable)*
+Trigger `holdBudgetForNextMonth` for the full monthly income amount per Q13 answer.
+
+**Step 10 — Summary**
+"Setup complete: X accounts, X schedules, X categories, X goals, X rules created. Budget fully allocated."
+
+**Step 11 — Historical import** *(if applicable)*
+Hand off to CSV/OFX import flow. Run transfer detection afterward.
+
+---
+
+### Actual Budget integration — supporting features
+
+The following sections describe how Majordom handles specific Actual Budget behaviors. These are implementation requirements, not separate tasks.
+
+---
+
+#### Transfers between accounts
+
+When money moves between two on-budget accounts (e.g. ING → Revolut), it must be recorded as a transfer in Actual Budget — not as an expense + income. Transfers between on-budget accounts have no category and don't affect the budget.
+
+Majordom handles this in three places:
+- **Onboarding (Q6)** — explain that moving money between own accounts must be marked as a transfer
+- **CSV import** — auto-detect transfer pairs (matching amount, close dates, different accounts) and ask for confirmation: *"This looks like a transfer ING → Revolut. Confirm?"*
 - **Manual chat entry** — if user says "I moved 500 EUR from ING to Revolut", create a transfer, not two separate transactions
 
-Special case: transfer between off-budget and on-budget account → requires a category on the on-budget side.
+Special case: transfer between an off-budget and an on-budget account → requires a category on the on-budget side.
 
-**Edge cases to handle:**
-- Variable income (freelance) → budget on minimum monthly income
-- Mid-month start → initial balance adjusted, partial month allocation
-- CSV import of past transactions → separate flow, triggered after onboarding
+**Reference:** [transfers](https://actualbudget.org/docs/transactions/transfers)
 
-**Reference:** [Starting Fresh](https://actualbudget.org/docs/getting-started/starting-fresh), [goal templates](https://actualbudget.org/docs/experimental/goal-templates), [schedules](https://actualbudget.org/docs/schedules), [transfers](https://actualbudget.org/docs/transactions/transfers), [tracking vs envelope](https://actualbudget.org/docs/getting-started/tracking-budget).
+---
 
-#### Split transactions (receipt photo + manual chat)
+#### Split transactions
+
 One transaction split across multiple categories — e.g. a Jumbo receipt with groceries (€45) + cleaning products (€12).
 
-Majordom must handle this in two places:
+Majordom handles this in two places:
 - **Receipt photo** — Ollama detects items from different categories → Majordom proposes a split and asks for confirmation before saving
 - **Manual chat entry** — if user says "I spent €60 at Jumbo, €45 groceries and €15 household", Majordom creates a split transaction in Actual Budget
 
-**Distribute button:** Actual Budget can distribute the remaining unallocated amount across empty splits (even distribution) or proportionally across all splits (useful for distributing VAT proportionally). Majordom should use proportional distribution when splitting receipts that include taxes.
+**Distribute:** Actual Budget can distribute the unallocated remainder across empty splits (even) or proportionally across all splits (useful for VAT distribution). Majordom uses proportional distribution for receipts that include taxes.
 
-To undo a split: Actual Budget supports "Unsplit transaction" per split or for all at once.
+**Unsplit:** Actual Budget supports "Unsplit transaction" per split or for all at once.
 
-Note: Actual Budget bulk editing does not work correctly with split transactions — avoid bulk edits on splits.
+Note: bulk editing does not work on split transactions.
+
+---
 
 #### Returns and reimbursements
+
 A return from a shop is not income — money must go back to the original spending category.
 
-Majordom must handle two cases:
+Two cases:
 - **Return/refund** — "I got a €30 refund from H&M" → transaction in the same category (Clothing), not in Income; Majordom asks which category if unsure
 - **Work reimbursement** — "My employer will reimburse this €120 expense" → two strategies:
-  - Pre-fund: allocate money to a "Reimbursements" category before spending → category goes to zero when refund arrives
-  - Post-fund: let the spending category go negative → fill it when the reimbursement arrives; if reimbursement comes next month, enable rollover on that category
+  - Pre-fund: allocate money to a "Reimbursements" category before spending → fills to zero when refund arrives
+  - Post-fund: let the spending category go negative → fill it when the reimbursement arrives; enable rollover if the reimbursement spans months
 
-Majordom should ask the user which approach they prefer during onboarding.
+Majordom asks the user which approach they prefer during onboarding.
 
-#### Rules sync with Actual Budget
-Actual Budget automatically creates rules when the user renames a payee or categorizes a transaction. Majordom manages its own `merchant_mappings` in SQLite.
+---
 
-These two systems must not conflict:
-- When Majordom saves a merchant→category mapping confirmed by the user, also create/update the corresponding rule in Actual Budget → categorization works even outside Majordom
-- When importing CSV, Actual Budget rules fire first; Majordom should not overwrite the result unless the user explicitly changes the category
-- Do not disable Actual Budget's auto-rule learning — it's complementary to Majordom's mappings
+#### Rollover and overspending
 
-**Reference:** [rules documentation](https://actualbudget.org/docs/budgeting/rules)
-
-#### Rollover and overspending behavior
-Actual Budget handles month-to-month budget carry-over automatically:
-- **Overspending** — if a category goes negative, the deficit is automatically deducted from next month's "To Budget"; the user starts the new month already behind
-- **Surplus** — unspent money in a category rolls over to next month by default (stays in the category)
-- **"Copy last month's budget"** — available in the budget sheet; copies all allocated amounts from the previous month; useful for stable monthly budgets
+Actual Budget handles month-to-month carry-over automatically:
+- **Overspending** — deficit is automatically deducted from next month's "To Budget"
+- **Surplus** — unspent money stays in the category and rolls over
+- **Copy last month's budget** — copies all allocated amounts from the previous month; useful for stable monthly budgets
 
 Majordom should:
-- Explain rollover behavior during onboarding: "If you overspend a category this month, it automatically reduces next month's available money"
-- At start of each new month in chat: offer to copy last month's budget as a starting point, then adjust from there
-- When a category goes negative: proactively notify via the notification system
+- Explain rollover during onboarding (Q1)
+- At the start of each new month: offer to copy last month's budget as a starting point
+- When a category goes negative: notify via the notification system
+
+---
 
 #### Credit card accounts — two strategies
-Actual Budget treats credit cards as regular accounts with a negative balance.
 
-**Strategy A — Paying in full each month (recommended):**
+**Strategy A — Paying in full (recommended):**
 - Every purchase categorized immediately to spending categories
-- Month-end: pay full statement balance → recorded as transfer (no budget impact)
-- Majordom at onboarding: "Do you pay your credit card in full each month?"
+- Month-end: pay full statement balance → recorded as transfer, no budget impact
 
 **Strategy B — Carrying debt:**
-- Create a dedicated category group "Credit Card Debt" with one category per card
-- Enable "Rollover Overspending" on these categories to avoid double-counting
-- Enter the opening debt balance as a transaction in the Payment column
-- Monthly: budget at minimum payment amount; allocate extra toward the highest-rate card first
+- Dedicated "Credit Card Debt" category group, one category per card
+- "Rollover Overspending" enabled to avoid double-counting
+- Opening debt balance entered as a transaction in the Payment column
+- Monthly: budget at minimum payment; allocate extra toward highest-rate card first
 - Interest charges → categorized to the CC Debt category, not a spending category
-
-Majordom at onboarding: if user has credit card debt → walk through Strategy B setup automatically.
 
 **Reference:** [paying in full](https://actualbudget.org/docs/budgeting/credit-cards/paying-in-full), [carrying debt](https://actualbudget.org/docs/budgeting/credit-cards/carrying-debt)
 
-#### OFX/QFX import (better than CSV)
-OFX and QFX formats have unique transaction identifiers → native deduplication in Actual Budget, no need for SHA256 hashing.
+---
 
-Majordom should:
-- After onboarding, inform the user: "Check if your bank offers OFX/QFX export — it's more reliable than CSV for deduplication"
-- Support OFX/QFX upload in the CSV import UI as an alternative format
-- When OFX is available, prefer it over CSV for the same bank
+#### Rules sync with Actual Budget
 
-#### Bulk recategorization via chat
-Actual Budget supports bulk editing of transactions (select multiple → change category/payee/notes simultaneously).
+Actual Budget creates rules automatically when the user renames a payee or categorizes a transaction. Majordom also manages `merchant_mappings` in SQLite.
 
-Majordom should expose this through chat:
-- "Move all Netflix transactions to Entertainment" → Majordom queries transactions by payee + executes bulk category update in Actual Budget
-- "Recategorize all transactions from last month at Albert Heijn as Groceries" → same flow
-- Useful after onboarding when the user reviews past imported transactions
+These two systems must not conflict:
+- When Majordom saves a merchant→category mapping confirmed by the user, also create/update the rule in Actual Budget → categorization works even outside Majordom
+- When importing CSV, Actual Budget rules fire first; Majordom does not overwrite the result unless the user explicitly changes the category
+- Do not disable Actual Budget's auto-rule learning — it is complementary to Majordom's mappings
 
-Note: bulk edit does not work on split transactions.
+**Reference:** [rules](https://actualbudget.org/docs/budgeting/rules)
 
-#### Joint budget / couple budget
-Two documented strategies for managing finances as a couple:
-
-**Strategy A — Shared budget file:** both partners use the same Actual Budget file (already supported via Majordom multi-user). Contributions calculated as percentage of individual income.
-
-**Strategy B — Joint account in personal budget:** one partner manages the joint account in their own file; partner contributions recorded as income in a dedicated category; split transactions used to fund shared categories.
-
-Majordom should guide the couple during onboarding:
-- "Do you manage finances together or separately?" → if together: recommend Strategy A (shared Majordom instance), explain how to add the second user
-- Document the contribution calculation: if partner A earns 60% of total income → contributes 60% to shared expenses
-
-**Multi-user setup (technical):** Actual Budget multi-user requires an OpenID Provider. Two roles:
-- **Basic** — can create new budgets and collaborate on others' budgets
-- **Admin** — all Basic capabilities + manage users directory, transfer budget ownership, enable universal file access
-
-Majordom's multi-user (currently via `TELEGRAM_ALLOWED_USER_IDS`) must eventually integrate with Actual Budget's multi-user model. For now, both users share the same Actual Budget file and Majordom instance.
-
-**Reference:** [multi-user config](https://actualbudget.org/docs/config/multi-user)
-
-#### Reconciliation after CSV import
-After importing CSV, Actual Budget allows account reconciliation — the user marks transactions as confirmed against the bank statement, then locks them from accidental edits.
-
-How it works in Actual Budget: user clicks the 🔒 icon on the account → enters the current bank balance → marks each transaction as verified (grey circle → green) → when difference reaches zero, clicks "Lock transactions" to finalize.
-
-Majordom should prompt after each CSV import:
-- "Import complete. Do you want to reconcile the account now? Open Actual Budget, click the 🔒 icon on the account, and confirm your transactions against your bank statement."
-- Reconciled (locked) transactions cannot be accidentally modified — this is the source of truth for your balance.
-
-#### End of Month Cleanup
-Experimental Actual Budget feature that automates redistribution of surplus funds at end of month. Controlled via notes on categories (same mechanism as goal templates):
-- `#cleanup source` — this category has surplus; excess is returned to "To Budget" first
-- `#cleanup sink [weight]` — this category receives leftover funds; weight controls proportion (default 1)
-
-Execution order: local group surpluses distributed first → global sources returned to "To Budget" → deficits covered → remaining funds distributed to sinks by weight.
-
-Majordom should:
-- During onboarding, ask: "Do you want leftover money at end of month to go somewhere automatically? (e.g. extra to emergency fund, or split between savings and personal money)"
-- If yes → add `#cleanup sink` to the chosen categories with appropriate weights during Phase 2 setup
-- In chat at end of month: "It's the end of the month. Run cleanup to redistribute surplus funds?" → triggers End of Month Cleanup in Actual Budget
-- Requires goal templates experimental feature to be enabled
-
-**Reference:** [end of month cleanup](https://actualbudget.org/docs/experimental/monthly-cleanup)
-
-#### ActualQL for Chat AI queries
-When the Chat AI needs financial data to answer a question, it must use `runQuery()` with ActualQL — not SQLite, not cached data.
-
-Examples:
-- "How much did I spend on groceries last month?" → `q('transactions').filter({category: ..., date: ...}).sum('amount')`
-- "What's my balance across all accounts?" → `q('accounts').select(['name', 'balance'])`
-- "Show me all transactions over €100 this week" → `q('transactions').filter({amount: {$gt: 10000}, date: ...}).select('*')`
-
-ActualQL supports: `$eq`, `$lt`, `$lte`, `$gt`, `$gte`, `$ne`, `$oneof`, `$regex`, `$like`, `$and`, `$or`. Amounts are integers (value × 100).
-
-The ChatService system prompt must instruct the AI to always call the ActualQL tool when it needs data, never to rely on memory or conversation context for financial figures.
-
-**Reference:** [ActualQL docs](https://actualbudget.org/docs/api/actual-ql)
-
-#### Transaction tags
-Actual Budget supports tags as metadata on transactions — stored in the Notes field with `#` prefix.
-
-Syntax rules:
-- Format: `#tag` — no spaces (use `#camelCase`, `#dashed-tag`, or `#underscored_tag`)
-- Case-sensitive: `#food` ≠ `#Food`
-- Multiple tags per transaction allowed
-- Use `##` to include a literal `#` without creating a tag
-- Managed via sidebar → More → Tags (color assignment, descriptions, delete)
-
-Use cases for Majordom:
-- "Tag this as #deductible" → freelance/ZZP expense tracking; filter at year-end for tax purposes
-- "Tag as #vacation-greece-2025" → group trip expenses across multiple categories
-- "Tag as #shared" → expenses to be split with partner
-- Chat AI filters by tag via ActualQL: `q('transactions').filter({'notes': {$like: '%#deductible%'}})`
-
-**Reference:** [tags documentation](https://actualbudget.org/docs/transactions/tags)
-
-#### Merging duplicate transactions
-When two transactions are duplicates (same amount, different source), Actual Budget can merge them instead of deleting — preserving the richer data from both.
-
-How it works: select exactly two transactions with matching amounts → press **G** → Actual Budget keeps the "better" one (bank sync > file import > manual) and fills empty fields from the other.
-
-Majordom should use merge instead of delete for duplicates detected during CSV import:
-- When SHA256 hash collision is detected and both transactions exist → offer merge, not silent delete
-- Useful when user imports CSV from same bank twice, or imports OFX after previously entering manually
-
-**Reference:** [merging transactions](https://actualbudget.org/docs/transactions/merging)
-
-#### Migrate historical transfers (modify-transfers script)
-When onboarding a user who imports historical data from multiple accounts, past transfers between accounts will appear as unlinked pairs (debit in one account, credit in another).
-
-Actual Budget provides a SQL script (`modify-transfers`) that retroactively links these pairs as proper transfers. Conditions: same absolute amount, opposite signs, within 3-day window, unique match.
-
-Majordom should:
-- After bulk historical import, run transfer detection automatically and present matches for user confirmation: "Found 12 likely transfers between your accounts. Review and confirm?"
-- Apply the same logic as the `modify-transfers` script via the API instead of raw SQL
-
-**Reference:** [modify-transfers script](https://actualbudget.org/docs/advanced/scripts/modify-transfers)
+---
 
 #### Rule Action Templating (dynamic rules)
-Experimental Actual Budget feature that allows rules to set fields dynamically using Handlebars templates. More powerful than static rules.
 
-Available operations in templates:
-- **Math:** `add`, `sub`, `mul`, `div` — e.g. calculate tax-inclusive amounts
-- **Text:** `regex`, `replace`, `replaceAll` — clean up imported payee names
-- **Dates:** `addDays`, `subMonths`, `format` — adjust transaction dates
+Experimental feature. Rules can set fields dynamically using Handlebars templates.
+
+Available operations:
+- **Math:** `add`, `sub`, `mul`, `div`
+- **Text:** `regex`, `replace`, `replaceAll`
+- **Dates:** `addDays`, `subMonths`, `format`
 - **Variables:** `{{account}}`, `{{payee_name}}`, `{{imported_payee}}`, `{{amount}}`
 
 Use cases for Majordom:
-- **Multi-currency (RON workaround):** rule detects RON transaction → template calculates EUR equivalent using stored rate → writes converted amount + rate to notes
-- **Payee normalization:** "ALBERT HEIJN 1234 AMSTERDAM" → regex strips store number → becomes "Albert Heijn"
-- **Auto-tagging:** rule matches category "Transport" + amount > 50 → appends `#large-expense` to notes
+- **Multi-currency (RON workaround):** rule detects RON account → template calculates EUR equivalent → writes converted amount + rate to notes
+- **Payee normalization:** "ALBERT HEIJN 1234 AMSTERDAM" → regex strips store number → "Albert Heijn"
+- **Auto-tagging:** rule matches category "Transport" + amount above threshold → appends `#large-expense` to notes
 
-Majordom should create Rule Action Templating rules during onboarding for known cleanup patterns (e.g., bank-specific payee name noise).
+Majordom creates Rule Action Templating rules during onboarding for known cleanup patterns (bank-specific payee name noise, currency conversion).
 
 **Reference:** [rule templating](https://actualbudget.org/docs/experimental/rule-templating)
 
+---
+
 #### Multi-currency support (RON workaround)
+
 Actual Budget has no native multi-currency support. The documented workaround uses Rule Action Templating:
 1. Create a separate account for the foreign currency (e.g. "Cash RON")
-2. Create two rules: one to detect the account, one to convert amount to EUR using a stored rate
-3. Rate stored in transaction notes; must be updated manually when rate changes
-
-Limitations: experimental, manual rate updates, conversion not automatic.
+2. Create two rules: detect the account, convert amount to EUR using a stored rate
+3. Rate stored in transaction notes; must be updated when the rate changes significantly
 
 Majordom should:
-- During onboarding, ask: "Do you have transactions in currencies other than EUR?" → if RON mentioned → set up the conversion rules automatically
-- In chat: "Update EUR/RON rate to 5.02" → Majordom updates the rule template with the new rate
-- This directly enables the "RON support" item already listed under Low Priority
+- During onboarding (Q8): if RON or other currency mentioned → set up conversion rules automatically
+- In chat: "Update EUR/RON rate" → Majordom updates the rule template with the new rate
 
 **Reference:** [multi-currency](https://actualbudget.org/docs/budgeting/multi-currency)
 
-#### Hold budget for next month
-Actual Budget supports `holdBudgetForNextMonth()` — reserving money from the current month's "To Budget" for next month. This implements the "live on last month's income" strategy.
+---
 
-Majordom should explain this during onboarding as an advanced option:
-- "Do you want to build a one-month buffer? This means you spend this month's income only next month — it's a more stable way to budget."
-- If yes → guide the user to hold the full monthly income until the buffer is built
+#### OFX/QFX import (better than CSV)
+
+OFX and QFX formats include unique transaction identifiers → native deduplication in Actual Budget, no SHA256 hashing needed.
+
+Majordom should:
+- After onboarding, inform the user: "Check if your bank offers OFX/QFX export — it is more reliable than CSV for deduplication"
+- Support OFX/QFX upload in the import UI alongside CSV
+- Prefer OFX/QFX over CSV when both are available for the same bank
+
+---
+
+#### Merging duplicate transactions
+
+When two transactions are duplicates from different sources, Actual Budget can merge them instead of deleting — preserving richer data from both.
+
+How it works: select exactly two transactions with matching amounts → press **G** → keeps the "better" one (bank sync > file import > manual) and fills empty fields from the other.
+
+Majordom should use merge instead of silent delete when a duplicate is detected during CSV import.
+
+**Reference:** [merging](https://actualbudget.org/docs/transactions/merging)
+
+---
+
+#### Migrate historical transfers
+
+When importing historical data from multiple accounts, past transfers appear as unlinked pairs (debit in one account, credit in another). Actual Budget provides a `modify-transfers` SQL script to retroactively link them.
+
+Conditions for auto-detection: same absolute amount, opposite signs, within 3-day window, unique match.
+
+Majordom should:
+- After bulk historical import, run transfer detection and present matches: *"Found X likely transfers between your accounts. Review and confirm?"*
+- Apply the detection logic via the Actual Budget API rather than raw SQL
+
+**Reference:** [modify-transfers](https://actualbudget.org/docs/advanced/scripts/modify-transfers)
+
+---
+
+#### Bulk recategorization via chat
+
+Actual Budget supports bulk editing (select multiple transactions → change category/payee/notes).
+
+Majordom exposes this through chat:
+- "Move all Netflix transactions to Entertainment" → query by payee + bulk category update in Actual Budget
+- "Recategorize all Albert Heijn transactions last month as Groceries" → same flow
+
+Note: bulk edit does not work on split transactions.
+
+---
+
+#### Reconciliation after CSV import
+
+After importing, Actual Budget allows reconciliation — the user confirms transactions against the bank statement and locks them.
+
+How it works: click the 🔒 icon on the account → enter current bank balance → mark each transaction as verified (grey → green) → when difference reaches zero → click "Lock transactions".
+
+Majordom should prompt after each import: *"Import complete. Do you want to reconcile the account now? Open Actual Budget, click 🔒 on the account, and confirm your transactions against your bank statement."*
+
+Locked transactions cannot be accidentally modified.
+
+---
+
+#### End of Month Cleanup
+
+Experimental feature. Automates surplus redistribution at end of month via notes on categories:
+- `#cleanup source` — this category's surplus is returned to "To Budget" first
+- `#cleanup sink [weight]` — this category receives leftover funds (default weight: 1)
+
+Execution order: local group surpluses → global sources returned to "To Budget" → deficits covered → remaining funds distributed to sinks by weight.
+
+Majordom should:
+- During onboarding (Q12): if user chooses automatic redistribution → add `#cleanup sink` notes with correct weights during Phase 2
+- In chat at end of month: *"It's end of month. Run cleanup to redistribute surplus funds?"* → triggers End of Month Cleanup in Actual Budget
+
+Requires goal templates experimental feature to be enabled.
+
+**Reference:** [end of month cleanup](https://actualbudget.org/docs/experimental/monthly-cleanup)
+
+---
+
+#### ActualQL for Chat AI queries
+
+When the Chat AI needs financial data, it must use `runQuery()` with ActualQL — not SQLite, not cached values.
+
+Examples:
+- "How much did I spend on groceries last month?" → `q('transactions').filter({category: ..., date: ...}).calculate({$sum: '$amount'})`
+- "What's my balance across all accounts?" → `q('accounts').select(['name', 'balance'])`
+- "Show me all transactions over €100 this week" → `q('transactions').filter({amount: {$gt: 10000}, date: ...}).select('*')`
+
+Supported operators: `$eq`, `$lt`, `$lte`, `$gt`, `$gte`, `$ne`, `$oneof`, `$regex`, `$like`, `$and`, `$or`. Amounts are integers (value × 100). Dot notation for joins: `category.name`.
+
+The ChatService system prompt must instruct the AI to always call the ActualQL tool for financial data — never rely on memory or conversation context for figures.
+
+**Reference:** [ActualQL](https://actualbudget.org/docs/api/actual-ql/)
+
+---
+
+#### Transaction tags
+
+Tags are stored in the Notes field with `#` prefix.
+
+Syntax:
+- Format: `#tag` — no spaces (use `#camelCase`, `#dashed-tag`, or `#under_scored`)
+- Case-sensitive: `#food` ≠ `#Food`
+- Multiple tags per transaction allowed
+- Use `##` to include a literal `#` without creating a tag
+- Managed via sidebar → More → Tags (color, description, delete)
+
+Use cases for Majordom:
+- "Tag this as #deductible" → ZZP expense tracking; filter at year-end for tax purposes
+- "Tag as #vacation-2025" → group trip expenses across categories
+- "Tag as #shared" → expenses to be split with partner
+- Chat AI filters by tag: `q('transactions').filter({'notes': {$like: '%#deductible%'}})`
+
+**Reference:** [tags](https://actualbudget.org/docs/transactions/tags)
+
+---
+
+#### Hold budget for next month
+
+`holdBudgetForNextMonth()` reserves money from the current month's "To Budget" for next month — implements the "live on last month's income" strategy.
+
+Introduced during onboarding (Q13) as an advanced option. If the user opts in, Majordom guides them through holding the full monthly income until the buffer is built.
+
+---
+
+#### Joint budget / couple budget
+
+Two strategies:
+
+**Strategy A — Shared budget file:** both partners use the same Actual Budget file (already supported via Majordom multi-user). Contributions split proportionally to income.
+
+**Strategy B — Joint account in personal budget:** one partner manages the joint account in their own file; partner contributions recorded as income in a dedicated category; split transactions used to fund shared categories.
+
+Majordom guides the couple during onboarding (Q5):
+- "Do you manage finances together or separately?" → if together: recommend Strategy A, explain how to add the second user
+- Contribution calculation: partner A earns 60% of total income → contributes 60% to shared expenses
+
+**Multi-user (technical):** Actual Budget multi-user requires an OpenID Provider. Two roles:
+- **Basic** — create new budgets, collaborate on others'
+- **Admin** — all Basic + manage users directory, transfer budget ownership, enable universal file access
+
+Majordom's current multi-user (via `TELEGRAM_ALLOWED_USER_IDS`) must eventually integrate with Actual Budget's multi-user model.
+
+**Reference:** [multi-user config](https://actualbudget.org/docs/config/multi-user)
+
+---
+
+#### Edge cases
+
+- **Variable income** → budget on minimum reliable monthly income (Q3)
+- **Mid-month start** → initial balance adjusted, partial month allocation
+- **Reimbursements spanning months** → enable rollover on the affected category
+- **CSV import after onboarding** → separate flow, triggered from chat or import page
+
+**Reference:** [Starting Fresh](https://actualbudget.org/docs/getting-started/starting-fresh), [goal templates](https://actualbudget.org/docs/experimental/goal-templates), [schedules](https://actualbudget.org/docs/schedules), [tracking vs envelope](https://actualbudget.org/docs/getting-started/tracking-budget)
+
+---
 
 #### Installation README
 Step-by-step guide: Docker, Telegram bot token, Actual Budget, `.env` configuration, first start.
+
+---
 
 #### Automatic bank sync
 GoCardless/Nordigen (NL open banking) — **on hold**: access for individual developers in the EU is restricted; monitor PSD2/PSD3 regulation evolution.
@@ -419,34 +637,45 @@ GoCardless/Nordigen (NL open banking) — **on hold**: access for individual dev
 ## Medium Priority
 
 #### FIRE calculator / Crossover Point Report
-Actual Budget has a native experimental report for this: **Crossover Point Report** — calculates when passive investment income covers projected expenses, based on "Your Money or Your Life" methodology.
+
+Actual Budget has a native experimental report for this: **Crossover Point Report** — calculates when passive investment income covers projected expenses, based on the "Your Money or Your Life" methodology.
 
 Parameters: expense categories to include post-retirement, investment accounts, safe withdrawal rate (default 4%), projection type (linear trend or Hampel filtered median).
 
-Majordom should use the native Crossover Point Report rather than building a custom FIRE calculator. The Chat AI can explain the result: "At your current savings rate, you reach financial independence in approximately X years (around 20XX)."
+Majordom should use the native Crossover Point Report rather than building a custom FIRE calculator. The Chat AI explains the result conversationally.
 
 **Reference:** [crossover point report](https://actualbudget.org/docs/experimental/crossover-point-report)
 
+---
+
 #### Savings goals
-Progress tracking: emergency fund, vacation, large purchases. Progress visualization in dashboard.
+Progress tracking: emergency fund, vacation, large purchases. Progress visualization in the PWA dashboard.
+
+---
 
 #### Monthly budgets in Actual Budget
 Setting limits per category (native Actual Budget feature).
 
+---
+
 #### Extensible notification system
-Generic architecture based on `notification_rules` (SQLite, JSON config per type) + `notification_log` (anti-spam). APScheduler scheduler in FastAPI runs daily at 08:00. Delivery via Telegram (existing) + Web Push (PWA).
+
+Generic architecture based on `notification_rules` (SQLite, JSON config per type) + `notification_log` (anti-spam). APScheduler runs daily at 08:00 in FastAPI. Delivery: **Web Push primary** (PWA), Telegram secondary/fallback.
 
 Rule types:
-- `budget_alert` — triggered after each new transaction and daily; alert when a category exceeds X% of the configured monthly limit
-- `goal_risk` — weekly check; calculates if the current contribution pace meets the target (emergency fund, savings goals) on time; alert if the target date risks being delayed
-- `vehicle_reminder` — daily check; two subtypes: by date (ITP/APK, service due, X days before) and by km (oil change every N km, based on `vehicle_log`)
-- `income_variance` — triggered when a recurring income transaction (matched via schedule) differs from the expected amount; notifies the user of the difference and its impact on the monthly budget
 
-**Income variance detail:** Actual Budget schedules use "approximately" matching (±7.5%) — a salary scheduled at X EUR will auto-match amounts within that range from CSV import. However, the actual amount (not the schedule amount) enters "To Budget". Majordom must detect the variance after import and notify: *"Salary received: [actual] EUR (expected [scheduled] EUR, [diff] EUR). Your available budget this month is lower than planned — do you want to adjust any category allocations?"*
+**`budget_alert`** — triggered after each new transaction and daily. Alerts when a category exceeds X% of its configured monthly limit.
 
-Delivery: **Web Push primary** (PWA), Telegram secondary/fallback.
+**`goal_risk`** — weekly check. Calculates whether the current contribution pace will meet the target (emergency fund, savings goals) on time. Alerts if the target date risks being delayed.
+
+**`vehicle_reminder`** — daily check. Two subtypes: by date (ITP/APK, insurance renewal — X days before) and by km (oil change every N km, based on `vehicle_log`).
+
+**`income_variance`** — triggered when a recurring income transaction (matched via schedule) differs from the expected amount. Actual Budget schedules use "approximately" matching (±7.5%). The actual received amount (not the scheduled amount) enters "To Budget" — Majordom notifies: *"Salary received: [actual] EUR (expected [scheduled] EUR, [diff] EUR). Your available budget this month is affected — do you want to adjust any category allocations?"*
+
+---
 
 #### Vehicle Management — complete Fuelio replacement
+
 **Goal:** completely replace Fuelio, including import of existing history.
 
 **Existing vehicles:**
@@ -551,23 +780,26 @@ Import sets `source = "fuelio_import"` and `fuelio_unique_id` to prevent duplica
 - Service/maintenance — when `current_odo >= remind_odo` OR 7 days before `remind_date`
 - Calculation of `remind_odo` on save: `current_odo + repeat_odo` (if `repeat_odo > 0`)
 
-**Conversational calculations via AI chat** (not dedicated calculator):
+**Conversational calculations via AI chat** (not a dedicated calculator):
 - "How much does a 200km trip cost me?" → AI uses average consumption + distance + current fuel price
 - "When do I need to change the oil?" → AI checks last service + current km
 - "What is the monthly cost of the motorcycle?" → AI aggregates from vehicle_log
 
+---
+
 #### Investment monitoring
 Integration with [Ghostfolio](https://ghostfol.io) (self-hosted, open source) for ETF portfolio tracking.
 
+---
+
 #### Freelance income dashboard
-ZZP (Netherlands) for YouTube clips/paid activity. Separate deductible expenses.
+ZZP (Netherlands) for YouTube clips/paid activity. Separate deductible expenses tracked via `#deductible` tag.
 
 ---
 
 ## Low Priority
 
 - **GPU inference Ollama** — currently CPU (~60s/image); revisit with smaller models or quantization optimizations
-- **RON support** — transactions in Romanian leu
+- **RON support** — enabled via multi-currency workaround (Rule Action Templating); see onboarding Q8
 - **Automatic monthly report** — summary sent via Telegram/web on the 1st of the month
 - **Setup wizard via Telegram** — `/setup` command that guides the new user: creates first account, configures preferred categories, tests connection with Actual Budget
-
