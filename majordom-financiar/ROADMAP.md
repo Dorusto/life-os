@@ -232,10 +232,3 @@ ZZP (Netherlands) for YouTube clips/paid activity. Separate deductible expenses.
 - **Automatic monthly report** — summary sent via Telegram/web on the 1st of the month
 - **Setup wizard via Telegram** — `/setup` command that guides the new user: creates first account, configures preferred categories, tests connection with Actual Budget
 
----
-
-## Post-MVP — Launch & Growth
-
-- **Monetization** — define the model before any promotion (hosted SaaS with free tier? donations/sponsorships open source? one-time fee for managed setup?)
-- **Financial consultant feedback** — find a financial consultant (NL or RO) willing to test Majordom and provide structured feedback; potential partnership if synergy exists
-- **Content creator review** — after monetization is in place, contact a content creator in the personal finance niche (YouTube/blog) for an honest review
