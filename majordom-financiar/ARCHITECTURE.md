@@ -1,98 +1,98 @@
 # Majordom — Architecture & Developer Guide
 
-> Source of truth pentru orice agent AI sau developer care lucrează la acest proiect.
-> Citește acest fișier înainte de orice modificare.
+> Source of truth for any AI agent or developer working on this project.
+> Read this file before making any changes.
 
 ---
 
-## Ce face aplicația
+## What the application does
 
-Majordom este o interfață conversațională peste Actual Budget — nu o aplicație financiară de sine stătătoare. Utilizatorul interacționează prin chat (web PWA sau Telegram), iar Majordom execută acțiunile în Actual Budget prin API.
+Majordom is a conversational interface over Actual Budget — not a standalone financial application. The user interacts via chat (web PWA or Telegram), and Majordom executes actions in Actual Budget via API.
 
-**Principii fundamentale:**
-- Zero date financiare în cloud. Totul rulează pe serverul propriu.
-- Majordom nu reinventează nimic din ce face Actual Budget. Dacă AB are un tool pentru ceva, Majordom îl folosește pe acela.
-- SQLite-ul local există doar pentru context conversațional și preferințe utilizator — nu pentru date financiare.
+**Fundamental principles:**
+- Zero financial data in the cloud. Everything runs on your own server.
+- Majordom does not reinvent anything that Actual Budget does. If AB has a tool for something, Majordom uses that one.
+- The local SQLite exists only for conversational context and user preferences — not for financial data.
 
 ---
 
-## Principiu arhitectural
+## Architectural Principle
 
-| Responsabilitate | Unde trăiește |
+| Responsibility | Where it lives |
 |-----------------|---------------|
-| Tranzacții, conturi, solduri | **Actual Budget** |
-| Categorii, grupuri, bugete | **Actual Budget** |
-| Obiective, schedule-uri, reguli, transferuri | **Actual Budget** |
-| Rapoarte, net worth, cash flow | **Actual Budget** |
-| Preferințe utilizator, stare onboarding | **SQLite (Majordom)** |
-| Istoric conversații | **SQLite (Majordom)** |
-| Mapări merchant→categorie (până la sync în AB rules) | **SQLite (Majordom) — temporar** |
+| Transactions, accounts, balances | **Actual Budget** |
+| Categories, groups, budgets | **Actual Budget** |
+| Goals, schedules, rules, transfers | **Actual Budget** |
+| Reports, net worth, cash flow | **Actual Budget** |
+| User preferences, onboarding state | **SQLite (Majordom)** |
+| Conversation history | **SQLite (Majordom)** |
+| Merchant→category mappings (until sync to AB rules) | **SQLite (Majordom) — temporary** |
 
 ---
 
-## Strategie platformă
+## Platform Strategy
 
-- **Web PWA** — interfața principală; toate feature-urile noi se implementează aici
-- **Telegram bot** — maintenance mode; nu se mai adaugă features noi; păstrat funcțional ca fallback și canal notificări
+- **Web PWA** — the main interface; all new features are implemented here
+- **Telegram bot** — maintenance mode; no new features are added; kept functional as a fallback and notification channel
 
 ---
 
-## Stack tehnic
+## Technical Stack
 
-| Componentă | Tehnologie | Note |
+| Component | Technology | Notes |
 |---|---|---|
-| Web frontend | React + TypeScript | PWA instalabilă |
-| Web backend | FastAPI (Python 3.11) | REST API + WebSocket pentru chat |
-| Bot Telegram | python-telegram-bot 21.6 | async, maintenance mode |
+| Web frontend | React + TypeScript | Installable PWA |
+| Web backend | FastAPI (Python 3.11) | REST API + WebSocket for chat |
+| Telegram Bot | python-telegram-bot 21.6 | async, maintenance mode |
 | AI vision / chat | Ollama + qwen2.5vl:3b | local, GPU RTX 4070 Mobile |
-| Speech-to-text | Whisper (via Ollama) | planificat — voice input PWA |
+| Speech-to-text | Whisper (via Ollama) | planned — voice input PWA |
 | Budget app | Actual Budget | self-hosted Docker |
-| Actual client | actualpy | Python wrapper peste AB API |
-| Memorie/context | SQLite | via sqlite3 stdlib |
-| Deploy | Docker Compose | 3 servicii: actual-budget, ollama, majordom |
+| Actual client | actualpy | Python wrapper over AB API |
+| Memory/context | SQLite | via sqlite3 stdlib |
+| Deploy | Docker Compose | 3 services: actual-budget, ollama, majordom |
 
 ---
 
-## Structura proiectului
+## Project Structure
 
 ```
 majordom-financiar/
 ├── frontend/                ← React PWA
 │   ├── src/
 │   │   ├── pages/           ← Home, Chat, Import, Documents
-│   │   ├── components/      ← componente refolosibile
-│   │   └── api/             ← apeluri către FastAPI backend
+│   │   ├── components/      ← reusable components
+│   │   └── api/             ← calls to FastAPI backend
 │   └── public/
 │       └── manifest.json    ← PWA manifest
 │
 ├── backend/                 ← FastAPI
-│   ├── main.py              ← Entry point FastAPI, rute principale
+│   ├── main.py              ← FastAPI entry point, main routes
 │   ├── auth.py              ← JWT authentication
-│   ├── chat.py              ← Chat endpoint, integrare Ollama
+│   ├── chat.py              ← Chat endpoint, Ollama integration
 │   ├── actual_client/
-│   │   └── client.py        ← Async wrapper peste actualpy:
+│   │   └── client.py        ← Async wrapper over actualpy:
 │   │                            add_transaction(), get_accounts(),
 │   │                            get_categories(), set_budget_amount()
 │   ├── ocr/
-│   │   ├── vision_engine.py ← Trimite poza la Ollama, primește JSON
+│   │   ├── vision_engine.py ← Sends image to Ollama, receives JSON
 │   │   └── parser.py        ← Dataclasses: ReceiptData, ReceiptItem
 │   ├── csv_importer/
 │   │   ├── profiles.py      ← CsvProfile, NormalizedTransaction
 │   │   ├── normalizer.py    ← CSV bytes → NormalizedTransaction[]
-│   │   └── detector.py      ← Detecție format: header signature + Ollama
+│   │   └── detector.py      ← Format detection: header signature + Ollama
 │   ├── memory/
 │   │   ├── database.py      ← SQLite: merchant_mappings, csv_profiles, etc.
-│   │   └── categorizer.py   ← Sugestii categorie din istoricul confirmat
+│   │   └── categorizer.py   ← Category suggestions from confirmed history
 │   └── config/
-│       └── settings.py      ← Singleton Settings din .env
+│       └── settings.py      ← Singleton Settings from .env
 │
 ├── bot/                     ← Telegram (maintenance mode)
-│   ├── main.py              ← Entry point Telegram bot
-│   ├── handlers.py          ← Comenzi și fluxuri
+│   ├── main.py              ← Telegram bot entry point
+│   ├── handlers.py          ← Commands and flows
 │   ├── keyboards.py         ← InlineKeyboardMarkup
-│   └── csv_wizard.py        ← Import CSV via Telegram
+│   └── csv_wizard.py        ← CSV import via Telegram
 │
-├── docker-compose.yml       ← 3 servicii: actual-budget, ollama, majordom
+├── docker-compose.yml       ← 3 services: actual-budget, ollama, majordom
 ├── Dockerfile
 ├── requirements.txt
 └── .env.example
@@ -100,96 +100,96 @@ majordom-financiar/
 
 ---
 
-## Cum lucrăm la cod
+## How we work with code
 
-Aceste reguli se aplică în orice sesiune de implementare:
+These rules apply in any implementation session:
 
-**Înainte de orice cod:** se explică în română ce urmează să se facă, ce fișiere se vor atinge și care e rezultatul așteptat. Dacă nu e clar, se clarifică înainte de a scrie ceva.
+**Before any code:** explain in Romanian what will be done, which files will be touched, and what the expected result is. If it's not clear, clarify before writing anything.
 
-**Un singur feature la un timp.** Nu se implementează două lucruri simultan.
+**One feature at a time.** Do not implement two things simultaneously.
 
-**Funcții scurte cu nume clare.** `get_accounts_from_actual()` în loc de `fetch()`. Dacă o funcție face mai mult de un lucru, se sparge în două.
+**Short functions with clear names.** `get_accounts_from_actual()` instead of `fetch()`. If a function does more than one thing, split it into two.
 
-**Un fișier = un subiect.** `accounts.py` conține tot ce ține de conturi. Fișierele rămân mici și focalizate.
+**One file = one subject.** `accounts.py` contains everything related to accounts. Files remain small and focused.
 
-**Test după fiecare feature.** Testăm împreună că funcționează, apoi facem commit. Git este plasa de siguranță — orice commit funcțional e un punct de întoarcere.
+**Test after each feature.** We test together that it works, then we commit. Git is the safety net — any functional commit is a rollback point.
 
-**Când ceva se strică:** erorile au o locație. Comenzi utile:
+**When something breaks:** errors have a location. Useful commands:
 ```bash
-docker logs majordom-bot          # erorile din backend/bot
-docker logs majordom-frontend     # erorile din frontend (dacă sunt)
-docker compose ps                 # status servicii
+docker logs majordom-bot          # errors from backend/bot
+docker logs majordom-frontend     # errors from frontend (if any)
+docker compose ps                 # service status
 ```
 
 ---
 
-## Fluxul principal — procesare bon foto (web)
+## Main flow — receipt photo processing (web)
 
 ```
-User încarcă poza în browser (PWA)
+User uploads photo in browser (PWA)
         │
 frontend → POST /api/receipt (multipart)
         │
-backend/chat.py sau receipt endpoint
+backend/chat.py or receipt endpoint
         │
         ├── 1. VisionEngine.extract_from_bytes()
-        │       └── resize la 512px (Pillow)
+        │       └── resize to 512px (Pillow)
         │       └── encode base64
-        │       └── POST la Ollama /api/chat cu imaginea
-        │       └── parsează JSON → ReceiptData
+        │       └── POST to Ollama /api/chat with image
+        │       └── parse JSON → ReceiptData
         │
         ├── 2. SmartCategorizer.suggest()
-        │       └── caută în merchant_mappings (SQLite)
-        │       └── returnează categoria confirmată anterior
+        │       └── search in merchant_mappings (SQLite)
+        │       └── returns previously confirmed category
         │
-        ├── 3. Dacă există mai multe conturi → întreabă userul care cont
+        ├── 3. If multiple accounts exist → ask user which account
         │
-        └── 4. La confirmare: ActualBudgetClient.add_transaction()
-                └── actualpy în ThreadPoolExecutor
+        └── 4. On confirmation: ActualBudgetClient.add_transaction()
+                └── actualpy in ThreadPoolExecutor
                 └── download_budget() → create_transaction() → commit()
 ```
 
 ---
 
-## Fluxul CSV — import tranzacții bancare
+## CSV flow — bank transaction import
 
 ```
-User încarcă fișier CSV/OFX în browser
+User uploads CSV/OFX file in browser
         │
 frontend → POST /api/import/csv
         │
         ├── 1. CsvNormalizer.parse_csv(bytes)
-        │       └── detectează encoding și delimiter
-        │       └── returnează headers + rows
+        │       └── detect encoding and delimiter
+        │       └── return headers + rows
         │
         ├── 2. CsvProfileDetector.header_signature(headers)
-        │       └── MD5 pe coloanele sortate → fingerprint
+        │       └── MD5 on sorted columns → fingerprint
         │
-        ├── 3a. Profil găsit în SQLite → aplică direct
-        ├── 3b. Profil negăsit → Ollama detectează → user confirmă → salvat
+        ├── 3a. Profile found in SQLite → apply directly
+        ├── 3b. Profile not found → Ollama detects → user confirms → saved
         │
-        ├── 4. Selecție cont destinație
+        ├── 4. Destination account selection
         │
-        ├── 5. Detectare perechi transfer (sumă egală, semn opus, ±3 zile)
-        │       └── prezintă userului pentru confirmare
+        ├── 5. Transfer pair detection (equal amount, opposite sign, ±3 days)
+        │       └── present to user for confirmation
         │
-        └── 6. La confirmare: ActualBudgetClient.add_transactions_batch()
-                └── SHA256(data+merchant+suma) → deduplicare
-                └── transferurile confirmate → create_transfer()
-                └── restul → create_transaction() cu categorie auto
-                └── un singur actual.commit() la final
+        └── 6. On confirmation: ActualBudgetClient.add_transactions_batch()
+                └── SHA256(data+merchant+amount) → deduplication
+                └── confirmed transfers → create_transfer()
+                └── the rest → create_transaction() with auto category
+                └── a single actual.commit() at the end
 ```
 
 ---
 
-## Module critice — ce să NU strici
+## Critical modules — what NOT to break
 
-### 1. Async vs Sync — CRITIC
-Tot backend-ul este **async** (FastAPI + asyncio).
-`ActualBudgetClient` rulează codul sync (`actualpy`) într-un `ThreadPoolExecutor`.
+### 1. Async vs Sync — CRITICAL
+The entire backend is **async** (FastAPI + asyncio).
+`ActualBudgetClient` runs sync code (`actualpy`) in a `ThreadPoolExecutor`.
 
 ```python
-# CORECT — sync în executor
+# CORRECT — sync in executor
 async def get_accounts(self) -> list[Account]:
     def _get():
         with self._get_actual() as actual:
@@ -197,132 +197,132 @@ async def get_accounts(self) -> list[Account]:
             return actual.get_accounts()
     return await self._run(_get)
 
-# GREȘIT — blochează tot event loop-ul:
+# WRONG — blocks the entire event loop:
 async def get_accounts(self):
-    with self._get_actual() as actual:  # sync în async!
+    with self._get_actual() as actual:  # sync in async!
         ...
 ```
 
-### 2. actualpy — ordinea operațiilor e obligatorie
+### 2. actualpy — operation order is mandatory
 ```python
 with self._get_actual() as actual:
-    actual.download_budget()   # întâi download
-    # ... operații ...
-    actual.commit()            # la final pentru orice scriere
+    actual.download_budget()   # first download
+    # ... operations ...
+    actual.commit()            # at the end for any write
 ```
 
 ### 3. actualpy — naming quirk
-Parametrul `imported_id` din `create_transaction()` se salvează intern ca `financial_id`.
-Când citești tranzacții existente pentru deduplicare, folosești `tx.financial_id`:
+The `imported_id` parameter in `create_transaction()` is saved internally as `financial_id`.
+When reading existing transactions for deduplication, use `tx.financial_id`:
 ```python
 existing_ids = {tx.financial_id for tx in existing_txs if tx.financial_id}
 ```
 
-### 4. Config — totul vine din settings
+### 4. Config — everything comes from settings
 ```python
-# CORECT:
+# CORRECT:
 from config import settings
 url = settings.ollama.url
 
-# GREȘIT:
+# WRONG:
 import os
-url = os.getenv("OLLAMA_URL")  # niciodată direct în module
+url = os.getenv("OLLAMA_URL")  # never directly in modules
 ```
 
-### 5. Deduplicare tranzacții
-Toate tranzacțiile primesc un ID determinist: `SHA256(data + merchant + suma)[:16]`.
-Dacă același ID există deja în Actual Budget, tranzacția se sare (nu se creează duplicat).
+### 5. Transaction deduplication
+All transactions receive a deterministic ID: `SHA256(date + merchant + amount)[:16]`.
+If the same ID already exists in Actual Budget, the transaction is skipped (no duplicate created).
 
-### 6. Rebuild Docker după modificări de cod
-`docker compose restart majordom` NU aplică modificările — doar repornește containerul vechi.
+### 6. Rebuild Docker after code changes
+`docker compose restart majordom` does NOT apply changes — only restarts the old container.
 ```bash
 docker compose build majordom && docker compose up -d majordom
 ```
 
-### 7. Transferuri între conturi
-Un transfer ING → Revolut apare în CSV-ul ING ca cheltuială. Trebuie detectat și înregistrat
-ca transfer în Actual Budget, nu ca două tranzacții separate. Logica de detectare:
-sumă egală, semn opus, în două conturi diferite, în interval de 3 zile.
+### 7. Transfers between accounts
+A transfer ING → Revolut appears in the ING CSV as an expense. It must be detected and recorded
+as a transfer in Actual Budget, not as two separate transactions. Detection logic:
+equal amount, opposite sign, in two different accounts, within a 3-day interval.
 
 ---
 
-## Variabile de mediu (.env)
+## Environment variables (.env)
 
-| Variabilă | Descriere |
+| Variable | Description |
 |---|---|
-| `TELEGRAM_BOT_TOKEN` | Token de la @BotFather |
-| `TELEGRAM_ALLOWED_USER_IDS` | ID-uri Telegram separate prin virgulă |
-| `ACTUAL_BUDGET_URL` | URL intern Docker (http://actual-budget:5006) |
-| `ACTUAL_BUDGET_PASSWORD` | Parola Actual Budget |
-| `ACTUAL_BUDGET_SYNC_ID` | Sync ID din setările Actual Budget |
-| `OLLAMA_URL` | URL Ollama (poate fi pe altă mașină din rețea) |
-| `OLLAMA_MODEL` | Modelul vision (qwen2.5vl:3b) |
-| `MEMORY_DB_PATH` | Calea SQLite (/app/data/memory.db) |
-| `DEFAULT_CURRENCY` | Moneda implicită (EUR) |
-| `JWT_SECRET` | Secret pentru JWT tokens (web auth) |
+| `TELEGRAM_BOT_TOKEN` | Token from @BotFather |
+| `TELEGRAM_ALLOWED_USER_IDS` | Telegram IDs separated by comma |
+| `ACTUAL_BUDGET_URL` | Internal Docker URL (http://actual-budget:5006) |
+| `ACTUAL_BUDGET_PASSWORD` | Actual Budget password |
+| `ACTUAL_BUDGET_SYNC_ID` | Sync ID from Actual Budget settings |
+| `OLLAMA_URL` | Ollama URL (can be on another machine on the network) |
+| `OLLAMA_MODEL` | Vision model (qwen2.5vl:3b) |
+| `MEMORY_DB_PATH` | SQLite path (/app/data/memory.db) |
+| `DEFAULT_CURRENCY` | Default currency (EUR) |
+| `JWT_SECRET` | Secret for JWT tokens (web auth) |
 
 ---
 
-## Docker — servicii
+## Docker — services
 
 ```yaml
-actual-budget  ← port 5006, date în ./data/actual
-ollama         ← port 11434, modele în ollama_data volume
-majordom       ← FastAPI backend + servire frontend build
+actual-budget  ← port 5006, data in ./data/actual
+ollama         ← port 11434, models in ollama_data volume
+majordom       ← FastAPI backend + serving frontend build
 ```
 
-Ollama poate fi extern (pe altă mașină din rețea) — setezi `OLLAMA_URL` corespunzător.
+Ollama can be external (on another machine on the network) — set `OLLAMA_URL` accordingly.
 
 ---
 
 ## SQLite — schema
 
 ```sql
-transactions        ← bonuri foto + tranzacții manuale (context local)
-merchant_mappings   ← merchant → categorie confirmată (SmartCategorizer)
-category_keywords   ← cuvinte cheie → categorie
-budget_limits       ← limite lunare per categorie
-csv_profiles        ← profiluri CSV salvate (ING, crypto.com, etc.)
+transactions        ← photo receipts + manual transactions (local context)
+merchant_mappings   ← merchant → confirmed category (SmartCategorizer)
+category_keywords   ← keywords → category
+budget_limits       ← monthly limits per category
+csv_profiles        ← saved CSV profiles (ING, crypto.com, etc.)
 ```
 
 ---
 
-## Convenții de cod
+## Code conventions
 
-- **Type hints** pe toate funcțiile publice
-- **snake_case** pentru variabile și funcții Python; **camelCase** în TypeScript/React
-- **logging** în loc de print (`logger = logging.getLogger(__name__)`)
-- **Nu duplica logica** între bot și backend
-- **Orice scriere** în Actual Budget → `actual.commit()` la final
-- **Fără comentarii** care explică ce face codul — numele funcțiilor și variabilelor fac asta; comentarii doar pentru comportamente non-evidente
+- **Type hints** on all public functions
+- **snake_case** for Python variables and functions; **camelCase** in TypeScript/React
+- **logging** instead of print (`logger = logging.getLogger(__name__)`)
+- **Do not duplicate logic** between bot and backend
+- **Any write** to Actual Budget → `actual.commit()` at the end
+- **No comments** explaining what the code does — function and variable names do that; comments only for non-obvious behaviors
 
 ---
 
-## Funcționalități implementate
+## Implemented features
 
-- [x] Procesare bon foto cu AI vision (Ollama)
-- [x] Tranzacție manuală (/add pe Telegram)
-- [x] Sold și statistici (/balance, /stats pe Telegram)
-- [x] Import CSV cu detecție automată format (ING, crypto.com, Revolut, etc.)
-- [x] Auto-categorizare din istoricul confirmat (merchant_mappings)
-- [x] Categorii confirmate propagate în Actual Budget
-- [x] Deduplicare la re-import (SHA256 pe data+merchant+suma)
-- [x] Selecție cont la salvare (dacă există mai multe conturi) — Telegram
-- [x] Web UI (PWA) v2: FastAPI + React, JWT auth, foto bon, grafic lunar
+- [x] Receipt photo processing with AI vision (Ollama)
+- [x] Manual transaction (/add on Telegram)
+- [x] Balance and statistics (/balance, /stats on Telegram)
+- [x] CSV import with automatic format detection (ING, crypto.com, Revolut, etc.)
+- [x] Auto-categorization from confirmed history (merchant_mappings)
+- [x] Confirmed categories propagated to Actual Budget
+- [x] Deduplication on re-import (SHA256 on date+merchant+amount)
+- [x] Account selection on save (if multiple accounts exist) — Telegram
+- [x] Web UI (PWA) v2: FastAPI + React, JWT auth, receipt photo, monthly chart
 
-## Urmează (ordinea implementării)
+## Up next (implementation order)
 
-1. **Account selection pe web PWA** — prerequisit pentru tot ce urmează
-2. **Budget status dashboard** — grafic per categorie + rebalansare conversațională
+1. **Account selection on web PWA** — prerequisite for everything that follows
+2. **Budget status dashboard** — chart per category + conversational rebalancing
 3. **Bottom navigation bar** — Home / Import / Chat
-4. **Chat AI assistant** — ActualQL + Ollama, execută acțiuni din chat
-5. **CSV import UI web** — port din Telegram
-6. **Interactive messages în chat** — butoane, confirmare tranzacții
-7. **Document Management System** — foto/PDF → extragere date → stocare
-8. **Onboarding conversațional** — Q1-Q15, configurare completă Actual Budget
+4. **Chat AI assistant** — ActualQL + Ollama, executes actions from chat
+5. **CSV import UI web** — port from Telegram
+6. **Interactive messages in chat** — buttons, transaction confirmation
+7. **Document Management System** — photo/PDF → data extraction → storage
+8. **Conversational onboarding** — Q1-Q15, complete Actual Budget configuration
 
-**Detalii complete pentru fiecare feature** → vezi `ROADMAP.md`
+**Complete details for each feature** → see `ROADMAP.md`
 
 ---
 
-*Ultima actualizare: 2026-04-18 (sesiunea — arhitectură AB, onboarding, platformă PWA)*
+*Last updated: 2026-04-18 (session — AB architecture, onboarding, PWA platform)*
