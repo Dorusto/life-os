@@ -799,6 +799,7 @@ ZZP (Netherlands) for YouTube clips/paid activity. Separate deductible expenses 
 
 ## Low Priority
 
+- **Voice input in PWA** — microphone button in chat; audio transcribed locally via Whisper (Ollama) → sent as text message; consistent with privacy-first stack and cross-browser
 - **GPU inference Ollama** — currently CPU (~60s/image); revisit with smaller models or quantization optimizations
 - **RON support** — enabled via multi-currency workaround (Rule Action Templating); see onboarding Q8
 - **Automatic monthly report** — summary sent via Telegram/web on the 1st of the month
