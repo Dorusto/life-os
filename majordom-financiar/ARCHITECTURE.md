@@ -242,6 +242,35 @@ equal amount, opposite sign, in two different accounts, within a 3-day interval.
 
 ---
 
+## Auth strategy
+
+- 2 users defined in `.env` (username + bcrypt password hash)
+- JWT tokens, 7-day expiry
+- No OAuth, no role-based access, no server-side sessions
+- Both users share the same Actual Budget instance — same data, no isolation
+- Per-user isolation deferred to a future PostgreSQL migration (add `user_id` to tables)
+
+---
+
+## Photo upload — PWA camera
+
+Two separate buttons in the UI — do not merge them into one:
+
+```html
+<!-- Opens rear camera directly -->
+<input type="file" accept="image/*" capture="environment">
+
+<!-- Opens photo gallery (no capture attribute) -->
+<input type="file" accept="image/*">
+```
+
+**HTTPS is required** for camera access in browsers. Solutions:
+- Tailscale: `tailscale cert device.tail-xxx.ts.net` (free, automatic)
+- Coolify with custom domain: Let's Encrypt handled automatically
+- Local development: `localhost` works without HTTPS
+
+---
+
 ## Environment variables (.env)
 
 | Variable | Description |
