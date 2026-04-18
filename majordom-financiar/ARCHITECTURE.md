@@ -174,7 +174,7 @@ frontend → POST /api/import/csv
         │       └── present to user for confirmation
         │
         └── 6. On confirmation: ActualBudgetClient.add_transactions_batch()
-                └── SHA256(data+merchant+amount) → deduplication
+                └── SHA256(date+merchant+amount) → passed as imported_id to AB (AB deduplicates)
                 └── confirmed transfers → create_transfer()
                 └── the rest → create_transaction() with auto category
                 └── a single actual.commit() at the end
@@ -213,10 +213,7 @@ with self._get_actual() as actual:
 
 ### 3. actualpy — naming quirk
 The `imported_id` parameter in `create_transaction()` is saved internally as `financial_id`.
-When reading existing transactions for deduplication, use `tx.financial_id`:
-```python
-existing_ids = {tx.financial_id for tx in existing_txs if tx.financial_id}
-```
+When reading existing transactions (e.g. for debugging), use `tx.financial_id`, not `tx.imported_id`.
 
 ### 4. Config — everything comes from settings
 ```python
@@ -230,8 +227,7 @@ url = os.getenv("OLLAMA_URL")  # never directly in modules
 ```
 
 ### 5. Transaction deduplication
-All transactions receive a deterministic ID: `SHA256(date + merchant + amount)[:16]`.
-If the same ID already exists in Actual Budget, the transaction is skipped (no duplicate created).
+Majordom generates a deterministic ID — `SHA256(date + merchant + amount)[:16]` — and passes it to Actual Budget as `imported_id` when calling `create_transaction()`. Actual Budget owns the deduplication check: if a transaction with that ID already exists, AB skips it. Majordom does not query or verify duplicates itself.
 
 ### 6. Rebuild Docker after code changes
 `docker compose restart majordom` does NOT apply changes — only restarts the old container.
@@ -278,11 +274,13 @@ Ollama can be external (on another machine on the network) — set `OLLAMA_URL` 
 ## SQLite — schema
 
 ```sql
-transactions        ← photo receipts + manual transactions (local context)
-merchant_mappings   ← merchant → confirmed category (SmartCategorizer)
-category_keywords   ← keywords → category
-budget_limits       ← monthly limits per category
-csv_profiles        ← saved CSV profiles (ING, crypto.com, etc.)
+merchant_mappings   ← merchant → confirmed category (temporary — to be synced to AB rules)
+category_keywords   ← keywords → category (temporary — to be synced to AB rules)
+csv_profiles        ← saved CSV profiles (ING, crypto.com, etc.) — format detection only, no financial data
+
+-- Legacy tables from Telegram bot (to be removed in future refactor):
+transactions        ← local copy of transactions — violates architectural principle; data belongs in AB
+budget_limits       ← local copy of budget limits — violates architectural principle; limits belong in AB
 ```
 
 ---
@@ -306,7 +304,7 @@ csv_profiles        ← saved CSV profiles (ING, crypto.com, etc.)
 - [x] CSV import with automatic format detection (ING, crypto.com, Revolut, etc.)
 - [x] Auto-categorization from confirmed history (merchant_mappings)
 - [x] Confirmed categories propagated to Actual Budget
-- [x] Deduplication on re-import (SHA256 on date+merchant+amount)
+- [x] Deduplication on re-import (SHA256 as imported_id → Actual Budget skips existing)
 - [x] Account selection on save (if multiple accounts exist) — Telegram
 - [x] Web UI (PWA) v2: FastAPI + React, JWT auth, receipt photo, monthly chart
 

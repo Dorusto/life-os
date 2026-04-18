@@ -39,6 +39,27 @@ When the Chat AI needs financial data to answer a question, it queries Actual Bu
 
 ### 🔲 Up Next
 
+#### ⚠️ Architecture audit — align existing code with AB principle
+
+The codebase was written before the architectural principle was established (Majordom is an interface over Actual Budget — it does not store or own financial data). The existing Telegram bot code likely violates this in several places.
+
+**Known violations (identified in ARCHITECTURE.md):**
+- `transactions` table in SQLite — local copy of transactions; data belongs in Actual Budget
+- `budget_limits` table in SQLite — local copy of budget limits; limits belong in Actual Budget
+- `SmartCategorizer` uses TF-IDF on local SQLite data — should migrate to Actual Budget rules
+- Deduplication code may query local SQLite instead of relying on AB's `imported_id` check
+
+**What to do:**
+1. Audit all SQLite reads/writes in `memory/database.py` and `memory/categorizer.py`
+2. For each piece of data: does it belong in Actual Budget? If yes, remove from SQLite and query AB instead
+3. Verify that `merchant_mappings` confirmed by the user are synced to AB rules (not just stored locally)
+4. Remove `transactions` and `budget_limits` tables once their usages are migrated
+5. After cleanup: re-test receipt photo flow, CSV import, and auto-categorization end-to-end
+
+This must be done **before implementing new features** — otherwise new code will be built on the same wrong foundation.
+
+---
+
 #### Account selection on web PWA
 
 Port the Telegram account selection flow to the web interface. When the user adds a transaction (receipt photo, manual entry, or CSV import) and has multiple accounts configured, the PWA must ask which account to use — same behavior as the Telegram bot.
