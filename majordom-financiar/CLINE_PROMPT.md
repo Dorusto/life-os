@@ -1,6 +1,7 @@
 # System Prompt pentru Cline / alt agent AI
 
-> Copiază textul de mai jos în secțiunea "Custom Instructions" din Cline.
+> Copiază textul de mai jos în secțiunea "Custom Instructions" din Cline sau orice alt agent AI (Cursor, Aider, etc.).
+> Ține acest fișier actualizat — e fallback-ul pentru când nu ai acces la Claude Code.
 
 ---
 
@@ -14,7 +15,7 @@ You are working on **Majordom Financiar**, a self-hosted personal finance assist
 
 2. **Config via settings** — never use `os.getenv()` directly in modules. Always import from `backend.core.config import settings`.
 
-3. **Auth decorator** — every new Telegram command handler must be decorated with `@auth_required`.
+3. **Auth decorator** — every new Telegram command handler must be decorated with `@auth_required`. Web API endpoints use the `get_current_user` FastAPI dependency from `backend/api/auth.py`.
 
 4. **actualpy order** — always: `download_budget()` first, then queries, then `actual.commit()` for any write.
 
@@ -67,41 +68,23 @@ frontend/src/
 
 ---
 
-## Tasks ready to implement (prepared for async work)
+## Implemented features (do not reimplement)
 
-✅ **Task 1** — Chat UI: implemented in `ChatPage.tsx` + wired to `/api/chat`
-✅ **Task 2** — CSV Import wizard UI: implemented in `ImportPage.tsx` (4-step wizard, mock data)
-✅ **Task 3** — ChatService + system prompt: implemented in `backend/services/chat_service.py`
-✅ **Task 4** — Chat API endpoint: implemented in `backend/api/chat.py`
+- Receipt photo flow: upload → OCR → category suggestion → account selection → confirm → Actual Budget
+- Chat UI + backend: `ChatPage.tsx` → `/api/chat` → `chat_service.py` → Ollama streaming
+- CSV Import wizard UI: `ImportPage.tsx` (4-step wizard — currently wired to mock data)
+- Bottom navigation bar: Home / Import / Chat
+- JWT auth: login page, token in localStorage, `get_current_user` dependency on all endpoints
+- Monthly spending chart on Home page
 
-### Next task for Cline — Connect CSV import to real backend
+## Up next (implementation order)
 
-**Goal:** wire the `ImportPage.tsx` wizard to real backend endpoints (replace mock data).
+See `ROADMAP.md` for full details on each item.
 
-**Step 1 — Backend: two new endpoints in `backend/api/csv_import.py`**
-
-```python
-# POST /api/import/csv
-# Body: multipart/form-data with file + account_id
-# Returns: ImportPreview (list of parsed rows + duplicates flagged)
-
-# POST /api/import/csv/confirm
-# Body: { account_id, rows: [{date, merchant, amount, category_id, is_duplicate}] }
-# Returns: { imported: int, skipped: int }
-```
-
-Reuse existing logic from `bot/csv_wizard.py` and `backend/core/csv_importer/`.
-Use `ActualBudgetClient` to save confirmed transactions (same as receipt confirm flow).
-Deduplication: use the same SHA256(date+merchant+amount) hash as receipts.
-
-**Step 2 — Frontend: replace mock data in `ImportPage.tsx`**
-
-In Step 1 (upload): on file select, call `POST /api/import/csv` with the file + selected account.
-Replace `MOCK_ROWS` with real response. Replace `MOCK_ACCOUNTS` with `getAccounts()` from api.ts.
-In Step 3 (confirm): call `POST /api/import/csv/confirm` and show real imported/skipped counts.
-
-**New api.ts functions to add:**
-```typescript
-export async function previewCsvImport(file: File, accountId: string): Promise<ImportPreview> { ... }
-export async function confirmCsvImport(data: ImportConfirm): Promise<ImportResult> { ... }
-```
+1. **⚠️ Architecture audit** — align existing code with AB principle; remove `transactions` and `budget_limits` SQLite tables; verify `merchant_mappings` sync to AB rules
+2. **Account selection on web PWA** — when saving a transaction, ask which account (receipt, manual, CSV)
+3. **Budget status dashboard** — progress bars per category via ActualQL + conversational rebalancing via `setBudgetAmount()`
+4. **Connect CSV import to real backend** — wire `ImportPage.tsx` to `POST /api/import/csv` and `POST /api/import/csv/confirm`; reuse logic from `backend/core/csv_importer/`
+5. **Chat AI with real AB data** — ActualQL queries in `chat_service.py`, structured action blocks in responses
+6. **Document Management System** — photo/PDF → Ollama type detection → SQLite `documents` table
+7. **Conversational onboarding** — 15-question flow → automatic Actual Budget configuration
