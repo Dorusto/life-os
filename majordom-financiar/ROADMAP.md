@@ -693,6 +693,10 @@ Rule types:
 
 **`income_variance`** — triggered when a recurring income transaction (matched via schedule) differs from the expected amount. Actual Budget schedules use "approximately" matching (±7.5%). The actual received amount (not the scheduled amount) enters "To Budget" — Majordom notifies: *"Salary received: [actual] EUR (expected [scheduled] EUR, [diff] EUR). Your available budget this month is affected — do you want to adjust any category allocations?"*
 
+**`recurring_expense_audit`** — monthly trigger (1st of month). Majordom identifies all recurring transactions in Actual Budget (matched via schedules or same-payee monthly patterns) and sends a push notification: *"You have recurring expenses this month — subscriptions, insurance, utilities. Want to review them?"* Goal: surface forgotten subscriptions and prompt conscious review of fixed costs.
+
+**`market_correction_alert`** — daily check via public ETF price API (e.g. Yahoo Finance). Triggers when a tracked index drops beyond a configured threshold from its recent high. Notifies: *"All World has corrected [X]%. Your opportunity fund has available balance. Buy?"* Threshold and opportunity fund category both configurable per user. Designed for users who keep a dedicated allocation for buying on dips.
+
 ---
 
 #### Vehicle Management — complete Fuelio replacement
@@ -810,6 +814,10 @@ Import sets `source = "fuelio_import"` and `fuelio_unique_id` to prevent duplica
 
 #### Investment monitoring
 Integration with [Ghostfolio](https://ghostfol.io) (self-hosted, open source) for ETF portfolio tracking.
+
+**Crypto tracker with sell alert:** Majordom tracks the average acquisition cost for BTC/ETH (entered manually or via Bitvavo import) and alerts via push notification when the return exceeds a user-configured threshold. *"BTC has reached your target return. Your strategy: sell 50% → All World. Confirm?"* The sell strategy (percentage to sell, destination) is configured per asset. Crypto is treated as a speculative allocation with a defined exit plan, not as a core portfolio holding.
+
+**Child portfolio dashboard:** Off-budget account in Actual Budget representing the value of ETF units earmarked for a child. Majordom answers conversational queries: *"How much does [child] have now?"*, *"How much has it grown since last month?"* Value updated manually or via Ghostfolio sync. Primary purpose: financial education for the child.
 
 ---
 
