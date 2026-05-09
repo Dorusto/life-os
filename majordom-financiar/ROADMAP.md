@@ -14,11 +14,28 @@ Every financial action goes through Actual Budget's API. Majordom never stores f
 | Reports, net worth, cash flow | **Actual Budget** |
 | User preferences, onboarding state | **SQLite (Majordom)** |
 | Conversation history | **SQLite (Majordom)** |
-| Merchant→category mappings (until synced to AB rules) | **SQLite (Majordom) — temporary** |
+| Merchant→category mappings | **Actual Budget rules** — must live here exclusively; no SQLite cache |
 
-SQLite in Majordom exists solely to understand the user and maintain conversation context. Once a merchant mapping is confirmed by the user, it is synced to an Actual Budget rule and the SQLite entry becomes a cache, not the source of truth.
+SQLite in Majordom exists solely to understand the user and maintain conversation context.
 
 When the Chat AI needs financial data to answer a question, it queries Actual Budget via ActualQL — it does not read from SQLite.
+
+**UI principle:** When in doubt, solve it in chat before building a screen. If the user can say it, Majordom should understand it — a new UI page is a last resort, not a default.
+
+---
+
+## MVP — In This Order
+
+Three things, in this sequence, before any new feature is added.
+
+**Step 1 — Architecture audit** *(prerequisite)*
+Clean up the existing codebase to match the architectural principle. The `transactions` and `budget_limits` tables in SQLite must be removed; data must flow through Actual Budget. Without this, every new feature is built on the wrong foundation. Details in `Up Next` below.
+
+**Step 2 — Account selection on web PWA** *(prerequisite)*
+Port the Telegram account selection flow to the browser. Required for correct transaction routing in all web flows (chat, receipt photo, CSV import). Details in `Up Next` below.
+
+**Step 3 — Budget status dashboard (home page)** *(first user-visible MVP feature)*
+The home page: budget overview for the current month, one row per category with a progress bar, data from Actual Budget via ActualQL. When a category goes over budget, Majordom initiates a conversational rebalancing in chat. This is the feature that makes Majordom feel like a product. Details in `Up Next` below.
 
 ---
 
@@ -443,9 +460,9 @@ Majordom should:
 Actual Budget creates rules automatically when the user renames a payee or categorizes a transaction. Majordom also manages `merchant_mappings` in SQLite.
 
 These two systems must not conflict:
-- When Majordom saves a merchant→category mapping confirmed by the user, also create/update the rule in Actual Budget → categorization works even outside Majordom
+- When the user confirms a merchant→category mapping, Majordom creates/updates the rule directly in Actual Budget — nothing is stored in SQLite. AB's rules engine handles all future categorization automatically, without Majordom involvement.
 - When importing CSV, Actual Budget rules fire first; Majordom does not overwrite the result unless the user explicitly changes the category
-- Do not disable Actual Budget's auto-rule learning — it is complementary to Majordom's mappings
+- Do not disable Actual Budget's auto-rule learning — it is the sole source of truth for categorization rules
 
 **Reference:** [rules](https://actualbudget.org/docs/budgeting/rules)
 
