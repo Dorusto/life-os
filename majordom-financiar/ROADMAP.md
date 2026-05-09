@@ -14,9 +14,9 @@ Every financial action goes through Actual Budget's API. Majordom never stores f
 | Reports, net worth, cash flow | **Actual Budget** |
 | User preferences, onboarding state | **SQLite (Majordom)** |
 | Conversation history | **SQLite (Majordom)** |
-| Merchant→category mappings | **Actual Budget rules** — must live here exclusively; no SQLite cache |
+| Merchant→category mappings (until synced to AB rules) | **SQLite (Majordom) — temporary** |
 
-SQLite in Majordom exists solely to understand the user and maintain conversation context.
+SQLite in Majordom exists solely to understand the user and maintain conversation context. Once a merchant mapping is confirmed by the user, it is synced to an Actual Budget rule and the SQLite entry becomes a cache, not the source of truth.
 
 When the Chat AI needs financial data to answer a question, it queries Actual Budget via ActualQL — it does not read from SQLite.
 
@@ -460,9 +460,9 @@ Majordom should:
 Actual Budget creates rules automatically when the user renames a payee or categorizes a transaction. Majordom also manages `merchant_mappings` in SQLite.
 
 These two systems must not conflict:
-- When the user confirms a merchant→category mapping, Majordom creates/updates the rule directly in Actual Budget — nothing is stored in SQLite. AB's rules engine handles all future categorization automatically, without Majordom involvement.
+- When Majordom saves a merchant→category mapping confirmed by the user, also create/update the rule in Actual Budget → categorization works even outside Majordom
 - When importing CSV, Actual Budget rules fire first; Majordom does not overwrite the result unless the user explicitly changes the category
-- Do not disable Actual Budget's auto-rule learning — it is the sole source of truth for categorization rules
+- Do not disable Actual Budget's auto-rule learning — it is complementary to Majordom's mappings
 
 **Reference:** [rules](https://actualbudget.org/docs/budgeting/rules)
 
