@@ -5,35 +5,140 @@
 
 ---
 
-## What the application does
+## What Majordom is
 
-Majordom is a conversational interface over Actual Budget — not a standalone financial application. The user interacts via chat (web PWA or Telegram), and Majordom executes actions in Actual Budget via API.
+Majordom is a **unified personal AI assistant** — one application, one deployment, one LLM — with pluggable tool integrations per domain.
+
+The user talks to Majordom in natural language. Majordom understands the context, decides which tool to call, executes the action, and confirms the result. The user never interacts directly with the underlying tools (Actual Budget, Ghostfolio, etc.).
+
+**Three domains, one assistant:**
+- **Finance** — budget tracking, transactions, investments (Actual Budget + Ghostfolio)
+- **Digital** — to be defined
+- **Wellness** — to be defined
+
+The LLM is domain-agnostic. Domain routing happens through the tool registry: the LLM reads tool descriptions and decides which one to call based on the user's message.
 
 **Fundamental principles:**
 - Zero financial data in the cloud. Everything runs on your own server.
-- Majordom does not reinvent anything that Actual Budget does. If AB has a tool for something, Majordom uses that one.
-- The local SQLite exists only for conversational context and user preferences — not for financial data.
+- Majordom does not reinvent anything that a specialist tool already does well. If Actual Budget handles it, Majordom calls Actual Budget — it does not reimplement the logic.
+- SQLite exists only for conversational context, user preferences, and domain memory — not for financial or health data.
+- When in doubt, solve it in chat before building a screen. A new UI page is a last resort.
 
 ---
 
-## Architectural Principle
+## Platform Architecture
 
-| Responsibility | Where it lives |
-|-----------------|---------------|
-| Transactions, accounts, balances | **Actual Budget** |
-| Categories, groups, budgets | **Actual Budget** |
-| Goals, schedules, rules, transfers | **Actual Budget** |
-| Reports, net worth, cash flow | **Actual Budget** |
-| User preferences, onboarding state | **SQLite (Majordom)** |
-| Conversation history | **SQLite (Majordom)** |
-| Merchant→category mappings (until sync to AB rules) | **SQLite (Majordom) — temporary** |
+### Single deployment
+
+One Docker Compose stack. One backend. One frontend. One LLM.
+
+```
+User (browser / PWA)
+        │
+        ▼
+  React Frontend
+        │
+        ▼
+  FastAPI Backend  ──────────────────────────────────────────────
+        │                                                        │
+        ├── Tool Registry                                        │
+        │     ├── tools/finance/    ← Actual Budget, Ghostfolio │
+        │     ├── tools/wellness/   ← future integrations       │
+        │     └── tools/digital/   ← future integrations       │
+        │                                                        │
+        ├── Memory (SQLite, namespaced)                         │
+        │     ├── memory/finance/   ← merchant mappings, etc.  │
+        │     ├── memory/wellness/  ← future                   │
+        │     └── memory/digital/  ← future                    │
+        │                                                        │
+        └── LLM (Ollama — local)  ◄──────────────────────────── │
+```
+
+### Tool Registry
+
+Each domain exposes a set of tools — Python functions with a plain-text description that the LLM uses to decide when to call them.
+
+**Target structure (to be migrated to):**
+```
+tools/
+  finance/
+    actual_budget.py    ← add_transaction(), get_accounts(), set_budget_amount(), ...
+    ghostfolio.py       ← get_portfolio(), get_performance(), ...
+  wellness/
+    (future)
+  digital/
+    (future)
+  registry.py           ← loads all tools, exposes them to the LLM
+```
+
+**How to add a new tool:**
+1. Create a Python class in the appropriate domain folder
+2. Decorate each callable function with `@tool(description="...")` 
+3. Register the class in `tools/registry.py`
+4. The LLM discovers it automatically — no changes to core code
+
+**How to replace a tool:**
+Write a new class with the same function signatures. The LLM does not care which class implements the tool — only that the function and description exist.
+
+### Domain-separated memory
+
+The LLM shares one conversation thread but writes to and reads from separate memory namespaces. Finance history does not mix with wellness history.
+
+```
+memory/
+  finance/
+    merchant_mappings   ← merchant → confirmed category (temp until synced to AB rules)
+    csv_profiles        ← saved CSV import profiles
+    conversation        ← finance-related conversation history
+  wellness/
+    (future)
+  digital/
+    (future)
+  shared/
+    user_preferences    ← onboarding state, user profile, cross-domain preferences
+    conversation        ← general conversation history (non-domain-specific)
+```
+
+When the LLM processes a message, it determines the domain from context and reads/writes to the matching namespace. A message about budget and a message about health do not share the same memory context.
 
 ---
 
-## Platform Strategy
+## Current State vs Target State
 
-- **Web PWA** — the main interface; all new features are implemented here
-- **Telegram bot** — maintenance mode; no new features are added; kept functional as a fallback and notification channel
+The codebase was built before the unified architecture was established. The current state is `majordom-financiar` as a standalone finance application. The target state is a unified platform.
+
+**Migration happens in this order — do not skip steps:**
+
+### Step 0 — Document (this file) ✅
+Establish the target architecture before touching any code.
+
+### Step 1 — Architecture audit (prerequisite for everything)
+The existing code violates the architectural principle in several places. These must be fixed before adding any new features — otherwise new code is built on the wrong foundation.
+
+Known violations:
+- `transactions` table in SQLite — local copy of transactions; data belongs in Actual Budget
+- `budget_limits` table in SQLite — local copy of budget limits; limits belong in Actual Budget
+- `SmartCategorizer` uses TF-IDF on local SQLite data — should migrate to Actual Budget rules
+- Deduplication code may query local SQLite instead of relying on AB's `imported_id` check
+
+What to do:
+1. Audit all SQLite reads/writes in `memory/database.py` and `memory/categorizer.py`
+2. For each piece of data: does it belong in Actual Budget? If yes, remove from SQLite and query AB instead
+3. Verify that `merchant_mappings` confirmed by the user are synced to AB rules
+4. Remove `transactions` and `budget_limits` tables once their usages are migrated
+5. After cleanup: re-test receipt photo flow, CSV import, and auto-categorization end-to-end
+
+### Step 2 — Fix bug #27 (429 too-many-requests)
+Chat context fetch opens 3 parallel connections to Actual Budget. Fix: fetch all context in one session (sequential calls, single `with actual:` block). See `backend/api/chat.py` → `_fetch_financial_context()`.
+
+### Step 3 — Account selection on web PWA
+Port the Telegram account selection flow to the browser. Required for correct transaction routing in receipt flow, manual entry, and CSV import.
+
+### Step 4 — Budget status dashboard (home page)
+First user-visible feature: budget overview per category with progress bars. Data from Actual Budget via ActualQL. Conversational rebalancing from chat when a category goes over budget.
+
+### Step 5 — Tool registry migration
+Refactor `ActualBudgetClient` into the tool registry structure. This is when `majordom-financiar` becomes a module of the unified platform rather than a standalone app.
 
 ---
 
@@ -42,151 +147,83 @@ Majordom is a conversational interface over Actual Budget — not a standalone f
 | Component | Technology | Notes |
 |---|---|---|
 | Web frontend | React + TypeScript | Installable PWA |
-| Web backend | FastAPI (Python 3.11) | REST API + WebSocket for chat |
-| Telegram Bot | python-telegram-bot 21.6 | async, maintenance mode |
-| AI vision / chat | Ollama + qwen2.5vl:3b | local, GPU RTX 4070 Mobile |
-| Speech-to-text | Whisper (via Ollama) | planned — voice input PWA |
-| Budget app | Actual Budget | self-hosted Docker |
-| Actual client | actualpy | Python wrapper over AB API |
-| Memory/context | SQLite | via sqlite3 stdlib |
-| Deploy | Docker Compose | 3 services: actual-budget, ollama, majordom |
+| Web backend | FastAPI (Python 3.11) | REST API + streaming chat |
+| Telegram bot | python-telegram-bot 21.6 | Maintenance mode — no new features |
+| LLM vision / chat | Ollama + local models | qwen2.5vl:3b (vision), qwen2.5:7b (chat) |
+| Finance tool | Actual Budget | Self-hosted Docker |
+| Finance client | actualpy | Python wrapper over AB API |
+| Investment tool | Ghostfolio | Self-hosted Docker (planned) |
+| Domain memory | SQLite | Namespaced per domain |
+| Deploy | Docker Compose | Single stack |
 
 ---
 
-## Project Structure
+## Project Structure (current)
 
 ```
 majordom-financiar/
 ├── frontend/                ← React PWA
-│   ├── src/
-│   │   ├── pages/           ← Home, Chat, Import, Documents
-│   │   ├── components/      ← reusable components
-│   │   └── api/             ← calls to FastAPI backend
-│   └── public/
-│       └── manifest.json    ← PWA manifest
+│   └── src/
+│       ├── pages/           ← Home, Chat, Import, Login
+│       ├── components/      ← BottomNav, SpendingChart, TransactionItem
+│       └── lib/             ← api.ts, auth.ts
 │
-├── backend/                 ← FastAPI
-│   ├── main.py              ← FastAPI entry point, main routes
-│   ├── auth.py              ← JWT authentication
-│   ├── chat.py              ← Chat endpoint, Ollama integration
-│   ├── actual_client/
-│   │   └── client.py        ← Async wrapper over actualpy:
-│   │                            add_transaction(), get_accounts(),
-│   │                            get_categories(), set_budget_amount()
-│   ├── ocr/
-│   │   ├── vision_engine.py ← Sends image to Ollama, receives JSON
-│   │   └── parser.py        ← Dataclasses: ReceiptData, ReceiptItem
-│   ├── csv_importer/
-│   │   ├── profiles.py      ← CsvProfile, NormalizedTransaction
-│   │   ├── normalizer.py    ← CSV bytes → NormalizedTransaction[]
-│   │   └── detector.py      ← Format detection: header signature + Ollama
-│   ├── memory/
-│   │   ├── database.py      ← SQLite: merchant_mappings, csv_profiles, etc.
-│   │   └── categorizer.py   ← Category suggestions from confirmed history
-│   └── config/
-│       └── settings.py      ← Singleton Settings from .env
+├── backend/
+│   ├── main.py              ← FastAPI entry point
+│   ├── api/
+│   │   ├── auth.py          ← JWT authentication
+│   │   ├── chat.py          ← Chat endpoint + Ollama streaming
+│   │   ├── transactions.py  ← GET /transactions, /accounts, /stats
+│   │   ├── receipts.py      ← Receipt photo flow
+│   │   └── csv_import.py    ← CSV import flow
+│   ├── services/
+│   │   ├── chat_service.py  ← ChatService (Ollama wrapper)
+│   │   └── receipt_service.py
+│   └── core/
+│       ├── actual_client/   ← ActualBudgetClient (to become tools/finance/)
+│       ├── ocr/             ← VisionEngine, parser
+│       ├── csv_importer/    ← profiles, normalizer, detector
+│       ├── memory/          ← SQLite (database.py, categorizer.py)
+│       └── config/          ← settings.py
 │
 ├── bot/                     ← Telegram (maintenance mode)
-│   ├── main.py              ← Telegram bot entry point
-│   ├── handlers.py          ← Commands and flows
-│   ├── keyboards.py         ← InlineKeyboardMarkup
-│   └── csv_wizard.py        ← CSV import via Telegram
+├── scripts/
+│   ├── ai_helper.py         ← DeepSeek API wrapper for development
+│   └── prompts/             ← DeepSeek task prompts (one .md per task)
 │
-├── docker-compose.yml       ← 3 services: actual-budget, ollama, majordom
-├── Dockerfile
-├── requirements.txt
-└── .env.example
+├── ARCHITECTURE.md          ← this file
+├── ROADMAP.md               ← features, implementation details, priorities
+└── CLAUDE.md                ← Claude Code instructions (gitignored, private)
 ```
 
 ---
 
 ## How we work with code
 
-These rules apply in any implementation session:
+**Before any code:** read ARCHITECTURE.md and ROADMAP.md. Explain in Romanian what will be done, which files will be touched, and what the expected result is.
 
-**Before any code:** explain in Romanian what will be done, which files will be touched, and what the expected result is. If it's not clear, clarify before writing anything.
+**Implementation workflow:**
+- Claude (senior/architect) — reads the code, understands context, writes the spec and DeepSeek prompt
+- DeepSeek (engineer) — receives the prompt, implements
+- Prompts saved in `scripts/prompts/` — one `.md` file per task; usable independently without Claude
 
 **One feature at a time.** Do not implement two things simultaneously.
 
-**Short functions with clear names.** `get_accounts_from_actual()` instead of `fetch()`. If a function does more than one thing, split it into two.
+**Short functions with clear names.** If a function does more than one thing, split it.
 
-**One file = one subject.** `accounts.py` contains everything related to accounts. Files remain small and focused.
+**Test after each feature.** Commit after each functional state. Git is the safety net.
 
-**Test after each feature.** We test together that it works, then we commit. Git is the safety net — any functional commit is a rollback point.
-
-**When something breaks:** errors have a location. Useful commands:
+**Rebuild Docker after backend changes:**
 ```bash
-docker logs majordom-bot          # errors from backend/bot
-docker logs majordom-frontend     # errors from frontend (if any)
-docker compose ps                 # service status
+docker compose build majordom && docker compose up -d majordom
 ```
 
 ---
 
-## Main flow — receipt photo processing (web)
-
-```
-User uploads photo in browser (PWA)
-        │
-frontend → POST /api/receipt (multipart)
-        │
-backend/chat.py or receipt endpoint
-        │
-        ├── 1. VisionEngine.extract_from_bytes()
-        │       └── resize to 512px (Pillow)
-        │       └── encode base64
-        │       └── POST to Ollama /api/chat with image
-        │       └── parse JSON → ReceiptData
-        │
-        ├── 2. SmartCategorizer.suggest()
-        │       └── search in merchant_mappings (SQLite)
-        │       └── returns previously confirmed category
-        │
-        ├── 3. If multiple accounts exist → ask user which account
-        │
-        └── 4. On confirmation: ActualBudgetClient.add_transaction()
-                └── actualpy in ThreadPoolExecutor
-                └── download_budget() → create_transaction() → commit()
-```
-
----
-
-## CSV flow — bank transaction import
-
-```
-User uploads CSV/OFX file in browser
-        │
-frontend → POST /api/import/csv
-        │
-        ├── 1. CsvNormalizer.parse_csv(bytes)
-        │       └── detect encoding and delimiter
-        │       └── return headers + rows
-        │
-        ├── 2. CsvProfileDetector.header_signature(headers)
-        │       └── MD5 on sorted columns → fingerprint
-        │
-        ├── 3a. Profile found in SQLite → apply directly
-        ├── 3b. Profile not found → Ollama detects → user confirms → saved
-        │
-        ├── 4. Destination account selection
-        │
-        ├── 5. Transfer pair detection (equal amount, opposite sign, ±3 days)
-        │       └── present to user for confirmation
-        │
-        └── 6. On confirmation: ActualBudgetClient.add_transactions_batch()
-                └── SHA256(date+merchant+amount) → passed as imported_id to AB (AB deduplicates)
-                └── confirmed transfers → create_transfer()
-                └── the rest → create_transaction() with auto category
-                └── a single actual.commit() at the end
-```
-
----
-
-## Critical modules — what NOT to break
+## Critical technical rules — do NOT break these
 
 ### 1. Async vs Sync — CRITICAL
-The entire backend is **async** (FastAPI + asyncio).
-`ActualBudgetClient` runs sync code (`actualpy`) in a `ThreadPoolExecutor`.
+The entire backend is **async** (FastAPI + asyncio). `ActualBudgetClient` runs sync code (`actualpy`) in a `ThreadPoolExecutor`.
 
 ```python
 # CORRECT — sync in executor
@@ -199,157 +236,143 @@ async def get_accounts(self) -> list[Account]:
 
 # WRONG — blocks the entire event loop:
 async def get_accounts(self):
-    with self._get_actual() as actual:  # sync in async!
+    with self._get_actual() as actual:  # sync in async context!
         ...
 ```
 
 ### 2. actualpy — operation order is mandatory
 ```python
 with self._get_actual() as actual:
-    actual.download_budget()   # first download
+    actual.download_budget()   # always first
     # ... operations ...
-    actual.commit()            # at the end for any write
+    actual.commit()            # always last, for any write
 ```
 
 ### 3. actualpy — naming quirk
-The `imported_id` parameter in `create_transaction()` is saved internally as `financial_id`.
-When reading existing transactions (e.g. for debugging), use `tx.financial_id`, not `tx.imported_id`.
+`imported_id` in `create_transaction()` is saved internally as `financial_id`.
+When reading existing transactions, use `tx.financial_id`, not `tx.imported_id`.
 
-### 4. Config — everything comes from settings
+### 4. Config — always from settings singleton
 ```python
 # CORRECT:
-from config import settings
+from backend.core.config import settings
 url = settings.ollama.url
 
 # WRONG:
 import os
-url = os.getenv("OLLAMA_URL")  # never directly in modules
+url = os.getenv("OLLAMA_URL")
 ```
 
 ### 5. Transaction deduplication
-Majordom generates a deterministic ID — `SHA256(date + merchant + amount)[:16]` — and passes it to Actual Budget as `imported_id` when calling `create_transaction()`. Actual Budget owns the deduplication check: if a transaction with that ID already exists, AB skips it. Majordom does not query or verify duplicates itself.
+Majordom generates `SHA256(date + merchant + amount)[:16]` and passes it to Actual Budget as `imported_id`. Actual Budget owns the deduplication check — Majordom does not query or verify duplicates itself.
 
-### 6. Rebuild Docker after code changes
-`docker compose restart majordom` does NOT apply changes — only restarts the old container.
-```bash
-docker compose build majordom && docker compose up -d majordom
-```
+### 6. Transfers between accounts
+A transfer between two on-budget accounts must be recorded as a transfer in Actual Budget, not as two separate transactions. Detection: equal absolute amount, opposite signs, within 3-day window.
 
-### 7. Transfers between accounts
-A transfer ING → Revolut appears in the ING CSV as an expense. It must be detected and recorded
-as a transfer in Actual Budget, not as two separate transactions. Detection logic:
-equal amount, opposite sign, in two different accounts, within a 3-day interval.
+### 7. No financial data in SQLite
+SQLite is for conversational context and user preferences only. Transactions, balances, categories, and budgets live in Actual Budget. Any SQLite table that stores financial data is a violation — remove it.
 
 ---
 
-## Auth strategy
+## Main flows
 
-- 2 users defined in `.env` (username + bcrypt password hash)
+### Receipt photo (web)
+```
+User uploads photo
+  → POST /api/receipts (multipart)
+  → VisionEngine.extract_from_bytes() — Ollama vision model
+  → SmartCategorizer.suggest() — check merchant_mappings (SQLite)
+  → if multiple accounts: ask user
+  → on confirm: ActualBudgetClient.add_transaction()
+```
+
+### CSV import
+```
+User uploads CSV
+  → POST /api/import/csv
+  → CsvNormalizer.parse_csv()
+  → CsvProfileDetector — MD5 fingerprint, check saved profiles (SQLite)
+  → if unknown: Ollama detects format → user confirms → save profile
+  → account selection
+  → transfer pair detection (amount match, opposite sign, ±3 days)
+  → on confirm: ActualBudgetClient.add_transactions_batch()
+      → SHA256 deduplication, single actual.commit()
+```
+
+### Chat (current — read-only)
+```
+User sends message
+  → POST /api/chat
+  → _fetch_financial_context() — accounts + stats + recent transactions from AB
+  → system prompt built with financial snapshot
+  → Ollama chat model generates response
+  → streamed back to frontend
+```
+
+### Chat (target — with tool calling)
+```
+User sends message
+  → POST /api/chat
+  → LLM receives message + tool registry descriptions
+  → LLM decides which tool(s) to call (if any)
+  → backend executes tool calls
+  → LLM generates response based on tool results
+  → streamed back to frontend
+```
+
+---
+
+## Authentication
+
+- 2 users defined in `.env` (username + bcrypt password)
 - JWT tokens, 7-day expiry
 - No OAuth, no role-based access, no server-side sessions
-- Both users share the same Actual Budget instance — same data, no isolation
-- Per-user isolation deferred to a future PostgreSQL migration (add `user_id` to tables)
+- Both users share the same data — no per-user isolation yet
 
 ---
 
-## Photo upload — PWA camera
-
-Two separate buttons in the UI — do not merge them into one:
-
-```html
-<!-- Opens rear camera directly -->
-<input type="file" accept="image/*" capture="environment">
-
-<!-- Opens photo gallery (no capture attribute) -->
-<input type="file" accept="image/*">
-```
-
-**HTTPS is required** for camera access in browsers. Solutions:
-- Tailscale: `tailscale cert device.tail-xxx.ts.net` (free, automatic)
-- Coolify with custom domain: Let's Encrypt handled automatically
-- Local development: `localhost` works without HTTPS
-
----
-
-## Environment variables (.env)
+## Environment variables
 
 | Variable | Description |
 |---|---|
-| `TELEGRAM_BOT_TOKEN` | Token from @BotFather |
-| `TELEGRAM_ALLOWED_USER_IDS` | Telegram IDs separated by comma |
 | `ACTUAL_BUDGET_URL` | Internal Docker URL (http://actual-budget:5006) |
 | `ACTUAL_BUDGET_PASSWORD` | Actual Budget password |
 | `ACTUAL_BUDGET_SYNC_ID` | Sync ID from Actual Budget settings |
-| `OLLAMA_URL` | Ollama URL (can be on another machine on the network) |
-| `OLLAMA_MODEL` | Vision model (qwen2.5vl:3b) |
+| `OLLAMA_URL` | Ollama URL |
+| `OLLAMA_VISION_MODEL` | Vision model (qwen2.5vl:3b) |
+| `OLLAMA_CHAT_MODEL` | Chat model (qwen2.5:7b) |
 | `MEMORY_DB_PATH` | SQLite path (/app/data/memory.db) |
-| `DEFAULT_CURRENCY` | Default currency (EUR) |
-| `JWT_SECRET` | Secret for JWT tokens (web auth) |
+| `JWT_SECRET` | Secret for JWT tokens |
+| `USER1_USERNAME` / `USER1_PASSWORD` | Web UI credentials |
+
+Development secrets (DeepSeek API key etc.) → `~/Proiecte-AI/.dev-secrets` (outside the project repo).
 
 ---
 
-## Docker — services
+## Docker services
 
 ```yaml
 actual-budget  ← port 5006, data in ./data/actual
 ollama         ← port 11434, models in ollama_data volume
-majordom       ← FastAPI backend + serving frontend build
+majordom       ← FastAPI backend (port 8000) + React frontend via Nginx (port 3000)
 ```
-
-Ollama can be external (on another machine on the network) — set `OLLAMA_URL` accordingly.
-
----
-
-## SQLite — schema
-
-```sql
-merchant_mappings   ← merchant → confirmed category (temporary — to be synced to AB rules)
-category_keywords   ← keywords → category (temporary — to be synced to AB rules)
-csv_profiles        ← saved CSV profiles (ING, crypto.com, etc.) — format detection only, no financial data
-
--- Legacy tables from Telegram bot (to be removed in future refactor):
-transactions        ← local copy of transactions — violates architectural principle; data belongs in AB
-budget_limits       ← local copy of budget limits — violates architectural principle; limits belong in AB
-```
-
----
-
-## Code conventions
-
-- **Type hints** on all public functions
-- **snake_case** for Python variables and functions; **camelCase** in TypeScript/React
-- **logging** instead of print (`logger = logging.getLogger(__name__)`)
-- **Do not duplicate logic** between bot and backend
-- **Any write** to Actual Budget → `actual.commit()` at the end
-- **No comments** explaining what the code does — function and variable names do that; comments only for non-obvious behaviors
 
 ---
 
 ## Implemented features
 
 - [x] Receipt photo processing with AI vision (Ollama)
-- [x] Manual transaction (/add on Telegram)
-- [x] Balance and statistics (/balance, /stats on Telegram)
-- [x] CSV import with automatic format detection (ING, crypto.com, Revolut, etc.)
-- [x] Auto-categorization from confirmed history (merchant_mappings)
-- [x] Confirmed categories propagated to Actual Budget
-- [x] Deduplication on re-import (SHA256 as imported_id → Actual Budget skips existing)
-- [x] Account selection on save (if multiple accounts exist) — Telegram
-- [x] Web UI (PWA) v2: FastAPI + React, JWT auth, receipt photo, monthly chart
+- [x] CSV import with automatic format detection and saved profiles
+- [x] Auto-categorization from confirmed merchant history
+- [x] Universal deduplication (SHA256 → Actual Budget imported_id)
+- [x] Web PWA: FastAPI + React, JWT auth, receipt flow, spending chart
+- [x] Streaming chat with financial context (read-only — no tool calling yet)
+- [x] Account selection on receipt confirm
 
-## Up next (implementation order)
+## Telegram bot (maintenance mode)
 
-1. **Account selection on web PWA** — prerequisite for everything that follows
-2. **Budget status dashboard** — chart per category + conversational rebalancing
-3. **Bottom navigation bar** — Home / Import / Chat
-4. **Chat AI assistant** — ActualQL + Ollama, executes actions from chat
-5. **CSV import UI web** — port from Telegram
-6. **Interactive messages in chat** — buttons, transaction confirmation
-7. **Document Management System** — photo/PDF → data extraction → storage
-8. **Conversational onboarding** — Q1-Q15, complete Actual Budget configuration
-
-**Complete details for each feature** → see `ROADMAP.md`
+Functional but no new features. Used as a fallback and notification channel. All new development happens on the web PWA.
 
 ---
 
-*Last updated: 2026-04-18 (session — AB architecture, onboarding, PWA platform)*
+*Last updated: 2026-05-10 — unified platform architecture established*

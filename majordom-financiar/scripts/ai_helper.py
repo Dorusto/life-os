@@ -16,12 +16,23 @@ so the main Claude context window stays focused on complex integration work.
 import argparse
 import os
 import sys
+from pathlib import Path
 
 try:
     from openai import OpenAI
 except ImportError:
     print("ERROR: openai package not installed. Run: pip install openai", file=sys.stderr)
     sys.exit(1)
+
+# Load dev secrets from the shared secrets file outside the project repo.
+# This keeps development API keys out of the project's .env (which is app config).
+_dev_secrets = Path.home() / "Proiecte-AI" / ".dev-secrets"
+if _dev_secrets.exists() and not os.getenv("DEEPSEEK_API_KEY"):
+    for line in _dev_secrets.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, _, val = line.partition("=")
+            os.environ.setdefault(key.strip(), val.strip())
 
 # Project context injected into every request so DeepSeek knows the codebase
 PROJECT_CONTEXT = """
