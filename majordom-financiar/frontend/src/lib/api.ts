@@ -115,10 +115,20 @@ export interface Account {
 // --- Auth ---
 
 export async function login(username: string, password: string): Promise<TokenResponse> {
-  return request<TokenResponse>('/auth/login', {
+  // Bypass the generic request() wrapper so a 401 from a bad password
+  // doesn't trigger the auto-logout redirect — we're already on the login page.
+  const res = await fetch(`${BASE}/auth/login`, {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
   })
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ detail: 'Login failed' }))
+    throw new ApiError(res.status, body.detail || 'Login failed')
+  }
+
+  return res.json() as Promise<TokenResponse>
 }
 
 // --- Receipts ---

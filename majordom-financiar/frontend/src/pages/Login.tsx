@@ -28,7 +28,11 @@ export default function Login() {
       navigate('/', { replace: true })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Login failed'
-      setError(message === 'Invalid credentials' ? 'Wrong username or password' : message)
+      setError(
+        message === 'Invalid credentials'
+          ? 'Parolă incorectă. Încearcă din nou.'
+          : message
+      )
     } finally {
       setLoading(false)
     }
@@ -59,7 +63,7 @@ export default function Login() {
             autoCorrect="off"
             value={username}
             onChange={e => setUsername(e.target.value)}
-            placeholder="doru"
+            placeholder="username"
             required
             className="
               w-full px-4 py-3 rounded-xl bg-surface border border-border
