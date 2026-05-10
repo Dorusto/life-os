@@ -208,6 +208,134 @@ class ActualBudgetClient:
 
         return await self._run(_add)
 
+    async def get_budget_status(
+        self,
+        month: int | None = None,
+        year: int | None = None,
+    ) -> list[dict]:
+        """
+        Return budget vs spent per category for the given month.
+
+        Each item: {
+            "category_id": str,
+            "category_name": str,
+            "budgeted": float,   # amount allocated in budget (EUR)
+            "spent": float,      # amount actually spent (EUR, always positive)
+            "percentage": float, # spent / budgeted * 100 (0 if budgeted == 0)
+        }
+        """
+        today = date.today()
+        month = month or today.month
+        year = year or today.year
+
+        def _get():
+            import calendar
+            from collections import defaultdict
+            from datetime import date as _date
+            from actual.queries import get_transactions, get_categories
+
+            start = _date(year, month, 1)
+            last_day = calendar.monthrange(year, month)[1]
+            end = _date(year, month, last_day)
+            yyyymm = year * 100 + month  # e.g. 202605
+
+            with self._get_actual() as actual:
+                actual.download_budget()
+
+                # --- 1. Fetch budget allocations from zero_budgets ---
+                budget_by_category: dict[str, float] = defaultdict(float)
+                budget_lookup_succeeded = False
+
+                try:
+                    from sqlalchemy import text as _text
+                    # Try zero_budgets table first
+                    rows = actual.session.execute(
+                        _text("SELECT category, amount FROM zero_budgets WHERE id LIKE :prefix"),
+                        {"prefix": f"{yyyymm}%"},
+                    ).fetchall()
+                    for row in rows:
+                        cat_id = str(row[0]) if row[0] else ""
+                        amount_cents = float(row[1] or 0)
+                        budget_by_category[cat_id] += amount_cents / 100
+                    budget_lookup_succeeded = True
+                    logger.debug(
+                        "Budget lookup via zero_budgets succeeded: %d rows",
+                        len(rows),
+                    )
+                except Exception as e1:
+                    logger.warning("zero_budgets table not available: %s", e1)
+                    try:
+                        from sqlalchemy import text as _text
+                        # Fallback: reflect_budgets table
+                        rows = actual.session.execute(
+                            _text("SELECT category, amount FROM reflect_budgets WHERE id LIKE :prefix"),
+                            {"prefix": f"{yyyymm}%"},
+                        ).fetchall()
+                        for row in rows:
+                            cat_id = str(row[0]) if row[0] else ""
+                            amount_cents = float(row[1] or 0)
+                            budget_by_category[cat_id] += amount_cents / 100
+                        budget_lookup_succeeded = True
+                        logger.debug(
+                            "Budget lookup via reflect_budgets succeeded: %d rows",
+                            len(rows),
+                        )
+                    except Exception as e2:
+                        logger.warning(
+                            "reflect_budgets also not available: %s. "
+                            "Returning spending-only data.",
+                            e2,
+                        )
+
+                # --- 2. Fetch actual spending for the month ---
+                txs = get_transactions(actual.session, start_date=start, end_date=end)
+
+                spent_by_category: dict[str, float] = defaultdict(float)
+
+                for tx in txs:
+                    if tx.tombstone or tx.starting_balance_flag:
+                        continue
+                    amount = float(tx.amount or 0) / 100
+                    if amount >= 0:
+                        continue  # skip income
+                    amount = abs(amount)
+                    cat_id = str(tx.category_id) if tx.category_id else "uncategorized"
+                    spent_by_category[cat_id] += amount
+
+                # --- 3. Fetch all categories for name resolution ---
+                all_cats = get_categories(actual.session)
+                cat_name_map: dict[str, str] = {}
+                for cat in all_cats:
+                    if cat.id and not cat.hidden:
+                        cat_name_map[str(cat.id)] = cat.name or "Unknown"
+
+                # --- 4. Merge budget + spending ---
+                all_category_ids = set(budget_by_category.keys()) | set(spent_by_category.keys())
+
+                result = []
+                for cat_id in all_category_ids:
+                    if cat_id == "uncategorized":
+                        continue  # skip uncategorized — not a real category
+                    budgeted = round(budget_by_category.get(cat_id, 0.0), 2)
+                    spent = round(spent_by_category.get(cat_id, 0.0), 2)
+                    if budgeted == 0 and spent == 0:
+                        continue  # skip empty categories
+                    percentage = round(spent / budgeted * 100, 1) if budgeted > 0 else 0.0
+                    result.append({
+                        "category_id": cat_id,
+                        "category_name": cat_name_map.get(cat_id, "Unknown"),
+                        "budgeted": budgeted,
+                        "spent": spent,
+                        "percentage": percentage,
+                    })
+
+                # Sort: over-budget first, then by percentage descending
+                result.sort(key=lambda r: (-1 if r["percentage"] > 100 else 0, -r["percentage"], r["category_name"]))
+
+                return result
+
+        return await self._run(_get)
+
     async def update_transaction_category(self, financial_id: str, category_name: str) -> bool:
         """Update the category of an existing transaction by financial_id."""
         def _update():

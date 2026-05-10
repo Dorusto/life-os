@@ -2,10 +2,10 @@ import { useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Camera, Image, LogOut } from 'lucide-react'
-import { getTransactions, getMonthlyStats } from '../lib/api'
+import { getTransactions, getBudgetStatus } from '../lib/api'
 import { getUsername, clearAuth } from '../lib/auth'
 import TransactionItem from '../components/TransactionItem'
-import SpendingChart from '../components/SpendingChart'
+import BudgetDashboard from '../components/BudgetDashboard'
 
 /**
  * Home screen — the main screen after login.
@@ -31,10 +31,10 @@ export default function Home() {
     queryFn: () => getTransactions(5),
   })
 
-  const { data: stats } = useQuery({
-    queryKey: ['stats'],
-    queryFn: () => getMonthlyStats(),
-    // Stats are heavier to compute — refresh every 2 minutes, not on every focus
+  const { data: budgetStatus } = useQuery({
+    queryKey: ['budget'],
+    queryFn: () => getBudgetStatus(),
+    // Budget data refreshes every 2 minutes
     staleTime: 120_000,
   })
 
@@ -139,10 +139,14 @@ export default function Home() {
         />
       </section>
 
-      {/* Monthly spending chart */}
-      {stats && (
+      {/* Budget dashboard */}
+      {budgetStatus && budgetStatus.length > 0 && (
         <section className="px-5 pb-4">
-          <SpendingChart stats={stats} />
+          <BudgetDashboard
+            categories={budgetStatus}
+            month={new Date().getMonth() + 1}
+            year={new Date().getFullYear()}
+          />
         </section>
       )}
 

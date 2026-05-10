@@ -353,3 +353,21 @@ export async function getMonthlyStats(month?: number, year?: number): Promise<Mo
   const qs = params.toString()
   return request<MonthlyStats>(`/stats${qs ? `?${qs}` : ''}`)
 }
+
+// --- Budget ---
+
+export interface BudgetCategory {
+  category_id: string
+  category_name: string
+  budgeted: number
+  spent: number
+  percentage: number
+}
+
+export async function getBudgetStatus(month?: number, year?: number): Promise<BudgetCategory[]> {
+  const params = new URLSearchParams()
+  if (month) params.set('month', String(month))
+  if (year) params.set('year', String(year))
+  const qs = params.toString()
+  return request<BudgetCategory[]>(`/budget${qs ? `?${qs}` : ''}`)
+}

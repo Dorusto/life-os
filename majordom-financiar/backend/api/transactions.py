@@ -171,3 +171,36 @@ async def monthly_stats(
         count=data.get("count", 0),
         categories=cats,
     )
+
+
+class BudgetCategory(BaseModel):
+    category_id: str
+    category_name: str
+    budgeted: float
+    spent: float
+    percentage: float
+
+
+@router.get("/budget", response_model=list[BudgetCategory])
+async def budget_status(
+    month: Optional[int] = None,
+    year: Optional[int] = None,
+    current_user: str = Depends(get_current_user),
+):
+    """
+    Return budget vs spent per category for the given month.
+    Over-budget categories appear first, then by percentage descending.
+    """
+    client = ActualBudgetClient(
+        url=settings.actual.url,
+        password=settings.actual.password,
+        sync_id=settings.actual.sync_id,
+    )
+
+    try:
+        data = await client.get_budget_status(month=month, year=year)
+    except Exception as e:
+        logger.error("Failed to fetch budget status: %s", e)
+        raise HTTPException(status_code=500, detail="Could not fetch budget data")
+
+    return [BudgetCategory(**item) for item in data]
