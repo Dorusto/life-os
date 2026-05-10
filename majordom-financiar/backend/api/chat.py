@@ -19,6 +19,7 @@ import httpx
 from backend.api.auth import get_current_user
 from backend.core.actual_client import ActualBudgetClient
 from backend.core.config import settings
+from backend.tools.registry import TOOLS, execute_tool
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -94,9 +95,15 @@ def _build_system_prompt(context: dict) -> str:
 
     accounts = context.get("accounts", [])
     if accounts:
-        lines.append("### Accounts")
+        lines.append("### Accounts (use account_id when adding transactions)")
         for acc in accounts:
-            lines.append(f"- {acc['name']}: €{acc['balance']:.2f}")
+            lines.append(f"- {acc['name']} (account_id: {acc['id']}): €{acc['balance']:.2f}")
+
+    categories = context.get("categories", [])
+    if categories:
+        lines.append("\n### Available categories (use exact name when adding transactions)")
+        for cat in categories:
+            lines.append(f"- {cat['name']}")
 
     stats = context.get("stats")
     if stats:
@@ -117,8 +124,9 @@ def _build_system_prompt(context: dict) -> str:
 
     from datetime import date
     financial_context = "\n".join(lines) if lines else "No financial data available yet."
-    
-    system_prompt = f"""You are Majordom, a concise and practical personal finance assistant.
+
+    system_prompt = f"""/no_think
+You are Majordom, a concise and practical personal finance assistant.
 
 ## Your user's current financial snapshot
 {financial_context}
@@ -172,6 +180,30 @@ async def _stream_ollama_response(messages: list[dict], ollama_url: str, model: 
             raise HTTPException(status_code=500, detail="Failed to stream response from assistant")
 
 
+async def _call_ollama_non_streaming(
+    messages: list[dict], ollama_url: str, model: str
+) -> dict:
+    """Call Ollama without streaming, with tools. Returns full response dict."""
+    payload = {
+        "model": model,
+        "messages": messages,
+        "stream": False,
+        "tools": TOOLS,
+        "options": {
+            "temperature": 0.3,
+            "num_predict": 512,
+        },
+    }
+    async with httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as client:
+        try:
+            response = await client.post(f"{ollama_url}/api/chat", json=payload)
+        except httpx.ConnectError:
+            raise HTTPException(status_code=503, detail="Cannot connect to Ollama. Is Ollama running?")
+        if response.status_code != 200:
+            raise HTTPException(status_code=503, detail=f"Ollama error {response.status_code}")
+        return response.json()
+
+
 @router.post("/chat")
 async def chat_stream(
     req: ChatRequest,
@@ -179,41 +211,72 @@ async def chat_stream(
 ):
     """
     Send messages to the financial assistant and get a streaming reply.
-    
-    Request body: { messages: [{role, content}] }  (full conversation history)
-    Response: streaming text (text/plain)
+
+    Flow:
+      1. First Ollama call (non-streaming) with tools — detects tool_calls
+      2a. If tool_calls: execute tools → second Ollama call (streaming) for confirmation
+      2b. If no tool_calls: yield the text response directly
     """
-    # 1. Fetch financial context
     context = await _fetch_financial_context()
-    
-    # 2. Build system prompt
     system_prompt = _build_system_prompt(context)
-    
-    # 3. Prepend system message to messages
+
     messages = [{"role": "system", "content": system_prompt}]
     messages.extend([{"role": m.role, "content": m.content} for m in req.messages])
-    
-    # 4. Stream from Ollama
+
     ollama_url = settings.ollama.url
     model = settings.ollama.chat_model or "qwen2.5:7b"
-    
-    async def stream_generator():
-        try:
-            async for chunk in _stream_ollama_response(messages, ollama_url, model):
-                yield chunk
-        except HTTPException as e:
-            # Convert HTTPException to plain text error in stream
-            yield f"\n\nError: {e.detail}"
-        except Exception as e:
-            logger.error("Unexpected streaming error: %s", e)
-            yield "\n\nError: Internal server error"
-    
-    return StreamingResponse(
-        stream_generator(),
-        media_type='text/plain',
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",  # Disable nginx buffering
-        }
-    )
+
+    streaming_headers = {
+        "Cache-Control": "no-cache",
+        "Connection": "keep-alive",
+        "X-Accel-Buffering": "no",
+    }
+
+    # Step 1: non-streaming call with tools
+    try:
+        first_response = await _call_ollama_non_streaming(messages, ollama_url, model)
+    except HTTPException as e:
+        async def error_gen():
+            yield f"Error: {e.detail}"
+        return StreamingResponse(error_gen(), media_type="text/plain", headers=streaming_headers)
+
+    assistant_message = first_response.get("message", {})
+    tool_calls = assistant_message.get("tool_calls") or []
+
+    if tool_calls:
+        messages.append({
+            "role": "assistant",
+            "content": assistant_message.get("content", ""),
+            "tool_calls": tool_calls,
+        })
+
+        for tc in tool_calls:
+            name = tc.get("function", {}).get("name", "")
+            args = tc.get("function", {}).get("arguments", {})
+            try:
+                result = await execute_tool(name, args)
+            except Exception as exc:
+                logger.error("Tool execution failed: %s — %s", name, exc)
+                result = f"Tool error: {exc}"
+            messages.append({"role": "tool", "content": result})
+
+        # Second call: streaming confirmation
+        async def stream_after_tools():
+            try:
+                async for chunk in _stream_ollama_response(messages, ollama_url, model):
+                    yield chunk
+            except HTTPException as e:
+                yield f"\n\nError: {e.detail}"
+            except Exception as e:
+                logger.error("Streaming error after tool execution: %s", e)
+                yield "\n\nError: Internal server error"
+
+        return StreamingResponse(stream_after_tools(), media_type="text/plain", headers=streaming_headers)
+
+    # No tool calls — yield text directly
+    text = assistant_message.get("content", "")
+
+    async def yield_text():
+        yield text
+
+    return StreamingResponse(yield_text(), media_type="text/plain", headers=streaming_headers)

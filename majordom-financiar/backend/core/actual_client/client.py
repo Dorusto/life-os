@@ -401,7 +401,7 @@ class ActualBudgetClient:
         year = year or today.year
 
         def _get():
-            from actual.queries import get_accounts, get_transactions
+            from actual.queries import get_accounts, get_transactions, get_categories
 
             with self._get_actual() as actual:
                 actual.download_budget()
@@ -419,6 +419,7 @@ class ActualBudgetClient:
                         if not tx.tombstone
                     ) / 100
                     accounts_result.append({
+                        "id": str(acc.id),
                         "name": acc.name,
                         "balance": balance,
                     })
@@ -490,10 +491,19 @@ class ActualBudgetClient:
                 txs_result.sort(key=lambda t: str(t["date"]), reverse=True)
                 txs_result = txs_result[:recent_limit]
 
+                # 4. Categories — for tool calling system prompt
+                cats = get_categories(actual.session)
+                categories_result = [
+                    {"id": str(cat.id), "name": cat.name}
+                    for cat in cats
+                    if not cat.hidden
+                ]
+
                 return {
                     "accounts": accounts_result,
                     "stats": stats_result,
                     "recent_transactions": txs_result,
+                    "categories": categories_result,
                 }
 
         return await self._run(_get)
