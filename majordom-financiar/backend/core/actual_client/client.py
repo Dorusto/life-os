@@ -170,7 +170,7 @@ class ActualBudgetClient:
             import hashlib
             from actual.queries import (
                 create_transaction, get_or_create_payee,
-                get_or_create_category, get_transactions,
+                get_transactions, get_categories,
             )
             with self._get_actual() as actual:
                 actual.download_budget()
@@ -189,9 +189,14 @@ class ActualBudgetClient:
                     return None
 
                 payee_obj = get_or_create_payee(actual.session, payee)
+                # Only use existing categories — never create new ones
                 cat_obj = None
                 if category_name:
-                    cat_obj = get_or_create_category(actual.session, category_name, group_name="Majordom")
+                    all_cats = get_categories(actual.session)
+                    cat_obj = next(
+                        (c for c in all_cats if c.name.lower() == category_name.lower()),
+                        None,
+                    )
                 tx = create_transaction(
                     actual.session,
                     date=tx_date,
