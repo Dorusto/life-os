@@ -21,6 +21,7 @@ import hashlib
 import json
 import logging
 import tempfile
+import uuid
 from datetime import date
 
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
@@ -31,7 +32,7 @@ from telegram.ext import (
 
 from config import settings
 from csv_importer import CsvNormalizer, CsvProfileDetector, CsvProfile
-from memory.database import TransactionRecord
+from .handlers import _pending, _PendingTx
 from .keyboards import csv_profile_confirm_keyboard, csv_account_keyboard, csv_import_keyboard, category_confirmation_keyboard
 
 logger = logging.getLogger(__name__)
@@ -411,15 +412,17 @@ def create_csv_conversation(actual_client, categorizer, db) -> ConversationHandl
                 actual_budget_id = hashlib.sha256(
                     f"{tx.date.isoformat()}{tx.merchant}{tx.amount:.4f}".encode()
                 ).hexdigest()[:16]
-                record = TransactionRecord(
+
+                # Store in-memory (no SQLite)
+                tx_id = uuid.uuid4().hex
+                _pending[tx_id] = _PendingTx(
                     merchant=tx.merchant,
                     amount=tx.amount,
                     category_id=pred.category_id if pred else "other",
                     date=tx.date.isoformat(),
-                    confidence=pred.confidence if pred else 0.0,
+                    raw_ocr_text="",
                     actual_budget_id=actual_budget_id,
                 )
-                tx_id = db.save_transaction(record)
 
                 conf_bar = "🟡" if (pred and pred.confidence > 0.4) else "🔴"
                 cat_name = pred.category_name if pred else "Unknown"

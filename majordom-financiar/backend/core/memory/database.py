@@ -3,9 +3,9 @@ from __future__ import annotations
 Local database (SQLite) for the majordom's memory.
 
 Stores:
-- Processed transaction history
 - Merchant → category associations (for learning)
-- User feedback
+- Category keywords
+- CSV import profiles
 """
 import sqlite3
 from pathlib import Path
@@ -15,21 +15,6 @@ import logging
 import json
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class TransactionRecord:
-    """A processed and stored transaction."""
-    id: int | None = None
-    merchant: str = ""
-    amount: float = 0.0
-    category_id: str = ""
-    date: str = ""
-    raw_ocr_text: str = ""
-    confidence: float = 0.0
-    user_confirmed: bool = False
-    created_at: str = ""
-    actual_budget_id: str = ""  # ID from Actual Budget
 
 
 @dataclass
@@ -61,23 +46,6 @@ class MemoryDB:
         conn = self._get_conn()
         try:
             conn.executescript("""
-                -- LEGACY — local copy of transactions; violates architectural principle.
-                -- Financial data belongs in Actual Budget, not SQLite.
-                -- Used only by the Telegram bot (maintenance mode).
-                -- To be removed when the Telegram bot is retired.
-                CREATE TABLE IF NOT EXISTS transactions (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    merchant TEXT NOT NULL,
-                    amount REAL NOT NULL,
-                    category_id TEXT NOT NULL DEFAULT 'other',
-                    date TEXT NOT NULL,
-                    raw_ocr_text TEXT DEFAULT '',
-                    confidence REAL DEFAULT 0.0,
-                    user_confirmed BOOLEAN DEFAULT 0,
-                    actual_budget_id TEXT DEFAULT '',
-                    created_at TEXT DEFAULT (datetime('now'))
-                );
-
                 CREATE TABLE IF NOT EXISTS merchant_mappings (
                     merchant TEXT PRIMARY KEY,
                     category_id TEXT NOT NULL,
@@ -93,23 +61,6 @@ class MemoryDB:
                     source TEXT DEFAULT 'user',
                     UNIQUE(keyword, category_id)
                 );
-
-                -- LEGACY — local copy of budget limits; violates architectural principle.
-                -- Budget limits belong in Actual Budget.
-                -- Used only by the Telegram bot (maintenance mode).
-                -- To be removed when the Telegram bot is retired.
-                CREATE TABLE IF NOT EXISTS budget_limits (
-                    category_name TEXT PRIMARY KEY,
-                    monthly_limit REAL NOT NULL,
-                    updated_at TEXT DEFAULT (datetime('now'))
-                );
-
-                CREATE INDEX IF NOT EXISTS idx_transactions_merchant
-                    ON transactions(merchant);
-                CREATE INDEX IF NOT EXISTS idx_transactions_date
-                    ON transactions(date);
-                CREATE INDEX IF NOT EXISTS idx_transactions_category
-                    ON transactions(category_id);
 
                 CREATE TABLE IF NOT EXISTS csv_profiles (
                     id           INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -132,107 +83,6 @@ class MemoryDB:
             """)
             conn.commit()
             logger.info(f"Database initialized: {self.db_path}")
-        finally:
-            conn.close()
-
-    # --- Transactions ---
-
-    def save_transaction(self, record: TransactionRecord) -> int:
-        """Save a transaction and return its ID."""
-        conn = self._get_conn()
-        try:
-            cursor = conn.execute("""
-                INSERT INTO transactions
-                    (merchant, amount, category_id, date, raw_ocr_text,
-                     confidence, user_confirmed, actual_budget_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                record.merchant, record.amount, record.category_id,
-                record.date, record.raw_ocr_text, record.confidence,
-                record.user_confirmed, record.actual_budget_id
-            ))
-            conn.commit()
-            tx_id = cursor.lastrowid
-            logger.info(f"Transaction saved #{tx_id}: {record.merchant} {record.amount}")
-            return tx_id
-        finally:
-            conn.close()
-
-    def get_transactions(
-        self,
-        month: int | None = None,
-        year: int | None = None,
-        category_id: str | None = None,
-        limit: int = 100
-    ) -> list[TransactionRecord]:
-        """List transactions with optional filters."""
-        conn = self._get_conn()
-        try:
-            query = "SELECT * FROM transactions WHERE 1=1"
-            params = []
-
-            if month and year:
-                query += " AND date LIKE ?"
-                params.append(f"{year}-{month:02d}%")
-            elif year:
-                query += " AND date LIKE ?"
-                params.append(f"{year}%")
-
-            if category_id:
-                query += " AND category_id = ?"
-                params.append(category_id)
-
-            query += " ORDER BY date DESC LIMIT ?"
-            params.append(limit)
-
-            rows = conn.execute(query, params).fetchall()
-            return [
-                TransactionRecord(**dict(row)) for row in rows
-            ]
-        finally:
-            conn.close()
-
-    def get_monthly_stats(
-        self, month: int | None = None, year: int | None = None
-    ) -> dict:
-        """Aggregated monthly statistics."""
-        if not month or not year:
-            now = datetime.now()
-            month = month or now.month
-            year = year or now.year
-
-        conn = self._get_conn()
-        try:
-            date_prefix = f"{year}-{month:02d}"
-
-            # Total by category
-            rows = conn.execute("""
-                SELECT category_id, COUNT(*) as count, SUM(amount) as total
-                FROM transactions
-                WHERE date LIKE ?
-                GROUP BY category_id
-                ORDER BY total DESC
-            """, (f"{date_prefix}%",)).fetchall()
-
-            categories = {
-                row["category_id"]: {
-                    "count": row["count"],
-                    "total": row["total"]
-                }
-                for row in rows
-            }
-
-            # Grand total
-            total = sum(c["total"] for c in categories.values())
-            count = sum(c["count"] for c in categories.values())
-
-            return {
-                "month": month,
-                "year": year,
-                "total": total,
-                "count": count,
-                "categories": categories
-            }
         finally:
             conn.close()
 
@@ -283,20 +133,6 @@ class MemoryDB:
         finally:
             conn.close()
 
-    def update_transaction_category(self, tx_id: int, category_id: str):
-        """Update a transaction's category (after user feedback)."""
-        conn = self._get_conn()
-        try:
-            conn.execute("""
-                UPDATE transactions
-                SET category_id = ?, user_confirmed = 1
-                WHERE id = ?
-            """, (category_id, tx_id))
-            conn.commit()
-            logger.info(f"Transaction #{tx_id} updated → '{category_id}'")
-        finally:
-            conn.close()
-
     # --- Keywords ---
 
     def add_keyword(self, keyword: str, category_id: str, weight: float = 1.0):
@@ -329,46 +165,6 @@ class MemoryDB:
                 result[cat].append((row["keyword"], row["weight"]))
 
             return result
-        finally:
-            conn.close()
-
-    # --- Budget Limits ---
-
-    def set_budget_limit(self, category_name: str, limit: float):
-        """Set the monthly limit for a category."""
-        conn = self._get_conn()
-        try:
-            conn.execute("""
-                INSERT INTO budget_limits (category_name, monthly_limit, updated_at)
-                VALUES (?, ?, datetime('now'))
-                ON CONFLICT(category_name) DO UPDATE SET
-                    monthly_limit = excluded.monthly_limit,
-                    updated_at = datetime('now')
-            """, (category_name, limit))
-            conn.commit()
-        finally:
-            conn.close()
-
-    def get_budget_limits(self) -> dict[str, float]:
-        """Return all monthly limits {category_name: limit}."""
-        conn = self._get_conn()
-        try:
-            rows = conn.execute(
-                "SELECT category_name, monthly_limit FROM budget_limits"
-            ).fetchall()
-            return {row["category_name"]: row["monthly_limit"] for row in rows}
-        finally:
-            conn.close()
-
-    def get_budget_limit(self, category_name: str) -> float | None:
-        """Return the limit for a specific category."""
-        conn = self._get_conn()
-        try:
-            row = conn.execute(
-                "SELECT monthly_limit FROM budget_limits WHERE category_name = ?",
-                (category_name,)
-            ).fetchone()
-            return row["monthly_limit"] if row else None
         finally:
             conn.close()
 

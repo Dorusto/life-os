@@ -13,6 +13,8 @@ Flows:
 import json
 import tempfile
 import logging
+import uuid
+from dataclasses import dataclass, field
 from datetime import datetime, date
 from pathlib import Path
 
@@ -34,6 +36,21 @@ from .keyboards import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class _PendingTx:
+    """In-memory pending transaction awaiting confirmation / Actual sync."""
+    merchant: str
+    amount: float
+    category_id: str
+    date: str
+    raw_ocr_text: str = ""
+    actual_budget_id: str = ""
+
+
+_pending: dict[str, _PendingTx] = {}
+
 
 # Global components (initialized in setup)
 db: MemoryDB
@@ -151,17 +168,16 @@ async def cmd_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Categorize
     prediction = categorizer.predict(description)
 
-    from memory.database import TransactionRecord
-    record = TransactionRecord(
+    record_date = date.today().isoformat()
+
+    # Store in memory (no SQLite)
+    tx_id = uuid.uuid4().hex
+    _pending[tx_id] = _PendingTx(
         merchant=description,
         amount=amount,
         category_id=prediction.category_id,
-        date=date.today().isoformat(),
-        confidence=prediction.confidence,
+        date=record_date,
     )
-
-    # Save locally
-    tx_id = db.save_transaction(record)
 
     confidence_bar = "🟢" if prediction.confidence > 0.8 else (
         "🟡" if prediction.confidence > 0.5 else "🔴"
@@ -307,17 +323,16 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             amount=receipt.total
         )
 
-        # 4. Save locally
-        from memory.database import TransactionRecord
-        record = TransactionRecord(
+        # 4. Store in memory (no SQLite)
+        record_date = (receipt.date or date.today()).isoformat()
+        tx_id = uuid.uuid4().hex
+        _pending[tx_id] = _PendingTx(
             merchant=receipt.merchant,
             amount=receipt.total,
             category_id=prediction.category_id,
-            date=(receipt.date or date.today()).isoformat(),
+            date=record_date,
             raw_ocr_text=receipt.raw_text,
-            confidence=prediction.confidence,
         )
-        tx_id = db.save_transaction(record)
 
         # 5. Send result
         confidence_bar = "🟢" if prediction.confidence > 0.8 else (
@@ -419,26 +434,23 @@ async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def _handle_confirm_category(query, data: dict):
     """User confirms the predicted category."""
-    tx_id = data["tx_id"]
+    tx_id = str(data["tx_id"])
     category_id = data["cat"]
 
-    # Mark as confirmed
-    db.update_transaction_category(tx_id, category_id)
+    tx = _pending.get(tx_id)
+    if not tx:
+        await query.edit_message_text("❌ Transaction not found (expired).")
+        return
 
-    # Learn from confirmation and propagate category to Actual Budget
-    transactions = db.get_transactions(limit=500)
-    already_in_actual = False
-    for tx in transactions:
-        if tx.id == tx_id:
-            categorizer.learn(tx.merchant, category_id, tx.raw_ocr_text)
-            if tx.actual_budget_id:
-                cat_data = categorizer.categories.get(category_id, {})
-                cat_name = cat_data.get("name", category_id)
-                await actual_client.update_transaction_category(tx.actual_budget_id, cat_name)
-                already_in_actual = True
-            break
+    # Learn from confirmation
+    categorizer.learn(tx.merchant, category_id, tx.raw_ocr_text)
 
-    if already_in_actual:
+    # Propagate to Actual Budget if already synced
+    if tx.actual_budget_id:
+        cat_data = categorizer.categories.get(category_id, {})
+        cat_name = cat_data.get("name", category_id)
+        await actual_client.update_transaction_category(tx.actual_budget_id, cat_name)
+        _pending.pop(tx_id, None)
         await query.edit_message_text("✅ Category confirmed and saved to Actual Budget!")
     else:
         await query.edit_message_text(
@@ -449,7 +461,7 @@ async def _handle_confirm_category(query, data: dict):
 
 async def _handle_change_category(query, data: dict):
     """User wants to change the category."""
-    tx_id = data["tx_id"]
+    tx_id = str(data["tx_id"])
     categories = categorizer.get_all_categories()
 
     await query.edit_message_text(
@@ -460,48 +472,44 @@ async def _handle_change_category(query, data: dict):
 
 async def _handle_set_category(query, data: dict):
     """User selects a new category."""
-    tx_id = data["tx_id"]
+    tx_id = str(data["tx_id"])
     category_id = data["cat"]
 
-    # Update and learn
-    db.update_transaction_category(tx_id, category_id)
+    tx = _pending.get(tx_id)
+    if not tx:
+        await query.edit_message_text("❌ Transaction not found (expired).")
+        return
 
-    transactions = db.get_transactions(limit=100)
-    for tx in transactions:
-        if tx.id == tx_id:
-            categorizer.learn(tx.merchant, category_id, tx.raw_ocr_text)
-            cat_data = categorizer.categories.get(category_id, {})
-            cat_name = cat_data.get("name", category_id)
-            if tx.actual_budget_id:
-                await actual_client.update_transaction_category(tx.actual_budget_id, cat_name)
-                await query.edit_message_text(
-                    f"✅ Category set: {cat_name}\n"
-                    f"🧠 Learned — I'll remember next time!"
-                )
-            else:
-                await query.edit_message_text(
-                    f"✅ Category set: {cat_name}\n"
-                    f"🧠 Learned — I'll remember next time!",
-                    reply_markup=transaction_confirm_keyboard(tx_id)
-                )
-            return
+    # Learn from selection
+    categorizer.learn(tx.merchant, category_id, tx.raw_ocr_text)
+    cat_data = categorizer.categories.get(category_id, {})
+    cat_name = cat_data.get("name", category_id)
 
-    await query.edit_message_text("✅ Category updated!")
+    # Update category in _pending
+    tx.category_id = category_id
+
+    if tx.actual_budget_id:
+        await actual_client.update_transaction_category(tx.actual_budget_id, cat_name)
+        _pending.pop(tx_id, None)
+        await query.edit_message_text(
+            f"✅ Category set: {cat_name}\n"
+            f"🧠 Learned — I'll remember next time!"
+        )
+    else:
+        await query.edit_message_text(
+            f"✅ Category set: {cat_name}\n"
+            f"🧠 Learned — I'll remember next time!",
+            reply_markup=transaction_confirm_keyboard(tx_id)
+        )
 
 
 async def _handle_save_to_actual(query, data: dict):
     """Save transaction to Actual Budget."""
-    tx_id = data["tx_id"]
+    tx_id = str(data["tx_id"])
 
-    transactions = db.get_transactions(limit=500)
-    tx = None
-    for t in transactions:
-        if t.id == tx_id:
-            tx = t
-            break
-
+    tx = _pending.get(tx_id)
     if not tx:
-        await query.edit_message_text("❌ Transaction not found.")
+        await query.edit_message_text("❌ Transaction not found (expired).")
         return
 
     try:
@@ -520,7 +528,7 @@ async def _handle_save_to_actual(query, data: dict):
             return
 
         account = accounts[0]
-        await _do_save_transaction(query, tx, account)
+        await _do_save_transaction(query, tx_id, tx, account)
 
     except Exception as e:
         logger.error(f"Actual Budget save error: {e}")
@@ -531,13 +539,12 @@ async def _handle_save_to_actual(query, data: dict):
 
 async def _handle_select_account(query, data: dict):
     """User selected an account — save the transaction."""
-    tx_id = data["tx_id"]
+    tx_id = str(data["tx_id"])
     acc_idx = data["i"]
 
-    transactions = db.get_transactions(limit=500)
-    tx = next((t for t in transactions if t.id == tx_id), None)
+    tx = _pending.get(tx_id)
     if not tx:
-        await query.edit_message_text("❌ Transaction not found.")
+        await query.edit_message_text("❌ Transaction not found (expired).")
         return
 
     try:
@@ -545,13 +552,13 @@ async def _handle_select_account(query, data: dict):
         if acc_idx >= len(accounts):
             await query.edit_message_text("❌ Invalid account.")
             return
-        await _do_save_transaction(query, tx, accounts[acc_idx])
+        await _do_save_transaction(query, tx_id, tx, accounts[acc_idx])
     except Exception as e:
         logger.error(f"Actual Budget save error: {e}")
         await query.edit_message_text(f"❌ Save error:\n{str(e)[:200]}")
 
 
-async def _do_save_transaction(query, tx, account):
+async def _do_save_transaction(query, tx_id: str, tx, account):
     """Save transaction to Actual Budget and display result."""
     category_name = categorizer.categories.get(tx.category_id, {}).get("name", "")
     source_notes = "[receipt photo]" if tx.raw_ocr_text else "[/add manual]"
@@ -574,58 +581,21 @@ async def _do_save_transaction(query, tx, account):
         )
         return
 
+    # Store the Actual Budget ID back into the pending transaction
+    if tx_id in _pending:
+        _pending[tx_id].actual_budget_id = actual_id or ""
+
     await query.edit_message_text(
         f"💾 Saved to Actual Budget!\n\n"
         f"🏪 {tx.merchant}\n"
         f"💰 {tx.amount:.2f} {currency}\n"
         f"🏦 Account: {account.name}"
     )
-    await _check_budget_alert(query, category_name, tx.amount)
 
 
 async def _check_budget_alert(query, category_name: str, new_amount: float):
-    """Check budget limit and send alert if exceeded."""
-    if not category_name:
-        return
-    limit = db.get_budget_limit(category_name)
-    if not limit:
-        return
-
-    try:
-        from datetime import date as _date
-        today = _date.today()
-        stats = await actual_client.get_monthly_stats(month=today.month, year=today.year)
-        category_data = next(
-            (v for v in stats["categories"].values() if v["name"] == category_name),
-            None
-        )
-        if not category_data:
-            return
-
-        spent = category_data["total"]
-        currency = settings.default_currency
-
-        if spent > limit:
-            overage = spent - limit
-            await query.message.reply_text(
-                f"⚠️ *Budget exceeded!*\n\n"
-                f"📂 {category_name}\n"
-                f"💸 Spent: *{spent:.2f} {currency}*\n"
-                f"🎯 Limit: {limit:.0f} {currency}\n"
-                f"🔴 Over by: *+{overage:.2f} {currency}*",
-                parse_mode="Markdown"
-            )
-        elif spent > limit * 0.85:
-            remaining = limit - spent
-            await query.message.reply_text(
-                f"🟡 *Budget warning!*\n\n"
-                f"📂 {category_name}\n"
-                f"💸 Spent: *{spent:.2f} {currency}* ({spent/limit*100:.0f}%)\n"
-                f"📊 Remaining: *{remaining:.2f} {currency}* of {limit:.0f} {currency}",
-                parse_mode="Markdown"
-            )
-    except Exception as e:
-        logger.warning(f"Could not check budget: {e}")
+    """Check budget limit and send alert if exceeded. (Deprecated — AB handles budgets.)"""
+    return
 
 
 # ============================================================
@@ -703,7 +673,6 @@ async def _monthly_summary_job(context: ContextTypes.DEFAULT_TYPE):
 
     try:
         stats = await actual_client.get_monthly_stats(month=month, year=year)
-        limits = db.get_budget_limits()
         currency = settings.default_currency
 
         text = f"📅 *Summary for {calendar.month_name[month]} {year}*\n\n"
@@ -719,13 +688,7 @@ async def _monthly_summary_job(context: ContextTypes.DEFAULT_TYPE):
             ):
                 name = cat_stats["name"]
                 spent = cat_stats["total"]
-                limit = limits.get(name)
-                if limit:
-                    pct = spent / limit * 100
-                    status = "🔴" if pct > 100 else ("🟡" if pct > 85 else "🟢")
-                    text += f"{status} {name}: {spent:.0f}/{limit:.0f} {currency} ({pct:.0f}%)\n"
-                else:
-                    text += f"• {name}: {spent:.0f} {currency}\n"
+                text += f"• {name}: {spent:.0f} {currency}\n"
 
         for chat_id in settings.telegram.allowed_user_ids:
             await context.bot.send_message(
