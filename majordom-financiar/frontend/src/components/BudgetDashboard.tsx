@@ -19,6 +19,7 @@ interface Props {
   categories: BudgetCategory[]
   month: number
   year: number
+  totalBalance?: number | null
 }
 
 function getColor(percentage: number, budgeted: number): string {
@@ -29,7 +30,7 @@ function getColor(percentage: number, budgeted: number): string {
   return `hsl(${hue}, 75%, 45%)`
 }
 
-export default function BudgetDashboard({ categories, month, year }: Props) {
+export default function BudgetDashboard({ categories, month, year, totalBalance }: Props) {
   const totalSpent = categories.reduce((sum, c) => sum + c.spent, 0)
   const totalBudgeted = categories.reduce((sum, c) => sum + c.budgeted, 0)
 
@@ -67,6 +68,11 @@ export default function BudgetDashboard({ categories, month, year }: Props) {
           {totalBudgeted > 0 && (
             <p className="text-muted text-xs">
               of €{totalBudgeted.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} budget
+            </p>
+          )}
+          {totalBalance != null && (
+            <p className="text-muted text-xs mt-0.5">
+              €{totalBalance.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} available
             </p>
           )}
         </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Check, X } from 'lucide-react'
-import { confirmProposal, cancelProposal, getCategories, type CategoryItem } from '../lib/api'
+import { confirmProposal, cancelProposal, getCategories, getAccounts, type CategoryItem, type Account } from '../lib/api'
 
 export interface ProposalData {
   id: string
@@ -8,6 +8,7 @@ export interface ProposalData {
   amount: number
   date: string
   category_name: string
+  account_id: string
   account_name: string
 }
 
@@ -20,14 +21,17 @@ interface Props {
 export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Props) {
   const [selectedCategory, setSelectedCategory] = useState(proposal.category_name)
   const [categories, setCategories] = useState<CategoryItem[]>([])
+  const [selectedAccountId, setSelectedAccountId] = useState(proposal.account_id)
+  const [accounts, setAccounts] = useState<Account[]>([])
 
   useEffect(() => {
     getCategories().then(setCategories).catch(() => {})
+    getAccounts().then(setAccounts).catch(() => {})
   }, [])
 
   async function handleConfirm() {
     try {
-      const result = await confirmProposal(proposal.id, selectedCategory)
+      const result = await confirmProposal(proposal.id, selectedCategory, selectedAccountId)
       if (result.message.toLowerCase().includes('duplicate') || result.message.toLowerCase().includes('already exists')) {
         onConfirmed(`Duplicate: ${proposal.merchant} €${proposal.amount.toFixed(2)} already exists in Actual Budget for this date.`)
       } else {
@@ -72,6 +76,19 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
           ))
         )}
       </select>
+
+      {/* Account selector — only shown if there are multiple accounts */}
+      {accounts.length > 1 && (
+        <select
+          value={selectedAccountId}
+          onChange={e => setSelectedAccountId(e.target.value)}
+          className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-accent"
+        >
+          {accounts.map(acc => (
+            <option key={acc.id} value={acc.id}>{acc.name}</option>
+          ))}
+        </select>
+      )}
 
       <div className="flex gap-2">
         <button

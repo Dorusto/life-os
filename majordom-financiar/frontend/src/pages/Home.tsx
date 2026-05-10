@@ -2,7 +2,7 @@ import { useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Camera, Image, LogOut } from 'lucide-react'
-import { getTransactions, getBudgetStatus } from '../lib/api'
+import { getTransactions, getBudgetStatus, getAccounts } from '../lib/api'
 import { getUsername, clearAuth } from '../lib/auth'
 import TransactionItem from '../components/TransactionItem'
 import BudgetDashboard from '../components/BudgetDashboard'
@@ -34,9 +34,16 @@ export default function Home() {
   const { data: budgetStatus } = useQuery({
     queryKey: ['budget'],
     queryFn: () => getBudgetStatus(),
-    // Budget data refreshes every 2 minutes
     staleTime: 120_000,
   })
+
+  const { data: accounts } = useQuery({
+    queryKey: ['accounts'],
+    queryFn: () => getAccounts(),
+    staleTime: 120_000,
+  })
+
+  const totalBalance = accounts?.reduce((sum, acc) => sum + acc.balance, 0) ?? null
 
   function handleFile(file: File) {
     // Store the selected file in sessionStorage as a data URL so ReceiptFlow
@@ -146,6 +153,7 @@ export default function Home() {
             categories={budgetStatus}
             month={new Date().getMonth() + 1}
             year={new Date().getFullYear()}
+            totalBalance={totalBalance}
           />
         </section>
       )}

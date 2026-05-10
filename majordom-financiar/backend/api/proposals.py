@@ -18,6 +18,7 @@ router = APIRouter()
 
 class ConfirmRequest(BaseModel):
     category_name: str | None = None
+    account_id: str | None = None
 
 
 class ConfirmResult(BaseModel):
@@ -36,6 +37,7 @@ async def confirm_proposal(
         raise HTTPException(status_code=404, detail="Proposal not found or already confirmed")
 
     category_name = body.category_name or proposal["category_name"]
+    account_id = body.account_id or proposal["account_id"]
 
     try:
         result = await _add_transaction(
@@ -43,7 +45,7 @@ async def confirm_proposal(
             amount=proposal["amount"],
             date=proposal["date"],
             category_name=category_name,
-            account_id=proposal["account_id"],
+            account_id=account_id,
             notes=proposal.get("notes", ""),
         )
     except Exception as e:
