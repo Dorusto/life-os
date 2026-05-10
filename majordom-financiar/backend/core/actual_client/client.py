@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 """
-Client pentru Actual Budget folosind librăria oficială actualpy.
+Client for Actual Budget using the official actualpy library.
 """
 import asyncio
 import logging
@@ -28,7 +28,7 @@ class Category:
 
 
 class ActualBudgetClient:
-    """Client async pentru Actual Budget."""
+    """Async client for Actual Budget."""
 
     def __init__(self, url: str, password: str, sync_id: str):
         self.url = url.rstrip("/")
@@ -58,7 +58,7 @@ class ActualBudgetClient:
                 for acc in accounts:
                     if acc.closed:
                         continue
-                    # Calculează balanța din suma tranzacțiilor
+                    # Calculate balance from transaction sum
                     txs = get_transactions(actual.session, account=acc)
                     balance = sum(
                         float(tx.amount or 0)
@@ -101,7 +101,7 @@ class ActualBudgetClient:
         return await self._run(_get)
 
     async def get_monthly_stats(self, month: int | None = None, year: int | None = None) -> dict:
-        """Returnează statistici lunare direct din Actual Budget."""
+        """Return monthly statistics directly from Actual Budget."""
         today = date.today()
         month = month or today.month
         year = year or today.year
@@ -128,15 +128,15 @@ class ActualBudgetClient:
                         continue
                     amount = float(tx.amount or 0) / 100
                     if amount >= 0:
-                        continue  # ignoră venituri
+                        continue  # skip income
                     amount = abs(amount)
                     total += amount
                     count += 1
 
-                    cat_name = "Necategorizat"
+                    cat_name = "Uncategorized"
                     cat_key = "uncategorized"
                     if tx.category_id and tx.category:
-                        cat_name = tx.category.name or "Necategorizat"
+                        cat_name = tx.category.name or "Uncategorized"
                         cat_key = str(tx.category_id)
 
                     by_category[cat_key]["total"] += amount
@@ -162,7 +162,7 @@ class ActualBudgetClient:
         tx_date: date | None = None,
         notes: str = "",
     ) -> str | None:
-        """Adaugă o tranzacție. Returnează ID-ul sau None dacă e duplicat."""
+        """Add a transaction. Returns the ID or None if duplicate."""
         if tx_date is None:
             tx_date = date.today()
 
@@ -175,17 +175,17 @@ class ActualBudgetClient:
             with self._get_actual() as actual:
                 actual.download_budget()
 
-                # Hash deterministc — aceeași tranzacție (dată+merchant+sumă) → același ID
+                # Deterministic hash — same transaction (date+merchant+amount) → same ID
                 sig = f"{tx_date.isoformat()}{payee}{abs(amount):.4f}"
                 imported_id = hashlib.sha256(sig.encode()).hexdigest()[:16]
 
-                # Verifică dacă există deja (ex: importat anterior din CSV)
+                # Check if already exists (e.g., previously imported via CSV)
                 existing_ids = {
                     tx.financial_id for tx in get_transactions(actual.session)
                     if tx.financial_id and not tx.tombstone
                 }
                 if imported_id in existing_ids:
-                    logger.info(f"Duplicat omis: {payee} {amount:.2f} ({tx_date})")
+                    logger.info(f"Duplicate skipped: {payee} {amount:.2f} ({tx_date})")
                     return None
 
                 payee_obj = get_or_create_payee(actual.session, payee)
@@ -203,13 +203,13 @@ class ActualBudgetClient:
                     imported_id=imported_id,
                 )
                 actual.commit()
-                logger.info(f"Tranzacție adăugată: {payee} {amount:.2f} → {tx.id}")
+                logger.info(f"Transaction added: {payee} {amount:.2f} → {tx.id}")
                 return str(tx.id)
 
         return await self._run(_add)
 
     async def update_transaction_category(self, financial_id: str, category_name: str) -> bool:
-        """Actualizează categoria unei tranzacții existente după financial_id."""
+        """Update the category of an existing transaction by financial_id."""
         def _update():
             from actual.queries import get_or_create_category
             from actual.database import Transactions
@@ -220,12 +220,12 @@ class ActualBudgetClient:
                     Transactions.tombstone == 0,
                 ).first()
                 if not tx:
-                    logger.warning(f"Tranzacție negăsită pentru update categorie: {financial_id}")
+                    logger.warning(f"Transaction not found for category update: {financial_id}")
                     return False
                 cat = get_or_create_category(actual.session, category_name, group_name="Majordom")
                 tx.category_id = cat.id
                 actual.commit()
-                logger.info(f"Categorie actualizată în Actual Budget: {financial_id} → {category_name}")
+                logger.info(f"Category updated in Actual Budget: {financial_id} → {category_name}")
                 return True
         return await self._run(_update)
 
@@ -234,7 +234,7 @@ class ActualBudgetClient:
         return sum(acc.balance for acc in accounts)
 
     async def create_account(self, name: str, initial_balance: float = 0.0) -> Account:
-        """Creează un cont nou în Actual Budget."""
+        """Create a new account in Actual Budget."""
         def _create():
             from actual.queries import create_account as _create_account
             from decimal import Decimal
@@ -246,7 +246,7 @@ class ActualBudgetClient:
                     initial_balance=Decimal(str(initial_balance)),
                 )
                 actual.commit()
-                logger.info(f"Cont creat: {name} (sold inițial: {initial_balance})")
+                logger.info(f"Account created: {name} (initial balance: {initial_balance})")
                 return Account(id=str(acc.id), name=acc.name, balance=initial_balance)
         return await self._run(_create)
 
@@ -313,16 +313,16 @@ class ActualBudgetClient:
         categorizer=None,
     ) -> tuple[int, int, int, list]:
         """
-        Importă mai multe tranzacții deodată într-un singur commit.
+        Import multiple transactions at once in a single commit.
 
         Args:
-            account_id: ID-ul contului din Actual Budget
+            account_id: Account ID in Actual Budget
             transactions: list[NormalizedTransaction]
-            categorizer: SmartCategorizer opțional pentru auto-categorizare
+            categorizer: Optional SmartCategorizer for auto-categorization
 
         Returns:
             (imported, skipped_duplicates, errors, low_confidence_list)
-            low_confidence_list: [(NormalizedTransaction, prediction)] pentru confirmare manuală
+            low_confidence_list: [(NormalizedTransaction, prediction)] for manual confirmation
         """
         def _batch():
             import hashlib
@@ -363,10 +363,10 @@ class ActualBudgetClient:
                                 merchant=tx.merchant,
                                 ocr_text=tx.description,
                             )
-                            # Auto-categorizare doar dacă merchantul a fost confirmat
-                            # anterior de user (from_history=True).
-                            # Keywords/AI singure nu sunt suficiente — întotdeauna întrebăm.
-                            if pred.from_history and pred.category_name and pred.category_name != "Altele":
+                            # Auto-categorize only if the merchant was previously
+                            # confirmed by the user (from_history=True).
+                            # Keywords/AI alone are not enough — always ask.
+                            if pred.from_history and pred.category_name and pred.category_name != "Other":
                                 cat_obj = get_or_create_category(
                                     actual.session,
                                     pred.category_name,
@@ -391,12 +391,12 @@ class ActualBudgetClient:
                         imported += 1
 
                     except Exception as e:
-                        logger.warning(f"Eroare tranzacție {tx.merchant} {tx.amount}: {e}")
+                        logger.warning(f"Error processing transaction {tx.merchant} {tx.amount}: {e}")
                         errors += 1
 
                 if imported > 0:
                     actual.commit()
-                    logger.info(f"CSV import: {imported} importate, {skipped} duplicate, {errors} erori, {len(low_confidence)} cu confidență mică")
+                    logger.info(f"CSV import: {imported} imported, {skipped} duplicates, {errors} errors, {len(low_confidence)} low confidence")
 
             return imported, skipped, errors, low_confidence
 

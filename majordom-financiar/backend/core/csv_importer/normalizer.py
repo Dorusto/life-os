@@ -1,9 +1,9 @@
 from __future__ import annotations
 """
-Parser și normalizator CSV.
+CSV parser and normalizer.
 
-Primește bytes brute din Telegram și returnează NormalizedTransaction[].
-Detectează automat encoding și delimiter când nu sunt specificate explicit.
+Receives raw bytes from upload and returns NormalizedTransaction[].
+Auto-detects encoding and delimiter when not explicitly specified.
 """
 import csv
 import io
@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 class CsvNormalizer:
 
     def detect_encoding(self, raw: bytes) -> str:
-        """Încearcă encodings în ordine: UTF-8 BOM, UTF-8, CP1252, Latin-1."""
+        """Try encodings in order: UTF-8 BOM, UTF-8, CP1252, Latin-1."""
         for enc in ("utf-8-sig", "utf-8", "cp1252", "iso-8859-1"):
             try:
                 raw.decode(enc)
@@ -28,7 +28,7 @@ class CsvNormalizer:
         return "utf-8"
 
     def detect_delimiter(self, text: str) -> str:
-        """Detectează delimiterul din primele 5 linii."""
+        """Detect delimiter from the first 5 lines."""
         head = "\n".join(text.splitlines()[:5])
         counts = {d: head.count(d) for d in (";", ",", "|", "\t")}
         return max(counts, key=counts.get)
@@ -40,18 +40,18 @@ class CsvNormalizer:
         encoding: str | None = None,
     ) -> tuple[list[str], list[dict]]:
         """
-        Parsează bytes CSV → (headers, rows).
+        Parse CSV bytes → (headers, rows).
 
         Returns:
-            headers: lista numelor de coloane
-            rows: lista de dict-uri {coloana: valoare}
+            headers: list of column names
+            rows: list of dicts {column: value}
         """
         enc = encoding or self.detect_encoding(raw)
         text = raw.decode(enc)
         delim = delimiter or self.detect_delimiter(text)
 
         reader = csv.DictReader(io.StringIO(text), delimiter=delim)
-        # Curăță BOM și whitespace din headere
+        # Clean BOM and whitespace from headers
         if reader.fieldnames:
             reader.fieldnames = [f.strip("\ufeff").strip() for f in reader.fieldnames]
         headers = list(reader.fieldnames or [])
@@ -59,7 +59,7 @@ class CsvNormalizer:
         return headers, rows
 
     def normalize(self, rows: list[dict], profile: CsvProfile) -> list[NormalizedTransaction]:
-        """Normalizează rânduri → cheltuieli + refund-uri (veniturile pure sunt ignorate)."""
+        """Normalize rows → expenses + refunds (pure income rows are ignored)."""
         result = []
         for row in rows:
             try:
@@ -67,11 +67,11 @@ class CsvNormalizer:
                 if tx:
                     result.append(tx)
             except Exception as e:
-                logger.debug(f"Rând ignorat ({e}): {row}")
+                logger.debug(f"Row skipped ({e}): {row}")
         return result
 
     def normalize_all(self, rows: list[dict], profile: CsvProfile) -> list[NormalizedTransaction]:
-        """Normalizează toate rândurile, inclusiv veniturile."""
+        """Normalize all rows, including income."""
         result = []
         for row in rows:
             try:
@@ -79,14 +79,14 @@ class CsvNormalizer:
                 if tx:
                     result.append(tx)
             except Exception as e:
-                logger.debug(f"Rând ignorat ({e}): {row}")
+                logger.debug(f"Row skipped ({e}): {row}")
         return result
 
     def _parse_amount(self, raw: str, decimal_sep: str) -> float:
         """
-        Parsează suma indiferent de format:
-          - European: "1.234,56" sau "49,95"  (decimal_sep=",")
-          - Standard: "1,234.56" sau "49.95"  (decimal_sep=".")
+        Parse amount regardless of format:
+          - European: "1.234,56" or "49,95"  (decimal_sep=",")
+          - Standard: "1,234.56" or "49.95"  (decimal_sep=".")
         """
         s = raw.strip().lstrip("+ ")
         if decimal_sep == ",":
@@ -96,26 +96,26 @@ class CsvNormalizer:
         return float(s)
 
     def _normalize_row(self, row: dict, profile: CsvProfile) -> NormalizedTransaction | None:
-        # Suma brută
+        # Raw amount
         amount_raw = (row.get(profile.col_amount) or "").strip()
         if not amount_raw:
             return None
 
         amount_float = self._parse_amount(amount_raw, profile.decimal_sep)
 
-        # Direcție cheltuială vs venit
+        # Expense vs income direction
         if profile.col_direction and profile.expense_indicator:
             direction_val = (row.get(profile.col_direction) or "").strip()
             is_expense = direction_val.lower() == profile.expense_indicator.lower()
         else:
-            # Fără coloana de direcție → suma negativă = cheltuiala
+            # No direction column → negative amount = expense
             is_expense = amount_float < 0
 
         amount = abs(amount_float)
         if amount == 0:
             return None
 
-        # Data
+        # Date
         date_raw = (row.get(profile.col_date) or "").strip()
         tx_date = self._parse_date(date_raw, profile.date_format)
         if tx_date is None:
@@ -123,14 +123,14 @@ class CsvNormalizer:
             return None
 
         # Merchant
-        merchant = (row.get(profile.col_merchant) or "").strip() or "Necunoscut"
+        merchant = (row.get(profile.col_merchant) or "").strip() or "Unknown"
 
-        # Monedă
+        # Currency
         currency = "EUR"
         if profile.col_currency:
             currency = (row.get(profile.col_currency) or "EUR").strip().upper() or "EUR"
 
-        # Descriere / note
+        # Description / notes
         description = ""
         if profile.col_description:
             description = (row.get(profile.col_description) or "").strip()
@@ -147,13 +147,13 @@ class CsvNormalizer:
     def _parse_date(self, date_str: str, date_format: str) -> date | None:
         if not date_str:
             return None
-        # Încearcă formatul specificat în profil
+        # Try the profile-specified format first
         try:
             return datetime.strptime(date_str, date_format).date()
         except ValueError:
             pass
-        # Fallback-uri comune
-        clean = date_str[:19]  # taie microsecundele / timezone
+        # Common fallback formats
+        clean = date_str[:19]  # trim microseconds / timezone
         for fmt in (
             "%Y%m%d",
             "%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%d.%m.%Y",

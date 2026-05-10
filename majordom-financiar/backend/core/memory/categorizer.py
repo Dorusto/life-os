@@ -1,13 +1,13 @@
 from __future__ import annotations
 """
-Motor de categorizare inteligent cu învățare din feedback.
+Smart categorizer with learning from feedback.
 
-Folosește un sistem simplu dar eficient:
-1. Potrivire exactă pe merchant (din istoric)
-2. Potrivire pe cuvinte cheie (din config + învățate)
+Uses a simple but effective system:
+1. Exact merchant match (from history)
+2. Keyword matching (from config + learned)
 
-Nu folosim ML greu — un sistem bazat pe reguli + frecvențe
-funcționează excelent pentru cazul nostru și e 100% transparent.
+No heavy ML — a rule-based + frequency system
+works great for our use case and is 100% transparent.
 """
 import json
 import re
@@ -23,19 +23,19 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class CategoryPrediction:
-    """Predicție de categorie cu confidență."""
+    """Category prediction with confidence."""
     category_id: str
     category_name: str
     confidence: float  # 0.0 - 1.0
-    reason: str  # Explicație pentru utilizator
-    from_history: bool = False  # True doar dacă vine din merchant_mappings confirmat de user
+    reason: str  # Explanation shown to the user
+    from_history: bool = False  # True only if from user-confirmed merchant_mappings
 
     @property
     def emoji(self) -> str:
         return CATEGORY_EMOJIS.get(self.category_id, "📦")
 
 
-# Mapare categorii → emoji
+# Category → emoji mapping
 CATEGORY_EMOJIS = {
     "groceries": "🛒", "restaurants": "🍽️", "transport": "🚗",
     "utilities": "💡", "health": "💊", "clothing": "👕",
@@ -46,12 +46,12 @@ CATEGORY_EMOJIS = {
 
 class SmartCategorizer:
     """
-    Categorizator care învață din feedback-ul utilizatorului.
+    Categorizer that learns from user feedback.
 
-    Niveluri de categorizare (în ordine de prioritate):
-    1. HISTORY — merchant exact văzut anterior → confidență 95%
-    2. KEYWORDS — cuvinte cheie potrivite → confidență 70-90%
-    3. FALLBACK → "other" cu confidență 0%
+    Categorization levels (in priority order):
+    1. HISTORY — exact merchant seen before → confidence 95%
+    2. KEYWORDS — matching keywords → confidence 70-90%
+    3. FALLBACK → "other" with confidence 0%
     """
 
     def __init__(self, db: MemoryDB, categories_path: str | None = None):
@@ -61,7 +61,7 @@ class SmartCategorizer:
         self._rebuild_keyword_index()
 
     def _load_categories(self, path: str | None) -> dict:
-        """Încarcă categoriile din JSON."""
+        """Load categories from JSON."""
         if path is None:
             path = str(
                 Path(__file__).parent.parent / "config" / "categories.json"
@@ -74,59 +74,59 @@ class SmartCategorizer:
                     cat["id"]: cat for cat in data.get("categories", [])
                 }
         except FileNotFoundError:
-            logger.warning(f"Fișier categorii negăsit: {path}")
+            logger.warning(f"Categories file not found: {path}")
             return {"other": {"id": "other", "name": "Other", "keywords": []}}
 
     def _rebuild_keyword_index(self):
-        """Reconstruiește indexul de cuvinte cheie."""
+        """Rebuild the keyword index."""
         self._keyword_index = {}
 
-        # Din config (categorii predefinite)
+        # From config (predefined categories)
         for cat_id, cat_data in self.categories.items():
             for keyword in cat_data.get("keywords", []):
                 self._keyword_index[keyword.lower()] = cat_id
 
-        # Din baza de date (învățate de la user)
+        # From database (learned from user)
         db_keywords = self.db.get_all_keywords()
         for cat_id, keywords in db_keywords.items():
             for keyword, weight in keywords:
-                if weight >= 0.5:  # Prag minim
+                if weight >= 0.5:  # Minimum threshold
                     self._keyword_index[keyword.lower()] = cat_id
 
-        logger.debug(f"Index keywords: {len(self._keyword_index)} intrări")
+        logger.debug(f"Keyword index: {len(self._keyword_index)} entries")
 
     def predict(
         self, merchant: str, ocr_text: str = "", amount: float = 0.0
     ) -> CategoryPrediction:
         """
-        Prezice categoria pentru o tranzacție.
+        Predict the category for a transaction.
 
         Args:
-            merchant: Numele magazinului
-            ocr_text: Textul OCR complet (opțional, îmbunătățește acuratețea)
-            amount: Suma (opțional, poate ajuta la discriminare)
+            merchant: The store/merchant name
+            ocr_text: Full OCR text (optional, improves accuracy)
+            amount: Transaction amount (optional, may help discrimination)
 
         Returns:
-            CategoryPrediction cu categoria și confidența
+            CategoryPrediction with category and confidence
         """
         merchant_lower = merchant.lower().strip()
         text_lower = ocr_text.lower() if ocr_text else merchant_lower
 
-        # --- Nivel 1: Istoric exact (confirmat de user) ---
+        # --- Level 1: Exact history (user-confirmed) ---
         mapping = self.db.get_merchant_category(merchant_lower)
         if mapping and mapping.times_seen >= 1:
-            # Confidența crește cu numărul de confirmări
+            # Confidence increases with number of confirmations
             conf = min(0.95, 0.70 + mapping.times_seen * 0.05)
             cat = self.categories.get(mapping.category_id, {})
             return CategoryPrediction(
                 category_id=mapping.category_id,
                 category_name=cat.get("name", mapping.category_id),
                 confidence=conf,
-                reason=f"Merchant cunoscut (văzut de {mapping.times_seen}x)",
+                reason=f"Known merchant (seen {mapping.times_seen}x)",
                 from_history=True,
             )
 
-        # --- Nivel 2: Cuvinte cheie ---
+        # --- Level 2: Keywords ---
         keyword_match = self._match_keywords(text_lower)
         if keyword_match:
             cat_id, matched_keyword = keyword_match
@@ -135,7 +135,7 @@ class SmartCategorizer:
                 category_id=cat_id,
                 category_name=cat.get("name", cat_id),
                 confidence=0.75,
-                reason=f"Cuvânt cheie: '{matched_keyword}'"
+                reason=f"Keyword: '{matched_keyword}'"
             )
 
         # --- Fallback ---
@@ -147,8 +147,8 @@ class SmartCategorizer:
         )
 
     def _match_keywords(self, text: str) -> tuple[str, str] | None:
-        """Caută cuvinte cheie în text."""
-        # Sortează descrescător după lungime (potriviri mai lungi = mai specifice)
+        """Search for keywords in text."""
+        # Sort descending by length (longer matches = more specific)
         sorted_keywords = sorted(
             self._keyword_index.keys(), key=len, reverse=True
         )
@@ -160,9 +160,9 @@ class SmartCategorizer:
         return None
 
     def _tokenize(self, text: str) -> list[str]:
-        """Tokenizare simplă — cuvinte de minim 3 caractere."""
+        """Simple tokenization — words with at least 3 characters."""
         words = re.findall(r"[a-zăâîșț]{3,}", text.lower())
-        # Elimină stop words românești comune
+        # Remove common Romanian stop words
         stop_words = {
             "din", "pentru", "care", "sau", "este", "sunt",
             "lei", "ron", "buc", "total", "noi", "mai",
@@ -171,32 +171,32 @@ class SmartCategorizer:
 
     def learn(self, merchant: str, category_id: str, ocr_text: str = ""):
         """
-        Învață din feedback-ul utilizatorului.
+        Learn from user feedback.
 
         Args:
-            merchant: Numele magazinului
-            category_id: Categoria confirmată
-            ocr_text: Textul OCR complet (pentru extragere keywords)
+            merchant: The store/merchant name
+            category_id: The confirmed category
+            ocr_text: Full OCR text (for keyword extraction)
         """
-        # Salvează mapping-ul merchant → categorie
+        # Save the merchant → category mapping
         self.db.save_merchant_mapping(merchant, category_id)
 
-        # Extrage și salvează cuvinte cheie noi din textul OCR
+        # Extract and save new keywords from OCR text
         if ocr_text:
             tokens = self._tokenize(ocr_text)
-            # Top 5 cuvinte cele mai frecvente (potențiale keywords utile)
+            # Top 5 most frequent words (potential useful keywords)
             token_counts = Counter(tokens)
             for word, count in token_counts.most_common(5):
                 if count >= 2 and len(word) >= 4:
                     self.db.add_keyword(word, category_id, weight=0.5)
 
-        # Reconstruiește indexul
+        # Rebuild the index
         self._rebuild_keyword_index()
 
-        logger.info(f"Învățat: '{merchant}' → '{category_id}'")
+        logger.info(f"Learned: '{merchant}' → '{category_id}'")
 
     def get_all_categories(self) -> list[dict]:
-        """Returnează lista completă de categorii."""
+        """Return the full list of categories."""
         return [
             {
                 "id": cat_id,

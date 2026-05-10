@@ -1,11 +1,11 @@
 from __future__ import annotations
 """
-Baza de date locală (SQLite) pentru memoria majordomului.
+Local database (SQLite) for the majordom's memory.
 
-Stochează:
-- Istoricul tranzacțiilor procesate
-- Asocierile merchant → categorie (pentru învățare)
-- Feedbackul utilizatorului
+Stores:
+- Processed transaction history
+- Merchant → category associations (for learning)
+- User feedback
 """
 import sqlite3
 from pathlib import Path
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class TransactionRecord:
-    """O tranzacție procesată și stocată."""
+    """A processed and stored transaction."""
     id: int | None = None
     merchant: str = ""
     amount: float = 0.0
@@ -29,12 +29,12 @@ class TransactionRecord:
     confidence: float = 0.0
     user_confirmed: bool = False
     created_at: str = ""
-    actual_budget_id: str = ""  # ID-ul din Actual Budget
+    actual_budget_id: str = ""  # ID from Actual Budget
 
 
 @dataclass
 class MerchantMapping:
-    """Asociere merchant → categorie învățată."""
+    """Learned merchant → category association."""
     merchant: str
     category_id: str
     times_seen: int = 1
@@ -42,7 +42,7 @@ class MerchantMapping:
 
 
 class MemoryDB:
-    """Interfață SQLite pentru memoria majordomului."""
+    """SQLite interface for the majordom's memory."""
 
     def __init__(self, db_path: str):
         self.db_path = db_path
@@ -57,7 +57,7 @@ class MemoryDB:
         return conn
 
     def _init_db(self):
-        """Creează tabelele dacă nu există."""
+        """Create tables if they don't exist."""
         conn = self._get_conn()
         try:
             conn.executescript("""
@@ -131,14 +131,14 @@ class MemoryDB:
                 );
             """)
             conn.commit()
-            logger.info(f"Baza de date inițializată: {self.db_path}")
+            logger.info(f"Database initialized: {self.db_path}")
         finally:
             conn.close()
 
-    # --- Tranzacții ---
+    # --- Transactions ---
 
     def save_transaction(self, record: TransactionRecord) -> int:
-        """Salvează o tranzacție și returnează ID-ul."""
+        """Save a transaction and return its ID."""
         conn = self._get_conn()
         try:
             cursor = conn.execute("""
@@ -153,7 +153,7 @@ class MemoryDB:
             ))
             conn.commit()
             tx_id = cursor.lastrowid
-            logger.info(f"Tranzacție salvată #{tx_id}: {record.merchant} {record.amount}")
+            logger.info(f"Transaction saved #{tx_id}: {record.merchant} {record.amount}")
             return tx_id
         finally:
             conn.close()
@@ -165,7 +165,7 @@ class MemoryDB:
         category_id: str | None = None,
         limit: int = 100
     ) -> list[TransactionRecord]:
-        """Listează tranzacții cu filtre opționale."""
+        """List transactions with optional filters."""
         conn = self._get_conn()
         try:
             query = "SELECT * FROM transactions WHERE 1=1"
@@ -195,7 +195,7 @@ class MemoryDB:
     def get_monthly_stats(
         self, month: int | None = None, year: int | None = None
     ) -> dict:
-        """Statistici agregate pe lună."""
+        """Aggregated monthly statistics."""
         if not month or not year:
             now = datetime.now()
             month = month or now.month
@@ -205,7 +205,7 @@ class MemoryDB:
         try:
             date_prefix = f"{year}-{month:02d}"
 
-            # Total pe categorii
+            # Total by category
             rows = conn.execute("""
                 SELECT category_id, COUNT(*) as count, SUM(amount) as total
                 FROM transactions
@@ -222,7 +222,7 @@ class MemoryDB:
                 for row in rows
             }
 
-            # Total general
+            # Grand total
             total = sum(c["total"] for c in categories.values())
             count = sum(c["count"] for c in categories.values())
 
@@ -236,13 +236,13 @@ class MemoryDB:
         finally:
             conn.close()
 
-    # --- Merchant Mappings (pentru învățare) ---
+    # --- Merchant Mappings (for learning) ---
 
     def get_merchant_category(self, merchant: str) -> MerchantMapping | None:
-        """Caută categoria asociată unui merchant."""
+        """Find the category associated with a merchant."""
         conn = self._get_conn()
         try:
-            # Căutare exactă
+            # Exact match
             row = conn.execute(
                 "SELECT * FROM merchant_mappings WHERE merchant = ?",
                 (merchant.lower(),)
@@ -251,7 +251,7 @@ class MemoryDB:
             if row:
                 return MerchantMapping(**dict(row))
 
-            # Căutare fuzzy (conține)
+            # Fuzzy search (contains)
             row = conn.execute(
                 "SELECT * FROM merchant_mappings WHERE ? LIKE '%' || merchant || '%' "
                 "OR merchant LIKE '%' || ? || '%' "
@@ -267,7 +267,7 @@ class MemoryDB:
             conn.close()
 
     def save_merchant_mapping(self, merchant: str, category_id: str):
-        """Salvează/actualizează asocierea merchant → categorie."""
+        """Save/update the merchant → category association."""
         conn = self._get_conn()
         try:
             conn.execute("""
@@ -279,12 +279,12 @@ class MemoryDB:
                     last_seen = datetime('now')
             """, (merchant.lower(), category_id))
             conn.commit()
-            logger.info(f"Mapping salvat: '{merchant}' → '{category_id}'")
+            logger.info(f"Mapping saved: '{merchant}' → '{category_id}'")
         finally:
             conn.close()
 
     def update_transaction_category(self, tx_id: int, category_id: str):
-        """Actualizează categoria unei tranzacții (după feedback user)."""
+        """Update a transaction's category (after user feedback)."""
         conn = self._get_conn()
         try:
             conn.execute("""
@@ -293,14 +293,14 @@ class MemoryDB:
                 WHERE id = ?
             """, (category_id, tx_id))
             conn.commit()
-            logger.info(f"Tranzacție #{tx_id} actualizată → '{category_id}'")
+            logger.info(f"Transaction #{tx_id} updated → '{category_id}'")
         finally:
             conn.close()
 
     # --- Keywords ---
 
     def add_keyword(self, keyword: str, category_id: str, weight: float = 1.0):
-        """Adaugă un cuvânt cheie pentru o categorie."""
+        """Add a keyword for a category."""
         conn = self._get_conn()
         try:
             conn.execute("""
@@ -314,7 +314,7 @@ class MemoryDB:
             conn.close()
 
     def get_all_keywords(self) -> dict[str, list[tuple[str, float]]]:
-        """Returnează toate keyword-urile grupate pe categorie."""
+        """Return all keywords grouped by category."""
         conn = self._get_conn()
         try:
             rows = conn.execute(
@@ -335,7 +335,7 @@ class MemoryDB:
     # --- Budget Limits ---
 
     def set_budget_limit(self, category_name: str, limit: float):
-        """Setează limita lunară pentru o categorie."""
+        """Set the monthly limit for a category."""
         conn = self._get_conn()
         try:
             conn.execute("""
@@ -350,7 +350,7 @@ class MemoryDB:
             conn.close()
 
     def get_budget_limits(self) -> dict[str, float]:
-        """Returnează toate limitele lunare {category_name: limit}."""
+        """Return all monthly limits {category_name: limit}."""
         conn = self._get_conn()
         try:
             rows = conn.execute(
@@ -361,7 +361,7 @@ class MemoryDB:
             conn.close()
 
     def get_budget_limit(self, category_name: str) -> float | None:
-        """Returnează limita pentru o categorie specifică."""
+        """Return the limit for a specific category."""
         conn = self._get_conn()
         try:
             row = conn.execute(
@@ -375,7 +375,7 @@ class MemoryDB:
     # --- CSV Profiles ---
 
     def save_csv_profile(self, profile) -> int:
-        """Salvează un profil CSV și returnează ID-ul. Actualizează dacă există deja."""
+        """Save a CSV profile and return its ID. Updates if it already exists."""
         conn = self._get_conn()
         try:
             cursor = conn.execute("""
@@ -412,7 +412,7 @@ class MemoryDB:
             conn.close()
 
     def get_csv_profile_by_sig(self, header_sig: str):
-        """Caută un profil CSV după header signature. Returnează CsvProfile sau None."""
+        """Find a CSV profile by header signature. Returns CsvProfile or None."""
         from backend.core.csv_importer.profiles import CsvProfile
         conn = self._get_conn()
         try:
@@ -429,7 +429,7 @@ class MemoryDB:
             conn.close()
 
     def get_all_csv_profiles(self) -> list:
-        """Returnează toate profilurile CSV salvate."""
+        """Return all saved CSV profiles."""
         from backend.core.csv_importer.profiles import CsvProfile
         conn = self._get_conn()
         try:

@@ -1,13 +1,13 @@
 from __future__ import annotations
 """
-Detecție automată a structurii CSV cu Ollama.
+Auto-detection of CSV structure with Ollama.
 
-Flux:
-1. Calculează header_signature (MD5 pe coloanele sortate)
-2. Caută în SQLite profilul salvat anterior (detecție instant)
-3. Dacă nu există → trimite headere + 3 rânduri la Ollama text model
-4. Ollama returnează JSON cu mapping-ul coloanelor
-5. Utilizatorul confirmă → profilul e salvat pentru data viitoare
+Flow:
+1. Compute header_signature (MD5 on sorted columns)
+2. Look up in SQLite for a previously saved profile (instant detection)
+3. If not found → send headers + 3 rows to Ollama text model
+4. Ollama returns JSON with column mapping
+5. User confirms → profile is saved for next time
 """
 import hashlib
 import json
@@ -55,7 +55,7 @@ class CsvProfileDetector:
         self.ollama_model = ollama_model
 
     def header_signature(self, headers: list[str]) -> str:
-        """MD5 pe headerele sortate și lowercased — fingerprint stabil al formatului."""
+        """MD5 on sorted and lowercased headers — stable format fingerprint."""
         normalized = ",".join(sorted(h.strip().lower() for h in headers))
         return hashlib.md5(normalized.encode()).hexdigest()[:12]
 
@@ -66,8 +66,8 @@ class CsvProfileDetector:
         delimiter: str,
     ) -> CsvProfile | None:
         """
-        Detectează structura CSV trimițând headerele și 3 rânduri la Ollama.
-        Returnează un CsvProfile propus (neconfirmat) sau None dacă eșuează.
+        Detect CSV structure by sending headers and 3 rows to Ollama.
+        Returns a proposed CsvProfile (unconfirmed) or None on failure.
         """
         headers_str = str(headers)
         rows_str = "\n".join(
@@ -84,7 +84,7 @@ class CsvProfileDetector:
             "options": {"temperature": 0.0, "num_predict": 400},
         }
 
-        logger.info(f"Trimit CSV la Ollama pentru detecție ({self.ollama_model})...")
+        logger.info(f"Sending CSV to Ollama for detection ({self.ollama_model})...")
 
         try:
             async with aiohttp.ClientSession() as session:
@@ -100,7 +100,7 @@ class CsvProfileDetector:
                     data = await resp.json()
 
             content = data["message"]["content"].strip()
-            logger.debug(f"Răspuns Ollama detecție CSV:\n{content}")
+            logger.debug(f"Ollama CSV detection response:\n{content}")
 
             parsed = json.loads(self._extract_json(content))
 
@@ -109,7 +109,7 @@ class CsvProfileDetector:
             decimal_sep = "," if "comma" in str(decimal_raw).lower() or decimal_raw == "," else "."
 
             return CsvProfile(
-                source_name=parsed.get("source_name") or "Necunoscut",
+                source_name=parsed.get("source_name") or "Unknown",
                 header_sig=sig,
                 col_date=parsed.get("col_date") or "",
                 col_merchant=parsed.get("col_merchant") or "",
@@ -125,10 +125,10 @@ class CsvProfileDetector:
             )
 
         except json.JSONDecodeError as e:
-            logger.error(f"JSON invalid de la Ollama: {e}")
+            logger.error(f"Invalid JSON from Ollama: {e}")
             return None
         except Exception as e:
-            logger.error(f"Eroare detecție Ollama: {e}", exc_info=True)
+            logger.error(f"Ollama detection error: {e}", exc_info=True)
             return None
 
     def _extract_json(self, text: str) -> str:

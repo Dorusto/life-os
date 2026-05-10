@@ -1,6 +1,6 @@
 from __future__ import annotations
 """
-Configurare centralizată — citește din variabile de mediu.
+Centralized configuration — reads from environment variables.
 """
 import os
 from pathlib import Path
@@ -73,20 +73,20 @@ class Settings:
     def __post_init__(self):
         self.default_currency = os.getenv("DEFAULT_CURRENCY", "EUR")
         self.log_level = os.getenv("LOG_LEVEL", "INFO")
-        # Asigură că directorul pentru DB există
+        # Ensure the DB directory exists
         Path(self.memory.db_path).parent.mkdir(parents=True, exist_ok=True)
 
     def validate(self) -> list[str]:
-        """Verifică că toate configurările critice sunt setate."""
+        """Check that all critical settings are configured."""
         errors = []
         if not self.telegram.bot_token:
-            errors.append("TELEGRAM_BOT_TOKEN lipsește")
+            errors.append("TELEGRAM_BOT_TOKEN is missing")
         if not self.telegram.allowed_user_ids:
-            errors.append("TELEGRAM_ALLOWED_USER_IDS lipsește")
+            errors.append("TELEGRAM_ALLOWED_USER_IDS is missing")
         if not self.actual.password:
-            errors.append("ACTUAL_BUDGET_PASSWORD lipsește")
+            errors.append("ACTUAL_BUDGET_PASSWORD is missing")
         return errors
 
 
-# Singleton global
+# Global singleton
 settings = Settings()

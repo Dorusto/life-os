@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 """
-Motor de extracție bazat pe model AI vision (Ollama).
+Vision-based extraction engine using an AI vision model (Ollama).
 
-Înlocuiește pipeline-ul clasic Tesseract + OpenCV + regex cu un singur
-apel la un model multimodal local. Trimite poza direct, primește JSON
-structurat cu datele bonului.
+Replaces the classic Tesseract + OpenCV + regex pipeline with a single
+call to a local multimodal model. Sends the image directly, receives
+structured JSON with receipt data.
 
-Model recomandat: qwen2.5vl:7b (~5GB VRAM, excelent pentru documente)
+Recommended model: qwen2.5vl:7b (~5GB VRAM, excellent for documents)
 """
 import base64
 import io
@@ -52,28 +52,28 @@ Rules:
 
 
 class VisionEngine:
-    """Extrage date din bonuri folosind un model AI vision local (Ollama)."""
+    """Extract data from receipts using a local AI vision model (Ollama)."""
 
     def __init__(self, ollama_url: str, model: str):
         self.ollama_url = ollama_url.rstrip("/")
         self.model = model
 
     async def extract_from_path(self, image_path: str | Path) -> ReceiptData:
-        """Extrage date dintr-un fișier imagine."""
+        """Extract data from an image file."""
         image_bytes = Path(image_path).read_bytes()
         return await self.extract_from_bytes(image_bytes)
 
     async def extract_from_bytes(self, image_bytes: bytes) -> ReceiptData:
-        """Extrage date direct din bytes (de la Telegram)."""
+        """Extract data directly from bytes (from Telegram)."""
         resized = self._resize_image(image_bytes)
         b64_image = base64.b64encode(resized).decode("utf-8")
         return await self._call_ollama(b64_image)
 
     def _resize_image(self, image_bytes: bytes, max_size: int = 1000) -> bytes:
         """
-        Redimensionează imaginea la max 1000px pe latura lungă.
-        1000px → ~4000 tokeni vizuali — mai bună acuratețe OCR pe bonuri mici,
-        acceptabil ca timp (~60-90s pe CPU). Anterior era 512px (mai rapid dar mai puțin precis).
+        Resize image to max 1000px on the long side.
+        1000px → ~4000 vision tokens — better OCR accuracy on small receipts,
+        acceptable speed (~60-90s on CPU). Previously 512px (faster but less accurate).
         """
         img = Image.open(io.BytesIO(image_bytes))
         w, h = img.size
@@ -82,14 +82,14 @@ class VisionEngine:
             scale = max_size / max(w, h)
             new_w, new_h = int(w * scale), int(h * scale)
             img = img.resize((new_w, new_h), Image.LANCZOS)
-            logger.debug(f"Imagine redimensionată: {w}x{h} → {new_w}x{new_h}")
+            logger.debug(f"Image resized: {w}x{h} → {new_w}x{new_h}")
 
         buf = io.BytesIO()
         img.convert("RGB").save(buf, format="JPEG", quality=90)
         return buf.getvalue()
 
     async def _call_ollama(self, b64_image: str) -> ReceiptData:
-        """Apelează Ollama API și parsează răspunsul."""
+        """Call the Ollama API and parse the response."""
         payload = {
             "model": self.model,
             "messages": [
@@ -107,7 +107,7 @@ class VisionEngine:
             },
         }
 
-        logger.info(f"Trimit imaginea la Ollama ({self.model})...")
+        logger.info(f"Sending image to Ollama ({self.model})...")
 
         try:
             async with aiohttp.ClientSession() as session:
@@ -122,31 +122,31 @@ class VisionEngine:
                     data = await resp.json()
 
             raw_content = data["message"]["content"].strip()
-            logger.debug(f"Răspuns Ollama:\n{raw_content}")
+            logger.debug(f"Ollama response:\n{raw_content}")
 
             return self._parse_response(raw_content)
 
         except aiohttp.ClientConnectorError:
             raise Exception(
-                f"Nu mă pot conecta la Ollama ({self.ollama_url}). "
-                "Asigură-te că Ollama rulează pe host."
+                f"Cannot connect to Ollama ({self.ollama_url}). "
+                "Make sure Ollama is running on the host."
             )
 
     def _parse_response(self, content: str) -> ReceiptData:
-        """Parsează răspunsul JSON de la model."""
-        # Extrage JSON din răspuns (modelul uneori adaugă text în jur)
+        """Parse the JSON response from the model."""
+        # Extract JSON from response (the model sometimes adds surrounding text)
         json_str = self._extract_json(content)
 
         try:
             data = json.loads(json_str)
         except json.JSONDecodeError as e:
-            logger.warning(f"JSON invalid de la model: {e}\nConținut: {content[:500]}")
+            logger.warning(f"Invalid JSON from model: {e}\nContent: {content[:500]}")
             return ReceiptData(raw_text=content)
 
-        # Construiește ReceiptData din JSON
+        # Build ReceiptData from JSON
         receipt = ReceiptData(raw_text=content)
 
-        receipt.merchant = data.get("merchant") or "Necunoscut"
+        receipt.merchant = data.get("merchant") or "Unknown"
         receipt.currency = (data.get("currency") or "EUR").upper()
         receipt.cui = data.get("cui") or ""
 
@@ -162,7 +162,7 @@ class VisionEngine:
         date_str = data.get("date") or ""
         receipt.date = self._parse_date(date_str)
 
-        # Articole
+        # Items
         items_raw = data.get("items") or []
         receipt.items = []
         for item in items_raw:
@@ -180,24 +180,24 @@ class VisionEngine:
 
         if receipt.is_valid:
             logger.info(
-                f"Bon extras cu AI: {receipt.merchant}, {receipt.total} RON, "
-                f"{len(receipt.items)} articole"
+                f"Receipt extracted with AI: {receipt.merchant}, {receipt.total} EUR, "
+                f"{len(receipt.items)} items"
             )
         else:
             logger.warning(
-                f"Bon incomplet: merchant='{receipt.merchant}', total={receipt.total}"
+                f"Incomplete receipt: merchant='{receipt.merchant}', total={receipt.total}"
             )
 
         return receipt
 
     def _extract_json(self, text: str) -> str:
-        """Extrage blocul JSON din textul răspunsului."""
-        # Caută ```json ... ``` sau ``` ... ```
+        """Extract the JSON block from the response text."""
+        # Look for ```json ... ``` or ``` ... ```
         match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
         if match:
             return match.group(1)
 
-        # Caută { ... } direct
+        # Look for { ... } directly
         match = re.search(r"\{.*\}", text, re.DOTALL)
         if match:
             return match.group(0)
@@ -205,7 +205,7 @@ class VisionEngine:
         return text
 
     def _parse_date(self, date_str: str) -> date | None:
-        """Parsează data din format DD.MM.YYYY."""
+        """Parse date from DD.MM.YYYY format."""
         if not date_str:
             return date.today()
 
@@ -219,7 +219,7 @@ class VisionEngine:
         return date.today()
 
     async def is_available(self) -> bool:
-        """Verifică dacă Ollama e disponibil și modelul e instalat."""
+        """Check if Ollama is available and the model is installed."""
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
@@ -230,7 +230,7 @@ class VisionEngine:
                         return False
                     data = await resp.json()
                     models = [m["name"] for m in data.get("models", [])]
-                    # Verifică potrivire parțială (qwen2.5vl:7b vs qwen2.5vl:7b-instruct)
+                    # Check partial match (qwen2.5vl:7b vs qwen2.5vl:7b-instruct)
                     return any(self.model.split(":")[0] in m for m in models)
         except Exception:
             return False

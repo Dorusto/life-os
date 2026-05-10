@@ -1,0 +1,16 @@
+- [x] Read all backend Python files
+- [x] Find all Romanian text with grep
+- [ ] Translate backend/core/memory/database.py
+- [ ] Translate backend/core/memory/categorizer.py
+- [ ] Translate backend/core/actual_client/client.py
+- [ ] Translate backend/core/ocr/vision_engine.py
+- [ ] Translate backend/core/ocr/parser.py
+- [ ] Translate backend/core/csv_importer/profiles.py
+- [ ] Translate backend/core/csv_importer/normalizer.py
+- [ ] Translate backend/core/csv_importer/detector.py
+- [ ] Translate backend/core/config/settings.py
+- [ ] Translate backend/api/transactions.py (comment only)
+- [ ] Translate backend/api/receipts.py (comment only)
+- [ ] Translate backend/services/receipt_service.py (minor)
+- [ ] Verify no Romanian remains in backend Python files
+- [ ] Run syntax check
