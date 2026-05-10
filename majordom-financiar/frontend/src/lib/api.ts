@@ -371,3 +371,18 @@ export async function getBudgetStatus(month?: number, year?: number): Promise<Bu
   const qs = params.toString()
   return request<BudgetCategory[]>(`/budget${qs ? `?${qs}` : ''}`)
 }
+
+// --- Proposals ---
+
+export interface ConfirmResult {
+  success: boolean
+  message: string
+}
+
+export async function confirmProposal(id: string): Promise<ConfirmResult> {
+  return request<ConfirmResult>(`/proposals/${id}/confirm`, { method: 'POST' })
+}
+
+export async function cancelProposal(id: string): Promise<void> {
+  return request<void>(`/proposals/${id}/cancel`, { method: 'POST' })
+}

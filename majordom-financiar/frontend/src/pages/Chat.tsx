@@ -1,10 +1,13 @@
 import { useState, useRef, useEffect, FormEvent } from 'react'
 import { Send } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
 import { sendChatMessageStreaming } from '../lib/api'
+import ProposalCard, { ProposalData } from '../components/ProposalCard'
 
 interface Message {
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'proposal'
   content: string
+  proposal?: ProposalData
 }
 
 const starterSuggestions = [
@@ -59,6 +62,21 @@ export default function Chat() {
         })
       },
       () => {
+        setMessages(prev => {
+          const last = prev[prev.length - 1]
+          if (last?.role === 'assistant' && last.content.trim().startsWith('{')) {
+            try {
+              const parsed = JSON.parse(last.content)
+              if (parsed.type === 'proposal') {
+                return [
+                  ...prev.slice(0, -1),
+                  { role: 'proposal' as const, content: '', proposal: parsed as ProposalData },
+                ]
+              }
+            } catch {}
+          }
+          return prev
+        })
         setLoading(false)
       },
       (error) => {
@@ -98,17 +116,47 @@ export default function Chat() {
             key={idx}
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            <div
-              className={`
-                max-w-[80%] px-4 py-3 text-sm leading-relaxed rounded-2xl
-                ${msg.role === 'user'
-                  ? 'bg-accent text-white rounded-br-sm'
-                  : 'bg-surface border border-border text-white rounded-bl-sm'
-                }
-              `}
-            >
-              {msg.content}
-            </div>
+            {msg.role === 'proposal' && msg.proposal ? (
+              <ProposalCard
+                proposal={msg.proposal}
+                onConfirmed={(message) => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx
+                        ? { role: 'assistant', content: message }
+                        : m
+                    )
+                  )
+                }}
+                onCancelled={() => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx
+                        ? { role: 'assistant', content: 'Cancelled.' }
+                        : m
+                    )
+                  )
+                }}
+              />
+            ) : (
+              <div
+                className={`
+                  max-w-[80%] px-4 py-3 text-sm leading-relaxed rounded-2xl
+                  ${msg.role === 'user'
+                    ? 'bg-accent text-white rounded-br-sm'
+                    : 'bg-surface border border-border text-white rounded-bl-sm'
+                  }
+                `}
+              >
+                {msg.role === 'assistant' ? (
+                  <div className="prose prose-invert prose-sm max-w-none prose-p:my-0 prose-ul:my-1 prose-li:my-0">
+                    <ReactMarkdown>{msg.content}</ReactMarkdown>
+                  </div>
+                ) : (
+                  msg.content
+                )}
+              </div>
+            )}
           </div>
         ))}
 

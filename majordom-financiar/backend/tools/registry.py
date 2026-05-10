@@ -13,11 +13,11 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "add_transaction",
+            "name": "propose_transaction",
             "description": (
-                "Add a new expense or income to Actual Budget. "
+                "Propose adding a new expense or income to Actual Budget. "
                 "Use this when the user says they spent money at a store or received money. "
-                "Always confirm the details before calling if any field is ambiguous."
+                "The user will confirm or cancel before it is actually saved."
             ),
             "parameters": {
                 "type": "object",
@@ -32,31 +32,26 @@ TOOLS: list[dict] = [
                     },
                     "date": {
                         "type": "string",
-                        "description": (
-                            "Transaction date in YYYY-MM-DD format. "
-                            "Use today's date if the user did not specify one."
-                        ),
+                        "description": "Transaction date YYYY-MM-DD. Use today's date if not mentioned.",
                     },
                     "category_name": {
                         "type": "string",
-                        "description": (
-                            "Category name — must match exactly one of the available categories "
-                            "listed in the system prompt."
-                        ),
+                        "description": "Category name from the available categories list.",
                     },
                     "account_id": {
                         "type": "string",
-                        "description": (
-                            "Account ID — must match exactly one of the available account IDs "
-                            "listed in the system prompt."
-                        ),
+                        "description": "Account ID from the available accounts list.",
+                    },
+                    "account_name": {
+                        "type": "string",
+                        "description": "Account name matching the account_id (for display).",
                     },
                     "notes": {
                         "type": "string",
-                        "description": "Optional notes about the transaction.",
+                        "description": "Optional notes.",
                     },
                 },
-                "required": ["merchant", "amount", "date", "category_name", "account_id"],
+                "required": ["merchant", "amount", "date", "category_name", "account_id", "account_name"],
             },
         },
     }
@@ -64,13 +59,8 @@ TOOLS: list[dict] = [
 
 
 async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
-    """
-    Dispatch a tool call by name. Returns a human-readable result string
-    that is appended to the conversation as a tool message before the
-    LLM generates its final reply.
-    """
-    if name == "add_transaction":
-        from backend.tools.finance.actual_budget import add_transaction
-        return await add_transaction(**arguments)
+    if name == "propose_transaction":
+        from backend.tools.finance.actual_budget import propose_transaction
+        return await propose_transaction(**arguments)
 
     return f"Unknown tool: {name}"
