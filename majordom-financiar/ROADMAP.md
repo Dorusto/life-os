@@ -1,5 +1,110 @@
 # Majordom — Roadmap
 
+## Milestones at a glance
+
+Progress overview. Each milestone is a coherent, shippable unit — do not start the next until the current one is complete. Details for every item are further down in this document.
+
+---
+
+### ✅ Milestone 0 — MVP (complete)
+
+The foundation. All three items were prerequisites for everything else.
+
+| # | Feature | Status |
+|---|---------|--------|
+| 0.1 | Architecture audit — remove `transactions` + `budget_limits` from SQLite | ✅ done |
+| 0.2 | Account selection on web PWA (receipt, chat, CSV import) | ✅ done |
+| 0.3 | Budget status dashboard — spending vs budget per category, home page | ✅ done |
+
+Supporting work also shipped: Chat AI with propose_transaction tool, receipt photo flow on web, CSV import on web, bottom nav bar, proposal card with category + account selector, account balance in dashboard header.
+
+---
+
+### 🔲 Milestone 1 — Daily Driver
+
+Makes Majordom genuinely useful every day without needing to open Actual Budget.
+
+| # | Feature | Notes |
+|---|---------|-------|
+| 1.1 | Budget conversational rebalancing | After overspend detected → chat asks which category to move money from → `setBudgetAmount()` |
+| 1.2 | Document Management System | Upload photo/PDF → AI detects type → extract fields → save; types: receipt, invoice, vehicle doc, insurance, warranty, contract, medical |
+| 1.3 | Interactive messages in chat (rich actions) | Structured blocks from LLM parsed by React → category buttons, date picker, transfer confirmation |
+| 1.4 | OFX/QFX import support | Better than CSV — unique transaction IDs, native AB deduplication |
+| 1.5 | Duplicate merge instead of silent delete | On CSV import: merge duplicates (preserve richer data) instead of deleting |
+
+---
+
+### 🔲 Milestone 2 — Onboarding Flow
+
+The big one. Majordom configures Actual Budget entirely through conversation — the user never touches AB directly.
+
+| # | Feature | Notes |
+|---|---------|-------|
+| 2.1 | Phase 1 — Discovery (15 questions) | Blocks A–G: budgeting style, household, income, accounts, credit cards, multi-currency, fixed obligations, loans, goals, end-of-month behavior, historical import |
+| 2.2 | Phase 2 — AB configuration | Accounts, CC debt setup, currency rules, schedules, categories, end-of-month automation, monthly allocations, goal templates, buffer, historical import handoff |
+| 2.3 | Transfer detection after historical import | Auto-detect transfer pairs (same amount, opposite sign, ±3 days) → present for confirmation |
+| 2.4 | Rules sync with Actual Budget | When user confirms a merchant→category mapping, also create/update the AB rule |
+
+---
+
+### 🔲 Milestone 3 — Vehicle Management
+
+Complete replacement for Fuelio.
+
+| # | Feature | Notes |
+|---|---------|-------|
+| 3.1 | Vehicle profiles + log (SQLite schema) | `vehicles` + `vehicle_log` tables; car + motorcycle |
+| 3.2 | Fuelio CSV import | Parse the 4-section Fuelio CSV; map CostTypeID → entry_type; deduplicate via `fuelio_unique_id` |
+| 3.3 | Refuel recording from photos | Upload gas station receipt → extract liters/price; upload dashboard photo → extract ODO |
+| 3.4 | Consumption + cost calculations | L/100km per fill-up, moving average (last 5), cost/km, monthly charts |
+| 3.5 | Reminders | APK/ITP + insurance renewal (30 days before); service by km or date |
+
+---
+
+### 🔲 Milestone 4 — Smart Alerts
+
+Proactive notifications so Majordom finds problems before the user does.
+
+| # | Feature | Notes |
+|---|---------|-------|
+| 4.1 | Extensible notification system | `notification_rules` (JSON config) + `notification_log` (anti-spam); APScheduler daily 08:00; Web Push primary, Telegram fallback |
+| 4.2 | Budget alert | After each transaction: notify when category exceeds X% of monthly limit |
+| 4.3 | Income variance alert | When received salary differs from scheduled → notify + offer category reallocation |
+| 4.4 | Goal risk alert | Weekly: is contribution pace on track to meet goal date? |
+| 4.5 | Recurring expense audit | Monthly: surface all recurring transactions + forgotten subscriptions |
+| 4.6 | Vehicle reminders | Daily: APK/ITP, insurance, service by km |
+| 4.7 | Market correction alert | Daily: ETF price API → notify on dip beyond threshold → "Buy from opportunity fund?" |
+| 4.8 | Savings goals progress | Emergency fund, vacation, large purchases — progress bars in PWA |
+| 4.9 | FIRE / Crossover Point Report | Use AB's native experimental report; Chat AI explains conversationally |
+
+---
+
+### 🔲 Milestone 5 — Integrations
+
+External services and advanced tracking.
+
+| # | Feature | Notes |
+|---|---------|-------|
+| 5.1 | Ghostfolio — investment monitoring | Self-hosted; ETF portfolio tracking; sync with AB off-budget accounts |
+| 5.2 | Crypto tracker with sell alert | Average acquisition cost (manual or Bitvavo import); alert on return threshold; configurable sell strategy |
+| 5.3 | Child portfolio dashboard | Off-budget AB account per child; conversational queries about growth |
+| 5.4 | Freelance / ZZP dashboard | Separate deductible tracking via `#deductible` tag; year-end tax filter |
+| 5.5 | Joint / couple budget | Shared AB file (Strategy A) or joint account in personal budget (Strategy B); contribution split by income |
+
+---
+
+### 🗄️ Backlog (low priority / on hold)
+
+| Feature | Notes |
+|---------|-------|
+| Voice input in PWA | Whisper (Ollama local) → text; privacy-first |
+| Automatic bank sync | GoCardless/Nordigen — on hold; EU individual developer access restricted; monitor PSD2/PSD3 |
+| GPU inference for Ollama | Currently CPU (~60s/image); revisit with smaller quantized models |
+| RON / multi-currency | Via Rule Action Templating workaround; covered in onboarding Q8 |
+| Automatic monthly report | Summary push / Telegram on 1st of month |
+
+---
+
 ## Architectural Principle
 
 **Majordom is a conversational interface over Actual Budget — not a financial application in its own right.**
