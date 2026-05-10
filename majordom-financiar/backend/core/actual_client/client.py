@@ -250,6 +250,126 @@ class ActualBudgetClient:
                 return Account(id=str(acc.id), name=acc.name, balance=initial_balance)
         return await self._run(_create)
 
+    async def get_full_context(
+        self,
+        month: int | None = None,
+        year: int | None = None,
+        recent_limit: int = 20,
+    ) -> dict:
+        """
+        Fetch accounts, monthly stats, and recent transactions in a single session.
+        Avoids the 429 rate-limit that occurs when opening three separate sessions.
+
+        Returns a dict with three keys:
+          accounts: list[dict] with name and balance (already formatted for chat context)
+          stats: dict with month, year, total, count, categories
+          recent_transactions: list[dict] with id, date, merchant, amount_cents, etc.
+        """
+        import calendar
+        from datetime import date as _date
+
+        today = _date.today()
+        month = month or today.month
+        year = year or today.year
+
+        def _get():
+            from actual.queries import get_accounts, get_transactions
+
+            with self._get_actual() as actual:
+                actual.download_budget()
+
+                # 1. Accounts — same logic as get_accounts()
+                accounts_data = get_accounts(actual.session)
+                accounts_result = []
+                for acc in accounts_data:
+                    if acc.closed:
+                        continue
+                    txs = get_transactions(actual.session, account=acc)
+                    balance = sum(
+                        float(tx.amount or 0)
+                        for tx in txs
+                        if not tx.tombstone
+                    ) / 100
+                    accounts_result.append({
+                        "name": acc.name,
+                        "balance": balance,
+                    })
+
+                # 2. Monthly stats — same logic as get_monthly_stats()
+                start = _date(year, month, 1)
+                last_day = calendar.monthrange(year, month)[1]
+                end = _date(year, month, last_day)
+
+                txs = get_transactions(actual.session, start_date=start, end_date=end)
+
+                total = 0.0
+                count = 0
+                by_category = defaultdict(lambda: {"total": 0.0, "count": 0, "name": ""})
+
+                for tx in txs:
+                    if tx.tombstone or tx.starting_balance_flag:
+                        continue
+                    amount = float(tx.amount or 0) / 100
+                    if amount >= 0:
+                        continue  # skip income
+                    amount = abs(amount)
+                    total += amount
+                    count += 1
+
+                    cat_name = "Uncategorized"
+                    cat_key = "uncategorized"
+                    if tx.category_id and tx.category:
+                        cat_name = tx.category.name or "Uncategorized"
+                        cat_key = str(tx.category_id)
+
+                    by_category[cat_key]["total"] += amount
+                    by_category[cat_key]["count"] += 1
+                    by_category[cat_key]["name"] = cat_name
+
+                stats_result = {
+                    "month": month,
+                    "year": year,
+                    "total": round(total, 2),
+                    "count": count,
+                    "categories": dict(by_category),
+                }
+
+                # 3. Recent transactions — same logic as get_recent_transactions()
+                all_txs = get_transactions(actual.session)
+
+                txs_result = []
+                for tx in all_txs:
+                    if tx.tombstone or tx.starting_balance_flag:
+                        continue
+
+                    merchant = ""
+                    if tx.payee:
+                        merchant = tx.payee.name or ""
+                    if not merchant and hasattr(tx, "imported_payee"):
+                        merchant = tx.imported_payee or ""
+
+                    category_name = None
+                    if tx.category:
+                        category_name = tx.category.name
+
+                    txs_result.append({
+                        "date": tx.date,
+                        "merchant": merchant or "Unknown",
+                        "amount": abs(float(tx.amount or 0)) / 100,
+                        "category": category_name,
+                    })
+
+                txs_result.sort(key=lambda t: str(t["date"]), reverse=True)
+                txs_result = txs_result[:recent_limit]
+
+                return {
+                    "accounts": accounts_result,
+                    "stats": stats_result,
+                    "recent_transactions": txs_result,
+                }
+
+        return await self._run(_get)
+
     async def get_recent_transactions(self, limit: int = 20) -> list[dict]:
         """
         Return the most recent transactions from Actual Budget, sorted by date descending.

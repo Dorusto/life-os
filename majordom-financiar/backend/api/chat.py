@@ -75,42 +75,17 @@ class ChatRequest(BaseModel):
 
 
 async def _fetch_financial_context() -> dict:
-    """Fetch accounts + stats + recent transactions from Actual Budget."""
+    """Fetch all financial context from Actual Budget in a single session."""
     client = ActualBudgetClient(
         url=settings.actual.url,
         password=settings.actual.password,
         sync_id=settings.actual.sync_id,
     )
-    context: dict = {}
     try:
-        accounts = await client.get_accounts()
-        context["accounts"] = [
-            {"name": acc.name, "balance": acc.balance} for acc in accounts
-        ]
+        return await client.get_full_context()
     except Exception as e:
-        logger.warning("Could not fetch accounts for chat context: %s", e)
-
-    try:
-        stats = await client.get_monthly_stats()
-        context["stats"] = stats
-    except Exception as e:
-        logger.warning("Could not fetch stats for chat context: %s", e)
-
-    try:
-        txs = await client.get_recent_transactions(limit=20)  # last 20 transactions as requested
-        context["recent_transactions"] = [
-            {
-                "date": tx["date"],
-                "merchant": tx["merchant"] or "Unknown",
-                "amount": abs(tx["amount_cents"]) / 100,
-                "category": tx.get("category_name"),
-            }
-            for tx in txs
-        ]
-    except Exception as e:
-        logger.warning("Could not fetch transactions for chat context: %s", e)
-
-    return context
+        logger.warning("Could not fetch financial context: %s", e)
+        return {}
 
 
 def _build_system_prompt(context: dict) -> str:
