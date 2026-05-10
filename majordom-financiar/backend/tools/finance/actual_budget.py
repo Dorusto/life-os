@@ -62,7 +62,7 @@ async def propose_transaction(
     date: str,
     category_name: str,
     account_id: str,
-    account_name: str,
+    account_name: str = "",
     notes: str = "",
 ) -> str:
     """

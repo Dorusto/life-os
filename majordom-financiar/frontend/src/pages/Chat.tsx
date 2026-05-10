@@ -4,11 +4,15 @@ import ReactMarkdown from 'react-markdown'
 import { sendChatMessageStreaming } from '../lib/api'
 import ProposalCard, { ProposalData } from '../components/ProposalCard'
 
-interface Message {
+export interface Message {
   role: 'user' | 'assistant' | 'proposal'
   content: string
   proposal?: ProposalData
 }
+
+export const INITIAL_MESSAGES: Message[] = [
+  { role: 'assistant', content: "Hello! I'm Majordom, your financial assistant. Ask me anything about your spending, accounts, or savings goals." }
+]
 
 const starterSuggestions = [
   'How much did I spend this month?',
@@ -16,13 +20,16 @@ const starterSuggestions = [
   'What are my biggest expenses?',
 ]
 
-export default function Chat() {
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'assistant', content: "Hello! I'm Majordom, your financial assistant. Ask me anything about your spending, accounts, or savings goals." }
-  ])
+interface ChatProps {
+  messages: Message[]
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>
+}
+
+export default function Chat({ messages, setMessages }: ChatProps) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
 
   // Scroll to bottom whenever messages change
   useEffect(() => {
@@ -39,8 +46,10 @@ export default function Chat() {
     setInput('')
     setLoading(true)
 
-    // Build history from previous messages (including the welcome assistant message)
-    const history = messages.map(m => ({ role: m.role, content: m.content }))
+    // Build history — exclude proposal messages (role unknown to backend)
+    const history = messages
+      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .map(m => ({ role: m.role, content: m.content }))
 
     sendChatMessageStreaming(
       text,
@@ -64,16 +73,20 @@ export default function Chat() {
       () => {
         setMessages(prev => {
           const last = prev[prev.length - 1]
-          if (last?.role === 'assistant' && last.content.trim().startsWith('{')) {
-            try {
-              const parsed = JSON.parse(last.content)
-              if (parsed.type === 'proposal') {
-                return [
-                  ...prev.slice(0, -1),
-                  { role: 'proposal' as const, content: '', proposal: parsed as ProposalData },
-                ]
-              }
-            } catch {}
+          if (last?.role === 'assistant') {
+            const trimmed = last.content.trim()
+            const jsonStart = trimmed.indexOf('{')
+            if (jsonStart !== -1) {
+              try {
+                const parsed = JSON.parse(trimmed.slice(jsonStart))
+                if (parsed.type === 'proposal') {
+                  return [
+                    ...prev.slice(0, -1),
+                    { role: 'proposal' as const, content: '', proposal: parsed as ProposalData },
+                  ]
+                }
+              } catch {}
+            }
           }
           return prev
         })

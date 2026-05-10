@@ -1,10 +1,11 @@
+import { useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { isAuthenticated } from './lib/auth'
 import Login from './pages/Login'
 import Home from './pages/Home'
 import ReceiptFlow from './pages/ReceiptFlow'
 import ImportPage from './pages/ImportPage'
-import Chat from './pages/Chat'
+import Chat, { type Message, INITIAL_MESSAGES } from './pages/Chat'
 import BottomNav from './components/BottomNav'
 
 /**
@@ -28,6 +29,7 @@ const HIDE_NAV_ON = ['/login', '/receipt']
 function Layout() {
   const location = useLocation()
   const showNav = !HIDE_NAV_ON.some(p => location.pathname.startsWith(p))
+  const [chatMessages, setChatMessages] = useState<Message[]>(INITIAL_MESSAGES)
 
   return (
     <>
@@ -61,7 +63,7 @@ function Layout() {
           path="/chat"
           element={
             <ProtectedRoute>
-              <Chat />
+              <Chat messages={chatMessages} setMessages={setChatMessages} />
             </ProtectedRoute>
           }
         />

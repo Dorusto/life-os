@@ -9,6 +9,7 @@ model can answer questions about actual data without hallucinating.
 """
 import logging
 import json
+import re
 from typing import AsyncGenerator
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -137,6 +138,8 @@ You are Majordom, a concise and practical personal finance assistant.
 - Detect the user's language from their message and respond in the same language (Romanian, Dutch, or English).
 - When referencing amounts, always use the € symbol.
 - Never invent data — only use the snapshot above.
+- When the user wants to record/add a transaction: ALWAYS call propose_transaction immediately. Never write "Proposed addition" or "Is this correct?" as text — call the tool directly. The user will confirm via the UI.
+- Exception: if you truly cannot determine the category, ask which category to use first, then call propose_transaction once the user answers.
 
 Today's date: {date.today().isoformat()}
 """
@@ -180,8 +183,16 @@ async def _stream_ollama_response(messages: list[dict], ollama_url: str, model: 
             raise HTTPException(status_code=500, detail="Failed to stream response from assistant")
 
 
+_AMOUNT_RE = re.compile(r'\b\d+[\.,]?\d*\s*(euro|eur|€|\$|lei|ron)\b', re.IGNORECASE)
+
+
+def _message_has_amount(text: str) -> bool:
+    """True when the user's message contains a monetary amount (transaction intent)."""
+    return bool(_AMOUNT_RE.search(text))
+
+
 async def _call_ollama_non_streaming(
-    messages: list[dict], ollama_url: str, model: str
+    messages: list[dict], ollama_url: str, model: str, force_tool: bool = False
 ) -> dict:
     """Call Ollama without streaming, with tools. Returns full response dict."""
     payload = {
@@ -189,6 +200,7 @@ async def _call_ollama_non_streaming(
         "messages": messages,
         "stream": False,
         "tools": TOOLS,
+        "tool_choice": "required" if force_tool else "auto",
         "options": {
             "temperature": 0.3,
             "num_predict": 512,
@@ -232,9 +244,14 @@ async def chat_stream(
         "X-Accel-Buffering": "no",
     }
 
-    # Step 1: non-streaming call with tools
+    # Step 1: non-streaming call with tools.
+    # If the user's message contains a monetary amount, force a tool call so the
+    # model cannot fall back to writing a text proposal instead of calling propose_transaction.
+    user_text = req.messages[-1].content if req.messages else ""
+    force_tool = _message_has_amount(user_text)
+
     try:
-        first_response = await _call_ollama_non_streaming(messages, ollama_url, model)
+        first_response = await _call_ollama_non_streaming(messages, ollama_url, model, force_tool=force_tool)
     except HTTPException as e:
         async def error_gen():
             yield f"Error: {e.detail}"
@@ -258,9 +275,16 @@ async def chat_stream(
             except Exception as exc:
                 logger.error("Tool execution failed: %s — %s", name, exc)
                 result = f"Tool error: {exc}"
+
+            # propose_transaction returns JSON — send directly to frontend, skip second LLM call
+            if name == "propose_transaction":
+                async def yield_proposal(r=result):
+                    yield r
+                return StreamingResponse(yield_proposal(), media_type="text/plain", headers=streaming_headers)
+
             messages.append({"role": "tool", "content": result})
 
-        # Second call: streaming confirmation
+        # Second call: streaming confirmation (for future non-proposal tools)
         async def stream_after_tools():
             try:
                 async for chunk in _stream_ollama_response(messages, ollama_url, model):

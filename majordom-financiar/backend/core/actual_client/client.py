@@ -167,34 +167,25 @@ class ActualBudgetClient:
             tx_date = date.today()
 
         def _add():
-            import hashlib
+            import uuid
             from actual.queries import (
                 create_transaction, get_or_create_payee,
-                get_transactions, get_categories,
+                get_categories,
             )
             with self._get_actual() as actual:
                 actual.download_budget()
 
-                # Deterministic hash — same transaction (date+merchant+amount) → same ID
-                sig = f"{tx_date.isoformat()}{payee}{abs(amount):.4f}"
-                imported_id = hashlib.sha256(sig.encode()).hexdigest()[:16]
-
-                # Check if already exists (e.g., previously imported via CSV)
-                existing_ids = {
-                    tx.financial_id for tx in get_transactions(actual.session)
-                    if tx.financial_id and not tx.tombstone
-                }
-                if imported_id in existing_ids:
-                    logger.info(f"Duplicate skipped: {payee} {amount:.2f} ({tx_date})")
-                    return None
+                # Random UUID — manual entries are never deduplicated.
+                # (CSV import uses its own dedup logic in add_transactions_batch.)
+                imported_id = uuid.uuid4().hex[:16]
 
                 payee_obj = get_or_create_payee(actual.session, payee)
-                # Only use existing categories — never create new ones
+                # Only use existing visible categories — never create new ones, never use hidden ones
                 cat_obj = None
                 if category_name:
                     all_cats = get_categories(actual.session)
                     cat_obj = next(
-                        (c for c in all_cats if c.name.lower() == category_name.lower()),
+                        (c for c in all_cats if c.name.lower() == category_name.lower() and not c.hidden),
                         None,
                     )
                 tx = create_transaction(
@@ -311,8 +302,10 @@ class ActualBudgetClient:
                 all_cats = get_categories(actual.session)
                 cat_name_map: dict[str, str] = {}
                 for cat in all_cats:
-                    if cat.id and not cat.hidden:
-                        cat_name_map[str(cat.id)] = cat.name or "Unknown"
+                    if cat.id:
+                        # Hidden categories (from old group) still get a name so
+                        # they don't show as "Unknown" in the dashboard.
+                        cat_name_map[str(cat.id)] = cat.name or "Uncategorized"
 
                 # --- 4. Merge budget + spending ---
                 all_category_ids = set(budget_by_category.keys()) | set(spent_by_category.keys())
@@ -552,9 +545,18 @@ class ActualBudgetClient:
 
                     account_name = tx.account.name if tx.account else ""
 
+                    date_val = tx.date
+                    if isinstance(date_val, int):
+                        date_iso = f"{date_val // 10000:04d}-{(date_val % 10000) // 100:02d}-{date_val % 100:02d}"
+                    else:
+                        try:
+                            date_iso = date_val.isoformat()
+                        except AttributeError:
+                            date_iso = str(date_val)
+
                     result.append({
                         "id": str(tx.id),
-                        "date": tx.date,
+                        "date": date_iso,
                         "merchant": merchant,
                         "amount_cents": int(tx.amount or 0),
                         "category_name": category_name,
@@ -564,7 +566,7 @@ class ActualBudgetClient:
                     })
 
                 # Sort newest-first then slice — get_transactions() order is not guaranteed
-                result.sort(key=lambda t: str(t["date"]), reverse=True)
+                result.sort(key=lambda t: t["date"], reverse=True)
                 return result[:limit]
 
         return await self._run(_get)

@@ -16,6 +16,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+class ConfirmRequest(BaseModel):
+    category_name: str | None = None
+
+
 class ConfirmResult(BaseModel):
     success: bool
     message: str
@@ -24,18 +28,21 @@ class ConfirmResult(BaseModel):
 @router.post("/proposals/{proposal_id}/confirm", response_model=ConfirmResult)
 async def confirm_proposal(
     proposal_id: str,
+    body: ConfirmRequest = ConfirmRequest(),
     current_user: str = Depends(get_current_user),
 ):
     proposal = proposal_store.get(proposal_id)
     if not proposal:
         raise HTTPException(status_code=404, detail="Proposal not found or already confirmed")
 
+    category_name = body.category_name or proposal["category_name"]
+
     try:
         result = await _add_transaction(
             merchant=proposal["merchant"],
             amount=proposal["amount"],
             date=proposal["date"],
-            category_name=proposal["category_name"],
+            category_name=category_name,
             account_id=proposal["account_id"],
             notes=proposal.get("notes", ""),
         )

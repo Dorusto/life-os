@@ -51,7 +51,7 @@ TOOLS: list[dict] = [
                         "description": "Optional notes.",
                     },
                 },
-                "required": ["merchant", "amount", "date", "category_name", "account_id", "account_name"],
+                "required": ["merchant", "amount", "date", "category_name", "account_id"],
             },
         },
     }

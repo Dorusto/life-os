@@ -22,20 +22,17 @@ interface Props {
 }
 
 function getColor(percentage: number, budgeted: number): string {
-  if (budgeted === 0) return '#71717A'   // neutral — no budget set
-  if (percentage > 100) return '#EF4444' // red
-  if (percentage >= 80) return '#F59E0B' // yellow
-  return '#22C55E'                        // green
-}
-
-function getIndicator(percentage: number, budgeted: number): string {
-  if (budgeted === 0) return '○'
-  if (percentage > 100) return '🔴'
-  if (percentage >= 80) return '🟡'
-  return '🟢'
+  if (budgeted === 0) return '#71717A'
+  if (percentage > 100) return '#FF2D2D'
+  // Smooth HSL: hue 120 (green) → 0 (red) proportional to percentage
+  const hue = Math.round(120 * (1 - percentage / 100))
+  return `hsl(${hue}, 75%, 45%)`
 }
 
 export default function BudgetDashboard({ categories, month, year }: Props) {
+  const totalSpent = categories.reduce((sum, c) => sum + c.spent, 0)
+  const totalBudgeted = categories.reduce((sum, c) => sum + c.budgeted, 0)
+
   // Split into budgeted vs unbudgeted
   const budgetedCats = categories.filter(c => c.budgeted > 0)
   const unbudgetedCats = categories.filter(c => c.budgeted === 0)
@@ -63,6 +60,16 @@ export default function BudgetDashboard({ categories, month, year }: Props) {
           </p>
           <p className="text-white text-lg font-semibold mt-0.5">Budget</p>
         </div>
+        <div className="text-right">
+          <p className="text-white text-lg font-semibold">
+            €{totalSpent.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+          {totalBudgeted > 0 && (
+            <p className="text-muted text-xs">
+              of €{totalBudgeted.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} budget
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Budget rows */}
@@ -82,7 +89,6 @@ export default function BudgetDashboard({ categories, month, year }: Props) {
 function BudgetRow({ category }: { category: BudgetCategory }) {
   const { category_name, budgeted, spent, percentage } = category
   const color = getColor(percentage, budgeted)
-  const indicator = getIndicator(percentage, budgeted)
   const hasBudget = budgeted > 0
 
   return (
@@ -90,7 +96,10 @@ function BudgetRow({ category }: { category: BudgetCategory }) {
       {/* Category name + spent/budgeted */}
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-1.5 min-w-0">
-          <span className="text-sm flex-shrink-0">{indicator}</span>
+          <span
+            className="w-2 h-2 rounded-full flex-shrink-0"
+            style={{ backgroundColor: color }}
+          />
           <span className="text-white text-xs truncate">{category_name}</span>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 ml-2">

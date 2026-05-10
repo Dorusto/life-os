@@ -372,6 +372,17 @@ export async function getBudgetStatus(month?: number, year?: number): Promise<Bu
   return request<BudgetCategory[]>(`/budget${qs ? `?${qs}` : ''}`)
 }
 
+// --- Categories ---
+
+export interface CategoryItem {
+  id: string
+  name: string
+}
+
+export async function getCategories(): Promise<CategoryItem[]> {
+  return request<CategoryItem[]>('/categories')
+}
+
 // --- Proposals ---
 
 export interface ConfirmResult {
@@ -379,8 +390,11 @@ export interface ConfirmResult {
   message: string
 }
 
-export async function confirmProposal(id: string): Promise<ConfirmResult> {
-  return request<ConfirmResult>(`/proposals/${id}/confirm`, { method: 'POST' })
+export async function confirmProposal(id: string, categoryName?: string): Promise<ConfirmResult> {
+  return request<ConfirmResult>(`/proposals/${id}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify({ category_name: categoryName ?? null }),
+  })
 }
 
 export async function cancelProposal(id: string): Promise<void> {
