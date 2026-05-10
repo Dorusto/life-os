@@ -61,6 +61,10 @@ class MemoryDB:
         conn = self._get_conn()
         try:
             conn.executescript("""
+                -- LEGACY — local copy of transactions; violates architectural principle.
+                -- Financial data belongs in Actual Budget, not SQLite.
+                -- Used only by the Telegram bot (maintenance mode).
+                -- To be removed when the Telegram bot is retired.
                 CREATE TABLE IF NOT EXISTS transactions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     merchant TEXT NOT NULL,
@@ -90,6 +94,10 @@ class MemoryDB:
                     UNIQUE(keyword, category_id)
                 );
 
+                -- LEGACY — local copy of budget limits; violates architectural principle.
+                -- Budget limits belong in Actual Budget.
+                -- Used only by the Telegram bot (maintenance mode).
+                -- To be removed when the Telegram bot is retired.
                 CREATE TABLE IF NOT EXISTS budget_limits (
                     category_name TEXT PRIMARY KEY,
                     monthly_limit REAL NOT NULL,

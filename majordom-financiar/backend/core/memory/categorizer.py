@@ -5,13 +5,11 @@ Motor de categorizare inteligent cu învățare din feedback.
 Folosește un sistem simplu dar eficient:
 1. Potrivire exactă pe merchant (din istoric)
 2. Potrivire pe cuvinte cheie (din config + învățate)
-3. TF-IDF simplificat pe textul OCR complet
 
 Nu folosim ML greu — un sistem bazat pe reguli + frecvențe
 funcționează excelent pentru cazul nostru și e 100% transparent.
 """
 import json
-import math
 import re
 from pathlib import Path
 from dataclasses import dataclass
@@ -53,8 +51,7 @@ class SmartCategorizer:
     Niveluri de categorizare (în ordine de prioritate):
     1. HISTORY — merchant exact văzut anterior → confidență 95%
     2. KEYWORDS — cuvinte cheie potrivite → confidență 70-90%
-    3. TFIDF — similaritate text cu tranzacții anterioare → confidență 50-80%
-    4. FALLBACK → "other" cu confidență 0%
+    3. FALLBACK → "other" cu confidență 0%
     """
 
     def __init__(self, db: MemoryDB, categories_path: str | None = None):
@@ -141,19 +138,6 @@ class SmartCategorizer:
                 reason=f"Cuvânt cheie: '{matched_keyword}'"
             )
 
-        # --- Nivel 3: TF-IDF pe textul OCR ---
-        if ocr_text:
-            tfidf_match = self._tfidf_match(text_lower)
-            if tfidf_match:
-                cat_id, conf = tfidf_match
-                cat = self.categories.get(cat_id, {})
-                return CategoryPrediction(
-                    category_id=cat_id,
-                    category_name=cat.get("name", cat_id),
-                    confidence=conf,
-                    reason="Similaritate text cu tranzacții anterioare"
-                )
-
         # --- Fallback ---
         return CategoryPrediction(
             category_id="other",
@@ -172,71 +156,6 @@ class SmartCategorizer:
         for keyword in sorted_keywords:
             if keyword in text:
                 return self._keyword_index[keyword], keyword
-
-        return None
-
-    def _tfidf_match(self, text: str) -> tuple[str, float] | None:
-        """
-        TF-IDF simplificat.
-        Compară textul curent cu texte OCR anterioare din fiecare categorie.
-        """
-        # Tokenizează textul curent
-        current_tokens = self._tokenize(text)
-        if not current_tokens:
-            return None
-
-        # Ia tranzacțiile anterioare cu text OCR
-        all_transactions = self.db.get_transactions(limit=500)
-        if not all_transactions:
-            return None
-
-        # Grupează pe categorii
-        category_texts: dict[str, list[str]] = {}
-        for tx in all_transactions:
-            if tx.raw_ocr_text and tx.user_confirmed:
-                if tx.category_id not in category_texts:
-                    category_texts[tx.category_id] = []
-                category_texts[tx.category_id].append(tx.raw_ocr_text.lower())
-
-        if not category_texts:
-            return None
-
-        # Calculează similaritate cosinus simplificată
-        best_cat = None
-        best_score = 0.0
-        total_docs = sum(len(texts) for texts in category_texts.values())
-
-        for cat_id, texts in category_texts.items():
-            # Construiește vocabularul categoriei
-            cat_tokens = Counter()
-            for t in texts:
-                cat_tokens.update(self._tokenize(t))
-
-            # Calculează scorul
-            score = 0.0
-            for token in current_tokens:
-                if token in cat_tokens:
-                    tf = cat_tokens[token] / max(sum(cat_tokens.values()), 1)
-                    # IDF simplificat
-                    docs_with_token = sum(
-                        1 for cat_texts in category_texts.values()
-                        for t in cat_texts if token in t
-                    )
-                    idf = math.log(total_docs / max(docs_with_token, 1))
-                    score += tf * idf
-
-            # Normalizează
-            if current_tokens:
-                score /= len(current_tokens)
-
-            if score > best_score:
-                best_score = score
-                best_cat = cat_id
-
-        if best_cat and best_score > 0.01:
-            # Mapează scorul la confidență (0.5 - 0.8)
-            confidence = min(0.8, 0.5 + best_score * 10)
-            return best_cat, confidence
 
         return None
 
