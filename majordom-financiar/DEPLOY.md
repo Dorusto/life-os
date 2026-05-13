@@ -37,6 +37,12 @@ apt update && apt install -y curl
 curl -fsSL https://get.docker.com | sh
 ```
 
+**Enable Docker autostart on boot** — required, otherwise containers won't start after a reboot:
+
+```bash
+sudo systemctl enable docker
+```
+
 Verify:
 
 ```bash
@@ -137,6 +143,7 @@ Same as Proxmox LXC from step 3 onwards. Install Docker with:
 
 ```bash
 curl -fsSL https://get.docker.com | sh
+sudo systemctl enable docker
 ```
 
 Then follow steps 3–8 above.
