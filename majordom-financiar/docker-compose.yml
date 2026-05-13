@@ -86,7 +86,7 @@ services:
       - "${WEB_PORT:-3000}:80"
     depends_on:
       majordom-api:
-        condition: service_healthy
+        condition: service_started
     networks:
       - majordom-net
 

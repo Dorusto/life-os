@@ -10,11 +10,14 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+import aiohttp
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
 from backend.api import auth, receipts, transactions, chat, csv_import, proposals
+from backend.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +57,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+@app.middleware("http")
+async def no_cache_api(request: Request, call_next) -> Response:
+    response = await call_next(request)
+    if request.url.path.startswith("/api/"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
+
 # Serve uploaded receipt images so the frontend can display them in the
 # review screen. Path: /uploads/{receipt_id}.jpg
 app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
@@ -68,5 +79,17 @@ app.include_router(proposals.router, prefix="/api")
 
 @app.get("/api/health")
 async def health():
-    """Used by Docker healthcheck and by Nginx to verify the backend is up."""
+    """Used by Docker healthcheck and by Nginx to verify the backend is up.
+
+    Also verifies Actual Budget is reachable so Docker won't start majordom-web
+    until the full stack is operational.
+    """
+    url = settings.actual.url.rstrip("/") + "/"
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(url, timeout=aiohttp.ClientTimeout(total=3)) as resp:
+                if resp.status >= 500:
+                    raise HTTPException(status_code=503, detail="Actual Budget returning errors")
+    except aiohttp.ClientError as exc:
+        raise HTTPException(status_code=503, detail=f"Cannot reach Actual Budget: {exc}")
     return {"status": "ok", "service": "majordom-api", "version": "2.0.0"}
