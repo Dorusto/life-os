@@ -264,3 +264,9 @@ Short version of what's coming:
 
 *Self-hosted. Your data stays yours.*
 
+---
+
+## Project status
+
+This is a personal project, not a managed open-source product. The code is public for transparency and inspiration. I'm not actively reviewing pull requests or managing external contributions.
+
