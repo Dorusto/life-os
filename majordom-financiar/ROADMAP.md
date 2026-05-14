@@ -101,7 +101,7 @@ External services and advanced tracking.
 | Automatic bank sync | GoCardless/Nordigen — on hold; EU individual developer access restricted; monitor PSD2/PSD3 |
 | GPU inference for Ollama | Currently CPU (~60s/image); revisit with smaller quantized models |
 | RON / multi-currency | Via Rule Action Templating workaround; covered in onboarding Q8 |
-| Automatic monthly report | Summary push / Telegram on 1st of month |
+| Automatic monthly report | Summary push / Telegram on 1st of month; Telegram version already implemented in `bot/handlers.py:_monthly_summary_job` (APScheduler, sends previous month stats) — port to backend as part of Milestone 4.1 notification system (web push primary, Telegram fallback) |
 
 ---
 
@@ -161,24 +161,21 @@ The home page: budget overview for the current month, one row per category with 
 
 ### 🔲 Up Next
 
-#### ⚠️ Architecture audit — align existing code with AB principle
+#### ✅ Architecture audit — complete (2026-05-14)
 
-The codebase was written before the architectural principle was established (Majordom is an interface over Actual Budget — it does not store or own financial data). The existing Telegram bot code likely violates this in several places.
+Audit done. Original violations fixed: `transactions` and `budget_limits` tables removed from SQLite, TF-IDF removed from `SmartCategorizer`, async/sync pattern correct throughout, no financial data leaks into SQLite.
 
-**Known violations (identified in ARCHITECTURE.md):**
-- `transactions` table in SQLite — local copy of transactions; data belongs in Actual Budget
-- `budget_limits` table in SQLite — local copy of budget limits; limits belong in Actual Budget
-- `SmartCategorizer` uses TF-IDF on local SQLite data — should migrate to Actual Budget rules
-- Deduplication code may query local SQLite instead of relying on AB's `imported_id` check
+**Remaining issues found during audit — to be fixed before or alongside Milestone 1:**
 
-**What to do:**
-1. Audit all SQLite reads/writes in `memory/database.py` and `memory/categorizer.py`
-2. For each piece of data: does it belong in Actual Budget? If yes, remove from SQLite and query AB instead
-3. Verify that `merchant_mappings` confirmed by the user are synced to AB rules (not just stored locally)
-4. Remove `transactions` and `budget_limits` tables once their usages are migrated
-5. After cleanup: re-test receipt photo flow, CSV import, and auto-categorization end-to-end
+- **Bug (active) — `bot/csv_wizard.py:33-34`** — import paths use pre-refactor module names (`from config import settings`, `from csv_importer import ...`). Must be `from backend.core.config import settings` and `from backend.core.csv_importer import ...`. Telegram CSV import is currently broken in production.
 
-This must be done **before implementing new features** — otherwise new code will be built on the same wrong foundation.
+- **Dead code — `backend/services/chat_service.py`** — `ChatService` class defined but not imported or used anywhere. `api/chat.py` has its own inline logic. File should be deleted.
+
+- **Stale comment — `backend/services/receipt_service.py:95-96`** — refers to "TF-IDF" which was removed. Update comment to match actual categorization flow (history → keywords → fallback).
+
+- **Performance — `ActualBudgetClient` instantiated per-request** — every API endpoint creates a fresh client with its own `ThreadPoolExecutor(max_workers=1)`. Should be a singleton (FastAPI dependency) to avoid thread churn under concurrent requests.
+
+- **`SmartCategorizer` uses local `categories.json`** — category suggestions are based on a static local file, not the actual categories in Actual Budget. If the user adds or renames categories in AB, `SmartCategorizer` cannot suggest them. Long-term resolution: Milestone 2.4 (rules sync) and Step 5 (tool registry migration).
 
 ---
 
@@ -568,6 +565,8 @@ These two systems must not conflict:
 - When Majordom saves a merchant→category mapping confirmed by the user, also create/update the rule in Actual Budget → categorization works even outside Majordom
 - When importing CSV, Actual Budget rules fire first; Majordom does not overwrite the result unless the user explicitly changes the category
 - Do not disable Actual Budget's auto-rule learning — it is complementary to Majordom's mappings
+
+**Audit 2026-05-14:** `merchant_mappings` currently stored only in SQLite with local string IDs (`"groceries"`, `"transport"`) — not synced to Actual Budget. `categorizer.learn()` in `receipt_service.py` and `bot/handlers.py` must be extended to also create or update the corresponding AB rule. Until this is done, category mappings confirmed by the user are invisible to Actual Budget's own rule engine.
 
 **Reference:** [rules](https://actualbudget.org/docs/budgeting/rules)
 
