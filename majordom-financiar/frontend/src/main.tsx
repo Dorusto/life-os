@@ -13,9 +13,17 @@ const queryClient = new QueryClient({
       retry: (failureCount, error: unknown) => {
         const status = (error as { status?: number })?.status
         if (status === 401) return false
-        return failureCount < 2
+        return failureCount < 4  // up to 4 retries: 1s + 2s + 4s + 8s = 15s
       },
-      staleTime: 30_000, // data stays fresh for 30s before background refetch
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 8_000),
+      staleTime: 30_000,
+      // After all retries fail (e.g. backend not yet ready after system reboot),
+      // keep polling every 5s until data loads — avoids needing a manual refresh.
+      refetchInterval: (query) => {
+        if (query.state.status === 'error' && !query.state.data) return 5_000
+        return false
+      },
+      refetchIntervalInBackground: false,
     },
   },
 })
