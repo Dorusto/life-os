@@ -100,6 +100,11 @@ External services and advanced tracking.
 | Voice input in PWA | Whisper (Ollama local) → text; privacy-first |
 | Automatic bank sync | GoCardless/Nordigen — on hold; EU individual developer access restricted; monitor PSD2/PSD3 |
 | GPU inference for Ollama | Currently CPU (~60s/image); revisit with smaller quantized models |
+| Async receipt processing queue | Upload multiple receipts → they go into a queue (pending → processing → done). User comes back later, clicks each processed receipt to review and confirm. No more waiting in real-time for OCR. Essential for CPU-only setups where each receipt takes 1-2 minutes. Implementation: `receipt_queue` table in SQLite + FastAPI BackgroundTasks + polling on frontend. Medium complexity (~1-2 days). |
+| Cloud API support (Claude / Gemini / OpenAI) | Alternative to local Ollama for users without sufficient hardware. Hybrid mode: if `OLLAMA_URL` is absent, use configured cloud provider. Enables onboarding without any local server — relevant for non-homelab audience. |
+| Caddy + custom domain for HTTPS | Alternative to Tailscale for users who want a memorable domain (e.g. majordom.home.ro). Caddy handles automatic HTTPS via Let's Encrypt. Requires a public domain pointed at the server. Better long-term than Tailscale for self-hosters with a domain. |
+| Actual Budget mobile access via HTTPS | AB requires HTTPS (SharedArrayBuffer). Currently only accessible via SSH tunnel from PC. When Majordom is mature enough, expose AB behind a proper reverse proxy with HTTPS so power users can access it directly from mobile when needed. Low priority — Majordom is the intended interface, not AB directly. |
+| Ollama model management from chat | User can type "install llava-phi3" or "what models do I have?" — Majordom queries and manages Ollama directly. Eliminates terminal access for model management. |
 | RON / multi-currency | Via Rule Action Templating workaround; covered in onboarding Q8 |
 | Automatic monthly report | Summary push / Telegram on 1st of month; Telegram version already implemented in `bot/handlers.py:_monthly_summary_job` (APScheduler, sends previous month stats) — port to backend as part of Milestone 4.1 notification system (web push primary, Telegram fallback) |
 
@@ -176,6 +181,33 @@ Audit done. Original violations fixed: `transactions` and `budget_limits` tables
 - **Performance — `ActualBudgetClient` instantiated per-request** — every API endpoint creates a fresh client with its own `ThreadPoolExecutor(max_workers=1)`. Should be a singleton (FastAPI dependency) to avoid thread churn under concurrent requests.
 
 - **`SmartCategorizer` uses local `categories.json`** — category suggestions are based on a static local file, not the actual categories in Actual Budget. If the user adds or renames categories in AB, `SmartCategorizer` cannot suggest them. Long-term resolution: Milestone 2.4 (rules sync) and Step 5 (tool registry migration).
+
+- **Bug — receipt OCR JSON truncation (`backend/services/receipt_service.py`)** — the vision prompt asks for a full items list in addition to the essential fields. On CPU, the model generates a long response that exceeds the token limit and is truncated mid-JSON → `Invalid JSON from model` → UI falls back to empty values (wrong merchant, 0 amount, today's date). The model reads the receipt correctly (confirmed in logs) but the response is cut off. Fix: prompt must request only essential fields — merchant, total, currency, date, category — no items list. **Critical consequence for deduplication:** when the fallback sets today's date instead of the receipt date, the SHA256 hash (date+merchant+amount) used for anti-duplication will not match the real bank transaction on CSV import — the same transaction appears twice. The receipt date from the OCR must be accurate.
+
+- **Bug — nginx proxy timeout too short for receipt upload** — `proxy_read_timeout` defaults to 120s in the nginx container. Vision processing on CPU takes >120s → 504 Gateway Time-out. Fix: set `proxy_read_timeout 300s; proxy_send_timeout 300s;` in `nginx.conf`. Note: even with the fix, CPU-only vision is slow; GPU (Option A) is recommended for daily use.
+
+- **Bug — Ollama models not unloaded between uses** — after a receipt is processed, the vision model (qwen2.5vl:7b, ~6GB) stays loaded alongside the chat model (qwen2.5:7b, ~5GB). On an 8GB LXC this forces ~3GB into swap. Fix: set `OLLAMA_KEEP_ALIVE=5m` in `.env` so Ollama unloads inactive models after 5 minutes. Document in DEPLOY.md.
+
+- **Bug — „Choose from gallery" nu funcționează pe mobile** — butonul de upload din galerie nu răspunde pe mobile browser (testat via Tailscale subnet, HTTP). De pe PC merge. Probabil `input type=file` handling diferit pe mobile sau lipsă separare cameră vs galerie în UI.
+
+- **Bug — Chat AI asks for account name instead of querying all accounts** — when the user asks "How much money do I have?", the AI responds "please specify account name or ID" instead of listing all accounts with their balances. Fix: update system prompt / tool logic to query all accounts when no specific account is mentioned.
+
+---
+
+#### DEPLOY.md improvements (pre-publication)
+
+Issues found during a complete installation dry-run on a fresh Proxmox LXC (2026-05-15). Must be fixed before the installation is published or demonstrated publicly.
+
+- **Missing dedicated user step** — DEPLOY.md assumes root. Ubuntu 24.04 disables root SSH by default. Add Step 0: `adduser <name>` + `usermod -aG sudo,docker <name>`. Clone the repo in the user's home directory, not `/root/` — otherwise the user cannot access files and `docker compose` fails with `no configuration file provided`.
+- **`.env` fields not explained** — required fields lack explanation of what they are, why needed, and how to generate. Especially `JWT_SECRET` (explain: random 32-byte hex, generate with `python3 -c "import secrets; print(secrets.token_hex(32))"` in the LXC) and `ACTUAL_BUDGET_SYNC_ID` (leave empty on first start; fill after Step 6).
+- **GPU block hardcoded in `docker-compose.yml`** — the Ollama service has an NVIDIA `deploy:` block that causes `could not select device driver "nvidia"` on any machine without a GPU. CPU is the common case for LXC. Fix: remove the GPU block from `docker-compose.yml` (CPU by default); create `docker-compose.gpu.yml` override for GPU users. Commands: CPU: `docker compose --profile ollama-local up -d`; GPU: `docker compose -f docker-compose.yml -f docker-compose.gpu.yml --profile ollama-local up -d`.
+- **Ollama Option A vs B not clearly mutual exclusive** — `.env.example` does not make clear that only one option should be active. Add explicit comments: Option A (external Ollama server) and Option B (local Docker Ollama) — comment out the unused one. Also clarify: models must be pre-pulled on the external server (Option A) and will auto-pull on first request for Option B.
+- **RAM recommendation too low** — minimum must be updated to 16GB. qwen2.5:7b (chat) needs ~5GB + qwen2.5vl:7b (vision) needs ~6GB + compute graph overhead = both models cannot coexist in 8GB without heavy swap. qwen2.5vl:3b is not a solution — its compute graph alone needs 6.7GB (10GB total). 16GB is the practical minimum for CPU-only with both chat and vision active. Add model selection table: 16GB → qwen2.5:7b chat / qwen2.5vl:7b vision ✅; 32GB+ → qwen2.5:14b chat.
+- **Step order wrong — Tailscale must come before Actual Budget setup** — Actual Budget requires HTTPS (SharedArrayBuffer). Without it, the browser shows `Fatal Error: SharedArrayBuffer`. Tailscale (Step 8) must be moved before Actual Budget setup (Step 6). Workaround for development: SSH tunnel `ssh -L 5007:localhost:5006 <user>@<IP>` then access `http://localhost:5007`.
+- **Personal usernames in `.env.example`** — `USER1_USERNAME=doru` and `USER2_USERNAME=sotie` are personal data in a public repo. Replace with generic placeholders.
+- **`docker compose restart` does not re-read `.env`** — add troubleshooting note: to apply `.env` changes, use `docker compose up -d <service>` (recreates the container), not `docker compose restart` (keeps old environment variables).
+- **`OLLAMA_KEEP_ALIVE` not set** — without this, all loaded models stay in RAM indefinitely. With 8GB LXC and both chat + vision models loaded, the system enters heavy swap. Add to `.env.example`: `OLLAMA_KEEP_ALIVE=5m`.
+- **Models not auto-pulled on first request** — when `OLLAMA_VISION_MODEL` is changed to a model not yet downloaded, the first request fails with "Failed to process image" instead of pulling automatically. Either fix the pull-on-demand behavior or document that users must run `docker exec majordom-ollama ollama pull <model>` manually after changing the model.
 
 ---
 
@@ -503,6 +535,8 @@ One transaction split across multiple categories — e.g. a Jumbo receipt with g
 Majordom handles this in two places:
 - **Receipt photo** — Ollama detects items from different categories → Majordom proposes a split and asks for confirmation before saving
 - **Manual chat entry** — if user says "I spent €60 at Jumbo, €45 groceries and €15 household", Majordom creates a split transaction in Actual Budget
+
+**Implementation note (receipt photo path):** Currently the vision prompt requests only essential fields (merchant, total, currency, date) with `num_predict: 512` to avoid JSON truncation. To support split transactions, two changes are needed: (1) restore `items` to the prompt and increase `num_predict` to 2048 in `vision_engine.py`; (2) add a second AI pass that groups items by category using `SmartCategorizer` or a chat model call; (3) call `createTransaction` with the `subtransactions` field in the AB API for each category group. The per-item approach requires a UI review step — show the proposed split before saving, allow the user to merge or reassign items.
 
 **Distribute:** Actual Budget can distribute the unallocated remainder across empty splits (even) or proportionally across all splits (useful for VAT distribution). Majordom uses proportional distribution for receipts that include taxes.
 
