@@ -192,6 +192,10 @@ Audit done. Original violations fixed: `transactions` and `budget_limits` tables
 
 - **Bug — Chat AI asks for account name instead of querying all accounts** — when the user asks "How much money do I have?", the AI responds "please specify account name or ID" instead of listing all accounts with their balances. Fix: update system prompt / tool logic to query all accounts when no specific account is mentioned.
 
+- **Bug — CSV multi-currency columns ignored** — some bank exports (e.g. Revolut, N26) include both the original currency amount and a converted EUR amount in separate columns (`Amount`, `Currency`, `Local amount`, `Local currency`). The CSV importer picks only `col_amount` and ignores the conversion columns. Result: a transaction of 19.739 RON is imported as 19739 EUR instead of the correct ~39 EUR equivalent. Fix: detect `to_amount`/`to_currency` column pairs in the profile and use the EUR column as the primary amount when the transaction currency differs from the account currency. Related to the general multi-currency backlog item.
+
+- **UX — Receipt and CSV import on separate tabs** — the web UI has separate tabs for receipt photo and CSV import. For daily use, a unified "Add transactions" flow would be more natural: one entry point, then choose method. Low priority cosmetic improvement.
+
 ---
 
 #### DEPLOY.md improvements (pre-publication)
