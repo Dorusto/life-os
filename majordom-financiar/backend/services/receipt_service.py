@@ -15,6 +15,7 @@ their medium (JSON vs Telegram message). This is what "transport-agnostic" means
 If you want to add a third interface (e.g. a mobile app, or a CLI), you just
 call ReceiptService() — no copy-pasting logic.
 """
+import asyncio
 import hashlib
 import json
 import logging
@@ -111,8 +112,11 @@ class ReceiptService:
         else:
             date_str = datetime.now().strftime("%Y-%m-%d")
 
-        # Fetch available accounts for the UI dropdown
-        accounts = await self._actual.get_accounts()
+        # Fetch accounts and categories live from Actual Budget
+        accounts, ab_categories = await asyncio.gather(
+            self._actual.get_accounts(),
+            self._actual.get_categories(),
+        )
 
         return {
             "merchant": merchant,
@@ -120,10 +124,9 @@ class ReceiptService:
             "date": date_str,
             "suggested_category_id": prediction.category_id if prediction.confidence > 0 else None,
             "category_source": source,
-            # Return the full category list so the frontend can build a picker
             "categories": [
-                {"id": c["id"], "name": c["name"], "emoji": c.get("emoji", "📦")}
-                for c in _CATEGORIES
+                {"id": cat.name, "name": cat.name, "emoji": "📦"}
+                for cat in ab_categories
             ],
             "accounts": [
                 {"id": acc.id, "name": acc.name}
