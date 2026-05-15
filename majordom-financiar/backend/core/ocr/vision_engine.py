@@ -33,11 +33,7 @@ Required format:
   "merchant": "store or company name",
   "total": 0.00,
   "currency": "EUR",
-  "date": "DD.MM.YYYY",
-  "items": [
-    {"name": "product name", "quantity": 1.0, "unit_price": 0.00, "total_price": 0.00}
-  ],
-  "cui": "tax/fiscal code if present, else empty string"
+  "date": "DD.MM.YYYY"
 }
 
 Rules:
@@ -45,8 +41,6 @@ Rules:
 - "total": the final amount paid, as a decimal number (e.g. 12.45)
 - "currency": detect from receipt symbols or context — use "EUR" for €, "RON" for lei/RON, "GBP" for £, etc. Default to "EUR" if unclear.
 - "date": receipt date in DD.MM.YYYY format, empty string if not found
-- "items": list of products if visible, otherwise empty list []
-- "cui": fiscal/registration code if present on receipt, otherwise ""
 - If you cannot identify a value with certainty, use null for numbers or "" for text
 """
 
