@@ -110,6 +110,33 @@ External services and advanced tracking.
 
 ---
 
+## Recommended Hardware
+
+Majordom is designed to run entirely locally on a dedicated mini PC — no cloud, no GPU server, no monthly subscription.
+
+**Target hardware: mini PC with modern AMD APU**
+
+AMD APUs (Ryzen 7 8845HS, Ryzen AI 9 HX) include an integrated Radeon GPU (780M or better) that can accelerate Ollama inference via Vulkan — 3–5× faster than CPU-only, without requiring a discrete GPU. The CPU and iGPU share unified RAM, so 32GB is usable by both.
+
+| Spec | Minimum | Recommended |
+|------|---------|-------------|
+| RAM | 16GB | 32GB |
+| CPU | Any modern x86 (4+ cores) | AMD Ryzen 7 8845HS or equivalent |
+| iGPU | None (CPU inference) | AMD Radeon 780M (Vulkan-accelerated Ollama) |
+| Storage | 64GB NVMe | 128GB NVMe |
+| Power consumption | — | ~15W idle, ~35W under load |
+| Estimated cost | ~€150 (N100-based) | €350–500 |
+
+**Why mini PC over other options:**
+- Runs 24/7 silently at low power
+- Fully self-contained — no dependency on a desktop PC being on
+- Accessible price point for anyone who wants to self-host
+- Models tested: `qwen2.5:7b` (chat), `qwen2.5vl:7b` (vision)
+
+Brands to consider: Minisforum (UM890 Pro, UM773 Lite), Beelink (SEi series), GMKtec.
+
+---
+
 ## Architectural Principle
 
 **Majordom is a conversational interface over Actual Budget — not a financial application in its own right.**
@@ -195,6 +222,8 @@ Audit done. Original violations fixed: `transactions` and `budget_limits` tables
 - **Bug — CSV multi-currency columns ignored** — some bank exports (e.g. Revolut, N26) include both the original currency amount and a converted EUR amount in separate columns (`Amount`, `Currency`, `Local amount`, `Local currency`). The CSV importer picks only `col_amount` and ignores the conversion columns. Result: a transaction of 19.739 RON is imported as 19739 EUR instead of the correct ~39 EUR equivalent. Fix: detect `to_amount`/`to_currency` column pairs in the profile and use the EUR column as the primary amount when the transaction currency differs from the account currency. Related to the general multi-currency backlog item.
 
 - **UX — Receipt and CSV import on separate tabs** — the web UI has separate tabs for receipt photo and CSV import. For daily use, a unified "Add transactions" flow would be more natural: one entry point, then choose method. Low priority cosmetic improvement.
+
+- **Security — AI exposes internal account UUIDs in responses** — the system prompt injects raw Actual Budget account UUIDs so the model can call tools like `propose_transaction`. The model occasionally echoes these UUIDs back in its visible response (e.g. "Account ID: 8d1dc2dc-..."). Fix: the model should receive and use only human-readable account names; UUID resolution must happen server-side in the tool handler, never passed back to the user-visible response. Review the full system prompt for any other internal identifiers that should not be surfaced.
 
 ---
 
