@@ -59,6 +59,24 @@ class CsvProfileDetector:
         normalized = ",".join(sorted(h.strip().lower() for h in headers))
         return hashlib.md5(normalized.encode()).hexdigest()[:12]
 
+    @staticmethod
+    def infer_decimal_sep(sample_rows: list[dict], col_amount: str) -> str:
+        """
+        Determine decimal separator from actual amount values — more reliable than LLM guess.
+        Logic: if the last separator character in a value is comma → comma is decimal.
+               if the last separator is dot → dot is decimal.
+        Examples: "21,78" → comma; "21.78" → dot; "1.234,56" → comma; "1,234.56" → dot
+        """
+        for row in sample_rows:
+            val = str(row.get(col_amount) or "").strip().lstrip("+-").strip()
+            last_dot = val.rfind(".")
+            last_comma = val.rfind(",")
+            if last_comma > last_dot:
+                return ","
+            if last_dot > last_comma:
+                return "."
+        return "."
+
     async def detect_with_ollama(
         self,
         headers: list[str],
@@ -105,8 +123,9 @@ class CsvProfileDetector:
             parsed = json.loads(self._extract_json(content))
 
             sig = self.header_signature(headers)
-            decimal_raw = parsed.get("decimal_sep", ".")
-            decimal_sep = "," if "comma" in str(decimal_raw).lower() or decimal_raw == "," else "."
+            col_amount = parsed.get("col_amount") or ""
+            decimal_sep = self.infer_decimal_sep(sample_rows, col_amount) if col_amount else "."
+            logger.info(f"Decimal separator detected from values: '{decimal_sep}'")
 
             return CsvProfile(
                 source_name=parsed.get("source_name") or "Unknown",
