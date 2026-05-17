@@ -28,7 +28,7 @@ In the Proxmox web UI:
 - **Template:** Ubuntu 24.04
 - **RAM:** 16384 MB minimum
 - **Disk:** 60 GB minimum
-- **CPU:** 6 cores minimum (10+ recommended for acceptable inference speed)
+- **CPU:** 8 cores minimum (12+ recommended for acceptable inference speed)
 
 After creation, **before starting**, open the LXC config and add:
 
