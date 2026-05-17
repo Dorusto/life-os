@@ -215,21 +215,27 @@ Audit done. Original violations fixed: `transactions` and `budget_limits` tables
 
 - **Bug — Ollama models not unloaded between uses** — after a receipt is processed, the vision model (qwen2.5vl:7b, ~6GB) stays loaded alongside the chat model (qwen2.5:7b, ~5GB). On an 8GB LXC this forces ~3GB into swap. Fix: set `OLLAMA_KEEP_ALIVE=5m` in `.env` so Ollama unloads inactive models after 5 minutes. Document in DEPLOY.md. **Enhancement (CPU daily use):** proactive model eviction before chat — before sending any chat request, check `GET /api/ps` on Ollama to see which models are loaded; if vision model is loaded, send a request with `keep_alive: 0` to unload it before loading the chat model. This ensures chat always has full RAM available without waiting for the 5-minute timeout. Implementation: add a `ensure_chat_model()` helper in `ActualBudgetClient` or a new `OllamaManager` class called at the start of each chat request in `api/chat.py`.
 
-- **Bug — „Choose from gallery" nu funcționează pe mobile** — butonul de upload din galerie nu răspunde pe mobile browser (testat via Tailscale subnet, HTTP). De pe PC merge. Probabil `input type=file` handling diferit pe mobile sau lipsă separare cameră vs galerie în UI.
+- **Bug — „Choose from gallery" pe mobile** — raportat ca nefuncțional în sesiunea 2026-05-15 (Tailscale subnet, HTTP). Retestat ulterior — pare funcțional. De verificat în condiții identice înainte de a închide.
 
 - **Bug — Chat AI asks for account name instead of querying all accounts** — when the user asks "How much money do I have?", the AI responds "please specify account name or ID" instead of listing all accounts with their balances. Fix: update system prompt / tool logic to query all accounts when no specific account is mentioned.
 
 - **Bug — CSV multi-currency columns ignored** — some bank exports (e.g. Revolut, N26) include both the original currency amount and a converted EUR amount in separate columns (`Amount`, `Currency`, `Local amount`, `Local currency`). The CSV importer picks only `col_amount` and ignores the conversion columns. Result: a transaction of 19.739 RON is imported as 19739 EUR instead of the correct ~39 EUR equivalent. Fix: detect `to_amount`/`to_currency` column pairs in the profile and use the EUR column as the primary amount when the transaction currency differs from the account currency. Related to the general multi-currency backlog item.
 
+- **Bug — Text typed in chat input is hidden behind the input bar** — when the user types in the chat input field, the text appears behind the bar and is not visible. Likely a CSS z-index or padding issue in the chat input component. File: `frontend/src/components/` (Chat input component).
+
 - **UX — Receipt and CSV import on separate tabs** — the web UI has separate tabs for receipt photo and CSV import. For daily use, a unified "Add transactions" flow would be more natural: one entry point, then choose method. Low priority cosmetic improvement.
+
+- **Feature — Unified + menu in chat for media input** — replace the standalone receipt and CSV tabs with a `+` button in the chat bar that opens a menu with three options: 📷 Take photo, 🖼️ Choose from gallery, 📄 Upload CSV. All inputs flow through chat. Combines with the async upload UX below.
+
+- **Feature — Async upload with non-blocking confirmation** — currently the UI blocks while the AI processes a receipt or CSV. New behavior: file uploads immediately → user sees "Processing…" indicator → confirmation window appears after AI finishes, without blocking the chat. Allows the user to continue chatting while waiting for the result.
 
 - **Security — AI exposes internal account UUIDs in responses** — the system prompt injects raw Actual Budget account UUIDs so the model can call tools like `propose_transaction`. The model occasionally echoes these UUIDs back in its visible response (e.g. "Account ID: 8d1dc2dc-..."). Fix: the model should receive and use only human-readable account names; UUID resolution must happen server-side in the tool handler, never passed back to the user-visible response. Review the full system prompt for any other internal identifiers that should not be surfaced.
 
 ---
 
-#### DEPLOY.md improvements (pre-publication)
+#### ~~DEPLOY.md improvements~~ ✅ Resolved 2026-05-17
 
-Issues found during a complete installation dry-run on a fresh Proxmox LXC (2026-05-15). Must be fixed before the installation is published or demonstrated publicly.
+Issues found during a complete installation dry-run on a fresh Proxmox LXC (2026-05-15). All fixed and pushed to main.
 
 - **Missing dedicated user step** — DEPLOY.md assumes root. Ubuntu 24.04 disables root SSH by default. Add Step 0: `adduser <name>` + `usermod -aG sudo,docker <name>`. Clone the repo in the user's home directory, not `/root/` — otherwise the user cannot access files and `docker compose` fails with `no configuration file provided`.
 - **`.env` fields not explained** — required fields lack explanation of what they are, why needed, and how to generate. Especially `JWT_SECRET` (explain: random 32-byte hex, generate with `python3 -c "import secrets; print(secrets.token_hex(32))"` in the LXC) and `ACTUAL_BUDGET_SYNC_ID` (leave empty on first start; fill after Step 6).
