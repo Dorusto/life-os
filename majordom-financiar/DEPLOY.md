@@ -10,14 +10,25 @@ Three deployment paths — pick the one that matches your setup:
 
 ## Proxmox LXC
 
+### 0. Create a dedicated user
+
+Before anything else, create a non-root user. Ubuntu 24.04 disables root SSH by default, and cloning the repo as root causes permission issues when switching users later.
+
+```bash
+adduser majordom
+usermod -aG sudo,docker majordom
+```
+
+Work as this user for everything that follows. Log in with `su - majordom` or via SSH.
+
 ### 1. Create the LXC container
 
 In the Proxmox web UI:
 
-- **Template:** Ubuntu 22.04 or Debian 12
-- **RAM:** 2048 MB minimum (4096 recommended)
-- **Disk:** 20 GB minimum
-- **CPU:** 2 cores minimum
+- **Template:** Ubuntu 24.04
+- **RAM:** 8192 MB minimum (16384 recommended for larger models)
+- **Disk:** 40 GB minimum
+- **CPU:** 6 cores minimum (10+ recommended for acceptable inference speed)
 
 After creation, **before starting**, open the LXC config and add:
 
@@ -84,17 +95,25 @@ OLLAMA_CHAT_MODEL=qwen2.5:7b
 
 ### 5. Start
 
-**With external Ollama (most common for LXC):**
+**With external Ollama (most common — Ollama runs on another machine with GPU):**
 
 ```bash
 docker compose up -d
 ```
 
-**With Ollama running locally (GPU on this host):**
+**With Ollama running locally in Docker (CPU only, slower):**
 
 ```bash
 docker compose --profile ollama-local up -d
 ```
+
+**With Ollama locally + NVIDIA GPU:**
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml --profile ollama-local up -d
+```
+
+> **Important:** only use one Ollama option. If `OLLAMA_URL` points to an external server, do not use `--profile ollama-local`. See `.env.example` for details.
 
 Check status:
 
@@ -104,36 +123,34 @@ docker compose ps
 
 All services should reach `healthy` within 1–2 minutes. The `majordom-web` and `majordom-api` services start quickly; `actual-budget` takes ~20 seconds.
 
-### 6. Set up Actual Budget
+### 6. Set up Tailscale (required before Actual Budget)
 
-Once running:
-
-1. Open `http://<LXC-IP>:5006` in your browser
-2. Create a new budget (name doesn't matter)
-3. Go to **Settings → Advanced** → copy the **Sync ID**
-4. Edit `.env`: set `ACTUAL_BUDGET_SYNC_ID=<your-sync-id>`
-5. Restart the API: `docker compose restart majordom-api`
-
-### 7. Access the app
-
-Open `http://<LXC-IP>:3000` in your browser. Log in with the username and password from `.env`.
-
-### 8. HTTPS (required for camera on mobile)
-
-The camera button in the PWA requires a secure context (HTTPS or localhost). Two options:
-
-**Option A — Tailscale (recommended, zero config):**
+Actual Budget requires a secure context (HTTPS or localhost) to open in a browser. The easiest solution is Tailscale — it creates an encrypted tunnel and gives your LXC an IP accessible from anywhere without certificates.
 
 ```bash
 curl -fsSL https://tailscale.com/install.sh | sh
 tailscale up
 ```
 
-Access via the Tailscale IP (`http://100.x.x.x:3000`). No certificate needed — Tailscale handles the secure tunnel.
+After connecting, note the Tailscale IP of the LXC (e.g. `100.x.x.x`) or use your local network IP if Tailscale is configured as a subnet router.
 
-**Option B — Nginx reverse proxy with Let's Encrypt:**
+> **No Tailscale?** Use an SSH tunnel from your PC instead:
+> ```bash
+> ssh -L 5007:localhost:5006 majordom@<LXC-IP>
+> ```
+> Leave the terminal open and open `http://localhost:5007` — localhost counts as a secure context.
 
-Point a domain to your server and use Certbot. This is more involved and requires a public domain. See the [Certbot documentation](https://certbot.eff.org/).
+### 7. Set up Actual Budget
+
+1. Open `http://<LXC-Tailscale-IP>:5006` in your browser
+2. Create a new budget (name doesn't matter)
+3. Go to **Settings → Advanced** → copy the **Sync ID**
+4. Edit `.env`: set `ACTUAL_BUDGET_SYNC_ID=<your-sync-id>`
+5. Apply the change: `docker compose up -d majordom-api` (not `restart` — that doesn't re-read `.env`)
+
+### 8. Access the app
+
+Open `http://<LXC-Tailscale-IP>:3000` in your browser. Log in with the username and password from `.env`.
 
 ---
 

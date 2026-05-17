@@ -34,13 +34,6 @@ services:
       - OLLAMA_FLASH_ATTENTION=1
     networks:
       - majordom-net
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: all
-              capabilities: [gpu]
     healthcheck:
       test: ["CMD", "sh", "-c", "ollama list 2>/dev/null | grep -q qwen2.5"]
       interval: 30s
