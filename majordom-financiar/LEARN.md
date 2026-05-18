@@ -696,4 +696,39 @@ docker compose build majordom-api majordom-web && docker compose up -d
 
 ---
 
-*Ultima actualizare: 2026-04-12 (sesiunea 4 — web UI v2)*
+*Ultima actualizare: 2026-05-19 (sesiunea 5 — arhitectura LLM și limitări)*
+
+---
+
+## 11. Cum funcționează chat-ul și tool-calling
+
+### Două modele, două roluri
+
+- **qwen2.5vl** → bonuri foto (vision). Nu știe de chat.
+- **qwen2.5:7b** → conversație + tool-calling.
+
+### Fluxul unui mesaj (vezi `api/chat.py`)
+
+```
+Mesaj utilizator
+    ↓
+Backend injectează snapshot AB în system prompt (conturi, categorii, stats, ultimele 20 tx)
+    ↓
+Ollama: tool_call? → execută propose_transaction → card confirmare în UI → tu apeși OK → salvat
+        text?      → returnat direct ca streaming
+```
+
+`force_tool`: dacă mesajul conține o sumă în bani, backend-ul forțează un tool call — 7b tinde altfel să scrie propunerea ca text în loc să cheme tool-ul.
+
+### Principiul cheie
+
+**LLM = traducător din limbaj natural în parametri structurați. Logica = backend.**
+
+Starea, calculele și condițiile stau în cod. LLM-ul face un singur lucru per cerere: înțelege ce a spus utilizatorul sau formulează un răspuns. Dacă nu extrage ce trebuie după 2-3 încercări → fallback la UI simplu (formular, butoane).
+
+### Limitările lui 7b
+
+- Nu știe date istorice dincolo de snapshot-ul injectat
+- Se pierde în raționament multi-step cu condiții înlănțuite
+- Generează ActualQL eronat pe query-uri complexe — mai sigur: tool-uri predefinite cu parametri
+- M2 onboarding eșuează dacă LLM-ul ține starea în loc de backend (state machine)
