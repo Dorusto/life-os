@@ -3,11 +3,14 @@ import { Send } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { sendChatMessageStreaming } from '../lib/api'
 import ProposalCard, { ProposalData } from '../components/ProposalCard'
+import BudgetRebalanceCard from '../components/BudgetRebalanceCard'
+import type { BudgetRebalanceData } from '../lib/api'
 
 export interface Message {
-  role: 'user' | 'assistant' | 'proposal'
+  role: 'user' | 'assistant' | 'proposal' | 'budget_rebalance'
   content: string
   proposal?: ProposalData
+  budgetRebalance?: BudgetRebalanceData
 }
 
 export const INITIAL_MESSAGES: Message[] = [
@@ -55,17 +58,28 @@ export default function Chat({ messages, setMessages }: ChatProps) {
       text,
       history,
       (chunk) => {
+        // Proposals arrive as a single complete JSON chunk — detect and convert immediately.
+        const trimmed = chunk.trim()
+        if (trimmed.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(trimmed)
+            if (parsed.type === 'proposal') {
+              setMessages(prev => [...prev, { role: 'proposal' as const, content: '', proposal: parsed as ProposalData }])
+              return
+            }
+            if (parsed.type === 'budget_rebalance') {
+              setMessages(prev => [...prev, { role: 'budget_rebalance' as const, content: '', budgetRebalance: parsed as BudgetRebalanceData }])
+              return
+            }
+          } catch {}
+        }
         setMessages(prev => {
           const newMessages = [...prev]
-          // Check if an assistant message already exists
           const lastIndex = newMessages.length - 1
           if (lastIndex >= 0 && newMessages[lastIndex].role === 'assistant') {
-            // Update existing assistant message
             newMessages[lastIndex] = { ...newMessages[lastIndex], content: newMessages[lastIndex].content + chunk }
           } else {
-            // Create new assistant message with the first chunk
-            const newAssistantMessage: Message = { role: 'assistant', content: chunk }
-            newMessages.push(newAssistantMessage)
+            newMessages.push({ role: 'assistant', content: chunk })
           }
           return newMessages
         })
@@ -83,6 +97,12 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                   return [
                     ...prev.slice(0, -1),
                     { role: 'proposal' as const, content: '', proposal: parsed as ProposalData },
+                  ]
+                }
+                if (parsed.type === 'budget_rebalance') {
+                  return [
+                    ...prev.slice(0, -1),
+                    { role: 'budget_rebalance' as const, content: '', budgetRebalance: parsed as BudgetRebalanceData },
                   ]
                 }
               } catch {}
@@ -129,7 +149,29 @@ export default function Chat({ messages, setMessages }: ChatProps) {
             key={idx}
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            {msg.role === 'proposal' && msg.proposal ? (
+            {msg.role === 'budget_rebalance' && msg.budgetRebalance ? (
+              <BudgetRebalanceCard
+                data={msg.budgetRebalance}
+                onConfirmed={(message) => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx
+                        ? { role: 'assistant', content: message }
+                        : m
+                    )
+                  )
+                }}
+                onCancelled={() => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx
+                        ? { role: 'assistant', content: 'Cancelled.' }
+                        : m
+                    )
+                  )
+                }}
+              />
+            ) : msg.role === 'proposal' && msg.proposal ? (
               <ProposalCard
                 proposal={msg.proposal}
                 onConfirmed={(message) => {
