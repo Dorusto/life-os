@@ -213,7 +213,7 @@ Audit done. Original violations fixed: `transactions` and `budget_limits` tables
 
 - ~~**Bug — nginx proxy timeout too short for receipt upload**~~ ✅ Fixed 2026-05-19 — `proxy_read_timeout 300s; proxy_send_timeout 300s;` set in `nginx.conf`; aiohttp timeout in `vision_engine.py` also increased to 300s.
 
-- ~~**Bug — Ollama models not unloaded between uses**~~ ✅ Fixed 2026-05-19 — `OLLAMA_KEEP_ALIVE=5m` added to `.env.example`. **Enhancement still open (CPU daily use):** proactive model eviction before chat — check `GET /api/ps` on Ollama; if vision model is loaded, send `keep_alive: 0` before loading chat model. Ensures full RAM available without waiting 5 minutes. Implementation: `OllamaManager` class called at the start of each chat request in `api/chat.py`.
+- ~~**Bug — Ollama models not unloaded between uses**~~ — Closed 2026-05-19. 16GB RAM is sufficient for both models in cache simultaneously; no swap observed in practice. **Enhancement (CPU power users):** proactive model eviction before chat — check `GET /api/ps` on Ollama; if vision model is loaded, send `keep_alive: 0` before loading chat model. Low priority.
 
 - **Bug — „Choose from gallery" pe mobile** — raportat ca nefuncțional în sesiunea 2026-05-15 (Tailscale subnet, HTTP). Retestat ulterior — pare funcțional. De verificat în condiții identice înainte de a închide.
 

@@ -735,15 +735,12 @@ Starea, calculele și condițiile stau în cod. LLM-ul face un singur lucru per 
 
 ---
 
-## 2026-05-19 — M1 Daily Driver: bug fixes + spec budget rebalancing
+## 2026-05-19 — Curățare buguri + spec M1.1
 
-**Problema:** M1 nu era atacat, iar buguri din audit erau rezolvate în cod dar nedocumentate în ROADMAP.
+**Problema:** Bon foto dădea timeout pe hardware lent și cod mort era lăsat în proiect.
 
-**Ce s-a întâmplat:** Câteva buguri active (OCR truncation, nginx timeout, Ollama keep_alive, dead code) erau deja fixate sau triviale. ROADMAP.md era neactualizat.
+**Ce s-a întâmplat:** Timeout-urile nginx și Python erau prea scurte (120s), procesarea OCR pe CPU poate dura mai mult.
 
-**Soluția:**
-- Fixuri directe (triviale): nginx `proxy_read_timeout` 120s → 300s, aiohttp timeout 300s, `OLLAMA_KEEP_ALIVE=5m` în `.env.example`, șters `chat_service.py` dead code, corectat comentariu stale TF-IDF.
-- ROADMAP.md actualizat: bugurile fixate marcate ✅.
-- Scris prompt DeepSeek pentru M1.1 (`scripts/prompts/deepseek/001_m1-budget-rebalancing.md`): spec complet pentru budget conversational rebalancing — `set_budget_amount()` în ActualBudgetClient, tool `propose_budget_rebalance`, endpoint `POST /api/budget/rebalance`, `BudgetRebalanceCard` React.
+**Soluția:** Crescut timeout-urile la 300s, șters cod mort, ROADMAP actualizat. Scris spec complet pentru M1.1 (mutare bani între categorii din chat) în `scripts/prompts/deepseek/001_m1-budget-rebalancing.md`.
 
-**De reținut:** `actualpy.create_budget(session, month, category, amount)` face upsert de budget allocation — este funcția corectă pentru `set_budget_amount()`. `month` trebuie să fie un obiect `datetime.date` (nu string).
+**De reținut:** `actualpy.create_budget(session, month, category, amount)` face upsert — funcția corectă pentru a seta alocarea unui buget pe categorie. `month` trebuie să fie `datetime.date`, nu string.
