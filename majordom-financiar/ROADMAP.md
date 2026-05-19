@@ -201,19 +201,19 @@ Audit done. Original violations fixed: `transactions` and `budget_limits` tables
 
 - **Bug (active) — `bot/csv_wizard.py:33-34`** — import paths use pre-refactor module names (`from config import settings`, `from csv_importer import ...`). Must be `from backend.core.config import settings` and `from backend.core.csv_importer import ...`. Telegram CSV import is currently broken in production.
 
-- **Dead code — `backend/services/chat_service.py`** — `ChatService` class defined but not imported or used anywhere. `api/chat.py` has its own inline logic. File should be deleted.
+- ~~**Dead code — `backend/services/chat_service.py`**~~ ✅ Deleted 2026-05-19.
 
-- **Stale comment — `backend/services/receipt_service.py:95-96`** — refers to "TF-IDF" which was removed. Update comment to match actual categorization flow (history → keywords → fallback).
+- ~~**Stale comment — `backend/services/receipt_service.py:95-96`**~~ ✅ Fixed 2026-05-19.
 
 - **Performance — `ActualBudgetClient` instantiated per-request** — every API endpoint creates a fresh client with its own `ThreadPoolExecutor(max_workers=1)`. Should be a singleton (FastAPI dependency) to avoid thread churn under concurrent requests.
 
 - **`SmartCategorizer` uses local `categories.json`** — category suggestions are based on a static local file, not the actual categories in Actual Budget. If the user adds or renames categories in AB, `SmartCategorizer` cannot suggest them. Long-term resolution: Milestone 2.4 (rules sync) and Step 5 (tool registry migration).
 
-- **Bug — receipt OCR JSON truncation (`backend/services/receipt_service.py`)** — the vision prompt asks for a full items list in addition to the essential fields. On CPU, the model generates a long response that exceeds the token limit and is truncated mid-JSON → `Invalid JSON from model` → UI falls back to empty values (wrong merchant, 0 amount, today's date). The model reads the receipt correctly (confirmed in logs) but the response is cut off. Fix: prompt must request only essential fields — merchant, total, currency, date, category — no items list. **Critical consequence for deduplication:** when the fallback sets today's date instead of the receipt date, the SHA256 hash (date+merchant+amount) used for anti-duplication will not match the real bank transaction on CSV import — the same transaction appears twice. The receipt date from the OCR must be accurate.
+- ~~**Bug — receipt OCR JSON truncation**~~ ✅ Fixed 2026-05-19 — prompt already minimal (merchant, total, currency, date only; no items list); `num_predict: 512` set.
 
-- **Bug — nginx proxy timeout too short for receipt upload** — `proxy_read_timeout` defaults to 120s in the nginx container. Vision processing on CPU takes >120s → 504 Gateway Time-out. Fix: set `proxy_read_timeout 300s; proxy_send_timeout 300s;` in `nginx.conf`. Note: even with the fix, CPU-only vision is slow; GPU (Option A) is recommended for daily use.
+- ~~**Bug — nginx proxy timeout too short for receipt upload**~~ ✅ Fixed 2026-05-19 — `proxy_read_timeout 300s; proxy_send_timeout 300s;` set in `nginx.conf`; aiohttp timeout in `vision_engine.py` also increased to 300s.
 
-- **Bug — Ollama models not unloaded between uses** — after a receipt is processed, the vision model (qwen2.5vl:7b, ~6GB) stays loaded alongside the chat model (qwen2.5:7b, ~5GB). On an 8GB LXC this forces ~3GB into swap. Fix: set `OLLAMA_KEEP_ALIVE=5m` in `.env` so Ollama unloads inactive models after 5 minutes. Document in DEPLOY.md. **Enhancement (CPU daily use):** proactive model eviction before chat — before sending any chat request, check `GET /api/ps` on Ollama to see which models are loaded; if vision model is loaded, send a request with `keep_alive: 0` to unload it before loading the chat model. This ensures chat always has full RAM available without waiting for the 5-minute timeout. Implementation: add a `ensure_chat_model()` helper in `ActualBudgetClient` or a new `OllamaManager` class called at the start of each chat request in `api/chat.py`.
+- ~~**Bug — Ollama models not unloaded between uses**~~ ✅ Fixed 2026-05-19 — `OLLAMA_KEEP_ALIVE=5m` added to `.env.example`. **Enhancement still open (CPU daily use):** proactive model eviction before chat — check `GET /api/ps` on Ollama; if vision model is loaded, send `keep_alive: 0` before loading chat model. Ensures full RAM available without waiting 5 minutes. Implementation: `OllamaManager` class called at the start of each chat request in `api/chat.py`.
 
 - **Bug — „Choose from gallery" pe mobile** — raportat ca nefuncțional în sesiunea 2026-05-15 (Tailscale subnet, HTTP). Retestat ulterior — pare funcțional. De verificat în condiții identice înainte de a închide.
 

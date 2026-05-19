@@ -108,7 +108,7 @@ class VisionEngine:
                 async with session.post(
                     f"{self.ollama_url}/api/chat",
                     json=payload,
-                    timeout=aiohttp.ClientTimeout(total=120),
+                    timeout=aiohttp.ClientTimeout(total=300),
                 ) as resp:
                     if resp.status != 200:
                         text = await resp.text()

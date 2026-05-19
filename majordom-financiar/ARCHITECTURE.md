@@ -205,7 +205,7 @@ majordom-financiar/
 **Implementation workflow:**
 - Claude (senior/architect) — reads the code, understands context, writes the spec and DeepSeek prompt
 - DeepSeek (engineer) — receives the prompt, implements
-- Prompts saved in `scripts/prompts/` — one `.md` file per task; usable independently without Claude
+- Prompts saved in `scripts/prompts/deepseek/` — one `.md` file per task; usable independently without Claude
 
 **One feature at a time.** Do not implement two things simultaneously.
 

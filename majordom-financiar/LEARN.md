@@ -696,7 +696,7 @@ docker compose build majordom-api majordom-web && docker compose up -d
 
 ---
 
-*Ultima actualizare: 2026-05-19 (sesiunea 5 — arhitectura LLM și limitări)*
+*Ultima actualizare: 2026-05-19 (sesiunea 6 — M1 Daily Driver, budget rebalancing)*
 
 ---
 
@@ -732,3 +732,18 @@ Starea, calculele și condițiile stau în cod. LLM-ul face un singur lucru per 
 - Se pierde în raționament multi-step cu condiții înlănțuite
 - Generează ActualQL eronat pe query-uri complexe — mai sigur: tool-uri predefinite cu parametri
 - M2 onboarding eșuează dacă LLM-ul ține starea în loc de backend (state machine)
+
+---
+
+## 2026-05-19 — M1 Daily Driver: bug fixes + spec budget rebalancing
+
+**Problema:** M1 nu era atacat, iar buguri din audit erau rezolvate în cod dar nedocumentate în ROADMAP.
+
+**Ce s-a întâmplat:** Câteva buguri active (OCR truncation, nginx timeout, Ollama keep_alive, dead code) erau deja fixate sau triviale. ROADMAP.md era neactualizat.
+
+**Soluția:**
+- Fixuri directe (triviale): nginx `proxy_read_timeout` 120s → 300s, aiohttp timeout 300s, `OLLAMA_KEEP_ALIVE=5m` în `.env.example`, șters `chat_service.py` dead code, corectat comentariu stale TF-IDF.
+- ROADMAP.md actualizat: bugurile fixate marcate ✅.
+- Scris prompt DeepSeek pentru M1.1 (`scripts/prompts/deepseek/001_m1-budget-rebalancing.md`): spec complet pentru budget conversational rebalancing — `set_budget_amount()` în ActualBudgetClient, tool `propose_budget_rebalance`, endpoint `POST /api/budget/rebalance`, `BudgetRebalanceCard` React.
+
+**De reținut:** `actualpy.create_budget(session, month, category, amount)` face upsert de budget allocation — este funcția corectă pentru `set_budget_amount()`. `month` trebuie să fie un obiect `datetime.date` (nu string).

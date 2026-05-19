@@ -93,7 +93,7 @@ class ReceiptService:
         merchant = receipt.merchant or ""
 
         # Ask the categorizer for a suggestion based on this merchant.
-        # predict() checks (in order): merchant history → keywords → TF-IDF → fallback
+        # predict() checks (in order): merchant history → keywords → fallback
         prediction = self._categorizer.predict(merchant=merchant)
 
         # Map category_source so the frontend can show a meaningful label
