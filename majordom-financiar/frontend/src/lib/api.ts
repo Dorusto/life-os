@@ -115,8 +115,6 @@ export interface Account {
 // --- Auth ---
 
 export async function login(username: string, password: string): Promise<TokenResponse> {
-  // Bypass the generic request() wrapper so a 401 from a bad password
-  // doesn't trigger the auto-logout redirect — we're already on the login page.
   const res = await fetch(`${BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -241,7 +239,6 @@ export async function sendChatMessage(
   message: string,
   history: { role: string; content: string }[],
 ): Promise<{ reply: string }> {
-  // Use streaming endpoint but accumulate response for backward compatibility
   const token = getToken()
   const headers: Record<string, string> = {}
   if (token) {
@@ -268,7 +265,6 @@ export async function sendChatMessage(
     throw new ApiError(res.status, errorBody.detail || 'Request failed')
   }
   
-  // Stream the response and accumulate
   const reader = res.body?.getReader()
   if (!reader) {
     throw new ApiError(500, 'No response body')
@@ -322,7 +318,6 @@ export async function sendChatMessageStreaming(
       return
     }
     
-    // Stream the response as text
     const reader = res.body?.getReader()
     if (!reader) {
       onError('No response body')
@@ -399,4 +394,66 @@ export async function confirmProposal(id: string, categoryName?: string, account
 
 export async function cancelProposal(id: string): Promise<void> {
   return request<void>(`/proposals/${id}/cancel`, { method: 'POST' })
+}
+
+// --- Budget Rebalance ---
+
+export interface BudgetRebalanceData {
+  type: 'budget_rebalance'
+  source_category: string
+  destination_category: string
+  amount: number
+  month: string
+  current_source_budget: number
+  current_destination_budget: number
+  new_source_budget: number
+  new_destination_budget: number
+}
+
+export async function confirmBudgetRebalance(data: BudgetRebalanceData): Promise<{ message: string }> {
+  return request('/budget/rebalance', {
+    method: 'POST',
+    body: JSON.stringify({
+      source_category: data.source_category,
+      destination_category: data.destination_category,
+      amount: data.amount,
+      month: data.month,
+      new_source_budget: data.new_source_budget,
+      new_destination_budget: data.new_destination_budget,
+    }),
+  })
+}
+
+// --- Clarification ---
+
+export interface ClarificationData {
+  type: 'clarification'
+  question: string
+  options: string[]
+}
+
+// --- Account Transfer ---
+
+export interface AccountTransferData {
+  type: 'account_transfer'
+  from_account_id: string
+  from_account_name: string
+  to_account_id: string
+  to_account_name: string
+  amount: number
+  date: string
+  notes: string
+}
+
+export async function confirmAccountTransfer(data: AccountTransferData): Promise<{ message: string }> {
+  return request('/accounts/transfer', {
+    method: 'POST',
+    body: JSON.stringify({
+      from_account_id: data.from_account_id,
+      to_account_id: data.to_account_id,
+      amount: data.amount,
+      date: data.date,
+      notes: data.notes,
+    }),
+  })
 }

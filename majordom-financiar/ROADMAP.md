@@ -26,11 +26,30 @@ Makes Majordom genuinely useful every day without needing to open Actual Budget.
 
 | # | Feature | Notes |
 |---|---------|-------|
-| ✅ 1.1 | Budget conversational rebalancing | Shipped 2026-05-19. `propose_budget_rebalance` tool + `BudgetRebalanceCard` + `POST /api/budget/rebalance`. Fix: proposal JSON detected in `onChunk` (not `onComplete`) to avoid React state race condition. **Enhancement (backlog):** percentage-based rebalancing ("move 10% of income to Restaurants") and income-aware rebalancing. |
-| 1.2 | Document Management System | Upload photo/PDF → AI detects type → extract fields → save; types: receipt, invoice, vehicle doc, insurance, warranty, contract, medical |
-| 1.3 | Interactive messages in chat (rich actions) | Structured blocks from LLM parsed by React → category buttons, date picker, transfer confirmation |
-| 1.4 | OFX/QFX import support | Better than CSV — unique transaction IDs, native AB deduplication |
-| 1.5 | Duplicate merge instead of silent delete | On CSV import: merge duplicates (preserve richer data) instead of deleting |
+| ✅ 1.1 | Budget conversational rebalancing | Shipped 2026-05-19. `propose_budget_rebalance` tool + `BudgetRebalanceCard` + `POST /api/budget/rebalance`. Fix: proposal JSON detected in `onChunk` (not `onComplete`) to avoid React state race condition. |
+| 1.2 | Interactive messages in chat (rich actions) | Structured blocks from LLM parsed by React → category buttons, date picker, transfer confirmation |
+| 1.3 | OFX/QFX import support | Better than CSV — unique transaction IDs, native AB deduplication |
+| 1.4 | Duplicate merge instead of silent delete | On CSV import: merge duplicates (preserve richer data) instead of deleting |
+
+---
+
+### 🔲 Pre-M2 — Chat Architecture: Query Tools
+
+**Prerequisite for M2.** Replace snapshot injection with on-demand query tools.
+
+Current approach: all financial data injected into system prompt at every request — wasteful, limited to last 20 transactions, stale during long conversations.
+
+Correct approach: LLM calls read-only query tools when it needs data. Backend fetches on demand from Actual Budget.
+
+| Tool | Description |
+|------|-------------|
+| `get_monthly_stats(month, year)` | Spending totals + breakdown by category for a given month |
+| `get_transactions(category?, account?, limit?)` | Filtered transaction list |
+| `get_budget_status(month?, year?)` | Budget vs actual per category |
+| `get_accounts()` | Account list with balances |
+| `get_spending_history(months)` | Multi-month aggregate for trend queries |
+
+System prompt becomes minimal — no injected data. LLM decides what to fetch based on the user's question.
 
 ---
 
@@ -105,6 +124,8 @@ External services and advanced tracking.
 | Caddy + custom domain for HTTPS | Alternative to Tailscale for users who want a memorable domain (e.g. majordom.home.ro). Caddy handles automatic HTTPS via Let's Encrypt. Requires a public domain pointed at the server. Better long-term than Tailscale for self-hosters with a domain. |
 | Actual Budget mobile access via HTTPS | AB requires HTTPS (SharedArrayBuffer). Currently only accessible via SSH tunnel from PC. When Majordom is mature enough, expose AB behind a proper reverse proxy with HTTPS so power users can access it directly from mobile when needed. Low priority — Majordom is the intended interface, not AB directly. |
 | Ollama model management from chat | User can type "install llava-phi3" or "what models do I have?" — Majordom queries and manages Ollama directly. Eliminates terminal access for model management. |
+| Budget rebalancing by percentage / income | "Move 10% of my income to Restaurants" or "take 20% from Personal and add to Groceries". Requires knowing monthly income from AB (scheduled transactions). Enhancement on top of M1.1. |
+| Document Management System | Full DMS: photo/PDF upload, AI type detection, field extraction, versioning, document storage. Cross-domain infrastructure — implement as foundation for Majordom Digital, not here. Financial-specific vehicle documents (tenaamstellingsverslag, insurance, APK) → handled in M3 as vehicle-scoped feature, not generic DMS. |
 | RON / multi-currency | Via Rule Action Templating workaround; covered in onboarding Q8 |
 | Automatic monthly report | Summary push / Telegram on 1st of month; Telegram version already implemented in `bot/handlers.py:_monthly_summary_job` (APScheduler, sends previous month stats) — port to backend as part of Milestone 4.1 notification system (web push primary, Telegram fallback) |
 

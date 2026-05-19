@@ -735,7 +735,19 @@ Starea, calculele și condițiile stau în cod. LLM-ul face un singur lucru per 
 
 ---
 
-## 2026-05-19 — Curățare buguri + spec M1.1
+## 2026-05-19 — M1.2: chat tools — propose_transaction, rebalance, transfer
+
+**Problema:** Chatbot-ul trebuia să înregistreze tranzacții, să rebalanseze bugete și să transfere bani între conturi — tot din conversație, cu confirmare vizuală.
+
+**Ce s-a întâmplat:** llama3.1:8b și hermes3:8b scriu tool call-urile ca text în `content`, nu în `tool_calls` (bug de template Ollama). qwen3:8b rezolvă problema. În plus, qwen3 are "thinking mode" activ implicit — trebuie dezactivat cu `"think": false` altfel nu returnează nimic vizibil câteva zeci de secunde.
+
+**Soluția:** Routing pe 3 intenții (`transaction` / `action` / `info`) — pentru `info` stream direct fără tool detection. `think: false` în payload Ollama. `propose_transaction` are doar `merchant` + `amount` obligatorii, backend completează restul (dată, cont, categorie).
+
+**De reținut:** `actualpy.create_transfer` nu creează automat a doua tranzacție — un transfer în AB sunt DOUĂ tranzacții legate prin `transfer_id`. Rămas de implementat.
+
+---
+
+## 2026-05-19 — M1.1: budget rebalancing conversațional
 
 **Problema:** Bon foto dădea timeout pe hardware lent și cod mort era lăsat în proiect.
 

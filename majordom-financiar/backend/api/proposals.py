@@ -47,12 +47,13 @@ async def confirm_proposal(
             category_name=category_name,
             account_id=account_id,
             notes=proposal.get("notes", ""),
+            is_expense=proposal.get("is_expense", True),
         )
     except Exception as e:
         logger.error("Failed to confirm proposal %s: %s", proposal_id, e)
         raise HTTPException(status_code=500, detail="Failed to add transaction")
-
-    proposal_store.delete(proposal_id)
+    finally:
+        proposal_store.delete(proposal_id)
 
     duplicate = "already exists" in result
     return ConfirmResult(success=True, message=result)

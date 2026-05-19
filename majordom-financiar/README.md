@@ -6,6 +6,18 @@ A self-hosted personal finance assistant. Photograph receipts, import bank state
 
 ---
 
+Most budgeting apps show you what happened. Majordom tells you what to do next — and does it for you. You don't need to learn Actual Budget, Ghostfolio, or any other tool. You talk to Majordom. Majordom handles the rest.
+
+---
+
+## What changes after 3 months
+
+After 3 months, you'll have a clear picture of where your money goes and where you could save or rebalance to reach your goals. You'll make more rational spending decisions, aligned with your personal objectives. You'll have a long-term investment strategy with a clear view of your investor profile. And you'll know, with real precision, when you can reach financial independence — and what you can do to get there faster.
+
+Majordom will already know your goals and will keep you updated without you having to ask.
+
+---
+
 ## What it does
 
 | Action | Result |
@@ -268,5 +280,5 @@ Short version of what's coming:
 
 ## Project status
 
-This is a personal project, not a managed open-source product. The code is public for transparency and inspiration. I'm not actively reviewing pull requests or managing external contributions.
+Personal project in active development. External contributions are not prioritized at this stage.
 

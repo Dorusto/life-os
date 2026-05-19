@@ -13,6 +13,20 @@ from datetime import date
 logger = logging.getLogger(__name__)
 
 
+def _safe_get_or_create_payee(session, name: str):
+    """Like actualpy's get_or_create_payee but tolerates duplicate payee names."""
+    from actual.database import Payees
+    from uuid import uuid4
+    payee = session.query(Payees).filter(
+        Payees.name == name, Payees.tombstone == 0
+    ).first()
+    if payee is None:
+        payee = Payees(id=str(uuid4()), name=name, tombstone=0)
+        session.add(payee)
+        session.flush()
+    return payee
+
+
 @dataclass
 class Account:
     id: str
@@ -161,6 +175,7 @@ class ActualBudgetClient:
         category_name: str = "",
         tx_date: date | None = None,
         notes: str = "",
+        is_expense: bool = True,
     ) -> str | None:
         """Add a transaction. Returns the ID or None if duplicate."""
         if tx_date is None:
@@ -179,7 +194,7 @@ class ActualBudgetClient:
                 # (CSV import uses its own dedup logic in add_transactions_batch.)
                 imported_id = uuid.uuid4().hex[:16]
 
-                payee_obj = get_or_create_payee(actual.session, payee)
+                payee_obj = _safe_get_or_create_payee(actual.session, payee)
                 # Only use existing visible categories — never create new ones, never use hidden ones
                 cat_obj = None
                 if category_name:
@@ -194,7 +209,7 @@ class ActualBudgetClient:
                     account=account_id,
                     payee=payee_obj,
                     notes=notes,
-                    amount=-abs(amount),
+                    amount=-abs(amount) if is_expense else abs(amount),
                     category=cat_obj,
                     imported_id=imported_id,
                 )
@@ -375,6 +390,85 @@ class ActualBudgetClient:
                 logger.info(f"Account created: {name} (initial balance: {initial_balance})")
                 return Account(id=str(acc.id), name=acc.name, balance=initial_balance)
         return await self._run(_create)
+
+    async def create_transfer(
+        self,
+        from_account_id: str,
+        to_account_id: str,
+        amount: float,
+        tx_date: date,
+        notes: str = "",
+    ) -> dict:
+        """
+        Create a transfer between two bank accounts in Actual Budget.
+
+        Uses the transfer payee mechanism from actualpy: when a transaction's payee
+        has a transfer_acct pointing to another account, actualpy automatically creates
+        a second linked transaction in the destination account with the negated amount.
+
+        Returns {"success": True} on success.
+        """
+        def _transfer():
+            from datetime import date as _date
+            from decimal import Decimal
+            from actual.queries import (
+                create_transaction,
+                get_or_create_payee,
+                get_account,
+            )
+            from actual.database import Payees
+
+            with self._get_actual() as actual:
+                actual.download_budget()
+
+                # Resolve accounts
+                from_acct = get_account(actual.session, from_account_id)
+                if not from_acct:
+                    raise ValueError(f"Source account not found: {from_account_id}")
+                to_acct = get_account(actual.session, to_account_id)
+                if not to_acct:
+                    raise ValueError(f"Destination account not found: {to_account_id}")
+
+                # Find the transfer payee for the destination account.
+                # When an account is created, actualpy creates a Payee with
+                # transfer_acct set to the account's id. This payee is what
+                # triggers linked transfer transactions.
+                transfer_payee = (
+                    actual.session.query(Payees)
+                    .filter(
+                        Payees.transfer_acct == to_acct.id,
+                        Payees.tombstone == 0,
+                    )
+                    .first()
+                )
+                if not transfer_payee:
+                    # Create a transfer payee for the destination account
+                    transfer_payee = get_or_create_payee(actual.session, None)
+                    transfer_payee.transfer_acct = to_acct.id
+
+                # Create the outgoing transaction in the source account.
+                # With process_payee=True (default), create_transaction calls
+                # set_transaction_payee which detects the transfer payee and
+                # automatically creates a linked transaction in the destination
+                # account with the positive amount.
+                transfer_notes = f"[Transfer] {notes}" if notes else "[Transfer]"
+                tx = create_transaction(
+                    actual.session,
+                    date=tx_date,
+                    account=from_acct,
+                    payee=transfer_payee,
+                    notes=transfer_notes,
+                    amount=-abs(Decimal(str(amount))),
+                    category=None,
+                    cleared=True,
+                )
+                actual.commit()
+                logger.info(
+                    f"Transfer created: {from_acct.name} → {to_acct.name} €{amount:.2f}"
+                )
+                return {"success": True}
+
+        return await self._run(_transfer)
 
     async def get_full_context(
         self,
@@ -666,3 +760,31 @@ class ActualBudgetClient:
             return imported, skipped, errors, low_confidence
 
         return await self._run(_batch)
+
+    async def set_budget_amount(
+        self,
+        category_name: str,
+        new_amount: float,
+        month: date | None = None,
+    ) -> dict:
+        """
+        Upsert the budget allocation for a category in the given month.
+        Returns {"category_name": ..., "old_amount": ..., "new_amount": ...}
+        """
+        from datetime import date as _date
+        target_month = month or _date.today().replace(day=1)
+
+        def _set():
+            from actual.queries import create_budget, get_budget, get_category
+            with self._get_actual() as actual:
+                actual.download_budget()
+                cat = get_category(actual.session, category_name)
+                if not cat:
+                    raise ValueError(f"Category not found: {category_name}")
+                existing = get_budget(actual.session, target_month, cat)
+                old_amount = float(existing.amount) / 100 if existing and existing.amount else 0.0
+                create_budget(actual.session, target_month, cat, new_amount)
+                actual.commit()
+                return {"category_name": category_name, "old_amount": old_amount, "new_amount": new_amount}
+
+        return await self._run(_set)

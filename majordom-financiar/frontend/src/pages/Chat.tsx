@@ -4,13 +4,17 @@ import ReactMarkdown from 'react-markdown'
 import { sendChatMessageStreaming } from '../lib/api'
 import ProposalCard, { ProposalData } from '../components/ProposalCard'
 import BudgetRebalanceCard from '../components/BudgetRebalanceCard'
-import type { BudgetRebalanceData } from '../lib/api'
+import ClarificationCard from '../components/ClarificationCard'
+import AccountTransferCard from '../components/AccountTransferCard'
+import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from '../lib/api'
 
 export interface Message {
-  role: 'user' | 'assistant' | 'proposal' | 'budget_rebalance'
+  role: 'user' | 'assistant' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer'
   content: string
   proposal?: ProposalData
   budgetRebalance?: BudgetRebalanceData
+  clarification?: ClarificationData
+  accountTransfer?: AccountTransferData
 }
 
 export const INITIAL_MESSAGES: Message[] = [
@@ -39,17 +43,15 @@ export default function Chat({ messages, setMessages }: ChatProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  async function handleSend(e?: FormEvent) {
-    e?.preventDefault()
-    const text = input.trim()
+  // Send a specific text programmatically (used by ClarificationCard option clicks)
+  function handleSendText(text: string) {
     if (!text || loading) return
 
     const userMessage: Message = { role: 'user', content: text }
     setMessages(prev => [...prev, userMessage])
-    setInput('')
     setLoading(true)
 
-    // Build history — exclude proposal messages (role unknown to backend)
+    // Build history — exclude non-text messages (roles unknown to backend)
     const history = messages
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role, content: m.content }))
@@ -58,7 +60,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
       text,
       history,
       (chunk) => {
-        // Proposals arrive as a single complete JSON chunk — detect and convert immediately.
+        // Proposals/cards arrive as a single complete JSON chunk — detect and convert immediately.
         const trimmed = chunk.trim()
         if (trimmed.startsWith('{')) {
           try {
@@ -69,6 +71,14 @@ export default function Chat({ messages, setMessages }: ChatProps) {
             }
             if (parsed.type === 'budget_rebalance') {
               setMessages(prev => [...prev, { role: 'budget_rebalance' as const, content: '', budgetRebalance: parsed as BudgetRebalanceData }])
+              return
+            }
+            if (parsed.type === 'clarification') {
+              setMessages(prev => [...prev, { role: 'clarification' as const, content: '', clarification: parsed as ClarificationData }])
+              return
+            }
+            if (parsed.type === 'account_transfer') {
+              setMessages(prev => [...prev, { role: 'account_transfer' as const, content: '', accountTransfer: parsed as AccountTransferData }])
               return
             }
           } catch {}
@@ -105,6 +115,18 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                     { role: 'budget_rebalance' as const, content: '', budgetRebalance: parsed as BudgetRebalanceData },
                   ]
                 }
+                if (parsed.type === 'clarification') {
+                  return [
+                    ...prev.slice(0, -1),
+                    { role: 'clarification' as const, content: '', clarification: parsed as ClarificationData },
+                  ]
+                }
+                if (parsed.type === 'account_transfer') {
+                  return [
+                    ...prev.slice(0, -1),
+                    { role: 'account_transfer' as const, content: '', accountTransfer: parsed as AccountTransferData },
+                  ]
+                }
               } catch {}
             }
           }
@@ -121,6 +143,15 @@ export default function Chat({ messages, setMessages }: ChatProps) {
         setLoading(false)
       }
     )
+  }
+
+  function handleSend(e?: FormEvent) {
+    e?.preventDefault()
+    const text = input.trim()
+    if (text) {
+      setInput('')
+      handleSendText(text)
+    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -174,6 +205,45 @@ export default function Chat({ messages, setMessages }: ChatProps) {
             ) : msg.role === 'proposal' && msg.proposal ? (
               <ProposalCard
                 proposal={msg.proposal}
+                onConfirmed={(message) => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx
+                        ? { role: 'assistant', content: message }
+                        : m
+                    )
+                  )
+                }}
+                onCancelled={() => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx
+                        ? { role: 'assistant', content: 'Cancelled.' }
+                        : m
+                    )
+                  )
+                }}
+              />
+            ) : msg.role === 'clarification' && msg.clarification ? (
+              <ClarificationCard
+                question={msg.clarification.question}
+                options={msg.clarification.options}
+                onSelected={(option) => {
+                  // Replace the card with the chosen option as plain text (so it looks answered)
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx
+                        ? { role: 'assistant', content: option }
+                        : m
+                    )
+                  )
+                  // Send the chosen option as a new user message
+                  handleSendText(option)
+                }}
+              />
+            ) : msg.role === 'account_transfer' && msg.accountTransfer ? (
+              <AccountTransferCard
+                data={msg.accountTransfer}
                 onConfirmed={(message) => {
                   setMessages(prev =>
                     prev.map((m, i) =>
