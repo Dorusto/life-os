@@ -26,7 +26,7 @@ Makes Majordom genuinely useful every day without needing to open Actual Budget.
 
 | # | Feature | Notes |
 |---|---------|-------|
-| ✅ 1.1 | Budget conversational rebalancing | Shipped 2026-05-19. `propose_budget_rebalance` tool + `BudgetRebalanceCard` + `POST /api/budget/rebalance`. Fix: proposal JSON detected in `onChunk` (not `onComplete`) to avoid React state race condition. |
+| ✅ 1.1 | Budget conversational rebalancing | Shipped 2026-05-19. `propose_budget_rebalance` tool + `BudgetRebalanceCard` + `POST /api/budget/rebalance`. Fix: proposal JSON detected in `onChunk` (not `onComplete`) to avoid React state race condition. **Enhancement (backlog):** percentage-based rebalancing ("move 10% of income to Restaurants") and income-aware rebalancing. |
 | 1.2 | Document Management System | Upload photo/PDF → AI detects type → extract fields → save; types: receipt, invoice, vehicle doc, insurance, warranty, contract, medical |
 | 1.3 | Interactive messages in chat (rich actions) | Structured blocks from LLM parsed by React → category buttons, date picker, transfer confirmation |
 | 1.4 | OFX/QFX import support | Better than CSV — unique transaction IDs, native AB deduplication |
