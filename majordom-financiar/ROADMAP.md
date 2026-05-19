@@ -20,6 +20,18 @@ Supporting work also shipped: Chat AI with propose_transaction tool, receipt pho
 
 ---
 
+### 🔲 Validate: qwen3:8b tool_choice=auto without intent routing
+
+**Do this before building more features on top of the current routing.**
+
+Current routing uses regex to detect intent (transaction / action / info) and restricts tools accordingly. This is fragile — adding more tools or languages will break it. The correct approach is `tool_choice="auto"` and letting the LLM decide.
+
+**Test:** remove intent routing, send all messages with `tool_choice="auto"` and all tools available. Test all scenarios: expense, income, rebalance, transfer, informational queries, off-topic. If qwen3:8b handles it correctly → remove the regex entirely. If not → evaluate whether a 14b model fixes it (runs on 8GB VRAM) before adding more regex hacks.
+
+**Why now:** architectural decision that affects everything built on top. A fragile foundation means the project won't scale.
+
+---
+
 ### 🔲 Milestone 1 — Daily Driver
 
 Makes Majordom genuinely useful every day without needing to open Actual Budget.

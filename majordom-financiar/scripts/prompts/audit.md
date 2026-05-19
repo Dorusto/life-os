@@ -11,4 +11,4 @@ Verifică:
 Pentru fiecare problemă: fișier, linie, severitate (bug/cleanup/architectural),
 ce trebuie făcut. La final, actualizează ROADMAP.md cu problemele noi găsite.
 
-Nu implementa nimic. Răspunde în română.
+Nu implementa nimic.
