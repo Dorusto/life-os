@@ -768,3 +768,15 @@ Starea, calculele și condițiile stau în cod. LLM-ul face un singur lucru per 
 **Soluția:** Eliminat intent routing și injecția de date financiare din system prompt. Adăugate 5 query tools (get_accounts, get_monthly_stats, get_budget_status, get_transactions, get_spending_history) — LLM decide ce să fetch-uiască. `OLLAMA_CHAT_MODEL=qwen3:14b`. System prompt redus la ~800 chars.
 
 **De reținut:** Transferurile AB au `transferred_id` pe tranzacție — filtrează-le din statistici de cheltuieli altfel sunt numărate ca expenses. Categoriile de tip income au `is_income=True` pe obiectul Category — filtrează și astea. `get_budget_status` omitea categoriile cu buget 0 și cheltuieli 0 — include toate categoriile non-hidden din `get_categories()`.
+
+---
+
+## 2026-05-21 — Dashboard fix + CSV categories din AB
+
+**Problema:** Dashboard-ul arăta numere greșite față de AB. CSV import crea categorii noi greșite (ex. "Groceries & Drinks") în loc să folosească ce există în AB.
+
+**Ce s-a întâmplat:** AB nu șterge niciodată hard o categorie — o marchează `tombstone=1` (soft delete pentru CRDT sync). Tranzacțiile păstrează `category_id` valid pentru categoria ștearsă, dar `get_categories()` o omite → spending-ul era invizibil. Pe CSV, `_CATEGORY_NAMES` hardcodat mapa ID-uri interne la nume noi, în loc să folosească ce există în AB.
+
+**Soluția:** Tombstone remap în `get_budget_status`: fuzzy match (cutoff 0.4) după nume din `all_raw` → categoria vie echivalentă, re-atribuie spending. CSV preview: o singură sesiune AB returnează `existing_ids` + `ab_categories` reale; confirm nu creează niciodată categorii noi. SQLite cleanup: tabelele `transactions` și `budget_limits` șterse (date financiare nu au ce căuta în SQLite).
+
+**De reținut:** AB = soft delete mereu. Dacă numere nu se leagă, caută `tombstone=1` cu tranzacții asociate. `_map_to_ab_category` face prefix match apoi difflib fuzzy (cutoff 0.5) pentru a mapa orice ID intern la un nume real AB.

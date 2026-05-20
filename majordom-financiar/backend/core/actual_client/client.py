@@ -153,9 +153,14 @@ class ActualBudgetClient:
 
                     cat_name = "Uncategorized"
                     cat_key = "uncategorized"
-                    if tx.category_id and tx.category:
-                        cat_name = tx.category.name or "Uncategorized"
-                        cat_key = str(tx.category_id)
+                    if tx.category_id:
+                        if tx.category:
+                            cat_name = tx.category.name or "Uncategorized"
+                            cat_key = str(tx.category_id)
+                        else:
+                            # Tombstoned category — keep UUID, remap below
+                            cat_key = str(tx.category_id)
+                            cat_name = f"Deleted:{cat_key[:8]}"
 
                     by_category[cat_key]["total"] += amount
                     by_category[cat_key]["count"] += 1
@@ -322,13 +327,45 @@ class ActualBudgetClient:
                     spent_by_category[cat_id] += amount
 
                 # --- 3. Fetch all categories for name resolution ---
-                all_cats = get_categories(actual.session)
+                all_cats = get_categories(actual.session)  # non-tombstoned only
                 cat_name_map: dict[str, str] = {}
                 for cat in all_cats:
                     if cat.id:
-                        # Hidden categories (from old group) still get a name so
-                        # they don't show as "Unknown" in the dashboard.
                         cat_name_map[str(cat.id)] = cat.name or "Uncategorized"
+
+                # --- 3b. Remap spending from tombstoned categories to living ones ---
+                # When a category is deleted in AB, its transactions keep the old
+                # category_id.  get_categories() excludes tombstoned, so those
+                # transactions would be silently dropped.  We fuzzy-match deleted
+                # category names to living categories and re-attribute the spending.
+                try:
+                    from sqlmodel import select as _select
+                    from actual.database import Categories as _CatTable
+                    from difflib import get_close_matches
+                    all_raw = actual.session.exec(_select(_CatTable)).all()
+                    dead_names = {
+                        str(c.id): (c.name or "")
+                        for c in all_raw if c.tombstone and c.id
+                    }
+                    living_lower = {
+                        (c.name or "").lower(): str(c.id)
+                        for c in all_cats if c.id and c.name
+                    }
+                    for dead_id, dead_name in dead_names.items():
+                        if dead_id not in spent_by_category:
+                            continue
+                        matches = get_close_matches(
+                            dead_name.lower(), list(living_lower.keys()), n=1, cutoff=0.4
+                        )
+                        if matches:
+                            live_id = living_lower[matches[0]]
+                            spent_by_category[live_id] += spent_by_category.pop(dead_id)
+                            logger.debug(
+                                "Tombstoned category '%s' spending remapped to '%s'",
+                                dead_name, cat_name_map.get(live_id, live_id),
+                            )
+                except Exception as e:
+                    logger.warning("Tombstone remap failed (non-fatal): %s", e)
 
                 # --- 4. Merge budget + spending — include ALL non-hidden categories ---
                 all_category_ids = (
@@ -346,6 +383,9 @@ class ActualBudgetClient:
                         continue
                     budgeted = round(budget_by_category.get(cat_id, 0.0), 2)
                     spent = round(spent_by_category.get(cat_id, 0.0), 2)
+                    # Skip system/unbudgeted categories with no activity
+                    if budgeted == 0 and spent == 0:
+                        continue
                     percentage = round(spent / budgeted * 100, 1) if budgeted > 0 else 0.0
                     result.append({
                         "category_id": cat_id,

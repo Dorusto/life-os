@@ -16,6 +16,13 @@ Deduplication:
   SHA256(date+merchant+amount)[:16] — same hash as add_transaction and
   add_transactions_batch, so duplicates are caught regardless of which
   transport (bot / web / CSV) originally imported the transaction.
+
+Categories:
+  Actual Budget is the single source of truth.  The preview fetches the real AB
+  category list and fuzzy-maps SmartCategorizer predictions onto it.  No
+  category names are hardcoded here — the frontend receives the AB list and
+  shows it directly in the dropdown.  Confirm only assigns existing categories;
+  it never creates new ones.
 """
 import hashlib
 import logging
@@ -32,24 +39,6 @@ from backend.core.memory import MemoryDB, SmartCategorizer
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-# Actual Budget category display names, keyed by our internal category_id.
-# Must stay in sync with categories.json and the 12-category scheme in CLAUDE.md.
-_CATEGORY_NAMES: dict[str, str] = {
-    "groceries":     "Groceries & Drinks",
-    "restaurants":   "Restaurants & Cafes",
-    "transport":     "Transport",
-    "utilities":     "Utilities",
-    "health":        "Health",
-    "clothing":      "Clothing",
-    "home":          "Home & Maintenance",
-    "entertainment": "Entertainment & Vacation",
-    "children":      "Children",
-    "personal":      "Personal",
-    "investments":   "Investments & Savings",
-    "income":        "Income",
-    "other":         "Other",
-}
 
 
 def _financial_id(date_str: str, merchant: str, amount: float) -> str:
@@ -68,22 +57,23 @@ def _financial_id(date_str: str, merchant: str, amount: float) -> str:
 # ---------------------------------------------------------------------------
 
 class ImportRowPreview(BaseModel):
-    id: str          # financial_id hash — stable row key for the frontend
-    date: str        # YYYY-MM-DD
+    id: str           # financial_id hash — stable row key for the frontend
+    date: str         # YYYY-MM-DD
     merchant: str
-    amount: float    # always positive; is_expense determines sign in Actual Budget
+    amount: float     # always positive; is_expense determines sign in Actual Budget
     is_expense: bool
     currency: str
-    category_id: str # suggested from merchant history, keywords, or "other"
-    category_confirmed: bool  # True = from confirmed history; False = needs user review
+    category_name: str       # actual AB category name, or "" if unknown
+    category_confirmed: bool  # True = from confirmed merchant history
     duplicate: bool
 
 
 class ImportPreview(BaseModel):
     source_name: str
     rows: list[ImportRowPreview]
-    total_rows: int      # raw CSV rows (includes income-only rows skipped by normalizer)
-    accounts: list[dict] # [{id, name}] — for the account selector in the UI
+    total_rows: int       # raw CSV rows (includes income-only rows skipped by normalizer)
+    accounts: list[dict]  # [{id, name}] — for the account selector in the UI
+    ab_categories: list[str]  # all AB category names for the frontend dropdown
 
 
 class ImportRowConfirm(BaseModel):
@@ -91,7 +81,7 @@ class ImportRowConfirm(BaseModel):
     merchant: str
     amount: float
     is_expense: bool
-    category_id: str
+    category_name: str  # actual AB category name, or "" = leave uncategorized
     duplicate: bool
     notes: str = ""
 
@@ -111,55 +101,58 @@ class ImportResult(BaseModel):
 # Sync helpers — run in thread executor via ActualBudgetClient._run()
 # ---------------------------------------------------------------------------
 
-def _fetch_existing_ids(actual_client: ActualBudgetClient) -> set[str]:
+def _fetch_preview_data(actual_client: ActualBudgetClient) -> tuple[set[str], list[str]]:
     """
-    Return all financial_ids currently in Actual Budget.
-    Called from the preview endpoint to flag duplicates before the user
-    reviews the import — prevents surprises at confirm time.
+    Single AB session that returns:
+      - set of financial_ids already in AB (for duplicate detection)
+      - list of non-hidden AB category names (for the frontend dropdown)
     """
-    from actual.queries import get_transactions
+    from actual.queries import get_categories, get_transactions
     with actual_client._get_actual() as actual:
         actual.download_budget()
-        return {
+        existing_ids = {
             tx.financial_id
             for tx in get_transactions(actual.session)
             if tx.financial_id and not tx.tombstone
         }
+        ab_categories = [
+            c.name for c in get_categories(actual.session)
+            if c.name and not c.hidden and not c.tombstone
+        ]
+        return existing_ids, ab_categories
 
 
-def _resolve_ab_category(
-    session,
-    category_id: str,
-    get_or_create_category,
-) -> object | None:
+def _map_to_ab_category(cat_id: str, ab_categories: list[str]) -> str | None:
     """
-    Resolve our internal category_id to an Actual Budget category object.
+    Map a SmartCategorizer internal ID (e.g. "restaurants") to the best-matching
+    real AB category name (e.g. "Restaurants").
 
-    Tries fuzzy-matching against existing AB categories before creating a new
-    one.  This prevents duplicates like "Groceries & Drinks" when the budget
-    already has "Groceries".
+    Strategy:
+      1. Check if cat_id is already a valid AB category name (stored by a
+         previous confirm — new format stores AB names directly in SQLite).
+      2. Prefix match: "home" → "Home & Maintenance".
+      3. Fuzzy match (cutoff 0.5) for the rest.
 
-    Cutoff 0.5: intentionally lenient so "Restaurants & Cafes" → "Restaurants".
+    Returns None if no reasonable match is found — the row stays uncategorized
+    and the user must pick manually.
     """
-    if category_id not in _CATEGORY_NAMES:
-        return None
-
-    display_name = _CATEGORY_NAMES[category_id]
-
-    from actual.queries import get_categories
     from difflib import get_close_matches
 
-    existing = [c for c in get_categories(session) if not c.hidden and not c.tombstone]
-    existing_names = [c.name for c in existing if c.name]
+    # 1. Already an AB category name (from history stored by new confirm)
+    if cat_id in ab_categories:
+        return cat_id
 
-    matches = get_close_matches(display_name, existing_names, n=1, cutoff=0.5)
-    if matches:
-        for cat in existing:
-            if cat.name == matches[0]:
-                return cat
+    cat_id_lower = cat_id.lower()
+    name_lower_map = {n.lower(): n for n in ab_categories}
 
-    # No close match — create under "Majordom" group
-    return get_or_create_category(session, display_name, group_name="Majordom")
+    # 2. Prefix match
+    for lower, original in name_lower_map.items():
+        if lower.startswith(cat_id_lower):
+            return original
+
+    # 3. Fuzzy
+    matches = get_close_matches(cat_id_lower, list(name_lower_map.keys()), n=1, cutoff=0.5)
+    return name_lower_map[matches[0]] if matches else None
 
 
 def _do_import(
@@ -170,17 +163,18 @@ def _do_import(
     """
     Write confirmed rows to Actual Budget in a single session.
 
-    Re-checks duplicates server-side (the user may have imported something
-    between preview and confirm, or may have unchecked a duplicate in the UI).
+    Categories are resolved by name against the existing AB category list.
+    No new categories are ever created — if a name is not found the transaction
+    is imported without a category.
 
-    Merge logic: if a duplicate exists in AB with no category, and the CSV row
-    has a confirmed category, update the category instead of skipping.
+    Merge logic: if a duplicate already exists in AB without a category, and
+    the CSV row has a confirmed category, assign the category instead of skipping.
 
     Returns (imported, skipped, merged).
     """
     from actual.queries import (
         create_transaction,
-        get_or_create_category,
+        get_categories,
         get_or_create_payee,
         get_transactions,
     )
@@ -196,6 +190,13 @@ def _do_import(
         }
         existing_ids = set(existing_tx_map.keys())
 
+        # Category lookup by name — never create new categories
+        all_cats = {
+            c.name: c
+            for c in get_categories(actual.session)
+            if not c.tombstone
+        }
+
         imported = 0
         skipped = 0
         merged = 0
@@ -209,15 +210,9 @@ def _do_import(
             fid = _financial_id(tx_date.isoformat(), row.merchant, row.amount)
 
             if row.duplicate or fid in existing_ids:
-                # Merge: update category if existing has none and CSV has one
                 existing = existing_tx_map.get(fid)
-                if (existing
-                        and not existing.category_id
-                        and row.category_id in _CATEGORY_NAMES
-                        and row.category_id != "other"):
-                    cat_obj = _resolve_ab_category(
-                        actual.session, row.category_id, get_or_create_category
-                    )
+                if existing and not existing.category_id and row.category_name:
+                    cat_obj = all_cats.get(row.category_name)
                     if cat_obj:
                         existing.category = cat_obj
                         merged += 1
@@ -228,12 +223,7 @@ def _do_import(
                 continue
 
             payee = get_or_create_payee(actual.session, row.merchant)
-
-            cat_obj = None
-            if row.category_id in _CATEGORY_NAMES and row.category_id != "other":
-                cat_obj = _resolve_ab_category(
-                    actual.session, row.category_id, get_or_create_category
-                )
+            cat_obj = all_cats.get(row.category_name) if row.category_name else None
 
             actual_amount = -abs(row.amount) if row.is_expense else abs(row.amount)
             tx_notes = f"[import CSV] {row.notes}".strip() if row.notes else "[import CSV]"
@@ -321,8 +311,8 @@ async def preview_csv(
         sync_id=settings.actual.sync_id,
     )
 
-    # Fetch existing IDs and accounts concurrently via the shared executor
-    existing_ids = await actual._run(lambda: _fetch_existing_ids(actual))
+    # One AB session: existing IDs + real category list
+    existing_ids, ab_categories = await actual._run(lambda: _fetch_preview_data(actual))
     accounts = await actual.get_accounts()
 
     categorizer = SmartCategorizer(db=db)
@@ -330,6 +320,7 @@ async def preview_csv(
     preview_rows: list[ImportRowPreview] = []
     for tx in transactions:
         fid = _financial_id(tx.date.isoformat(), tx.merchant, tx.amount)
+
         # For refunds, strip common prefixes so "Refund: Vpn*..." matches "Vpn*..." in history
         lookup_merchant = tx.merchant
         if not tx.is_expense:
@@ -339,9 +330,11 @@ async def preview_csv(
                     break
 
         pred = categorizer.predict(merchant=lookup_merchant)
-        # Use the best available prediction — user reviews everything in the preview
-        # table and can change any category, so it's fine to show keyword/AI suggestions too
-        cat_id = pred.category_id or "other"
+
+        # Map internal prediction to a real AB category name
+        ab_name = ""
+        if pred.category_id and pred.category_id != "other":
+            ab_name = _map_to_ab_category(pred.category_id, ab_categories) or ""
 
         preview_rows.append(ImportRowPreview(
             id=fid,
@@ -350,8 +343,8 @@ async def preview_csv(
             amount=tx.amount,
             is_expense=tx.is_expense,
             currency=tx.currency,
-            category_id=cat_id,
-            category_confirmed=pred.from_history,
+            category_name=ab_name,
+            category_confirmed=(bool(ab_name) and pred.from_history),
             duplicate=(fid in existing_ids),
         ))
 
@@ -366,6 +359,7 @@ async def preview_csv(
         rows=preview_rows,
         total_rows=len(rows),
         accounts=[{"id": acc.id, "name": acc.name} for acc in accounts],
+        ab_categories=ab_categories,
     )
 
 
@@ -389,13 +383,14 @@ async def confirm_csv(
         lambda: _do_import(actual, body.account_id, body.rows)
     )
 
-    # Teach SmartCategorizer from confirmed categories so future imports learn
+    # Teach SmartCategorizer from confirmed categories so future imports remember
+    # merchant → AB category name mappings without any Ollama call.
     if imported > 0:
         db = MemoryDB(db_path=settings.memory.db_path)
         categorizer = SmartCategorizer(db=db)
         for row in body.rows:
-            if not row.duplicate and row.category_id not in ("other", ""):
-                categorizer.learn(row.merchant.lower(), row.category_id)
+            if not row.duplicate and row.category_name:
+                categorizer.learn(row.merchant.lower(), row.category_name)
 
     logger.info(
         "CSV confirmed [%s]: %d imported, %d skipped, %d merged",

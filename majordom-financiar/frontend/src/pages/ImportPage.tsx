@@ -11,8 +11,6 @@ import {
 
 // --- Types ---
 
-interface Category { id: string; name: string; emoji: string }
-
 interface ImportRow {
   id: string
   date: string
@@ -20,29 +18,11 @@ interface ImportRow {
   amount: number
   is_expense: boolean
   currency: string
-  categoryId: string        // camelCase locally; maps to category_id in API
-  categoryConfirmed: boolean // false = needs user review (never seen this merchant before)
+  categoryName: string       // actual AB category name, or "" = uncategorized
+  categoryConfirmed: boolean // true = from confirmed merchant history
   duplicate: boolean
-  notes: string             // user-added note, appended to "[import CSV]" in Actual Budget
+  notes: string
 }
-
-// --- Static category list (12 categories, defined in CLAUDE.md) ---
-
-const CATEGORIES: Category[] = [
-  { id: 'groceries',     name: 'Groceries & Drinks',      emoji: '🛒' },
-  { id: 'restaurants',  name: 'Restaurants & Cafes',      emoji: '🍽️' },
-  { id: 'transport',    name: 'Transport',                 emoji: '🚗' },
-  { id: 'utilities',    name: 'Utilities',                 emoji: '💡' },
-  { id: 'health',       name: 'Health',                    emoji: '💊' },
-  { id: 'clothing',     name: 'Clothing',                  emoji: '👕' },
-  { id: 'home',         name: 'Home & Maintenance',        emoji: '🏠' },
-  { id: 'entertainment',name: 'Entertainment & Vacation',  emoji: '🎬' },
-  { id: 'children',     name: 'Children',                  emoji: '👨‍👩‍👧‍👦' },
-  { id: 'personal',     name: 'Personal',                  emoji: '💰' },
-  { id: 'investments',  name: 'Investments & Savings',     emoji: '📈' },
-  { id: 'income',       name: 'Income',                    emoji: '💵' },
-  { id: 'other',        name: 'Other',                     emoji: '📦' },
-]
 
 // --- Main component ---
 
@@ -55,6 +35,7 @@ export default function ImportPage() {
   const [accountId, setAccountId] = useState<string>('')
   const [rows, setRows] = useState<ImportRow[]>([])
   const [accounts, setAccounts] = useState<AccountOption[]>([])
+  const [abCategories, setAbCategories] = useState<string[]>([])
   const [sourceName, setSourceName] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -63,8 +44,8 @@ export default function ImportPage() {
 
   const activeRows = rows.filter(r => !r.duplicate)
   const duplicateCount = rows.filter(r => r.duplicate).length
-  const needsActionCount = activeRows.filter(r => !r.categoryConfirmed && r.categoryId === 'other').length
-  const autoSuggestedCount = activeRows.filter(r => !r.categoryConfirmed && r.categoryId !== 'other').length
+  const needsActionCount = activeRows.filter(r => r.categoryName === '').length
+  const autoSuggestedCount = activeRows.filter(r => r.categoryName !== '' && !r.categoryConfirmed).length
   const totalExpenses = activeRows.filter(r => r.is_expense).reduce((s, r) => s + r.amount, 0)
   const totalIncome = activeRows.filter(r => !r.is_expense).reduce((s, r) => s + r.amount, 0)
 
@@ -74,14 +55,14 @@ export default function ImportPage() {
     const f = e.dataTransfer.files[0]
     if (f?.name.endsWith('.csv')) handleFile(f)
   }
-  function handleCategoryChange(id: string, categoryId: string) {
+  function handleCategoryChange(id: string, categoryName: string) {
     setRows(prev => {
       const merchant = prev.find(r => r.id === id)?.merchant
       return prev.map(r => {
-        if (r.id === id) return { ...r, categoryId, categoryConfirmed: true }
+        if (r.id === id) return { ...r, categoryName, categoryConfirmed: true }
         // Auto-propagate to same merchant — only unconfirmed, non-duplicate rows
         if (r.merchant === merchant && !r.duplicate && !r.categoryConfirmed) {
-          return { ...r, categoryId, categoryConfirmed: true }
+          return { ...r, categoryName, categoryConfirmed: true }
         }
         return r
       })
@@ -105,12 +86,13 @@ export default function ImportPage() {
         amount: r.amount,
         is_expense: r.is_expense,
         currency: r.currency,
-        categoryId: r.category_id,
+        categoryName: r.category_name,
         categoryConfirmed: r.category_confirmed,
         duplicate: r.duplicate,
         notes: '',
       })))
       setAccounts(preview.accounts)
+      setAbCategories(preview.ab_categories)
       setSourceName(preview.source_name)
       const src = preview.source_name.toLowerCase()
       const matched = preview.accounts.find(acc =>
@@ -136,7 +118,7 @@ export default function ImportPage() {
           merchant: r.merchant,
           amount: r.amount,
           is_expense: r.is_expense,
-          category_id: r.categoryId,
+          category_name: r.categoryName,
           duplicate: r.duplicate,
           notes: r.notes || undefined,
         })),
@@ -193,7 +175,7 @@ export default function ImportPage() {
           {step === 2 && (
             <Step2Preview
               rows={rows}
-              categories={CATEGORIES}
+              abCategories={abCategories}
               accounts={accounts}
               accountId={accountId}
               sourceName={sourceName}
@@ -340,14 +322,14 @@ function Step1Upload({ file, fileInputRef, loading, onDrop, onFileChange, onPick
 
 // --- Step 2: Preview table ---
 
-function Step2Preview({ rows, categories, accounts, accountId, sourceName, onAccountChange, onCategoryChange, onNotesChange, onBack, onNext }: {
+function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onAccountChange, onCategoryChange, onNotesChange, onBack, onNext }: {
   rows: ImportRow[]
-  categories: Category[]
+  abCategories: string[]
   accounts: AccountOption[]
   accountId: string
   sourceName: string
   onAccountChange: (id: string) => void
-  onCategoryChange: (rowId: string, categoryId: string) => void
+  onCategoryChange: (rowId: string, categoryName: string) => void
   onNotesChange: (rowId: string, notes: string) => void
   onBack: () => void
   onNext: () => void
@@ -413,18 +395,19 @@ function Step2Preview({ rows, categories, accounts, accountId, sourceName, onAcc
                     <div className="flex flex-col gap-1">
                       <div className="relative">
                         <select
-                          value={row.categoryId}
+                          value={row.categoryName}
                           onChange={e => onCategoryChange(row.id, e.target.value)}
-                          className={`${selectClass} ${!row.categoryConfirmed ? 'border-yellow-500/60 pr-6' : ''}`}
+                          className={`${selectClass} ${row.categoryName === '' ? 'border-yellow-500/60 pr-6' : !row.categoryConfirmed ? 'border-yellow-500/30 pr-6' : ''}`}
                         >
-                          {categories.map(cat => (
-                            <option key={cat.id} value={cat.id}>{cat.emoji} {cat.name}</option>
+                          <option value="">— no category —</option>
+                          {abCategories.map(name => (
+                            <option key={name} value={name}>{name}</option>
                           ))}
                         </select>
-                        {!row.categoryConfirmed && (
+                        {(!row.categoryConfirmed || row.categoryName === '') && (
                           <span
                             className="absolute right-1.5 top-1/2 -translate-y-1/2 text-yellow-500 text-xs pointer-events-none"
-                            title="Auto-suggested — verify if correct"
+                            title={row.categoryName === '' ? 'Needs a category' : 'Auto-suggested — verify if correct'}
                           >
                             ?
                           </span>

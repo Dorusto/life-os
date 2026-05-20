@@ -34,45 +34,49 @@ export default function BudgetDashboard({ categories, month, year, totalBalance 
   const totalSpent = categories.reduce((sum, c) => sum + c.spent, 0)
   const totalBudgeted = categories.reduce((sum, c) => sum + c.budgeted, 0)
 
-  // Split into budgeted vs unbudgeted
-  const budgetedCats = categories.filter(c => c.budgeted > 0)
-  const unbudgetedCats = categories.filter(c => c.budgeted === 0)
+  // Only show categories with a budget set — system categories (Other, Income,
+  // Starting Balances) and any unbudgeted AB categories are not relevant here.
+  const allCats = categories
+    .filter(c => c.budgeted > 0)
+    .sort((a, b) => {
+      const aOver = a.percentage > 100 ? 1 : 0
+      const bOver = b.percentage > 100 ? 1 : 0
+      if (aOver !== bOver) return bOver - aOver
+      return b.percentage - a.percentage
+    })
 
-  // Sort budgeted: over-budget first, then by percentage descending
-  budgetedCats.sort((a, b) => {
-    const aOver = a.percentage > 100 ? 1 : 0
-    const bOver = b.percentage > 100 ? 1 : 0
-    if (aOver !== bOver) return bOver - aOver
-    return b.percentage - a.percentage
-  })
-
-  // Sort unbudgeted by spent descending
-  unbudgetedCats.sort((a, b) => b.spent - a.spent)
-
-  const allCats = [...budgetedCats, ...unbudgetedCats]
+  const budgetBalance = totalBudgeted - totalSpent
+  const isOver = budgetBalance < 0
 
   return (
     <div className="bg-surface rounded-2xl p-4">
       {/* Header */}
-      <div className="flex items-baseline justify-between mb-4">
+      <div className="flex items-start justify-between mb-4">
         <div>
           <p className="text-xs text-muted uppercase tracking-wide">
             {MONTH_NAMES[month - 1]} {year}
           </p>
           <p className="text-white text-lg font-semibold mt-0.5">Budget</p>
+          <p className="text-muted text-xs mt-0.5">
+            €{totalSpent.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            {' '}/ €{totalBudgeted.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} spent
+          </p>
         </div>
         <div className="text-right">
-          <p className="text-white text-lg font-semibold">
-            €{totalSpent.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </p>
           {totalBudgeted > 0 && (
-            <p className="text-muted text-xs">
-              of €{totalBudgeted.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} budget
-            </p>
+            <>
+              <p className="text-xs text-muted">{isOver ? 'over budget' : 'remaining'}</p>
+              <p
+                className="text-lg font-semibold"
+                style={{ color: isOver ? '#FF2D2D' : '#22C55E' }}
+              >
+                {isOver ? '−' : '+'}€{Math.abs(budgetBalance).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            </>
           )}
           {totalBalance != null && (
             <p className="text-muted text-xs mt-0.5">
-              €{totalBalance.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} available
+              €{totalBalance.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} in accounts
             </p>
           )}
         </div>

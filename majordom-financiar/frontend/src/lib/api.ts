@@ -188,7 +188,7 @@ export interface ImportRow {
   amount: number
   is_expense: boolean
   currency: string
-  category_id: string
+  category_name: string      // actual AB category name, or "" if unknown
   category_confirmed: boolean
   duplicate: boolean
 }
@@ -198,6 +198,7 @@ export interface ImportPreview {
   rows: ImportRow[]
   total_rows: number
   accounts: AccountOption[]
+  ab_categories: string[]    // all AB category names for the dropdown
 }
 
 export interface ImportRowConfirm {
@@ -205,7 +206,7 @@ export interface ImportRowConfirm {
   merchant: string
   amount: number
   is_expense: boolean
-  category_id: string
+  category_name: string      // actual AB category name, or "" = uncategorized
   duplicate: boolean
   notes?: string
 }

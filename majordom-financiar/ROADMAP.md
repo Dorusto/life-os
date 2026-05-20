@@ -45,6 +45,7 @@ Makes Majordom genuinely useful every day without needing to open Actual Budget.
 | ✅ 1.2 | Interactive messages in chat (rich actions) | Shipped 2026-05-20. ProposalCard, BudgetRebalanceCard (editable dropdowns), AccountTransferCard, ClarificationCard. All cards parsed from streaming JSON and rendered inline in chat. |
 | ⏸️ 1.3 | OFX/QFX import support | On hold — no OFX/QFX files available to test. Revisit when needed. |
 | ✅ 1.4 | Duplicate merge instead of silent delete | Shipped 2026-05-20. On CSV import: if duplicate exists in AB with no category AND CSV row has a confirmed category → update the existing transaction's category instead of skipping. Result shown in Step 4: "X categories updated". Also fixed: notes field always visible in preview; "Other" uncategorized rows show yellow warning in Step 3; auto-suggested non-Other categories show soft advisory only. |
+| ✅ 1.5 | Dashboard correct numbers + CSV categories from AB | Shipped 2026-05-21. Tombstone remap in `get_budget_status`: spending from deleted categories fuzzy-matched to living equivalents (cutoff 0.4). CSV import: categories fetched from AB (single session), never created from hardcoded list. Dropped `transactions` + `budget_limits` tables from SQLite (architecture audit complete). BudgetDashboard: only budgeted categories shown, useful remaining/overspent indicator. |
 
 ---
 
