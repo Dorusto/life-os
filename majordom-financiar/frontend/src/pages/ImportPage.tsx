@@ -65,7 +65,8 @@ export default function ImportPage() {
   const duplicateCount = rows.filter(r => r.duplicate).length
   const needsActionCount = activeRows.filter(r => !r.categoryConfirmed && r.categoryId === 'other').length
   const autoSuggestedCount = activeRows.filter(r => !r.categoryConfirmed && r.categoryId !== 'other').length
-  const total = activeRows.reduce((s, r) => s + (r.is_expense ? r.amount : -r.amount), 0)
+  const totalExpenses = activeRows.filter(r => r.is_expense).reduce((s, r) => s + r.amount, 0)
+  const totalIncome = activeRows.filter(r => !r.is_expense).reduce((s, r) => s + r.amount, 0)
 
   function handleFile(f: File) { setFile(f); setError(null) }
   function handleDrop(e: React.DragEvent) {
@@ -209,7 +210,8 @@ export default function ImportPage() {
               duplicateCount={duplicateCount}
               needsActionCount={needsActionCount}
               autoSuggestedCount={autoSuggestedCount}
-              total={total}
+              totalExpenses={totalExpenses}
+              totalIncome={totalIncome}
               loading={loading}
               onBack={() => setStep(2)}
               onImport={handleImport}
@@ -463,12 +465,13 @@ function Step2Preview({ rows, categories, accounts, accountId, sourceName, onAcc
 
 // --- Step 3: Confirm summary ---
 
-function Step3Confirm({ activeCount, duplicateCount, needsActionCount, autoSuggestedCount, total, loading, onBack, onImport }: {
+function Step3Confirm({ activeCount, duplicateCount, needsActionCount, autoSuggestedCount, totalExpenses, totalIncome, loading, onBack, onImport }: {
   activeCount: number
   duplicateCount: number
   needsActionCount: number
   autoSuggestedCount: number
-  total: number
+  totalExpenses: number
+  totalIncome: number
   loading: boolean
   onBack: () => void
   onImport: () => void
@@ -482,10 +485,16 @@ function Step3Confirm({ activeCount, duplicateCount, needsActionCount, autoSugge
           <SummaryRow label="Duplicates skipped" value={String(duplicateCount)} muted />
           <div className="h-px bg-border my-1" />
           <SummaryRow
-            label="Total amount"
-            value={`€${total.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            label="Expenses"
+            value={`−€${totalExpenses.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
             bold
           />
+          {totalIncome > 0 && (
+            <SummaryRow
+              label="Income"
+              value={`+€${totalIncome.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            />
+          )}
         </div>
       </div>
 

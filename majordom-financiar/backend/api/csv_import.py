@@ -127,6 +127,41 @@ def _fetch_existing_ids(actual_client: ActualBudgetClient) -> set[str]:
         }
 
 
+def _resolve_ab_category(
+    session,
+    category_id: str,
+    get_or_create_category,
+) -> object | None:
+    """
+    Resolve our internal category_id to an Actual Budget category object.
+
+    Tries fuzzy-matching against existing AB categories before creating a new
+    one.  This prevents duplicates like "Groceries & Drinks" when the budget
+    already has "Groceries".
+
+    Cutoff 0.5: intentionally lenient so "Restaurants & Cafes" → "Restaurants".
+    """
+    if category_id not in _CATEGORY_NAMES:
+        return None
+
+    display_name = _CATEGORY_NAMES[category_id]
+
+    from actual.queries import get_categories
+    from difflib import get_close_matches
+
+    existing = [c for c in get_categories(session) if not c.hidden and not c.tombstone]
+    existing_names = [c.name for c in existing if c.name]
+
+    matches = get_close_matches(display_name, existing_names, n=1, cutoff=0.5)
+    if matches:
+        for cat in existing:
+            if cat.name == matches[0]:
+                return cat
+
+    # No close match — create under "Majordom" group
+    return get_or_create_category(session, display_name, group_name="Majordom")
+
+
 def _do_import(
     actual_client: ActualBudgetClient,
     account_id: str,
@@ -180,13 +215,14 @@ def _do_import(
                         and not existing.category_id
                         and row.category_id in _CATEGORY_NAMES
                         and row.category_id != "other"):
-                    cat_obj = get_or_create_category(
-                        actual.session,
-                        _CATEGORY_NAMES[row.category_id],
-                        group_name="Majordom",
+                    cat_obj = _resolve_ab_category(
+                        actual.session, row.category_id, get_or_create_category
                     )
-                    existing.category = cat_obj
-                    merged += 1
+                    if cat_obj:
+                        existing.category = cat_obj
+                        merged += 1
+                    else:
+                        skipped += 1
                 else:
                     skipped += 1
                 continue
@@ -194,11 +230,9 @@ def _do_import(
             payee = get_or_create_payee(actual.session, row.merchant)
 
             cat_obj = None
-            if row.category_id in _CATEGORY_NAMES:
-                cat_obj = get_or_create_category(
-                    actual.session,
-                    _CATEGORY_NAMES[row.category_id],
-                    group_name="Majordom",
+            if row.category_id in _CATEGORY_NAMES and row.category_id != "other":
+                cat_obj = _resolve_ab_category(
+                    actual.session, row.category_id, get_or_create_category
                 )
 
             actual_amount = -abs(row.amount) if row.is_expense else abs(row.amount)
@@ -354,6 +388,14 @@ async def confirm_csv(
     imported, skipped, merged = await actual._run(
         lambda: _do_import(actual, body.account_id, body.rows)
     )
+
+    # Teach SmartCategorizer from confirmed categories so future imports learn
+    if imported > 0:
+        db = MemoryDB(db_path=settings.memory.db_path)
+        categorizer = SmartCategorizer(db=db)
+        for row in body.rows:
+            if not row.duplicate and row.category_id not in ("other", ""):
+                categorizer.learn(row.merchant.lower(), row.category_id)
 
     logger.info(
         "CSV confirmed [%s]: %d imported, %d skipped, %d merged",
