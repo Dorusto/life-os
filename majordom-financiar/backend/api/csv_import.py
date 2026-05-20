@@ -104,6 +104,7 @@ class ImportConfirmRequest(BaseModel):
 class ImportResult(BaseModel):
     imported: int
     skipped: int
+    merged: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -130,13 +131,17 @@ def _do_import(
     actual_client: ActualBudgetClient,
     account_id: str,
     rows: list[ImportRowConfirm],
-) -> tuple[int, int]:
+) -> tuple[int, int, int]:
     """
     Write confirmed rows to Actual Budget in a single session.
 
     Re-checks duplicates server-side (the user may have imported something
     between preview and confirm, or may have unchecked a duplicate in the UI).
-    Returns (imported, skipped).
+
+    Merge logic: if a duplicate exists in AB with no category, and the CSV row
+    has a confirmed category, update the category instead of skipping.
+
+    Returns (imported, skipped, merged).
     """
     from actual.queries import (
         create_transaction,
@@ -148,29 +153,42 @@ def _do_import(
     with actual_client._get_actual() as actual:
         actual.download_budget()
 
-        # Build dedup set for this session
-        existing_ids = {
-            tx.financial_id
+        # Build dedup map: financial_id → transaction (for merge checks)
+        existing_tx_map = {
+            tx.financial_id: tx
             for tx in get_transactions(actual.session)
             if tx.financial_id and not tx.tombstone
         }
+        existing_ids = set(existing_tx_map.keys())
 
         imported = 0
         skipped = 0
+        merged = 0
 
         for row in rows:
-            if row.duplicate:
-                skipped += 1
-                continue
-
             try:
                 tx_date = dt.strptime(row.date, "%Y-%m-%d").date()
             except ValueError:
                 tx_date = dt.now().date()
 
             fid = _financial_id(tx_date.isoformat(), row.merchant, row.amount)
-            if fid in existing_ids:
-                skipped += 1
+
+            if row.duplicate or fid in existing_ids:
+                # Merge: update category if existing has none and CSV has one
+                existing = existing_tx_map.get(fid)
+                if (existing
+                        and not existing.category_id
+                        and row.category_id in _CATEGORY_NAMES
+                        and row.category_id != "other"):
+                    cat_obj = get_or_create_category(
+                        actual.session,
+                        _CATEGORY_NAMES[row.category_id],
+                        group_name="Majordom",
+                    )
+                    existing.category = cat_obj
+                    merged += 1
+                else:
+                    skipped += 1
                 continue
 
             payee = get_or_create_payee(actual.session, row.merchant)
@@ -183,7 +201,6 @@ def _do_import(
                     group_name="Majordom",
                 )
 
-            # Expenses are negative in Actual Budget (milliunits), refunds positive
             actual_amount = -abs(row.amount) if row.is_expense else abs(row.amount)
             tx_notes = f"[import CSV] {row.notes}".strip() if row.notes else "[import CSV]"
             create_transaction(
@@ -199,11 +216,11 @@ def _do_import(
             existing_ids.add(fid)
             imported += 1
 
-        if imported > 0:
+        if imported > 0 or merged > 0:
             actual.commit()
-            logger.info("CSV import committed: %d rows", imported)
+            logger.info("CSV import committed: %d rows, %d merged", imported, merged)
 
-    return imported, skipped
+    return imported, skipped, merged
 
 
 # ---------------------------------------------------------------------------
@@ -334,12 +351,12 @@ async def confirm_csv(
         sync_id=settings.actual.sync_id,
     )
 
-    imported, skipped = await actual._run(
+    imported, skipped, merged = await actual._run(
         lambda: _do_import(actual, body.account_id, body.rows)
     )
 
     logger.info(
-        "CSV confirmed [%s]: %d imported, %d skipped",
-        current_user, imported, skipped,
+        "CSV confirmed [%s]: %d imported, %d skipped, %d merged",
+        current_user, imported, skipped, merged,
     )
-    return ImportResult(imported=imported, skipped=skipped)
+    return ImportResult(imported=imported, skipped=skipped, merged=merged)

@@ -217,6 +217,7 @@ export interface ImportConfirm {
 
 export interface ImportResult {
   imported: number
+  merged?: number
   skipped: number
 }
 

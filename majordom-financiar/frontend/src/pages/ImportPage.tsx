@@ -63,7 +63,8 @@ export default function ImportPage() {
 
   const activeRows = rows.filter(r => !r.duplicate)
   const duplicateCount = rows.filter(r => r.duplicate).length
-  const needsReviewCount = activeRows.filter(r => !r.categoryConfirmed).length
+  const needsActionCount = activeRows.filter(r => !r.categoryConfirmed && r.categoryId === 'other').length
+  const autoSuggestedCount = activeRows.filter(r => !r.categoryConfirmed && r.categoryId !== 'other').length
   const total = activeRows.reduce((s, r) => s + (r.is_expense ? r.amount : -r.amount), 0)
 
   function handleFile(f: File) { setFile(f); setError(null) }
@@ -206,7 +207,8 @@ export default function ImportPage() {
             <Step3Confirm
               activeCount={activeRows.length}
               duplicateCount={duplicateCount}
-              needsReviewCount={needsReviewCount}
+              needsActionCount={needsActionCount}
+              autoSuggestedCount={autoSuggestedCount}
               total={total}
               loading={loading}
               onBack={() => setStep(2)}
@@ -217,6 +219,7 @@ export default function ImportPage() {
             <Step4Done
               imported={importResult?.imported ?? 0}
               skipped={importResult?.skipped ?? 0}
+              merged={importResult?.merged}
               onHome={() => navigate('/')}
             />
           )}
@@ -419,21 +422,19 @@ function Step2Preview({ rows, categories, accounts, accountId, sourceName, onAcc
                         {!row.categoryConfirmed && (
                           <span
                             className="absolute right-1.5 top-1/2 -translate-y-1/2 text-yellow-500 text-xs pointer-events-none"
-                            title="Category not confirmed — please review"
+                            title="Auto-suggested — verify if correct"
                           >
                             ?
                           </span>
                         )}
                       </div>
-                      {!row.categoryConfirmed && (
-                        <input
-                          type="text"
-                          value={row.notes}
-                          onChange={e => onNotesChange(row.id, e.target.value)}
-                          placeholder="note..."
-                          className="w-full bg-surface border border-border rounded px-2 py-1 text-white text-xs placeholder:text-muted focus:outline-none focus:border-accent transition-colors"
-                        />
-                      )}
+                      <input
+                        type="text"
+                        value={row.notes}
+                        onChange={e => onNotesChange(row.id, e.target.value)}
+                        placeholder="note..."
+                        className="w-full bg-surface border border-border rounded px-2 py-1 text-white text-xs placeholder:text-muted focus:outline-none focus:border-accent transition-colors"
+                      />
                     </div>
                   )}
                 </td>
@@ -462,10 +463,11 @@ function Step2Preview({ rows, categories, accounts, accountId, sourceName, onAcc
 
 // --- Step 3: Confirm summary ---
 
-function Step3Confirm({ activeCount, duplicateCount, needsReviewCount, total, loading, onBack, onImport }: {
+function Step3Confirm({ activeCount, duplicateCount, needsActionCount, autoSuggestedCount, total, loading, onBack, onImport }: {
   activeCount: number
   duplicateCount: number
-  needsReviewCount: number
+  needsActionCount: number
+  autoSuggestedCount: number
   total: number
   loading: boolean
   onBack: () => void
@@ -487,14 +489,20 @@ function Step3Confirm({ activeCount, duplicateCount, needsReviewCount, total, lo
         </div>
       </div>
 
-      {needsReviewCount > 0 && (
+      {needsActionCount > 0 && (
         <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30">
           <AlertCircle size={16} className="text-yellow-500 flex-shrink-0 mt-0.5" />
           <p className="text-yellow-500 text-sm">
-            <span className="font-medium">{needsReviewCount} {needsReviewCount === 1 ? 'transaction needs' : 'transactions need'} category review.</span>
-            {' '}Go back and check the rows marked with <span className="font-bold">?</span>
+            <span className="font-medium">{needsActionCount} {needsActionCount === 1 ? 'transaction is' : 'transactions are'} uncategorized (Other).</span>
+            {' '}Go back and pick a category for the rows marked <span className="font-bold">?</span>
           </p>
         </div>
+      )}
+
+      {autoSuggestedCount > 0 && needsActionCount === 0 && (
+        <p className="text-muted text-xs text-center">
+          {autoSuggestedCount} {autoSuggestedCount === 1 ? 'category was' : 'categories were'} auto-suggested (marked <span className="text-yellow-500 font-bold">?</span>). Verify if needed.
+        </p>
       )}
 
       <p className="text-muted text-xs text-center">
@@ -536,7 +544,7 @@ function SummaryRow({ label, value, muted, bold }: { label: string; value: strin
 
 // --- Step 4: Success ---
 
-function Step4Done({ imported, skipped, onHome }: { imported: number; skipped: number; onHome: () => void }) {
+function Step4Done({ imported, skipped, merged, onHome }: { imported: number; skipped: number; merged?: number; onHome: () => void }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-6 px-5">
       <motion.div
@@ -565,6 +573,7 @@ function Step4Done({ imported, skipped, onHome }: { imported: number; skipped: n
         <p className="text-white text-lg font-medium">Import complete!</p>
         <p className="text-muted text-sm mt-1">
           {imported} transactions added to Actual Budget
+          {(merged ?? 0) > 0 && `, ${merged} categories updated`}
           {skipped > 0 && `, ${skipped} duplicates skipped`}
         </p>
       </motion.div>

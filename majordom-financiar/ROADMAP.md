@@ -43,8 +43,8 @@ Makes Majordom genuinely useful every day without needing to open Actual Budget.
 |---|---------|-------|
 | ✅ 1.1 | Budget conversational rebalancing | Shipped 2026-05-19. `propose_budget_rebalance` tool + `BudgetRebalanceCard` + `POST /api/budget/rebalance`. Fix: proposal JSON detected in `onChunk` (not `onComplete`) to avoid React state race condition. |
 | ✅ 1.2 | Interactive messages in chat (rich actions) | Shipped 2026-05-20. ProposalCard, BudgetRebalanceCard (editable dropdowns), AccountTransferCard, ClarificationCard. All cards parsed from streaming JSON and rendered inline in chat. |
-| 1.3 | OFX/QFX import support | Better than CSV — unique transaction IDs, native AB deduplication |
-| 1.4 | Duplicate merge instead of silent delete | On CSV import: merge duplicates (preserve richer data) instead of deleting |
+| ⏸️ 1.3 | OFX/QFX import support | On hold — no OFX/QFX files available to test. Revisit when needed. |
+| ✅ 1.4 | Duplicate merge instead of silent delete | Shipped 2026-05-20. On CSV import: if duplicate exists in AB with no category AND CSV row has a confirmed category → update the existing transaction's category instead of skipping. Result shown in Step 4: "X categories updated". Also fixed: notes field always visible in preview; "Other" uncategorized rows show yellow warning in Step 3; auto-suggested non-Other categories show soft advisory only. |
 
 ---
 
