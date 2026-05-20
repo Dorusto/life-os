@@ -20,15 +20,18 @@ Supporting work also shipped: Chat AI with propose_transaction tool, receipt pho
 
 ---
 
-### 🔲 Validate: qwen3:8b tool_choice=auto without intent routing
+### ✅ Validate: tool_choice=auto without intent routing (complete)
 
-**Do this before building more features on top of the current routing.**
+Validated 2026-05-20. qwen3:8b was inconsistent — failed on complex sentences, wrote tool calls as text. Tested granite3.2:8b, hermes3:8b (same Ollama template bug). **qwen3:14b passes all 5 scenarios** (expense, income, rebalance, query, off-topic). `OLLAMA_CHAT_MODEL=qwen3:14b` set in production.
 
-Current routing uses regex to detect intent (transaction / action / info) and restricts tools accordingly. This is fragile — adding more tools or languages will break it. The correct approach is `tool_choice="auto"` and letting the LLM decide.
-
-**Test:** remove intent routing, send all messages with `tool_choice="auto"` and all tools available. Test all scenarios: expense, income, rebalance, transfer, informational queries, off-topic. If qwen3:8b handles it correctly → remove the regex entirely. If not → evaluate whether a 14b model fixes it (runs on 8GB VRAM) before adding more regex hacks.
-
-**Why now:** architectural decision that affects everything built on top. A fragile foundation means the project won't scale.
+Also shipped as part of this validation:
+- Pre-M2 query tools implemented: `get_accounts`, `get_monthly_stats`, `get_budget_status`, `get_transactions`, `get_spending_history` — LLM fetches data on demand, system prompt is now minimal.
+- `merchant` → `payee` rename across all files (issue #54 closed).
+- Chat history pollution fix: confirmed proposals use `status` role, excluded from LLM history.
+- DNS fix for Ollama container (model downloads from inside Docker).
+- Transfer and income-category transactions correctly excluded from spending stats.
+- Budget rebalance card: editable dropdowns for source/destination with fuzzy category matching.
+- Chat layout: `h-dvh` container, autofocus, arrow-key history navigation.
 
 ---
 
@@ -39,29 +42,15 @@ Makes Majordom genuinely useful every day without needing to open Actual Budget.
 | # | Feature | Notes |
 |---|---------|-------|
 | ✅ 1.1 | Budget conversational rebalancing | Shipped 2026-05-19. `propose_budget_rebalance` tool + `BudgetRebalanceCard` + `POST /api/budget/rebalance`. Fix: proposal JSON detected in `onChunk` (not `onComplete`) to avoid React state race condition. |
-| 1.2 | Interactive messages in chat (rich actions) | Structured blocks from LLM parsed by React → category buttons, date picker, transfer confirmation |
+| ✅ 1.2 | Interactive messages in chat (rich actions) | Shipped 2026-05-20. ProposalCard, BudgetRebalanceCard (editable dropdowns), AccountTransferCard, ClarificationCard. All cards parsed from streaming JSON and rendered inline in chat. |
 | 1.3 | OFX/QFX import support | Better than CSV — unique transaction IDs, native AB deduplication |
 | 1.4 | Duplicate merge instead of silent delete | On CSV import: merge duplicates (preserve richer data) instead of deleting |
 
 ---
 
-### 🔲 Pre-M2 — Chat Architecture: Query Tools
+### ✅ Pre-M2 — Chat Architecture: Query Tools (complete)
 
-**Prerequisite for M2.** Replace snapshot injection with on-demand query tools.
-
-Current approach: all financial data injected into system prompt at every request — wasteful, limited to last 20 transactions, stale during long conversations.
-
-Correct approach: LLM calls read-only query tools when it needs data. Backend fetches on demand from Actual Budget.
-
-| Tool | Description |
-|------|-------------|
-| `get_monthly_stats(month, year)` | Spending totals + breakdown by category for a given month |
-| `get_transactions(category?, account?, limit?)` | Filtered transaction list |
-| `get_budget_status(month?, year?)` | Budget vs actual per category |
-| `get_accounts()` | Account list with balances |
-| `get_spending_history(months)` | Multi-month aggregate for trend queries |
-
-System prompt becomes minimal — no injected data. LLM decides what to fetch based on the user's question.
+Shipped 2026-05-20 as part of the tool_choice=auto validation. All 5 query tools live in production.
 
 ---
 

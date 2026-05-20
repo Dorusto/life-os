@@ -408,6 +408,7 @@ export interface BudgetRebalanceData {
   current_destination_budget: number
   new_source_budget: number
   new_destination_budget: number
+  categories?: { name: string; budgeted: number }[]
 }
 
 export async function confirmBudgetRebalance(data: BudgetRebalanceData): Promise<{ message: string }> {

@@ -166,19 +166,46 @@ async def propose_budget_rebalance(
         year=target_month.year,
     )
 
+    all_category_names = [item["category_name"] for item in budget_status]
+
+    def _resolve_category(name: str) -> str | None:
+        """Return exact AB category name matching `name`, with fuzzy fallback."""
+        from difflib import get_close_matches
+        # Exact case-insensitive match first
+        for cat in all_category_names:
+            if cat.lower() == name.lower():
+                return cat
+        # Fuzzy match (cutoff 0.6 catches "Restaurante" → "Restaurants")
+        matches = get_close_matches(name, all_category_names, n=1, cutoff=0.6)
+        return matches[0] if matches else None
+
+    resolved_source = _resolve_category(source_category)
+    resolved_dest = _resolve_category(destination_category)
+
+    if not resolved_source:
+        raise ValueError(f"Category not found: {source_category}")
+    if not resolved_dest:
+        raise ValueError(f"Category not found: {destination_category}")
+
+    source_category = resolved_source
+    destination_category = resolved_dest
+
     source_budgeted = 0.0
     dest_budgeted = 0.0
     for item in budget_status:
         name = item["category_name"]
-        if name.lower() == source_category.lower():
+        if name == source_category:
             source_budgeted = item["budgeted"]
-            source_category = name  # normalize to exact name from AB
-        elif name.lower() == destination_category.lower():
+        elif name == destination_category:
             dest_budgeted = item["budgeted"]
-            destination_category = name  # normalize
 
     new_source = round(source_budgeted - amount, 2)
     new_destination = round(dest_budgeted + amount, 2)
+
+    all_categories = sorted(
+        [{"name": item["category_name"], "budgeted": item["budgeted"]} for item in budget_status],
+        key=lambda x: x["name"],
+    )
 
     return json.dumps({
         "type": "budget_rebalance",
@@ -190,6 +217,7 @@ async def propose_budget_rebalance(
         "current_destination_budget": dest_budgeted,
         "new_source_budget": new_source,
         "new_destination_budget": new_destination,
+        "categories": all_categories,
     })
 
 
@@ -223,9 +251,10 @@ async def get_budget_status(month: int | None = None, year: int | None = None) -
     items = await client.get_budget_status(month=m, year=y)
     lines = [f"Budget status {y}-{m:02d}:"]
     for item in items:
+        remaining = round(item['budgeted'] - item['spent'], 2)
         lines.append(
             f"  - {item['category_name']}: €{item['spent']:.2f} spent / €{item['budgeted']:.2f} budgeted"
-            f" (€{item['remaining']:.2f} remaining)"
+            f" (€{remaining:.2f} remaining)"
         )
     return "\n".join(lines)
 

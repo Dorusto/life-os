@@ -35,13 +35,21 @@ interface ChatProps {
 export default function Chat({ messages, setMessages }: ChatProps) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [sentHistory, setSentHistory] = useState<string[]>([])
+  const [historyIndex, setHistoryIndex] = useState(-1)
+  const [savedInput, setSavedInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
-
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Scroll to bottom whenever messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // Auto-focus input on mount
+  useEffect(() => {
+    textareaRef.current?.focus()
+  }, [])
 
   // Send a specific text programmatically (used by ClarificationCard option clicks)
   function handleSendText(text: string) {
@@ -158,15 +166,36 @@ export default function Chat({ messages, setMessages }: ChatProps) {
     e?.preventDefault()
     const text = input.trim()
     if (text) {
+      setSentHistory(prev => [text, ...prev])
+      setHistoryIndex(-1)
+      setSavedInput('')
       setInput('')
       handleSendText(text)
     }
   }
 
-  function handleKeyDown(e: React.KeyboardEvent) {
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
+      return
+    }
+    if (e.key === 'ArrowUp' && sentHistory.length > 0) {
+      const ta = e.currentTarget
+      const cursorAtTop = ta.selectionStart === 0 || !input.includes('\n')
+      if (cursorAtTop) {
+        e.preventDefault()
+        const newIndex = Math.min(historyIndex + 1, sentHistory.length - 1)
+        if (historyIndex === -1) setSavedInput(input)
+        setHistoryIndex(newIndex)
+        setInput(sentHistory[newIndex])
+      }
+    }
+    if (e.key === 'ArrowDown' && historyIndex > -1) {
+      e.preventDefault()
+      const newIndex = historyIndex - 1
+      setHistoryIndex(newIndex)
+      setInput(newIndex === -1 ? savedInput : sentHistory[newIndex])
     }
   }
 
@@ -175,7 +204,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
   }
 
   return (
-    <div className="min-h-dvh bg-background flex flex-col">
+    <div className="h-dvh pb-16 bg-background flex flex-col">
       {/* Header */}
       <header className="px-5 pt-14 pb-4 border-b border-border flex-shrink-0">
         <p className="text-muted text-sm">Your financial advisor</p>
@@ -183,7 +212,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
       </header>
 
       {/* Message list */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 pb-2">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.map((msg, idx) => (
           <div
             key={idx}
@@ -326,12 +355,13 @@ export default function Chat({ messages, setMessages }: ChatProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input bar — fixed at bottom (above bottom nav, so pb-20) */}
+      {/* Input bar */}
       <form
         onSubmit={handleSend}
-        className="sticky bottom-20 bg-background border-t border-border px-4 py-3 flex gap-3 items-end"
+        className="flex-shrink-0 bg-background border-t border-border px-4 py-3 flex gap-3 items-end"
       >
         <textarea
+          ref={textareaRef}
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}

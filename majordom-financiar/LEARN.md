@@ -756,3 +756,15 @@ Starea, calculele și condițiile stau în cod. LLM-ul face un singur lucru per 
 **Soluția:** Crescut timeout-urile la 300s, șters cod mort, ROADMAP actualizat. Scris spec complet pentru M1.1 (mutare bani între categorii din chat) în `scripts/prompts/deepseek/001_m1-budget-rebalancing.md`.
 
 **De reținut:** `actualpy.create_budget(session, month, category, amount)` face upsert — funcția corectă pentru a seta alocarea unui buget pe categorie. `month` trebuie să fie `datetime.date`, nu string.
+
+---
+
+## 2026-05-20 — tool_choice=auto + qwen3:14b + query tools
+
+**Problema:** qwen3:8b cu intent routing regex era fragil — nu scala cu mai multe tool-uri sau limbi. Nevoie de `tool_choice=auto` fără routing manual.
+
+**Ce s-a întâmplat:** qwen3:8b inconsistent (fail pe propoziții complexe), granite3.2:8b și hermes3:8b scriu tool call-urile ca text (bug Ollama template). qwen3:14b trece 5/5 scenarii: cheltuială, venit, rebalansare, interogare, off-topic.
+
+**Soluția:** Eliminat intent routing și injecția de date financiare din system prompt. Adăugate 5 query tools (get_accounts, get_monthly_stats, get_budget_status, get_transactions, get_spending_history) — LLM decide ce să fetch-uiască. `OLLAMA_CHAT_MODEL=qwen3:14b`. System prompt redus la ~800 chars.
+
+**De reținut:** Transferurile AB au `transferred_id` pe tranzacție — filtrează-le din statistici de cheltuieli altfel sunt numărate ca expenses. Categoriile de tip income au `is_income=True` pe obiectul Category — filtrează și astea. `get_budget_status` omitea categoriile cu buget 0 și cheltuieli 0 — include toate categoriile non-hidden din `get_categories()`.

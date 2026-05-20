@@ -140,6 +140,10 @@ class ActualBudgetClient:
                 for tx in txs:
                     if tx.tombstone or tx.starting_balance_flag:
                         continue
+                    if tx.transferred_id:
+                        continue  # skip transfer legs — not spending
+                    if tx.category and getattr(tx.category, 'is_income', False):
+                        continue  # skip income-category transactions regardless of sign
                     amount = float(tx.amount or 0) / 100
                     if amount >= 0:
                         continue  # skip income
@@ -306,6 +310,10 @@ class ActualBudgetClient:
                 for tx in txs:
                     if tx.tombstone or tx.starting_balance_flag:
                         continue
+                    if tx.transferred_id:
+                        continue  # skip transfer legs — not spending
+                    if tx.category and getattr(tx.category, 'is_income', False):
+                        continue  # skip income-category transactions
                     amount = float(tx.amount or 0) / 100
                     if amount >= 0:
                         continue  # skip income
@@ -322,17 +330,22 @@ class ActualBudgetClient:
                         # they don't show as "Unknown" in the dashboard.
                         cat_name_map[str(cat.id)] = cat.name or "Uncategorized"
 
-                # --- 4. Merge budget + spending ---
-                all_category_ids = set(budget_by_category.keys()) | set(spent_by_category.keys())
+                # --- 4. Merge budget + spending — include ALL non-hidden categories ---
+                all_category_ids = (
+                    set(budget_by_category.keys())
+                    | set(spent_by_category.keys())
+                    | {str(c.id) for c in all_cats if c.id and not c.hidden}
+                )
 
                 result = []
                 for cat_id in all_category_ids:
                     if cat_id == "uncategorized":
-                        continue  # skip uncategorized — not a real category
+                        continue
+                    # Skip categories not in our name map (deleted, hidden, etc.)
+                    if cat_id not in cat_name_map:
+                        continue
                     budgeted = round(budget_by_category.get(cat_id, 0.0), 2)
                     spent = round(spent_by_category.get(cat_id, 0.0), 2)
-                    if budgeted == 0 and spent == 0:
-                        continue  # skip empty categories
                     percentage = round(spent / budgeted * 100, 1) if budgeted > 0 else 0.0
                     result.append({
                         "category_id": cat_id,
