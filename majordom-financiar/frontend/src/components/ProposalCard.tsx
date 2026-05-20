@@ -4,7 +4,7 @@ import { confirmProposal, cancelProposal, getCategories, getAccounts, type Categ
 
 export interface ProposalData {
   id: string
-  merchant: string
+  payee: string
   amount: number
   date: string
   category_name: string
@@ -33,9 +33,9 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
     try {
       const result = await confirmProposal(proposal.id, selectedCategory, selectedAccountId)
       if (result.message.toLowerCase().includes('duplicate') || result.message.toLowerCase().includes('already exists')) {
-        onConfirmed(`Duplicate: ${proposal.merchant} €${proposal.amount.toFixed(2)} already exists in Actual Budget for this date.`)
+        onConfirmed(`Duplicate: ${proposal.payee} €${proposal.amount.toFixed(2)} already exists in Actual Budget for this date.`)
       } else {
-        onConfirmed(`Added: ${proposal.merchant} €${proposal.amount.toFixed(2)} → ${selectedCategory}`)
+        onConfirmed(`Added: ${proposal.payee} €${proposal.amount.toFixed(2)} → ${selectedCategory}`)
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
@@ -57,9 +57,8 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
   return (
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[80%] space-y-3">
       <div>
-        <p className="text-white font-medium">{proposal.merchant}</p>
+        <p className="text-white font-medium">{proposal.payee}</p>
         <p className="text-muted text-sm">€{proposal.amount.toFixed(2)} · {formattedDate}</p>
-        <p className="text-muted text-sm">{proposal.account_name}</p>
       </div>
 
       {/* Category selector */}

@@ -13,18 +13,88 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "get_accounts",
+            "description": "Get all bank accounts with their current balances. Call this when the user asks about account balances or when you need account IDs to propose a transfer.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_monthly_stats",
+            "description": "Get total spending for a month broken down by category. Call this when the user asks how much they spent, what their biggest expenses were, or wants a spending summary.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "month": {"type": "integer", "description": "Month number 1-12. Omit for current month."},
+                    "year": {"type": "integer", "description": "Year e.g. 2026. Omit for current year."},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_budget_status",
+            "description": "Get budget vs actual spending per category for a month. Call this when the user asks about their budget, how much is left in a category, or whether they are over budget.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "month": {"type": "integer", "description": "Month number 1-12. Omit for current month."},
+                    "year": {"type": "integer", "description": "Year e.g. 2026. Omit for current year."},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_transactions",
+            "description": "Get recent transactions, optionally filtered by category or account. Call this when the user asks to see their transactions or spending in a specific category.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "category": {"type": "string", "description": "Filter by category name, e.g. 'Groceries'."},
+                    "account": {"type": "string", "description": "Filter by account name, e.g. 'ING'."},
+                    "limit": {"type": "integer", "description": "Max number of transactions to return (default 20)."},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_spending_history",
+            "description": "Get monthly spending totals for the last N months. Call this when the user asks about spending trends or wants to compare months.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "months": {"type": "integer", "description": "Number of months to look back (default 3)."},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "propose_transaction",
             "description": (
-                "Propose adding a new expense or income to Actual Budget. "
-                "Use this when the user says they spent money at a store or received money. "
-                "The user will confirm or cancel before it is actually saved."
+                "Propose adding a new transaction (expense OR income) to Actual Budget. "
+                "Call this whenever the user mentions spending money, paying for something, "
+                "receiving money, getting paid, salary, refund, cashback, or any financial transaction. "
+                "Set is_expense=false for income (salary, received money). "
+                "The user will confirm before it is saved — call this immediately, do not ask questions first."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "merchant": {
+                    "payee": {
                         "type": "string",
-                        "description": "Store or merchant name, e.g. 'Lidl', 'Shell', 'Albert Heijn'",
+                        "description": "The payee name — store, company, or person who paid or received money. e.g. 'Lidl', 'Shell', 'Salariu'",
                     },
                     "amount": {
                         "type": "number",
@@ -48,14 +118,14 @@ TOOLS: list[dict] = [
                     },
                     "notes": {
                         "type": "string",
-                        "description": "Optional notes.",
+                        "description": "Any meaningful context from the user's message, e.g. 'photo services', 'electricity bill', 'birthday gift'. Leave empty for simple transactions like 'spent X at Lidl'.",
                     },
                     "is_expense": {
                         "type": "boolean",
                         "description": "True for expenses (default), False for income (money received).",
                     },
                 },
-                "required": ["merchant", "amount"],
+                "required": ["payee", "amount"],
             },
         },
     },
@@ -136,6 +206,26 @@ TOOLS: list[dict] = [
 
 
 async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
+    if name == "get_accounts":
+        from backend.tools.finance.actual_budget import get_accounts
+        return await get_accounts()
+
+    if name == "get_monthly_stats":
+        from backend.tools.finance.actual_budget import get_monthly_stats
+        return await get_monthly_stats(**arguments)
+
+    if name == "get_budget_status":
+        from backend.tools.finance.actual_budget import get_budget_status
+        return await get_budget_status(**arguments)
+
+    if name == "get_transactions":
+        from backend.tools.finance.actual_budget import get_transactions
+        return await get_transactions(**arguments)
+
+    if name == "get_spending_history":
+        from backend.tools.finance.actual_budget import get_spending_history
+        return await get_spending_history(**arguments)
+
     if name == "propose_transaction":
         from backend.tools.finance.actual_budget import propose_transaction
         return await propose_transaction(**arguments)

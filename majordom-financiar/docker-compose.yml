@@ -32,6 +32,9 @@ services:
       - OLLAMA_VISION_MODEL=${OLLAMA_VISION_MODEL:-qwen2.5vl:7b}
       - OLLAMA_CHAT_MODEL=${OLLAMA_CHAT_MODEL:-qwen2.5:7b}
       - OLLAMA_FLASH_ATTENTION=1
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     networks:
       - majordom-net
     healthcheck:

@@ -9,7 +9,7 @@ import AccountTransferCard from '../components/AccountTransferCard'
 import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from '../lib/api'
 
 export interface Message {
-  role: 'user' | 'assistant' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer'
   content: string
   proposal?: ProposalData
   budgetRebalance?: BudgetRebalanceData
@@ -51,9 +51,18 @@ export default function Chat({ messages, setMessages }: ChatProps) {
     setMessages(prev => [...prev, userMessage])
     setLoading(true)
 
-    // Build history — exclude non-text messages (roles unknown to backend)
+    // Exclude transaction exchanges from history — proposals are independent, previous amounts bleed into new calls.
+    // Also exclude the user message that triggered a proposal/status (immediately followed by one).
+    const PROPOSAL_ROLES = new Set(['proposal', 'budget_rebalance', 'account_transfer', 'clarification', 'status'])
     const history = messages
-      .filter(m => m.role === 'user' || m.role === 'assistant')
+      .filter((m, i) => {
+        if (PROPOSAL_ROLES.has(m.role)) return false
+        if (m.role === 'user') {
+          const next = messages[i + 1]
+          if (next && PROPOSAL_ROLES.has(next.role)) return false
+        }
+        return m.role === 'user' || m.role === 'assistant'
+      })
       .map(m => ({ role: m.role, content: m.content }))
 
     sendChatMessageStreaming(
@@ -180,14 +189,16 @@ export default function Chat({ messages, setMessages }: ChatProps) {
             key={idx}
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            {msg.role === 'budget_rebalance' && msg.budgetRebalance ? (
+            {msg.role === 'status' ? (
+              <p className="text-xs text-muted italic px-1">{msg.content}</p>
+            ) : msg.role === 'budget_rebalance' && msg.budgetRebalance ? (
               <BudgetRebalanceCard
                 data={msg.budgetRebalance}
                 onConfirmed={(message) => {
                   setMessages(prev =>
                     prev.map((m, i) =>
                       i === idx
-                        ? { role: 'assistant', content: message }
+                        ? { role: 'status' as const, content: message }
                         : m
                     )
                   )
@@ -196,7 +207,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                   setMessages(prev =>
                     prev.map((m, i) =>
                       i === idx
-                        ? { role: 'assistant', content: 'Cancelled.' }
+                        ? { role: 'status' as const, content: 'Cancelled.' }
                         : m
                     )
                   )
@@ -209,7 +220,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                   setMessages(prev =>
                     prev.map((m, i) =>
                       i === idx
-                        ? { role: 'assistant', content: message }
+                        ? { role: 'status' as const, content: message }
                         : m
                     )
                   )
@@ -218,7 +229,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                   setMessages(prev =>
                     prev.map((m, i) =>
                       i === idx
-                        ? { role: 'assistant', content: 'Cancelled.' }
+                        ? { role: 'status' as const, content: 'Cancelled.' }
                         : m
                     )
                   )
@@ -248,7 +259,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                   setMessages(prev =>
                     prev.map((m, i) =>
                       i === idx
-                        ? { role: 'assistant', content: message }
+                        ? { role: 'status' as const, content: message }
                         : m
                     )
                   )
@@ -257,7 +268,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                   setMessages(prev =>
                     prev.map((m, i) =>
                       i === idx
-                        ? { role: 'assistant', content: 'Cancelled.' }
+                        ? { role: 'status' as const, content: 'Cancelled.' }
                         : m
                     )
                   )

@@ -194,7 +194,7 @@ class ActualBudgetClient:
                 # (CSV import uses its own dedup logic in add_transactions_batch.)
                 imported_id = uuid.uuid4().hex[:16]
 
-                payee_obj = _safe_get_or_create_payee(actual.session, payee)
+                payee_obj = _safe_get_or_create_payee(actual.session, payee) if payee else None
                 # Only use existing visible categories — never create new ones, never use hidden ones
                 cat_obj = None
                 if category_name:

@@ -6,7 +6,7 @@ _proposals: dict[str, dict] = {}
 
 
 def create(
-    merchant: str,
+    payee: str,
     amount: float,
     date: str,
     category_name: str,
@@ -17,7 +17,7 @@ def create(
 ) -> str:
     proposal_id = uuid.uuid4().hex[:8]
     _proposals[proposal_id] = {
-        "merchant": merchant,
+        "payee": payee,
         "amount": amount,
         "date": date,
         "category_name": category_name,

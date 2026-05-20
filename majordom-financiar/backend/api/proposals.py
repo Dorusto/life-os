@@ -41,7 +41,7 @@ async def confirm_proposal(
 
     try:
         result = await _add_transaction(
-            merchant=proposal["merchant"],
+            payee=proposal["payee"],
             amount=proposal["amount"],
             date=proposal["date"],
             category_name=category_name,

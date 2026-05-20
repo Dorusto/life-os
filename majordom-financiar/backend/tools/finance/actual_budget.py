@@ -1,13 +1,19 @@
 """
-Finance tools — Actual Budget write operations.
+Finance tools — Actual Budget read and write operations.
 
 These functions are called by execute_tool() in registry.py
 after the LLM decides to use them.
 """
+import json
 from datetime import date as _date
 
 from backend.core.actual_client import ActualBudgetClient
 from backend.core.config import settings
+
+
+def _looks_like_uuid(s: str) -> bool:
+    import re
+    return bool(re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', s, re.IGNORECASE))
 
 
 def _get_client() -> ActualBudgetClient:
@@ -19,7 +25,7 @@ def _get_client() -> ActualBudgetClient:
 
 
 async def add_transaction(
-    merchant: str,
+    payee: str,
     amount: float,
     date: str,
     category_name: str,
@@ -40,7 +46,7 @@ async def add_transaction(
     tx_id = await client.add_transaction(
         account_id=account_id,
         amount=amount,
-        payee=merchant,
+        payee=payee,
         category_name=category_name,
         tx_date=tx_date,
         notes=notes,
@@ -49,17 +55,17 @@ async def add_transaction(
 
     if tx_id:
         return (
-            f"Transaction added successfully: {merchant} €{amount:.2f} "
+            f"Transaction added successfully: {payee} €{amount:.2f} "
             f"on {tx_date.isoformat()} (category: {category_name})"
         )
     return (
         f"Duplicate skipped — transaction already exists: "
-        f"{merchant} €{amount:.2f} on {tx_date.isoformat()}"
+        f"{payee} €{amount:.2f} on {tx_date.isoformat()}"
     )
 
 
 async def propose_transaction(
-    merchant: str,
+    payee: str,
     amount: float,
     date: str = "",
     category_name: str = "",
@@ -83,30 +89,27 @@ async def propose_transaction(
     if not category_name:
         try:
             from backend.core.memory.categorizer import SmartCategorizer
-            prediction = SmartCategorizer().predict(merchant, amount=amount)
+            prediction = SmartCategorizer().predict(payee, amount=amount)
             if prediction.category_name:
                 category_name = prediction.category_name
         except Exception:
             pass
 
-    if not account_id:
+    if not account_id or not _looks_like_uuid(account_id):
         try:
-            from backend.core.actual_client import ActualBudgetClient
-            from backend.core.config import settings
-            client = ActualBudgetClient(
-                url=settings.actual.url,
-                password=settings.actual.password,
-                sync_id=settings.actual.sync_id,
-            )
-            accounts = await client.get_accounts()
-            if accounts:
-                account_id = accounts[0].id
-                account_name = account_name or accounts[0].name
+            accounts = await _get_client().get_accounts()
+            # Try to match by name first (LLM may pass account name instead of ID)
+            name_hint = account_id or account_name or ""
+            matched = next((a for a in accounts if a.name.lower() == name_hint.lower()), None)
+            chosen = matched or (accounts[0] if accounts else None)
+            if chosen:
+                account_id = chosen.id
+                account_name = chosen.name
         except Exception:
             pass
 
     proposal_id = proposal_store.create(
-        merchant=merchant,
+        payee=payee,
         amount=amount,
         date=date,
         category_name=category_name,
@@ -119,7 +122,7 @@ async def propose_transaction(
     return json.dumps({
         "type": "proposal",
         "id": proposal_id,
-        "merchant": merchant,
+        "payee": payee,
         "amount": amount,
         "date": date,
         "category_name": category_name,
@@ -188,6 +191,79 @@ async def propose_budget_rebalance(
         "new_source_budget": new_source,
         "new_destination_budget": new_destination,
     })
+
+
+async def get_accounts() -> str:
+    """Return all accounts with their current balances."""
+    client = _get_client()
+    accounts = await client.get_accounts()
+    lines = ["Accounts:"]
+    for a in accounts:
+        lines.append(f"  - {a.name} (id: {a.id}): €{a.balance:.2f}")
+    return "\n".join(lines)
+
+
+async def get_monthly_stats(month: int | None = None, year: int | None = None) -> str:
+    """Return spending totals for a given month, broken down by category."""
+    client = _get_client()
+    stats = await client.get_monthly_stats(month=month, year=year)
+    m, y = stats["month"], stats["year"]
+    lines = [f"Spending {y}-{m:02d}: €{stats['total']:.2f} total, {stats['count']} transactions"]
+    for cat_data in sorted(stats.get("categories", {}).values(), key=lambda x: x["total"], reverse=True):
+        lines.append(f"  - {cat_data['name']}: €{cat_data['total']:.2f}")
+    return "\n".join(lines)
+
+
+async def get_budget_status(month: int | None = None, year: int | None = None) -> str:
+    """Return budget vs actual spending per category for a given month."""
+    client = _get_client()
+    today = _date.today()
+    m = month or today.month
+    y = year or today.year
+    items = await client.get_budget_status(month=m, year=y)
+    lines = [f"Budget status {y}-{m:02d}:"]
+    for item in items:
+        lines.append(
+            f"  - {item['category_name']}: €{item['spent']:.2f} spent / €{item['budgeted']:.2f} budgeted"
+            f" (€{item['remaining']:.2f} remaining)"
+        )
+    return "\n".join(lines)
+
+
+async def get_transactions(category: str | None = None, account: str | None = None, limit: int = 20) -> str:
+    """Return recent transactions, optionally filtered by category or account name."""
+    client = _get_client()
+    all_txs = await client.get_recent_transactions(limit=limit * 4)
+    result = []
+    for tx in all_txs:
+        if category and (tx.get("category_name") or "").lower() != category.lower():
+            continue
+        if account and (tx.get("account_name") or "").lower() != account.lower():
+            continue
+        result.append(tx)
+        if len(result) >= limit:
+            break
+    lines = [f"Transactions ({len(result)}):"]
+    for tx in result:
+        amount = abs(tx["amount_cents"]) / 100
+        lines.append(f"  - {tx['date']} · {tx['merchant']} · €{amount:.2f} ({tx.get('category_name') or 'uncategorized'}) [{tx.get('account_name','')}]")
+    return "\n".join(lines)
+
+
+async def get_spending_history(months: int = 3) -> str:
+    """Return monthly spending totals for the last N months."""
+    client = _get_client()
+    today = _date.today()
+    lines = [f"Spending history (last {months} months):"]
+    for i in range(months - 1, -1, -1):
+        m = today.month - i
+        y = today.year
+        while m <= 0:
+            m += 12
+            y -= 1
+        stats = await client.get_monthly_stats(month=m, year=y)
+        lines.append(f"  - {y}-{m:02d}: €{stats['total']:.2f} ({stats['count']} transactions)")
+    return "\n".join(lines)
 
 
 async def propose_clarification(question: str, options: list[str]) -> str:

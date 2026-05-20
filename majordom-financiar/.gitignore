@@ -1,12 +1,12 @@
-# Credențiale și configurare locală
+# Credentials and local config
 .env
 *.db
 *.sqlite
 
-# Date locale
+# Local data
 data/
 
-# CSV-uri de test (date financiare personale)
+# Test data
 tests/
 
 # Python
@@ -22,12 +22,13 @@ build/
 # Logs
 *.log
 
+# Node
+node_modules/
+
 # OS
 .DS_Store
 Thumbs.db
 
-# Planificare privată (strategie, monetizare, roadmap personal)
+# Private local files
 PLANNING.md
-
-# Claude Code project instructions — private, not for public repo
 CLAUDE.md
