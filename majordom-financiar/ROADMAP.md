@@ -65,21 +65,22 @@ The big one. Majordom configures Actual Budget entirely through conversation —
 |---|---------|-------|
 | ✅ 2.1 | Phase 1 — Discovery (15 questions) | Shipped 2026-05-21. 15 questions (blocks A–G), LLM-parsed answers, server-side state machine in SQLite, ClarificationCard for fixed-option questions, progress bar in chat UI. |
 | ✅ 2.2 | Phase 2 — AB configuration | Shipped 2026-05-21. Creates accounts, category groups + categories, recurring schedules, budget allocations. Known issues tracked in M2.5: duplicate detection when AB already has categories; smart income-based budget allocation. |
-| 2.3 | Transfer detection after historical import | Auto-detect transfer pairs (same amount, opposite sign, ±3 days) → present for confirmation |
-| 2.4 | Rules sync with Actual Budget | When user confirms a merchant→category mapping, also create/update the AB rule |
+| ⏸️ 2.3 | Transfer detection after historical import | On hold — only relevant when importing historical CSV data. Revisit if needed. |
+| ⏸️ 2.4 | Rules sync with Actual Budget | On hold — SmartCategorizer in SQLite covers auto-categorization without AB rules sync. |
 | 2.5 | Onboarding polish + smart budget | Fix "multiple rows" error when categories already exist (get-or-create); auto-allocate budget based on income % (50/30/20 adapted); use Q4 variable income in Phase 2 |
+| 2.6 | Charts in chat | When agent returns `{"type": "chart", ...}`, render Recharts inline in chat. LineChart + BarChart. Financial data from AB via tools; vehicle data from SQLite vehicle_log. System prompt instructs model to return chart JSON for trend/visualization requests. |
 
 ---
 
 ### 🔲 Milestone 3 — Vehicle Management
 
-Complete replacement for Fuelio.
+Complete replacement for Fuelio. **Architecture:** AB holds all costs as transactions under Transport category (general budget). SQLite `vehicle_log` holds vehicle-specific operational data (odometer, liters, per-vehicle breakdown). When user logs a refuel, Majordom does two things: `propose_transaction` → AB (financial) + INSERT → `vehicle_log` (operational). Financial questions ("how much did I spend on transport?") → AB. Efficiency questions ("what's my average consumption?") → SQLite.
 
 | # | Feature | Notes |
 |---|---------|-------|
 | 3.1 | Vehicle profiles + log (SQLite schema) | `vehicles` + `vehicle_log` tables; car + motorcycle |
 | 3.2 | Fuelio CSV import | Parse the 4-section Fuelio CSV; map CostTypeID → entry_type; deduplicate via `fuelio_unique_id` |
-| 3.3 | Refuel recording from photos | Upload gas station receipt → extract liters/price; upload dashboard photo → extract ODO |
+| 3.3 | Refuel recording from photos | Upload gas station receipt → extract liters/price/odometer; Majordom writes to both AB (cost) and vehicle_log (operational) |
 | 3.4 | Consumption + cost calculations | L/100km per fill-up, moving average (last 5), cost/km, monthly charts |
 | 3.5 | Reminders | APK/ITP + insurance renewal (30 days before); service by km or date |
 
