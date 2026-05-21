@@ -446,6 +446,7 @@ export interface AccountTransferData {
   amount: number
   date: string
   notes: string
+  accounts?: { id: string; name: string; balance: number }[]
 }
 
 export async function confirmAccountTransfer(data: AccountTransferData): Promise<{ message: string }> {

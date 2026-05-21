@@ -317,32 +317,54 @@ async def propose_account_transfer(
 ) -> str:
     """
     Propose a transfer between two bank accounts in Actual Budget.
-    Fetches account names from context and returns JSON for the frontend.
+    Always fetches all accounts so the frontend can show account selectors.
+    Fuzzy-matches the LLM's input (may be a name, not an ID) to real account IDs.
     """
     import json
+    from difflib import get_close_matches
 
     client = _get_client()
-    from_name = from_account_id
-    to_name = to_account_id
+    accounts = await client.get_accounts()
 
-    # Resolve account names from IDs
-    try:
-        accounts = await client.get_accounts()
-        for acc in accounts:
-            if acc.id == from_account_id:
-                from_name = acc.name
-            if acc.id == to_account_id:
-                to_name = acc.name
-    except Exception:
-        pass  # fall back to IDs if we can't resolve
+    accounts_list = [{"id": a.id, "name": a.name, "balance": a.balance} for a in accounts]
+
+    def _resolve(value: str) -> tuple[str, str]:
+        """Return (id, name) for value — tries exact ID match, then fuzzy name match."""
+        # Exact ID match
+        for a in accounts:
+            if a.id == value:
+                return a.id, a.name
+        # Exact name match (case-insensitive)
+        for a in accounts:
+            if a.name.lower() == value.lower():
+                return a.id, a.name
+        # Fuzzy name match
+        names = [a.name for a in accounts]
+        matches = get_close_matches(value, names, n=1, cutoff=0.4)
+        if matches:
+            matched = next(a for a in accounts if a.name == matches[0])
+            return matched.id, matched.name
+        # No match — return first account as fallback
+        if accounts:
+            return accounts[0].id, accounts[0].name
+        return value, value
+
+    from_id, from_name = _resolve(from_account_id)
+    to_id, to_name = _resolve(to_account_id)
+
+    # Avoid same-account transfers
+    if from_id == to_id and len(accounts) >= 2:
+        other = next(a for a in accounts if a.id != from_id)
+        to_id, to_name = other.id, other.name
 
     return json.dumps({
         "type": "account_transfer",
-        "from_account_id": from_account_id,
+        "from_account_id": from_id,
         "from_account_name": from_name,
-        "to_account_id": to_account_id,
+        "to_account_id": to_id,
         "to_account_name": to_name,
         "amount": amount,
         "date": date,
         "notes": notes,
+        "accounts": accounts_list,
     })
