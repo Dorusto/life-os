@@ -327,16 +327,14 @@ export async function sendChatMessageStreaming(
     }
     
     const decoder = new TextDecoder()
-    let accumulated = ''
-    
+
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
       const chunk = decoder.decode(value, { stream: true })
-      accumulated += chunk
       onChunk(chunk)
     }
-    
+
     onComplete()
   } catch (err) {
     onError(err instanceof Error ? err.message : 'Unknown error')

@@ -780,3 +780,65 @@ Starea, calculele și condițiile stau în cod. LLM-ul face un singur lucru per 
 **Soluția:** Tombstone remap în `get_budget_status`: fuzzy match (cutoff 0.4) după nume din `all_raw` → categoria vie echivalentă, re-atribuie spending. CSV preview: o singură sesiune AB returnează `existing_ids` + `ab_categories` reale; confirm nu creează niciodată categorii noi. SQLite cleanup: tabelele `transactions` și `budget_limits` șterse (date financiare nu au ce căuta în SQLite).
 
 **De reținut:** AB = soft delete mereu. Dacă numere nu se leagă, caută `tombstone=1` cu tranzacții asociate. `_map_to_ab_category` face prefix match apoi difflib fuzzy (cutoff 0.5) pentru a mapa orice ID intern la un nume real AB.
+
+---
+
+## 2026-05-21 — AccountTransferCard cu selectoare + reguli workflow
+
+**Problema:** Cardul de transfer între conturi afișa text static. Când LLM-ul ghicea greșit conturile (ex. "Cheltuieli", "Economii" care nu există în AB), nu era nicio cale de corecție înainte de confirmare.
+
+**Soluția:** `propose_account_transfer` face acum fuzzy-match pe numele conturilor reale din AB și returnează lista completă. `AccountTransferCard` afișează dropdown-uri FROM/TO (același pattern ca `BudgetRebalanceCard`) — userul poate corecta dacă LLM-ul a ghicit greșit. Confirm dezactivat dacă from = to.
+
+**De reținut:** `set_transaction_payee` din actualpy creează automat a doua tranzacție a transferului când payee-ul are `transfer_acct` setat — mecanismul funcționează, nu e nevoie să creezi manual ambele tranzacții. Rebuild Docker după orice schimbare (`docker compose build majordom-api majordom-web && docker compose up -d majordom-api majordom-web`).
+
+---
+
+## 2026-05-21 — Onboarding flow M2: state machine server-side, LLM doar parsează răspunsuri
+
+### Problema
+Vrem un wizard de configurare în care utilizatorul răspunde la 15 întrebări și la final Majordom creează automat conturi, categorii și schedule-uri în Actual Budget — totul prin conversație, fără să deschidă AB.
+
+### Ce s-a întâmplat
+
+**Arhitectura aleasă: state machine server-side, nu LLM-driven.**
+
+Alternativa (LLM gestionează fluxul) ar fi mai flexibilă, dar impredictibilă — LLM-ul poate sări întrebări, repeta, haluci starea curentă. Soluția: serverul știe întotdeauna la ce întrebare e userul (`current_question` în SQLite). LLM-ul face un singur lucru: parsează răspunsul în free text → JSON structurat.
+
+```
+User: "cam 2000 euro pe luna"
+LLM (parse_prompt): → {"monthly_income": 2000}
+Server: salvează în SQLite, avansează la Q4
+```
+
+**Buguri introduse de DeepSeek și cum au fost rezolvate:**
+
+1. **Importuri actualpy greșite** — `Category`, `Schedule`, `ScheduleValues` din `actual.database` nu există. Fix: `from actual.queries import create_category_group, create_category, create_schedule` și `from actual.schedules import Schedule as ScheduleConfig`.
+
+2. **`think: False` lipsă** — qwen3 intră în thinking mode și răspunsul e blocat. Fix: adăugat `"think": False` în toate payload-urile Ollama, inclusiv în cel de parsing LLM din onboarding service.
+
+3. **`"type": "question"` vs `"type": "onboarding_question"`** — service-ul returnează `"type": "question"`, `onboarding.py` wraps corect la `"onboarding_question"`, dar `chat.py` emitea direct rezultatul brut pentru prima întrebare. Fix: emit explicit `"onboarding_question"` în `chat.py`.
+
+4. **Două obiecte JSON într-un singur chunk HTTP** — `{"type":"onboarding_start"}\n{"type":"onboarding_question"...}` ajung concatenat și `JSON.parse` pică. Fix: în `handleChatChunk` pe frontend, dacă parse eșuează și chunk-ul conține `\n`, split pe linii și procesează recursiv. **Important:** split-ul NU se face în `api.ts` (strică streaming-ul text — tot textul se bufferează și apare deodată la final).
+
+5. **Token key greșit** — DeepSeek a folosit `localStorage.getItem('token')` dar cheia reală e `majordom_token` (prin `getToken()` din `auth.ts`). Rezultat: 401 la click pe ClarificationCard → redirect la login. Fix: înlocuit toate accesele directe la localStorage cu `getToken()` și `clearAuth()`.
+
+6. **Stale localStorage** — `onboarding_active=true` rămânea în localStorage după sesiuni vechi, activând placeholder-ul "Answer the question..." la fiecare încărcare. Fix: la mount, verifică `GET /api/onboarding/status` — dacă backend-ul zice `active: false`, șterge localStorage.
+
+### Soluția
+
+Flux final:
+```
+Chat: "set up my budget"
+  → chat.py detectează trigger → creează sesiune → returnează onboarding_start + Q1
+  → frontend: setIsOnboarding(true), afișează progress bar
+  → userul răspunde (text sau ClarificationCard button)
+  → POST /api/onboarding/message → LLM parsează → server avansează → returnează Q următor
+  → după Q15: Phase 2 rulează → creează conturi/categorii/schedules în AB
+  → frontend: onboarding_complete → ieșire din mod onboarding
+```
+
+### De reținut
+- `actualpy` nu are `Category`/`Schedule` ca clase importabile din `actual.database` — folosește funcțiile query din `actual.queries` și `Schedule` config din `actual.schedules`.
+- Niciodată split pe `\n` în `api.ts` pentru streaming — bufferizează tot textul. Split-ul se face în handler-ul specific (`handleChatChunk`), numai când JSON.parse eșuează.
+- Cheile localStorage pentru auth sunt în `frontend/src/lib/auth.ts` — niciodată `localStorage.getItem('token')` direct.
+- Onboarding state persistent în SQLite (`onboarding_state` table) — nu în memory LLM. Dacă userul închide browser-ul și revine, progresul e salvat.

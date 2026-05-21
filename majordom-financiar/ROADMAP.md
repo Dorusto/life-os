@@ -59,12 +59,15 @@ Shipped 2026-05-20 as part of the tool_choice=auto validation. All 5 query tools
 
 The big one. Majordom configures Actual Budget entirely through conversation — the user never touches AB directly.
 
+**Entry point (decision pending):** For now, onboarding is triggered by a chat prompt (e.g. "Set up my budget"). Auto-redirect on first launch (when AB has no accounts) and a "Restart onboarding" option are deferred — decide before shipping M2.
+
 | # | Feature | Notes |
 |---|---------|-------|
-| 2.1 | Phase 1 — Discovery (15 questions) | Blocks A–G: budgeting style, household, income, accounts, credit cards, multi-currency, fixed obligations, loans, goals, end-of-month behavior, historical import |
-| 2.2 | Phase 2 — AB configuration | Accounts, CC debt setup, currency rules, schedules, categories, end-of-month automation, monthly allocations, goal templates, buffer, historical import handoff |
+| ✅ 2.1 | Phase 1 — Discovery (15 questions) | Shipped 2026-05-21. 15 questions (blocks A–G), LLM-parsed answers, server-side state machine in SQLite, ClarificationCard for fixed-option questions, progress bar in chat UI. |
+| ✅ 2.2 | Phase 2 — AB configuration | Shipped 2026-05-21. Creates accounts, category groups + categories, recurring schedules, budget allocations. Known issues tracked in M2.5: duplicate detection when AB already has categories; smart income-based budget allocation. |
 | 2.3 | Transfer detection after historical import | Auto-detect transfer pairs (same amount, opposite sign, ±3 days) → present for confirmation |
 | 2.4 | Rules sync with Actual Budget | When user confirms a merchant→category mapping, also create/update the AB rule |
+| 2.5 | Onboarding polish + smart budget | Fix "multiple rows" error when categories already exist (get-or-create); auto-allocate budget based on income % (50/30/20 adapted); use Q4 variable income in Phase 2 |
 
 ---
 
@@ -126,6 +129,9 @@ External services and advanced tracking.
 | Caddy + custom domain for HTTPS | Alternative to Tailscale for users who want a memorable domain (e.g. majordom.home.ro). Caddy handles automatic HTTPS via Let's Encrypt. Requires a public domain pointed at the server. Better long-term than Tailscale for self-hosters with a domain. |
 | Actual Budget mobile access via HTTPS | AB requires HTTPS (SharedArrayBuffer). Currently only accessible via SSH tunnel from PC. When Majordom is mature enough, expose AB behind a proper reverse proxy with HTTPS so power users can access it directly from mobile when needed. Low priority — Majordom is the intended interface, not AB directly. |
 | Ollama model management from chat | User can type "install llava-phi3" or "what models do I have?" — Majordom queries and manages Ollama directly. Eliminates terminal access for model management. |
+| Editable amount on proposal cards | `BudgetRebalanceCard` and `AccountTransferCard` should have an editable amount field so the user can correct the amount directly on the card without restarting the conversation. |
+| Onboarding Q4 — variable income not used in Phase 2 | `income_type: "variable"` and `income_minimum` are collected but ignored during AB config. TODO: if variable → budget on `income_minimum` not average; recommend "live on last month's income" strategy; explain buffer (Q13 becomes more important); set income schedule with `isapprox` matching. |
+| Smart budget allocation strategy | Brainstorm needed. Current Phase 2 uses a fixed heuristic (15% groceries, 10% savings, etc). Desired: allocate based on % of salary, auto-adjust when salary arrives, end-of-month push notification with budget summary + leftover direction prompt. AB supports: goal templates (`#template N% of CATEGORY`), End of Month Cleanup (`#cleanup source/sink`), schedules. Majordom's role: make these conversational and automatic. |
 | Budget rebalancing by percentage / income | "Move 10% of my income to Restaurants" or "take 20% from Personal and add to Groceries". Requires knowing monthly income from AB (scheduled transactions). Enhancement on top of M1.1. |
 | Document Management System | Full DMS: photo/PDF upload, AI type detection, field extraction, versioning, document storage. Cross-domain infrastructure — implement as foundation for Majordom Digital, not here. Financial-specific vehicle documents (tenaamstellingsverslag, insurance, APK) → handled in M3 as vehicle-scoped feature, not generic DMS. |
 | RON / multi-currency | Via Rule Action Templating workaround; covered in onboarding Q8 |
@@ -240,11 +246,11 @@ Audit done. Original violations fixed: `transactions` and `budget_limits` tables
 
 - **Bug — „Choose from gallery" pe mobile** — raportat ca nefuncțional în sesiunea 2026-05-15 (Tailscale subnet, HTTP). Retestat ulterior — pare funcțional. De verificat în condiții identice înainte de a închide.
 
-- **Bug — Chat AI asks for account name instead of querying all accounts** — when the user asks "How much money do I have?", the AI responds "please specify account name or ID" instead of listing all accounts with their balances. Fix: update system prompt / tool logic to query all accounts when no specific account is mentioned.
+- ~~**Bug — Chat AI asks for account name instead of querying all accounts**~~ ✅ Fixed 2026-05-21 — `get_accounts` tool called without arguments; AI lists all accounts with balances.
 
 - **Bug — CSV multi-currency columns ignored** — some bank exports (e.g. Revolut, N26) include both the original currency amount and a converted EUR amount in separate columns (`Amount`, `Currency`, `Local amount`, `Local currency`). The CSV importer picks only `col_amount` and ignores the conversion columns. Result: a transaction of 19.739 RON is imported as 19739 EUR instead of the correct ~39 EUR equivalent. Fix: detect `to_amount`/`to_currency` column pairs in the profile and use the EUR column as the primary amount when the transaction currency differs from the account currency. Related to the general multi-currency backlog item.
 
-- **Bug — Text typed in chat input is hidden behind the input bar** — when the user types in the chat input field, the text appears behind the bar and is not visible. Likely a CSS z-index or padding issue in the chat input component. File: `frontend/src/components/` (Chat input component).
+- ~~**Bug — Text typed in chat input is hidden behind the input bar**~~ ✅ Fixed 2026-05-21 — CSS padding/z-index resolved in chat input component.
 
 - **UX — Receipt and CSV import on separate tabs** — the web UI has separate tabs for receipt photo and CSV import. For daily use, a unified "Add transactions" flow would be more natural: one entry point, then choose method. Low priority cosmetic improvement.
 

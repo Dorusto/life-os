@@ -427,7 +427,7 @@ class ActualBudgetClient:
         accounts = await self.get_accounts()
         return sum(acc.balance for acc in accounts)
 
-    async def create_account(self, name: str, initial_balance: float = 0.0) -> Account:
+    async def create_account(self, name: str, initial_balance: float = 0.0, off_budget: bool = False) -> Account:
         """Create a new account in Actual Budget."""
         def _create():
             from actual.queries import create_account as _create_account
@@ -438,10 +438,72 @@ class ActualBudgetClient:
                     actual.session,
                     name=name,
                     initial_balance=Decimal(str(initial_balance)),
+                    off_budget=off_budget,
                 )
                 actual.commit()
-                logger.info(f"Account created: {name} (initial balance: {initial_balance})")
+                logger.info(f"Account created: {name} (initial balance: {initial_balance}, off_budget={off_budget})")
                 return Account(id=str(acc.id), name=acc.name, balance=initial_balance)
+        return await self._run(_create)
+
+    async def create_category_group(self, name: str) -> str:
+        """Create a category group in Actual Budget. Returns the group ID."""
+        def _create():
+            from actual.queries import create_category_group as _create_group
+            with self._get_actual() as actual:
+                actual.download_budget()
+                group = _create_group(actual.session, name=name)
+                actual.commit()
+                logger.info(f"Category group created: {name} (id={group.id})")
+                return str(group.id)
+        return await self._run(_create)
+
+    async def create_category(self, name: str, group_name: str) -> Category:
+        """Create a category in a category group. Returns the Category."""
+        def _create():
+            from actual.queries import create_category as _create_cat
+            with self._get_actual() as actual:
+                actual.download_budget()
+                cat = _create_cat(actual.session, name=name, group_name=group_name)
+                actual.commit()
+                logger.info(f"Category created: {name} in group {group_name}")
+                return Category(id=str(cat.id), name=cat.name, group_name=group_name)
+        return await self._run(_create)
+
+    async def create_schedule(self, name: str, amount: float, day_of_month: int, account_id: str, is_income: bool = False) -> str:
+        """Create a monthly recurring schedule in Actual Budget. Returns the schedule ID."""
+        def _create():
+            import calendar
+            from datetime import date as _date
+            from actual.queries import create_schedule as _create_schedule
+            from actual.schedules import Schedule as ScheduleConfig
+
+            today = _date.today()
+            year, month = today.year, today.month
+            if today.day > day_of_month:
+                month += 1
+                if month > 12:
+                    month, year = 1, year + 1
+            try:
+                start_date = _date(year, month, day_of_month)
+            except ValueError:
+                start_date = _date(year, month, calendar.monthrange(year, month)[1])
+
+            schedule_cfg = ScheduleConfig(start=start_date, frequency="monthly", interval=1)
+            amount_op = "isapprox" if is_income else "is"
+
+            with self._get_actual() as actual:
+                actual.download_budget()
+                sched = _create_schedule(
+                    actual.session,
+                    date=schedule_cfg,
+                    amount=float(amount),
+                    amount_operation=amount_op,
+                    name=name,
+                    account=account_id,
+                )
+                actual.commit()
+                logger.info(f"Schedule created: {name} (€{amount} on day {day_of_month})")
+                return str(sched.id)
         return await self._run(_create)
 
     async def create_transfer(

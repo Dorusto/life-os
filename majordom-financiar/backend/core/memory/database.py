@@ -6,6 +6,7 @@ Stores:
 - Merchant → category associations (for learning)
 - Category keywords
 - CSV import profiles
+- Onboarding state
 """
 import sqlite3
 from pathlib import Path
@@ -79,6 +80,17 @@ class MemoryDB:
                     encoding     TEXT NOT NULL DEFAULT 'utf-8',
                     confirmed    INTEGER NOT NULL DEFAULT 0,
                     created_at   TEXT DEFAULT (datetime('now'))
+                );
+
+                CREATE TABLE IF NOT EXISTS onboarding_state (
+                    id INTEGER PRIMARY KEY,
+                    user_id TEXT NOT NULL DEFAULT 'default' UNIQUE,
+                    current_question INTEGER NOT NULL DEFAULT 1,
+                    answers TEXT NOT NULL DEFAULT '{}',
+                    phase INTEGER NOT NULL DEFAULT 1,
+                    completed_at TEXT DEFAULT NULL,
+                    created_at TEXT DEFAULT (datetime('now')),
+                    updated_at TEXT DEFAULT (datetime('now'))
                 );
             """)
             conn.commit()
@@ -239,5 +251,60 @@ class MemoryDB:
                 d.pop("created_at", None)
                 result.append(CsvProfile(**d))
             return result
+        finally:
+            conn.close()
+
+    # --- Onboarding State ---
+
+    def get_onboarding_state(self, user_id: str = "default") -> dict | None:
+        """Get onboarding state for a user. Returns None if no active session."""
+        conn = self._get_conn()
+        try:
+            row = conn.execute(
+                "SELECT * FROM onboarding_state WHERE user_id = ?",
+                (user_id,)
+            ).fetchone()
+            if not row:
+                return None
+            d = dict(row)
+            d["answers"] = json.loads(d.get("answers", "{}"))
+            return d
+        finally:
+            conn.close()
+
+    def save_onboarding_state(self, user_id: str, state: dict):
+        """Upsert onboarding state for a user."""
+        conn = self._get_conn()
+        try:
+            answers_json = json.dumps(state.get("answers", {}))
+            conn.execute("""
+                INSERT INTO onboarding_state (user_id, current_question, answers, phase, completed_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, datetime('now'))
+                ON CONFLICT(user_id) DO UPDATE SET
+                    current_question = excluded.current_question,
+                    answers = excluded.answers,
+                    phase = excluded.phase,
+                    completed_at = excluded.completed_at,
+                    updated_at = datetime('now')
+            """, (
+                user_id,
+                state.get("current_question", 1),
+                answers_json,
+                state.get("phase", 1),
+                state.get("completed_at"),
+            ))
+            conn.commit()
+        finally:
+            conn.close()
+
+    def clear_onboarding_state(self, user_id: str = "default"):
+        """Delete onboarding state for a user."""
+        conn = self._get_conn()
+        try:
+            conn.execute(
+                "DELETE FROM onboarding_state WHERE user_id = ?",
+                (user_id,)
+            )
+            conn.commit()
         finally:
             conn.close()
