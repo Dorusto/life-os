@@ -30,7 +30,7 @@ export default function Login() {
       const message = err instanceof Error ? err.message : 'Login failed'
       setError(
         message === 'Invalid credentials'
-          ? 'Parolă incorectă. Încearcă din nou.'
+          ? 'Incorrect password. Please try again.'
           : message
       )
     } finally {
