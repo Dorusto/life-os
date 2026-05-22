@@ -166,6 +166,35 @@ class ActualBudgetClient:
                     by_category[cat_key]["count"] += 1
                     by_category[cat_key]["name"] = cat_name
 
+                # Remap tombstoned categories to living equivalents via fuzzy match
+                try:
+                    from sqlmodel import select as _select
+                    from actual.database import Categories as _CatTable
+                    from actual.queries import get_categories as _get_cats
+                    from difflib import get_close_matches
+                    all_raw = actual.session.exec(_select(_CatTable)).all()
+                    all_cats = _get_cats(actual.session)
+                    living_map = {str(c.id): (c.name or "Uncategorized") for c in all_cats if c.id}
+                    living_lower = {(c.name or "").lower(): str(c.id) for c in all_cats if c.id and c.name}
+                    dead_names = {str(c.id): (c.name or "") for c in all_raw if c.tombstone and c.id}
+                    for dead_id, dead_name in dead_names.items():
+                        if dead_id not in by_category:
+                            continue
+                        matches = get_close_matches(dead_name.lower(), list(living_lower.keys()), n=1, cutoff=0.4)
+                        if matches:
+                            live_id = living_lower[matches[0]]
+                            if live_id in by_category:
+                                by_category[live_id]["total"] += by_category[dead_id]["total"]
+                                by_category[live_id]["count"] += by_category[dead_id]["count"]
+                            else:
+                                by_category[live_id] = by_category[dead_id].copy()
+                                by_category[live_id]["name"] = living_map[live_id]
+                            del by_category[dead_id]
+                        else:
+                            by_category[dead_id]["name"] = dead_name or "Other"
+                except Exception:
+                    pass
+
                 return {
                     "month": month,
                     "year": year,
