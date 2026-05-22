@@ -97,7 +97,7 @@ class VisionEngine:
             "options": {
                 "temperature": 0.0,
                 "num_predict": 512,
-                "num_ctx": 1024,
+                "num_ctx": 8192,
             },
         }
 

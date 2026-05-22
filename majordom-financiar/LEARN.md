@@ -841,4 +841,48 @@ Chat: "set up my budget"
 - `actualpy` nu are `Category`/`Schedule` ca clase importabile din `actual.database` — folosește funcțiile query din `actual.queries` și `Schedule` config din `actual.schedules`.
 - Niciodată split pe `\n` în `api.ts` pentru streaming — bufferizează tot textul. Split-ul se face în handler-ul specific (`handleChatChunk`), numai când JSON.parse eșuează.
 - Cheile localStorage pentru auth sunt în `frontend/src/lib/auth.ts` — niciodată `localStorage.getItem('token')` direct.
+
+---
+
+## 2026-05-22 — Categorii șterse (tombstone) + payee din bon
+
+### Problema
+Două bug-uri distincte descoperite în aceeași sesiune:
+1. `What are my biggest expenses?` returna `Deleted:22d43648` în loc de numele categoriei
+2. După confirmarea unui bon, payee-ul nu apărea în Actual Budget
+
+### Ce s-a întâmplat
+
+**Bug 1 — Deleted category:**
+Când ștergi o categorie din AB, ea devine "tombstoned" — dispare din lista de categorii dar tranzacțiile vechi păstrează `category_id`-ul ei. În `get_monthly_stats()`, codul găsea `category_id` fără obiect `category` asociat și afișa `Deleted:22d43648` (primele 8 caractere din UUID).
+Logica de remap tombstone exista deja în `get_budget_status()` dar **lipsea din `get_monthly_stats()`**.
+
+**Bug 2 — Payee din bon:**
+Lanț lung de investigație. Puncte cheie:
+- `docker compose restart` nu ajută — codul e baked în imagine, trebuie `docker compose build`
+- Logger-ul custom (`logging.getLogger(__name__)`) nu apărea în docker logs — `main.py` nu configurează root logger, deci nivel default e WARNING. `print(..., flush=True)` funcționează garantat.
+- Diagnosticul cu `print` a arătat că payee-ul (`'Kruidvat'`) ajungea corect în `add_transaction`
+- Testul direct în container a confirmat că mecanismul `create_transaction(session, payee='Kruidvat')` + `actual.commit()` funcționează și se sincronizează cu serverul AB
+- `actualpy` folosește un event listener `before_flush` care generează mesaje de sync pentru toate obiectele noi/modificate din sesiune. Mesajele includ payee-ul, PayeeMapping-ul și `transactions/description` (care e de fapt `payee_id` în protocolul CRDT al AB)
+- `group_id` setat → `sync_sync` se apelează → datele ajung pe server
+
+**Cauza rădăcină a Bug 2:** Neclară după investigație extinsă. Payee-ul apare în SQLite local și în readback-ul Python, dar nu în AB UI pentru unele tranzacții. Ipoteza: tranzacții adăugate cu versiunile vechi ale codului (înainte de fix) rămân fără payee; cele noi funcționează. Nebug-ul a rămas nerezolvat — costul investigației a depășit valoarea practică.
+
+### Soluția
+
+**Bug 1** — adăugat remap tombstone în `get_monthly_stats()` (același algoritm ca în `get_budget_status()`): fuzzy match după nume între categoriile șterse și cele vii, remapare spending.
+
+**Bug 2** — evoluție a codului:
+- Inițial: `_safe_get_or_create_payee` cu `session.add()` direct + `session.flush()` → lipsea `PayeeMapping`
+- Fix 1: înlocuit cu `create_payee()` din actualpy (include PayeeMapping) dar fără `session.flush()` → lookup-ul din `set_transaction_payee` nu găsea payee-ul în DB
+- Fix 2: `create_payee()` + `session.flush()` → teoretic corect
+- Fix 3 (final): pasat direct string-ul la `create_transaction()` → actualpy gestionează totul intern
+
+### De reținut
+- `docker compose restart` ≠ `docker compose build` — codul baked în imagine nu se schimbă la restart
+- `print(..., flush=True)` > `logger.info()` pentru debug rapid în containere fără logging configurat
+- `actualpy.create_transaction(session, payee="NumePayee")` funcționează end-to-end cu sync, nu e nevoie să creezi manual obiectul Payees
+- `actualpy` change tracking: event `before_flush` → `session.info["messages"]` → `actual.commit()` → `sync_sync()`. Dacă `group_id` e None, sync nu se apelează (modificări doar locale)
+- `transactions/description` în protocolul CRDT al AB = `payee_id` în SQLite (nu câmpul `notes`)
+- Diagnosticul corect pentru "payee lipsă": verifică direct în container cu `get_transactions()` + `tx.payee.name`, nu te baza pe UI care poate arăta cache
 - Onboarding state persistent în SQLite (`onboarding_state` table) — nu în memory LLM. Dacă userul închide browser-ul și revine, progresul e salvat.

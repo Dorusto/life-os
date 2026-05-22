@@ -14,16 +14,20 @@ logger = logging.getLogger(__name__)
 
 
 def _safe_get_or_create_payee(session, name: str):
-    """Like actualpy's get_or_create_payee but tolerates duplicate payee names."""
+    """Like actualpy's get_or_create_payee but tolerates duplicate payee names.
+
+    Uses .first() instead of .one_or_none() so it doesn't crash when the same
+    payee name exists multiple times. Creates via actualpy's create_payee so the
+    PayeeMapping entry is also created — without it the payee doesn't sync to AB.
+    """
     from actual.database import Payees
-    from uuid import uuid4
+    from actual.queries import create_payee as _create_payee
     payee = session.query(Payees).filter(
         Payees.name == name, Payees.tombstone == 0
     ).first()
     if payee is None:
-        payee = Payees(id=str(uuid4()), name=name, tombstone=0)
-        session.add(payee)
-        session.flush()
+        payee = _create_payee(session, name)
+        session.flush()  # required: set_transaction_payee looks up payee by ID in DB
     return payee
 
 
@@ -222,18 +226,14 @@ class ActualBudgetClient:
         def _add():
             import uuid
             from actual.queries import (
-                create_transaction, get_or_create_payee,
+                create_transaction,
                 get_categories,
             )
             with self._get_actual() as actual:
                 actual.download_budget()
 
-                # Random UUID — manual entries are never deduplicated.
-                # (CSV import uses its own dedup logic in add_transactions_batch.)
                 imported_id = uuid.uuid4().hex[:16]
 
-                payee_obj = _safe_get_or_create_payee(actual.session, payee) if payee else None
-                # Only use existing visible categories — never create new ones, never use hidden ones
                 cat_obj = None
                 if category_name:
                     all_cats = get_categories(actual.session)
@@ -245,14 +245,13 @@ class ActualBudgetClient:
                     actual.session,
                     date=tx_date,
                     account=account_id,
-                    payee=payee_obj,
+                    payee=payee if payee else None,
                     notes=notes,
                     amount=-abs(amount) if is_expense else abs(amount),
                     category=cat_obj,
                     imported_id=imported_id,
                 )
                 actual.commit()
-                logger.info(f"Transaction added: {payee} {amount:.2f} → {tx.id}")
                 return str(tx.id)
 
         return await self._run(_add)
