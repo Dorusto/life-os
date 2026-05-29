@@ -89,7 +89,7 @@ def _build_system_prompt() -> str:
   - "paid electricity bill 120 euro" → propose_transaction(payee="Electricity", amount=120)
 - If the amount is missing from the user's message, call propose_clarification immediately — NEVER guess or invent an amount.
 - To move budget between categories: call propose_budget_rebalance. Never describe it as text.
-- To transfer money between accounts: call propose_account_transfer. Never describe it as text.
+- To transfer money between accounts: call propose_account_transfer. Never describe it as text. Pass account names EXACTLY as the user stated them — do NOT substitute with known accounts. If an account is not in Actual Budget, the backend will ask for clarification.
 - To answer questions about spending, balances, or budget: call the appropriate get_* tool first, then answer based on the result.
 - Never invent financial data — always fetch it with a tool.
 
