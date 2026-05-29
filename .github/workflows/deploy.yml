@@ -1,0 +1,19 @@
+name: Deploy Majordom
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "majordom-financiar/**"
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Pull latest changes
+        run: git -C "$MAJORDOM_PATH" pull
+
+      - name: Rebuild and restart services
+        run: |
+          cd "$MAJORDOM_PATH/majordom-financiar"
+          docker compose up --build -d majordom-api majordom-web majordom-bot
