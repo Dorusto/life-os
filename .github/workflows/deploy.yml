@@ -11,7 +11,9 @@ jobs:
     runs-on: self-hosted
     steps:
       - name: Pull latest changes
-        run: git -C "$MAJORDOM_PATH" pull
+        run: |
+          git -C "$MAJORDOM_PATH" stash
+          git -C "$MAJORDOM_PATH" pull
 
       - name: Rebuild and restart services
         run: |
