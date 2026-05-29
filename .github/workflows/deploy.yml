@@ -20,4 +20,4 @@ jobs:
       - name: Rebuild and restart services
         run: |
           cd "$MAJORDOM_PATH/majordom-financiar"
-          docker compose up --build -d majordom-api majordom-web majordom-bot
+          docker compose up --build -d majordom-api majordom-web
