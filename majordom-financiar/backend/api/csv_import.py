@@ -275,18 +275,34 @@ async def preview_csv(
     try:
         enc = normalizer.detect_encoding(raw)
         text_content = raw.decode(enc)
-        delimiter = normalizer.detect_delimiter(text_content)
-        headers, rows = normalizer.parse_csv(raw, delimiter=delimiter, encoding=enc)
+        auto_delimiter = normalizer.detect_delimiter(text_content)
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Cannot parse CSV: {e}")
 
-    if not rows:
-        raise HTTPException(status_code=400, detail="CSV is empty or has no data rows")
-
     db = MemoryDB(db_path=settings.memory.db_path)
     detector = CsvProfileDetector(settings.ollama.url, settings.ollama.model)
-    sig = detector.header_signature(headers)
-    profile = db.get_csv_profile_by_sig(sig)
+
+    # Try multiple delimiters — auto-detected first, then common alternatives.
+    # This handles cases where the delimiter detector picks the wrong one
+    # (e.g. semicolon CSVs with European amounts like "26,00" that have more
+    # commas than semicolons in the first few lines).
+    headers, rows, delimiter, profile = None, None, auto_delimiter, None
+    for try_delim in dict.fromkeys([auto_delimiter, ";", ",", "\t"]):
+        try:
+            h, r = normalizer.parse_csv(raw, delimiter=try_delim, encoding=enc)
+        except Exception:
+            continue
+        if headers is None:
+            headers, rows = h, r  # keep first parse as fallback
+        sig = detector.header_signature(h)
+        p = db.get_csv_profile_by_sig(sig)
+        if p:
+            headers, rows, delimiter, profile = h, r, try_delim, p
+            logger.info("CSV profile matched: %s (delimiter=%r)", p.source_name, try_delim)
+            break
+
+    if not rows:
+        raise HTTPException(status_code=400, detail="CSV is empty or has no data rows")
 
     if profile is None:
         # Ollama call — may take 30-60s on first import of a new bank format

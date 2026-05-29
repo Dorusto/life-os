@@ -31,6 +31,9 @@ UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 async def lifespan(app: FastAPI):
     """Runs once on startup and once on shutdown."""
     UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+    from backend.core.memory.database import MemoryDB
+    from backend.core.config import settings as _settings
+    MemoryDB(_settings.memory.db_path).seed_builtin_profiles()
     logger.info("Majordom API v2 started — uploads dir: %s", UPLOADS_DIR)
     yield
     logger.info("Majordom API stopped")

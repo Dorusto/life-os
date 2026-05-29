@@ -254,6 +254,32 @@ class MemoryDB:
         finally:
             conn.close()
 
+    def seed_builtin_profiles(self) -> None:
+        """Insert built-in bank profiles into SQLite if not already present."""
+        import hashlib
+        from backend.core.csv_importer.builtin_profiles import BUILTIN_PROFILES
+        from backend.core.csv_importer.profiles import CsvProfile
+
+        for entry in BUILTIN_PROFILES:
+            headers = entry["headers"]
+            normalized = ",".join(sorted(h.strip().lower() for h in headers))
+            sig = hashlib.md5(normalized.encode()).hexdigest()[:12]
+
+            # Skip if already in DB
+            conn = self._get_conn()
+            try:
+                existing = conn.execute(
+                    "SELECT id FROM csv_profiles WHERE header_sig = ?", (sig,)
+                ).fetchone()
+            finally:
+                conn.close()
+
+            if existing:
+                continue
+
+            profile = CsvProfile(header_sig=sig, **entry["profile"])
+            self.save_csv_profile(profile)
+
     # --- Onboarding State ---
 
     def get_onboarding_state(self, user_id: str = "default") -> dict | None:

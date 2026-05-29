@@ -290,14 +290,19 @@ User uploads photo
 ```
 User uploads CSV
   → POST /api/import/csv
-  → CsvNormalizer.parse_csv()
-  → CsvProfileDetector — MD5 fingerprint, check saved profiles (SQLite)
-  → if unknown: Ollama detects format → user confirms → save profile
+  → bank2ynab converts to standard format (Date/Payee/Outflow/Inflow)
   → account selection
   → transfer pair detection (amount match, opposite sign, ±3 days)
   → on confirm: ActualBudgetClient.add_transactions_batch()
       → SHA256 deduplication, single actual.commit()
 ```
+
+**Decision (2026-05-29):** CSV format detection via Ollama replaced by `bank2ynab` (MIT, pip).
+bank2ynab covers 100+ European banks (ING NL, BUNQ, Revolut, etc.) via community-maintained
+profiles. Output is always the same fixed format — Majordom needs one parser, not per-bank logic.
+Firefly III data-importer was evaluated and rejected (PHP, not usable as a Python library).
+Romanian banks (BRD, BCR, Raiffeisen RO) need manual profiles added to bank2ynab — contribute upstream.
+Tracked in issue #67.
 
 ### Chat (current — read-only)
 ```
