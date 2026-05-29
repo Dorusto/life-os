@@ -328,29 +328,36 @@ async def propose_account_transfer(
 
     accounts_list = [{"id": a.id, "name": a.name, "balance": a.balance} for a in accounts]
 
-    def _resolve(value: str) -> tuple[str, str]:
-        """Return (id, name) for value — tries exact ID match, then fuzzy name match."""
-        # Exact ID match
+    def _resolve(value: str) -> tuple[str | None, str | None]:
+        """Return (id, name) for value — tries exact ID match, then fuzzy name match. Returns (None, None) if not found."""
         for a in accounts:
             if a.id == value:
                 return a.id, a.name
-        # Exact name match (case-insensitive)
         for a in accounts:
             if a.name.lower() == value.lower():
                 return a.id, a.name
-        # Fuzzy name match
         names = [a.name for a in accounts]
         matches = get_close_matches(value, names, n=1, cutoff=0.4)
         if matches:
             matched = next(a for a in accounts if a.name == matches[0])
             return matched.id, matched.name
-        # No match — return first account as fallback
-        if accounts:
-            return accounts[0].id, accounts[0].name
-        return value, value
+        return None, None
 
     from_id, from_name = _resolve(from_account_id)
     to_id, to_name = _resolve(to_account_id)
+
+    # If destination not found, ask for clarification instead of silent fallback
+    if to_id is None:
+        options = [a.name for a in accounts] + ["Record as expense instead"]
+        return json.dumps({
+            "type": "clarification",
+            "question": f"Account '{to_account_id}' not found in Actual Budget. Choose a destination or record as expense:",
+            "options": options,
+        })
+
+    # If source not found, fall back to first account (user can correct via selector)
+    if from_id is None and accounts:
+        from_id, from_name = accounts[0].id, accounts[0].name
 
     # Avoid same-account transfers
     if from_id == to_id and len(accounts) >= 2:
