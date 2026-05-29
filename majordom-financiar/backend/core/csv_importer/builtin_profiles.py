@@ -24,7 +24,7 @@ BUILTIN_PROFILES = [
             "Resulting balance", "Tag",
         ],
         "profile": {
-            "source_name": "ING NL (EN semicolon)",
+            "source_name": "ING",
             "col_date": "Date",
             "col_merchant": "Name / Description",
             "col_amount": "Amount (EUR)",
@@ -51,7 +51,7 @@ BUILTIN_PROFILES = [
             "Resulting balance", "Tag",
         ],
         "profile": {
-            "source_name": "ING NL (EN comma)",
+            "source_name": "ING",
             "col_date": "Date",
             "col_merchant": "Name / Description",
             "col_amount": "Amount (EUR)",
@@ -79,7 +79,7 @@ BUILTIN_PROFILES = [
             "Saldo na mutatie", "Tag",
         ],
         "profile": {
-            "source_name": "ING NL (NL semicolon)",
+            "source_name": "ING",
             "col_date": "Datum",
             "col_merchant": "Naam / Omschrijving",
             "col_amount": "Bedrag (EUR)",
