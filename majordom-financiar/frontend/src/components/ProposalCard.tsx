@@ -25,7 +25,11 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
   const [accounts, setAccounts] = useState<Account[]>([])
 
   useEffect(() => {
-    getCategories().then(setCategories).catch(() => {})
+    getCategories().then(cats => {
+      setCategories(cats)
+      const match = cats.find(c => c.name.toLowerCase() === proposal.category_name.toLowerCase())
+      if (!match && cats.length > 0) setSelectedCategory(cats[0].name)
+    }).catch(() => {})
     getAccounts().then(setAccounts).catch(() => {})
   }, [])
 
