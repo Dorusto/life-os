@@ -87,6 +87,7 @@ def _build_system_prompt() -> str:
   - "spent 50 euro at Lidl" → propose_transaction(payee="Lidl", amount=50)
   - "received 330 euro from Ana for photo services" → propose_transaction(payee="Ana", amount=330, is_expense=false)
   - "paid electricity bill 120 euro" → propose_transaction(payee="Electricity", amount=120)
+- If the amount is missing from the user's message, call propose_clarification immediately — NEVER guess or invent an amount.
 - To move budget between categories: call propose_budget_rebalance. Never describe it as text.
 - To transfer money between accounts: call propose_account_transfer. Never describe it as text.
 - To answer questions about spending, balances, or budget: call the appropriate get_* tool first, then answer based on the result.
@@ -163,7 +164,11 @@ _PROPOSAL_TOOLS = {"propose_transaction", "propose_budget_rebalance", "propose_a
 
 # Onboarding trigger keywords — if the user's last message matches any of these,
 # the chat endpoint returns onboarding_start to redirect to the onboarding flow.
-ONBOARDING_TRIGGERS = {"set up my budget", "configure my budget", "start onboarding", "onboarding"}
+ONBOARDING_TRIGGERS = {
+    "set up my budget", "configure my budget", "start onboarding", "onboarding",
+    "configurez bugetul", "configura bugetul", "configurare buget", "setup buget",
+    "vreau sa incep", "incepe onboarding", "setup initial", "configurare initiala",
+}
 
 
 @router.post("/chat")
