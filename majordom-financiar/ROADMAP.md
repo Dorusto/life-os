@@ -93,6 +93,7 @@ Replaces M2 Onboarding and reprioritises M4 Smart Alerts as the immediate next m
 
 | # | Feature | Notes |
 |---|---------|-------|
+| 2.0 | First launch welcome message | On first open (no conversation history in SQLite), Majordom introduces itself: who it is, what it does, and one simple next step ("Start by importing your first bank statement, or just ask me anything"). No wizard, no form — one message, then Majordom waits. |
 | 2.1 | Daily message at configurable time | Default 20:00, adjustable through chat. APScheduler in FastAPI + Web Push (Telegram fallback). Uses `notification_rules` table (JSON config per type) + `notification_log` (anti-spam). |
 | 2.2 | Income detection from recurring credits | Detect salary from same-payee same-approximate-amount monthly credits. No setup question. |
 | 2.3 | Unexpected transaction reminder | SmartCategorizer assigns best-guess category to every transaction — nothing sits uncategorised in AB. Reminder fires for low-confidence assignments (< threshold) after 48h: *"You have X transactions I wasn't sure about. Want to review them?"* Threshold adjustable through chat. |

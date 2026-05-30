@@ -1,20 +1,35 @@
 # Majordom — Personal Finance Assistant
 
-A self-hosted personal finance assistant. Photograph receipts, import bank statements, and chat with an AI that knows your actual numbers — all without sending your financial data to any cloud service.
+**Majordom is not a finance app. It's a conversational intelligence layer over powerful tools (Actual Budget, Ghostfolio) that makes them accessible without you ever having to learn them.**
+
+You talk to Majordom. Majordom does everything else — in the background, on your own server, with your data staying yours.
 
 > Built with AI assistance (Claude + DeepSeek). Co-authored by a human who understands ~3% of the code and an AI that wrote the rest.
 
 ---
 
-Most budgeting apps show you what happened. Majordom tells you what to do next — and does it for you. You don't need to learn Actual Budget, Ghostfolio, or any other tool. You talk to Majordom. Majordom handles the rest.
+## Why Majordom exists
+
+Most budgeting apps give you dashboards and expect you to draw conclusions. Majordom draws the conclusions for you — and acts on them.
+
+You don't learn Actual Budget. You don't configure categories. You don't set up rules. You talk to Majordom in plain language and it handles everything underneath: categorising transactions, detecting patterns, proposing rebalances, tracking goals, and alerting you before problems happen — not after.
+
+**What makes it different from YNAB or Monarch Money:**
+
+| | Majordom | YNAB / Monarch |
+|--|----------|----------------|
+| Data ownership | Self-hosted, your server | Cloud, their servers |
+| Behaviour | Proactive — initiates, alerts, acts | Reactive — shows what happened |
+| Setup | Conversational — no wizard, no forms | Form-based onboarding |
+| Extensibility | Add any tool without changing the UX | Closed ecosystem |
 
 ---
 
 ## What changes after 3 months
 
-After 3 months, you'll have a clear picture of where your money goes and where you could save or rebalance to reach your goals. You'll make more rational spending decisions, aligned with your personal objectives. You'll have a long-term investment strategy with a clear view of your investor profile. And you'll know, with real precision, when you can reach financial independence — and what you can do to get there faster.
-
-Majordom will already know your goals and will keep you updated without you having to ask.
+> *"After 3 months, you'll have a clear picture of where your money goes and where you could save or rebalance to reach your goals. You'll make more rational spending decisions, aligned with your personal objectives. You'll have a long-term investment strategy with a clear view of your investor profile. And you'll know, with real precision, when you can reach financial independence — and what you can do to get there faster.*
+>
+> *Majordom will already know your goals and will keep you updated without you having to ask."*
 
 ---
 
