@@ -112,6 +112,13 @@ export interface Account {
   balance: number
 }
 
+export interface AccountListItem {
+  id: string
+  name: string
+  balance: number
+  off_budget: boolean
+}
+
 // --- Auth ---
 
 export async function login(username: string, password: string): Promise<TokenResponse> {
@@ -160,6 +167,10 @@ export async function getTransactions(limit = 20): Promise<Transaction[]> {
 
 export async function getAccounts(): Promise<Account[]> {
   return request<Account[]>('/accounts')
+}
+
+export async function getAccountList(): Promise<AccountListItem[]> {
+  return request<AccountListItem[]>('/accounts')
 }
 
 // --- Stats ---
@@ -223,6 +234,7 @@ export interface ImportResult {
   merged?: number
   skipped: number
   retroactively_updated?: number
+  unknown_income_rows?: Array<{ payee: string; amount: number; date: string }>
 }
 
 export async function previewCsvImport(file: File): Promise<ImportPreview> {
@@ -496,6 +508,26 @@ export async function confirmAccountTransfer(data: AccountTransferData): Promise
       amount: data.amount,
       date: data.date,
       notes: data.notes,
+    }),
+  })
+}
+
+// --- Income Sources ---
+
+export async function createIncomeSource(params: {
+  payee: string
+  type: 'income' | 'transfer'
+  income_name?: string
+  account_id?: string
+}): Promise<{ category_name: string | null; updated_count: number }> {
+  return request('/income/sources', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      payee: params.payee,
+      type: params.type,
+      income_name: params.income_name,
+      account_id: params.account_id,
     }),
   })
 }

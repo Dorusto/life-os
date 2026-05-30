@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, FormEvent } from 'react'
-import { Send, Plus, Camera, Image, FileText } from 'lucide-react'
+import { Send, Plus, Camera, Image, FileText, HelpCircle, X } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, type SetupAccount, type BalanceAdjustmentData, type ImportPreview } from '../lib/api'
@@ -11,11 +11,12 @@ import ClarificationCard from '../components/ClarificationCard'
 import AccountTransferCard from '../components/AccountTransferCard'
 import SetupBalancesCard from '../components/SetupBalancesCard'
 import BalanceAdjustmentCard from '../components/BalanceAdjustmentCard'
+import IncomeSourceCard from '../components/IncomeSourceCard'
 import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from '../lib/api'
 
 
 export interface Message {
-  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'income_source'
   content: string
   proposal?: ProposalData
   budgetRebalance?: BudgetRebalanceData
@@ -24,6 +25,7 @@ export interface Message {
   balanceAdjustment?: BalanceAdjustmentData
   setupAccounts?: SetupAccount[]
   csvImport?: { status: 'loading' | 'ready' | 'error'; preview?: ImportPreview; error?: string }
+  incomeRow?: { payee: string; amount: number; date: string }
 }
 
 
@@ -52,6 +54,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
   const [isOnboarding, setIsOnboarding] = useState(false)
   const [onboardingProgress, setOnboardingProgress] = useState<{ current: number; total: number } | null>(null)
   const [showMediaMenu, setShowMediaMenu] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
   const csvInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
@@ -499,10 +502,72 @@ export default function Chat({ messages, setMessages }: ChatProps) {
   return (
     <div className="h-dvh pb-16 bg-background flex flex-col">
       {/* Header */}
-      <header className="px-5 pt-14 pb-4 border-b border-border flex-shrink-0">
-        <p className="text-muted text-sm">Your financial advisor</p>
-        <h1 className="text-white text-xl font-semibold mt-0.5">Majordom</h1>
+      <header className="px-5 pt-[56px] pb-4 border-b border-border flex-shrink-0 flex items-end justify-between">
+        <div>
+          <p className="text-muted text-sm">Your financial advisor</p>
+          <h1 className="text-white text-xl font-semibold mt-0.5">Majordom</h1>
+        </div>
+        <button
+          onClick={() => setShowHelp(true)}
+          className="mb-0.5 text-muted hover:text-white transition-colors"
+          title="How to use Majordom"
+        >
+          <HelpCircle size={20} />
+        </button>
       </header>
+
+      {/* Help modal */}
+      {showHelp && (
+        <div className="fixed inset-0 z-50 flex items-end" onClick={() => setShowHelp(false)}>
+          <div
+            className="w-full bg-surface border-t border-border rounded-t-2xl px-6 pt-5 pb-10 space-y-5 max-h-[80vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h2 className="text-white font-semibold text-base">How to use Majordom</h2>
+              <button onClick={() => setShowHelp(false)} className="text-muted hover:text-white transition-colors">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-4 text-sm">
+              <div>
+                <p className="text-white font-medium mb-1">What is Majordom?</p>
+                <p className="text-muted leading-relaxed">Majordom is your personal finance assistant. Talk to it naturally — it understands your budget, accounts, and spending history.</p>
+              </div>
+
+              <div>
+                <p className="text-white font-medium mb-2">What you can ask</p>
+                <ul className="space-y-1.5 text-muted">
+                  <li className="flex gap-2"><span className="text-accent">→</span> "How much did I spend on groceries this month?"</li>
+                  <li className="flex gap-2"><span className="text-accent">→</span> "Am I over budget on restaurants?"</li>
+                  <li className="flex gap-2"><span className="text-accent">→</span> "Transfer €200 from ING to savings"</li>
+                  <li className="flex gap-2"><span className="text-accent">→</span> "Add a transaction — coffee at Starbucks, €4.50"</li>
+                  <li className="flex gap-2"><span className="text-accent">→</span> "What's my current balance?"</li>
+                </ul>
+              </div>
+
+              <div>
+                <p className="text-white font-medium mb-2">Import bank transactions</p>
+                <p className="text-muted leading-relaxed">Tap <span className="text-white font-medium">+</span> in the input bar to:</p>
+                <ul className="space-y-1 text-muted mt-1">
+                  <li className="flex gap-2"><span className="text-accent">→</span> Take a photo of a receipt</li>
+                  <li className="flex gap-2"><span className="text-accent">→</span> Upload a CSV export from your bank</li>
+                </ul>
+              </div>
+
+              <div>
+                <p className="text-white font-medium mb-2">Tips</p>
+                <ul className="space-y-1.5 text-muted">
+                  <li className="flex gap-2"><span className="text-accent">→</span> Majordom learns your merchants — categories improve over time</li>
+                  <li className="flex gap-2"><span className="text-accent">→</span> Always review transactions marked with <span className="text-yellow-500 font-medium">?</span> before importing</li>
+                  <li className="flex gap-2"><span className="text-accent">→</span> Income and transfers need to be named once — Majordom remembers them</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Onboarding progress bar */}
       {isOnboarding && onboardingProgress && (
@@ -648,14 +713,48 @@ export default function Chat({ messages, setMessages }: ChatProps) {
             ) : msg.role === 'csv_import' && msg.csvImport ? (
               <CsvImportCard
                 data={msg.csvImport}
-                onConfirmed={(message) => {
-                  setMessages(prev =>
-                    prev.map((m, i) => i === idx ? { role: 'status' as const, content: message } : m)
-                  )
+                onConfirmed={(message, result) => {
+                  // Replace the csv_import card with a status message
+                  const newMessages: Message[] = [
+                    { role: 'status' as const, content: message },
+                  ]
+                  // Append income_source cards for each unknown income row
+                  if (result?.unknown_income_rows?.length) {
+                    for (const row of result.unknown_income_rows) {
+                      newMessages.push({
+                        role: 'income_source' as const,
+                        content: '',
+                        incomeRow: row,
+                      })
+                    }
+                  }
+                  setMessages(prev => {
+                    const updated = prev.map((m, i) =>
+                      i === idx ? newMessages[0] : m
+                    )
+                    // Append remaining new messages after the replaced one
+                    for (let j = 1; j < newMessages.length; j++) {
+                      updated.push(newMessages[j])
+                    }
+                    return updated
+                  })
                 }}
                 onCancelled={() => {
                   setMessages(prev =>
                     prev.map((m, i) => i === idx ? { role: 'status' as const, content: 'Import cancelled.' } : m)
+                  )
+                }}
+              />
+            ) : msg.role === 'income_source' && msg.incomeRow ? (
+              <IncomeSourceCard
+                payee={msg.incomeRow.payee}
+                amount={msg.incomeRow.amount}
+                date={msg.incomeRow.date}
+                onConfirmed={(message) => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx ? { role: 'status' as const, content: message } : m
+                    )
                   )
                 }}
               />

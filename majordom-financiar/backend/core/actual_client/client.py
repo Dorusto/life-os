@@ -36,6 +36,7 @@ class Account:
     id: str
     name: str
     balance: float
+    off_budget: bool = False
 
 
 @dataclass
@@ -87,6 +88,7 @@ class ActualBudgetClient:
                         id=str(acc.id),
                         name=acc.name,
                         balance=balance,
+                        off_budget=bool(acc.offbudget),
                     ))
                 return result
         return await self._run(_get)
@@ -962,6 +964,44 @@ class ActualBudgetClient:
             return imported, skipped, errors, low_confidence
 
         return await self._run(_batch)
+
+    async def update_uncategorized_by_payee(self, payee: str, category_name: str) -> int:
+        """
+        Find all uncategorized transactions whose payee name matches `payee`
+        (case-insensitive substring). Set their category to `category_name`.
+        Returns count of updated transactions.
+        """
+        def _update():
+            from actual.queries import get_or_create_category
+            from actual.database import Transactions, Payees
+            with self._get_actual() as actual:
+                actual.download_budget()
+                cat = get_or_create_category(
+                    actual.session, category_name, group_name="Income"
+                )
+                txs = (
+                    actual.session.query(Transactions)
+                    .join(Payees, Transactions.payee_id == Payees.id, isouter=True)
+                    .filter(
+                        Payees.name.ilike(f"%{payee}%"),
+                        Transactions.category_id == None,
+                        Transactions.tombstone == 0,
+                        Transactions.is_parent == 0,
+                    )
+                    .all()
+                )
+                count = 0
+                for tx in txs:
+                    tx.category_id = cat.id
+                    count += 1
+                if count:
+                    actual.commit()
+                logger.info(
+                    "Retroactively categorized %d transaction(s) for payee '%s' → '%s'",
+                    count, payee, category_name,
+                )
+                return count
+        return await self._run(_update)
 
     async def set_budget_amount(
         self,

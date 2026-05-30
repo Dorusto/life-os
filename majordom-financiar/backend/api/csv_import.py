@@ -96,12 +96,18 @@ class ImportConfirmRequest(BaseModel):
     rows: list[ImportRowConfirm]
 
 
+class UnknownIncomeRow(BaseModel):
+    payee: str
+    amount: float   # always positive
+    date: str       # "YYYY-MM-DD"
+
+
 class ImportResult(BaseModel):
     imported: int
     skipped: int
     merged: int = 0
     retroactively_updated: int = 0
-
+    unknown_income_rows: list[UnknownIncomeRow] = []
 
 # ---------------------------------------------------------------------------
 # Sync helpers — run in thread executor via ActualBudgetClient._run()
@@ -350,11 +356,13 @@ async def _suggest_categories_llm(
             logger.warning("LLM category suggestion did not return a dict: %r", type(suggestions))
             return {}
 
-        # Filter: keep only entries where value is a string AND exists in ab_categories
+        # Filter: keep only entries where value is a known category.
+        # Exclude "Other" — it's a fallback, not a real suggestion. If the LLM
+        # doesn't know, the row stays blank and the user must decide.
         ab_set = set(ab_categories)
         filtered = {}
         for merchant_name, cat in suggestions.items():
-            if isinstance(cat, str) and cat in ab_set:
+            if isinstance(cat, str) and cat in ab_set and cat != "Other":
                 filtered[merchant_name] = cat
 
         if filtered:
@@ -488,10 +496,13 @@ async def preview_csv(
 
         pred = categorizer.predict(merchant=lookup_merchant)
 
-        # Map internal prediction to a real AB category name
+        # Map internal prediction to a real AB category name.
+        # Exclude "Other" — if SmartCategorizer only knows "Other" for this merchant,
+        # treat it as unknown so the user is forced to categorize manually.
         ab_name = ""
         if pred.category_id and pred.category_id != "other":
-            ab_name = _map_to_ab_category(pred.category_id, ab_categories) or ""
+            mapped = _map_to_ab_category(pred.category_id, ab_categories) or ""
+            ab_name = mapped if mapped != "Other" else ""
 
         preview_rows.append(ImportRowPreview(
             id=fid,
@@ -501,7 +512,14 @@ async def preview_csv(
             is_expense=tx.is_expense,
             currency=tx.currency,
             category_name=ab_name,
-            category_confirmed=(bool(ab_name) and pred.from_history),
+            # "Other" is a fallback, not a real categorization — never treat as confirmed.
+            # Amounts above €150 always require re-verification regardless of history.
+            category_confirmed=(
+                bool(ab_name)
+                and pred.from_history
+                and ab_name != "Other"
+                and tx.amount <= 50
+            ),
             duplicate=(fid in existing_ids),
             is_transfer_candidate=tx.is_transfer_candidate,
         ))
@@ -524,7 +542,9 @@ async def preview_csv(
             updated = []
             for r in preview_rows:
                 suggested = llm_suggestions.get(r.merchant)
-                if suggested and not r.category_name and not r.duplicate:
+                if suggested and suggested.startswith("__transfer__:"):
+                    r = r.model_copy(update={"is_transfer_candidate": True, "category_name": ""})
+                elif suggested and not r.category_name and not r.duplicate:
                     r = r.model_copy(update={"category_name": suggested, "category_confirmed": False})
                 updated.append(r)
             preview_rows = updated
@@ -566,15 +586,35 @@ async def confirm_csv(
 
     # Teach SmartCategorizer from confirmed categories so future imports remember
     # merchant → AB category name mappings without any Ollama call.
-    if imported > 0:
-        db = MemoryDB(db_path=settings.memory.db_path)
-        categorizer = SmartCategorizer(db=db)
-        for row in body.rows:
-            if not row.duplicate and row.category_name:
-                categorizer.learn(row.merchant.lower(), row.category_name)
+    db = MemoryDB(db_path=settings.memory.db_path)
+    categorizer = SmartCategorizer(db=db)
+    for row in body.rows:
+        if not row.duplicate and row.category_name and row.category_name != "Other":
+            categorizer.learn(row.merchant.lower(), row.category_name)
+
+    # Collect unknown income rows — income rows (is_expense=False) that have no
+    # category_name set. These will be shown to the user as IncomeSourceCard cards
+    # so they can name the income source and have Majordom auto-categorize it.
+    seen_payees: set[str] = set()
+    unknown_income_rows: list[UnknownIncomeRow] = []
+    for row in body.rows:
+        if not row.is_expense and not row.duplicate and not row.category_name:
+            if row.merchant not in seen_payees:
+                seen_payees.add(row.merchant)
+                unknown_income_rows.append(UnknownIncomeRow(
+                    payee=row.merchant,
+                    amount=row.amount,
+                    date=row.date,
+                ))
 
     logger.info(
-        "CSV confirmed [%s]: %d imported, %d skipped, %d merged, %d retroactively updated",
-        current_user, imported, skipped, merged, retroactively_updated,
+        "CSV confirmed [%s]: %d imported, %d skipped, %d merged, %d retroactively updated, %d unknown income rows",
+        current_user, imported, skipped, merged, retroactively_updated, len(unknown_income_rows),
     )
-    return ImportResult(imported=imported, skipped=skipped, merged=merged, retroactively_updated=retroactively_updated)
+    return ImportResult(
+        imported=imported,
+        skipped=skipped,
+        merged=merged,
+        retroactively_updated=retroactively_updated,
+        unknown_income_rows=unknown_income_rows,
+    )

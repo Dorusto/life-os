@@ -17,6 +17,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+class AccountListItem(BaseModel):
+    id: str
+    name: str
+    balance: float
+    off_budget: bool
+
+
 class TransferRequest(BaseModel):
     from_account_id: str
     to_account_id: str
@@ -35,6 +42,17 @@ def _get_client() -> ActualBudgetClient:
         password=settings.actual.password,
         sync_id=settings.actual.sync_id,
     )
+
+
+@router.get("/accounts", response_model=list[AccountListItem])
+async def list_accounts(current_user: str = Depends(get_current_user)):
+    """Return all (non-closed) accounts with off_budget distinction."""
+    client = _get_client()
+    accounts = await client.get_accounts()
+    return [
+        AccountListItem(id=a.id, name=a.name, balance=a.balance, off_budget=a.off_budget)
+        for a in accounts
+    ]
 
 
 @router.post("/accounts/transfer", response_model=TransferResult)

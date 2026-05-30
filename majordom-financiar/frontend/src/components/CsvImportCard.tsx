@@ -3,6 +3,7 @@ import { Loader2, AlertCircle, Check } from 'lucide-react'
 import {
   confirmCsvImport,
   type ImportPreview,
+  type ImportResult,
   type AccountOption,
 } from '../lib/api'
 
@@ -48,7 +49,7 @@ export interface CsvImportData {
 
 interface CsvImportCardProps {
   data: CsvImportData
-  onConfirmed: (message: string) => void
+  onConfirmed: (message: string, result?: ImportResult) => void
   onCancelled: () => void
 }
 
@@ -117,7 +118,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
 
   const activeRows = rows.filter(r => !r.duplicate && !r.excluded)
   const duplicateCount = rows.filter(r => r.duplicate).length
-  const needsActionCount = activeRows.filter(r => r.categoryName === '').length
+  const needsActionCount = activeRows.filter(r => r.categoryName === '' && r.is_expense).length
   const totalExpenses = activeRows.filter(r => r.is_expense).reduce((s, r) => s + r.amount, 0)
   const totalIncome = activeRows.filter(r => !r.is_expense).reduce((s, r) => s + r.amount, 0)
 
@@ -157,7 +158,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
       const parts = [`Imported ${result.imported} transactions.`]
       if (result.merged) parts.push(`${result.merged} categories updated.`)
       if (result.skipped) parts.push(`${result.skipped} duplicates skipped.`)
-      onConfirmed(parts.join(' '))
+      onConfirmed(parts.join(' '), result)
     } catch (err) {
       onConfirmed(`Import failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
@@ -172,7 +173,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
   `
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[520px] w-full space-y-3">
+    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[600px] w-full space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between">
         <p className="text-white text-sm font-medium">
@@ -205,10 +206,10 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
         <table className="w-full text-xs">
           <thead className="sticky top-0 bg-surface">
             <tr className="text-muted">
-              <th className="text-left pb-1 pr-2 font-medium">Date</th>
+              <th className="text-left pb-1 pr-2 font-medium w-[42px]">Date</th>
               <th className="text-left pb-1 pr-2 font-medium">Merchant</th>
-              <th className="text-right pb-1 pr-2 font-medium">Amount</th>
-              <th className="text-left pb-1 font-medium">Category</th>
+              <th className="text-right pb-1 pr-2 font-medium w-[72px]">Amount</th>
+              <th className="text-left pb-1 font-medium w-[160px]">Category</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -217,7 +218,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
               return (
                 <tr key={row.id} className={dimmed ? 'opacity-40' : ''}>
                   <td className="py-1 pr-2 text-muted whitespace-nowrap">{row.date.slice(5)}</td>
-                  <td className="py-1 pr-2 text-white max-w-[80px] truncate">
+                  <td className="py-1 pr-2 text-white truncate max-w-0">
                     <div className="flex items-center gap-1">
                       {row.duplicate && (
                         <span title="Already imported">

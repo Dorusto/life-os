@@ -1169,3 +1169,53 @@ sudo tailscale serve --bg http://localhost:3000
 - **Brave pe Android** blochează Certificate Transparency automat — folosește Chrome pentru Majordom pe telefon.
 - **`tailscale cert`** generează certificat Tailscale-semnat (nu CT-logged, nu pentru browsere). **`tailscale serve`** folosește Let's Encrypt automat — nu e nevoie de `tailscale cert`.
 - **TUN device în LXC Proxmox** — fără cele două linii în `/etc/pve/lxc/<ID>.conf`, Tailscale nu pornește în container unprivileged.
+
+---
+
+## 2026-05-30 — CSV import în chat + IncomeSourceCard + SmartCategorizer fix
+
+### Problema
+CSV importul era pe un tab separat, izolat de AI. Utilizatorul nu putea interacționa cu AI-ul în timp ce revizuia tranzacțiile. Income-urile fără categorie erau importate silențios în AB fără nicio întrebare. SmartCategorizer învăța "Other" ca și categorie validă, ceea ce ducea la un ciclu vicios: "Other" se propaga automat la importuri viitoare fără `?` badge.
+
+### Ce s-a întâmplat
+
+**1. CSV import mutat în chat**
+Tab-ul Import a fost eliminat din BottomNav. Fluxul nou: buton `+` în input bar → file picker → `previewCsvImport()` → `CsvImportCard` inline în chat (același pattern ca `ProposalCard`). Hook-ul pre-commit detecta Tailwind classes cu numere (`w-52`, `z-50`) ca și plăcuțe de înmatriculare — rezolvat cu `w-[208px]` și `z-[50]`.
+
+**2. IncomeSourceCard — context tranzacție + Income/Transfer**
+Prima versiune arăta doar payee-ul. Versiunea finală arată `+€8.000 · Sorin · 05/02` și oferă două moduri:
+- **Income**: creează categorie în AB + actualizează retroactiv tranzacțiile uncategorized cu acel payee (`update_uncategorized_by_payee`)
+- **Transfer from account**: salvează mapping `__transfer__:{account_id}` în SQLite → importuri viitoare detectează automat payee-ul ca transfer candidate
+
+Conturile din dropdown sunt separate: On budget / Off budget, cu `<optgroup>`.
+
+**3. SmartCategorizer — trei reguli noi**
+```python
+# 1. Nu învăța niciodată "Other"
+if not row.duplicate and row.category_name and row.category_name != "Other":
+    categorizer.learn(row.merchant.lower(), row.category_name)
+
+# 2. "Other" din history → blank (utilizatorul decide)
+ab_name = mapped if mapped != "Other" else ""
+
+# 3. Tranzacții >€50 → mereu ? badge, indiferent de history
+category_confirmed=(bool(ab_name) and pred.from_history and ab_name != "Other" and tx.amount <= 50)
+```
+
+LLM-ul (`_suggest_categories_llm`) filtrează și el "Other" din sugestii.
+
+### Soluția
+```
++ buton → CSV picker → previewCsvImport() → CsvImportCard în chat
+                                              ↓ Import
+                                     unknown_income_rows → IncomeSourceCard × N
+                                              ↓ Save
+                                     Income: create_category + update_uncategorized_by_payee
+                                     Transfer: learn("__transfer__:account_id")
+```
+
+### De reținut
+- **"Other" nu e o categorie** — e un fallback. Nu se memorează, nu se propagă, nu blochează importul pentru income (doar pentru cheltuieli).
+- **Detecția transferurilor din descriere lipsește** — ING exportă "Vacanta" ca merchant dar descripția conține "To Oranje spaarrekening". Backend-ul verifică doar merchant name vs. conturi AB. Issue #73.
+- **Retroactiv pentru transferuri e complex** — conversia unei tranzacții deja importate în transfer AB (două tranzacții linked) necesită delete + recreare. Issue #72, lăsat pentru mai târziu.
+- **`update_uncategorized_by_payee` folosește `ilike`** — join Transactions → Payees cu substring match. Dacă join-ul eșuează din cauza schemei actualpy, fallback: fetch all + filter în Python.
