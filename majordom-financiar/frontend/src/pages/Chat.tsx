@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, FormEvent } from 'react'
-import { Send } from 'lucide-react'
+import { Send, Plus, Camera, Image, FileText } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import { sendChatMessageStreaming, getSetupStatus, type SetupAccount, type BalanceAdjustmentData } from '../lib/api'
 import { getToken, clearAuth } from '../lib/auth'
@@ -40,6 +41,7 @@ interface ChatProps {
 }
 
 export default function Chat({ messages, setMessages }: ChatProps) {
+  const navigate = useNavigate()
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [sentHistory, setSentHistory] = useState<string[]>([])
@@ -47,8 +49,10 @@ export default function Chat({ messages, setMessages }: ChatProps) {
   const [savedInput, setSavedInput] = useState('')
   const [isOnboarding, setIsOnboarding] = useState(false)
   const [onboardingProgress, setOnboardingProgress] = useState<{ current: number; total: number } | null>(null)
+  const [showMediaMenu, setShowMediaMenu] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const mediaMenuRef = useRef<HTMLDivElement>(null)
   // Track if we're in the middle of an onboarding-start detection
   const onboardingStartedRef = useRef(false)
 
@@ -61,6 +65,18 @@ export default function Chat({ messages, setMessages }: ChatProps) {
   useEffect(() => {
     textareaRef.current?.focus()
   }, [])
+
+  // Close media menu on outside click
+  useEffect(() => {
+    if (!showMediaMenu) return
+    function close(e: MouseEvent) {
+      if (mediaMenuRef.current && !mediaMenuRef.current.contains(e.target as Node)) {
+        setShowMediaMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [showMediaMenu])
 
   // Check for active onboarding session on mount — verify with backend to avoid stale localStorage
   useEffect(() => {
@@ -643,8 +659,45 @@ export default function Chat({ messages, setMessages }: ChatProps) {
       {/* Input bar */}
       <form
         onSubmit={handleSend}
-        className="flex-shrink-0 bg-background border-t border-border px-4 py-3 flex gap-3 items-end"
+        className="flex-shrink-0 bg-background border-t border-border px-4 py-3 flex gap-2 items-end"
       >
+        {/* + media button */}
+        <div className="relative flex-shrink-0" ref={mediaMenuRef}>
+          <button
+            type="button"
+            onClick={() => setShowMediaMenu(v => !v)}
+            className={`
+              w-10 h-10 rounded-xl border flex items-center justify-center transition-all
+              ${showMediaMenu
+                ? 'bg-accent border-accent text-white'
+                : 'bg-surface border-border text-muted hover:border-accent hover:text-white'}
+            `}
+            aria-label="Add media"
+          >
+            <Plus size={18} />
+          </button>
+
+          {showMediaMenu && (
+            <div className="absolute bottom-12 left-0 w-[208px] bg-surface border border-border rounded-2xl shadow-xl overflow-hidden z-50">
+              {([
+                { icon: Camera,   label: 'Take photo',          action: () => navigate('/receipt') },
+                { icon: Image,    label: 'Choose from gallery',  action: () => navigate('/receipt') },
+                { icon: FileText, label: 'Upload CSV',           action: () => navigate('/import') },
+              ] as const).map(({ icon: Icon, label, action }) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => { action(); setShowMediaMenu(false) }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-surface-hover transition-colors text-left"
+                >
+                  <Icon size={16} className="text-muted flex-shrink-0" />
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <textarea
           ref={textareaRef}
           value={input}
