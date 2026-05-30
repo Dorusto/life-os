@@ -11,14 +11,17 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import aiohttp
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
-from backend.api import auth, receipts, transactions, chat, csv_import, proposals, budget, accounts, onboarding, setup, balance_adjustments
+from backend.api import auth, receipts, transactions, chat, csv_import, proposals, budget, accounts, onboarding, setup, balance_adjustments, push
 
 from backend.core.config import settings
+
+scheduler = AsyncIOScheduler(timezone="Europe/Amsterdam")
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +38,29 @@ async def lifespan(app: FastAPI):
     try:
         from backend.core.memory.database import MemoryDB
         from backend.core.config import settings as _settings
-        MemoryDB(_settings.memory.db_path).seed_builtin_profiles()
+        db = MemoryDB(_settings.memory.db_path)
+        db.seed_builtin_profiles()
         logger.info("Built-in CSV profiles seeded")
+        if not db.get_notification_rule("daily_summary"):
+            db.upsert_notification_rule(
+                rule_type="daily_summary",
+                enabled=True,
+                config={"time": "20:00"},
+            )
+            logger.info("Default notification rule seeded: daily_summary at 20:00")
     except Exception as _e:
         logger.warning("Could not seed built-in CSV profiles: %s", _e)
+    try:
+        from backend.services.push_service import get_push_service
+        get_push_service()  # generates VAPID keys on first run if missing
+    except Exception as _e:
+        logger.warning("Could not initialize push service: %s", _e)
+    scheduler.start()
+    logger.info("APScheduler started")
     logger.info("Majordom API v2 started — uploads dir: %s", UPLOADS_DIR)
     yield
+    scheduler.shutdown(wait=False)
+    logger.info("APScheduler stopped")
     logger.info("Majordom API stopped")
 
 
@@ -88,6 +108,7 @@ app.include_router(accounts.router, prefix="/api")
 app.include_router(onboarding.router, prefix="/api")
 app.include_router(setup.router, prefix="/api")
 app.include_router(balance_adjustments.router, prefix="/api")
+app.include_router(push.router, prefix="/api")
 
 
 @app.get("/api/health")

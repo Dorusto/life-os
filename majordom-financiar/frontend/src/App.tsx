@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { isAuthenticated } from './lib/auth'
+import { requestAndSubscribe } from './lib/push'
 import Login from './pages/Login'
 import Home from './pages/Home'
 import ReceiptFlow from './pages/ReceiptFlow'
@@ -30,6 +31,12 @@ function Layout() {
   const location = useLocation()
   const showNav = !HIDE_NAV_ON.some(p => location.pathname.startsWith(p))
   const [chatMessages, setChatMessages] = useState<Message[]>(INITIAL_MESSAGES)
+
+  useEffect(() => {
+    if (isAuthenticated()) {
+      requestAndSubscribe()
+    }
+  }, [])
 
   return (
     <>

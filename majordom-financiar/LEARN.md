@@ -1010,3 +1010,51 @@ _PROPOSAL_TOOLS = {
 - **`create_transaction()` din actualpy primește EUR, nu cenți** — conversia la cenți e internă. Dacă calculezi în cenți și pasezi cenți, rezultatul e ×100 greșit.
 - **Orice `propose_*` tool nou → adaugă-l în `_PROPOSAL_TOOLS`** din `backend/api/chat.py` imediat, altfel cardul nu ajunge la frontend.
 - **UI în chat = inline, nu modal** — popupurile cu overlay sunt inconsistente cu tema. Tot ce apare ca răspuns al asistentului trebuie să fie un card inline, stilizat ca ProposalCard.
+
+---
+
+## 2026-05-30 — Web Push: chei VAPID și format PEM
+
+### Problema
+Notificările push nu ajungeau — `pywebpush` returna eroare de deserializare a cheii private: *"ASN.1 parsing error: invalid length"*.
+
+### Ce s-a întâmplat
+Două capcane în serie:
+
+**Capcanа 1 — format greșit al cheii**
+`py_vapid.Vapid.generate_keys()` salvează cheia privată în format **EC SEC1** (`-----BEGIN EC PRIVATE KEY-----`). Am încercat să „fix"-ez trecând la PKCS8 (`-----BEGIN PRIVATE KEY-----`) generat cu `cryptography` direct. Nu a rezolvat nimic — eroarea era în altă parte.
+
+**Capcana 2 — JSON + string PEM = probleme ascunse**
+Stocam cheia PEM ca string în JSON (`json.dumps({"private_key": pem_string})`). Deși `\n` se serializează corect în JSON, această abordare introduce un strat de conversie string↔bytes fragil. `pywebpush` citea cheia din string și `py_vapid.Vapid.from_string()` primea ceva ușor malformat.
+
+**Soluția reală:** stochează cheia direct ca **fișier PEM** (`/app/data/vapid_private.pem`), nu în JSON. Pasezi `pywebpush` calea către fișier, nu string-ul. `pywebpush` citește fișierul direct — zero conversii intermediare.
+
+```python
+# GREȘIT — PEM în JSON string
+KEYS_PATH.write_text(json.dumps({"private_key": v.private_pem().decode()}))
+webpush(..., vapid_private_key=data["private_key"])  # string PEM
+
+# CORECT — PEM ca fișier direct
+PRIVATE_KEY_PATH.write_bytes(v.private_pem())  # fișier binar
+webpush(..., vapid_private_key=str(PRIVATE_KEY_PATH))  # cale fișier
+```
+
+### Soluția
+- `vapid_private.pem` — fișier PEM generat de `py_vapid` (format EC SEC1 nativ)
+- `vapid_public.txt` — cheia publică în base64url (pentru browser)
+- Ambele în `/app/data/` (volum Docker persistent)
+- Generare automată la primul start dacă lipsesc — zero configurare manuală
+
+### Alte lecții din această sesiune
+
+**Brave blochează notificările automat** — `Notification.requestPermission()` returnează `"denied"` fără prompt. Pe Android Chrome (scopul real al PWA) funcționează normal.
+
+**Firefox: pentru a șterge o subscripție push veche** → `about:preferences#privacy` → Permissions → Notifications → remove site. Simpla ștergere din DB nu e suficientă — subscripția există și în browser.
+
+**Subscripție existentă în browser dar absentă din DB** (după clear DB) → `subscribeToPush()` trebuie să salveze subscripția existentă în DB, nu să returneze early. Fix: `if (existing) { await saveSubscription(existing); return }`.
+
+**`APScheduler[asyncio]` nu există** ca extra în v3.10.4 — asyncio support e built-in. Folosește `APScheduler==3.10.4` fără bracket.
+
+### De reținut
+- **Chei VAPID → fișier PEM, nu JSON** — orice conversie string intermediară riscă corupție silențioasă.
+- **La schimbarea cheilor VAPID** trebuie șterse și subscripțiile din DB și revocat permisiunea în browser (subscripțiile vechi nu mai funcționează cu chei noi).

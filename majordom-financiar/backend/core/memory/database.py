@@ -100,6 +100,30 @@ class MemoryDB:
                     created_at TEXT DEFAULT (datetime('now')),
                     updated_at TEXT DEFAULT (datetime('now'))
                 );
+
+                CREATE TABLE IF NOT EXISTS notification_rules (
+                    rule_type   TEXT PRIMARY KEY,
+                    enabled     INTEGER NOT NULL DEFAULT 1,
+                    config      TEXT NOT NULL DEFAULT '{}',
+                    updated_at  TEXT DEFAULT (datetime('now'))
+                );
+
+                CREATE TABLE IF NOT EXISTS notification_log (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    rule_type   TEXT NOT NULL,
+                    sent_at     TEXT NOT NULL DEFAULT (datetime('now')),
+                    payload     TEXT NOT NULL DEFAULT '{}'
+                );
+
+                CREATE TABLE IF NOT EXISTS push_subscriptions (
+                    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id     TEXT NOT NULL DEFAULT 'default',
+                    endpoint    TEXT NOT NULL UNIQUE,
+                    p256dh      TEXT NOT NULL,
+                    auth        TEXT NOT NULL,
+                    user_agent  TEXT NOT NULL DEFAULT '',
+                    created_at  TEXT DEFAULT (datetime('now'))
+                );
             """)
             conn.commit()
             # Migrate existing csv_profiles table — add columns added after initial schema
@@ -364,6 +388,117 @@ class MemoryDB:
                 "DELETE FROM onboarding_state WHERE user_id = ?",
                 (user_id,)
             )
+            conn.commit()
+        finally:
+            conn.close()
+
+    # --- Notification Rules ---
+
+    def get_notification_rule(self, rule_type: str) -> dict | None:
+        conn = self._get_conn()
+        try:
+            row = conn.execute(
+                "SELECT * FROM notification_rules WHERE rule_type = ?", (rule_type,)
+            ).fetchone()
+            if not row:
+                return None
+            d = dict(row)
+            d["config"] = json.loads(d["config"])
+            d["enabled"] = bool(d["enabled"])
+            return d
+        finally:
+            conn.close()
+
+    def upsert_notification_rule(self, rule_type: str, enabled: bool, config: dict):
+        conn = self._get_conn()
+        try:
+            conn.execute("""
+                INSERT INTO notification_rules (rule_type, enabled, config, updated_at)
+                VALUES (?, ?, ?, datetime('now'))
+                ON CONFLICT(rule_type) DO UPDATE SET
+                    enabled = excluded.enabled,
+                    config = excluded.config,
+                    updated_at = datetime('now')
+            """, (rule_type, int(enabled), json.dumps(config)))
+            conn.commit()
+        finally:
+            conn.close()
+
+    def get_all_notification_rules(self) -> list[dict]:
+        conn = self._get_conn()
+        try:
+            rows = conn.execute("SELECT * FROM notification_rules ORDER BY rule_type").fetchall()
+            result = []
+            for row in rows:
+                d = dict(row)
+                d["config"] = json.loads(d["config"])
+                d["enabled"] = bool(d["enabled"])
+                result.append(d)
+            return result
+        finally:
+            conn.close()
+
+    # --- Notification Log ---
+
+    def log_notification(self, rule_type: str, payload: dict):
+        conn = self._get_conn()
+        try:
+            conn.execute(
+                "INSERT INTO notification_log (rule_type, payload) VALUES (?, ?)",
+                (rule_type, json.dumps(payload))
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def get_last_notification(self, rule_type: str) -> dict | None:
+        conn = self._get_conn()
+        try:
+            row = conn.execute(
+                "SELECT * FROM notification_log WHERE rule_type = ? ORDER BY sent_at DESC LIMIT 1",
+                (rule_type,)
+            ).fetchone()
+            if not row:
+                return None
+            d = dict(row)
+            d["payload"] = json.loads(d["payload"])
+            return d
+        finally:
+            conn.close()
+
+    # --- Push Subscriptions ---
+
+    def save_push_subscription(self, user_id: str, endpoint: str, p256dh: str, auth: str, user_agent: str):
+        conn = self._get_conn()
+        try:
+            conn.execute("""
+                INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, user_agent)
+                VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(endpoint) DO UPDATE SET
+                    user_id = excluded.user_id,
+                    p256dh = excluded.p256dh,
+                    auth = excluded.auth,
+                    user_agent = excluded.user_agent
+            """, (user_id, endpoint, p256dh, auth, user_agent))
+            conn.commit()
+        finally:
+            conn.close()
+
+    def get_push_subscriptions(self, user_id: str = "default") -> list[dict]:
+        conn = self._get_conn()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM push_subscriptions WHERE user_id = ? ORDER BY created_at",
+                (user_id,)
+            ).fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            conn.close()
+
+    def delete_push_subscription(self, endpoint: str):
+        conn = self._get_conn()
+        try:
+            conn.execute("DELETE FROM push_subscriptions WHERE endpoint = ?", (endpoint,))
             conn.commit()
         finally:
             conn.close()

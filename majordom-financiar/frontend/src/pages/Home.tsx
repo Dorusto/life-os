@@ -1,9 +1,10 @@
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Camera, Image, LogOut } from 'lucide-react'
+import { Camera, Image, LogOut, Bell } from 'lucide-react'
 import { getTransactions, getBudgetStatus, getAccounts } from '../lib/api'
 import { getUsername, clearAuth } from '../lib/auth'
+import { requestAndSubscribe } from '../lib/push'
 import TransactionItem from '../components/TransactionItem'
 import BudgetDashboard from '../components/BudgetDashboard'
 
@@ -74,6 +75,18 @@ export default function Home() {
   const username = getUsername()
   const greeting = getGreeting()
 
+  const [notifState, setNotifState] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('granted')
+
+  useEffect(() => {
+    if (!('Notification' in window)) { setNotifState('unsupported'); return }
+    setNotifState(Notification.permission as 'default' | 'granted' | 'denied')
+  }, [])
+
+  async function handleEnableNotifications() {
+    const result = await requestAndSubscribe()
+    setNotifState(result === 'unsupported' ? 'unsupported' : result)
+  }
+
   return (
     <div className="min-h-dvh bg-background flex flex-col overflow-y-auto">
       {/* Header */}
@@ -90,6 +103,20 @@ export default function Home() {
           <LogOut size={20} />
         </button>
       </header>
+
+      {/* Notification permission banner — shown only when not yet granted */}
+      {notifState === 'default' && (
+        <button
+          onClick={handleEnableNotifications}
+          className="mx-5 mt-3 flex items-center gap-3 px-4 py-3 rounded-xl bg-surface border border-border hover:border-accent transition-colors text-left"
+        >
+          <Bell size={18} className="text-accent flex-shrink-0" />
+          <div>
+            <p className="text-white text-sm font-medium">Enable daily notifications</p>
+            <p className="text-muted text-xs">Get a daily summary from Majordom at 20:00</p>
+          </div>
+        </button>
+      )}
 
       {/* Upload buttons */}
       <section className="flex flex-col items-center px-5 pt-8 pb-6 gap-4">
