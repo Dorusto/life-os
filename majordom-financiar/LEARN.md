@@ -948,3 +948,65 @@ Mapările vechi (`'Home'`, `'personal'`, `'groceries'`) veneau din sesiuni de on
 - **SmartCategorizer ≠ date financiare** — stochează preferințe (`Albert Heijn → Groceries`), nu tranzacții. E un cache de performanță, nu o sursă de adevăr. AB rămâne sursa de adevăr pentru tot ce e financiar.
 - **SmartCategorizer se populează din confirmări de import** — după câteva importuri confirmate, recunoaște automat toți comercianții fără LLM. Dacă datele sunt vechi/greșite, șterge tot: `conn.execute('DELETE FROM merchant_mappings')`
 - **`logging.getLogger(__name__)` nu apare în docker logs** dacă root logger-ul nu e configurat — pentru debug rapid în container folosește `print(..., flush=True)` sau verifică direct cu `docker exec`
+
+---
+
+## 2026-05-30 — Setup flow inline + bug `decimal_to_cents` + balance adjustment din chat
+
+### Problema
+
+Trei lucruri defecte în același timp:
+1. Popupul de setup al soldurilor arăta diferit față de restul UI-ului (modal overlay, nu card inline)
+2. Modificările de sold nu apăreau în Actual Budget
+3. Nu exista nicio comandă chat pentru a sincroniza soldul din AB cu cel real după prima configurare
+
+### Ce s-a întâmplat
+
+**Bug `decimal_to_cents` — suma greșită la ajustare sold:**
+
+`create_transaction()` din actualpy convertește intern suma din EUR în cenți prin `decimal_to_cents()`. Funcția face pur și simplu `×100`.
+
+```python
+# decimal_to_cents(47.50)  → 4750  ✓ (EUR → cenți)
+# decimal_to_cents(873)    → 87300 ✗ (dacă pasezi cenți, devine ×100 din nou)
+```
+
+`adjust_account_balance()` calcula diferența în cenți (`diff_cents = target_cents - current_cents`), dar o pasa direct la `create_transaction(amount=diff_cents)` — care o multiplica iar cu 100. O ajustare de €8.73 devenea €873 în AB.
+
+Fix: trecut din cenți în EUR înainte de apelul `create_transaction`:
+```python
+diff_euros = diff_cents / 100
+create_transaction(..., amount=diff_euros, ...)
+return diff_euros
+```
+
+**Modal vs card inline:**
+
+`SetupBalancesModal` era un overlay cu fundal semi-transparent care acoperea tot ecranul — vizual diferit de restul cardurilor din chat (ProposalCard, ClarificationCard). Înlocuit cu `SetupBalancesCard` — aceeași structură ca ProposalCard (`bg-surface border border-border rounded-2xl rounded-bl-sm max-w-[85%]`), inserat inline în lista de mesaje, nu ca popup.
+
+**`_PROPOSAL_TOOLS` — gotcha critic pentru tool-uri noi:**
+
+La implementarea `propose_balance_adjustment`, DeepSeek putea să uite să adauge tool-ul în `_PROPOSAL_TOOLS` din `chat.py`. Dacă e absent, JSON-ul cardului e retrimis la LLM în loc să fie returnat direct frontend-ului. Orice tool `propose_*` nou **trebuie** adăugat acolo:
+
+```python
+# backend/api/chat.py
+_PROPOSAL_TOOLS = {
+    "propose_transaction",
+    "propose_budget_rebalance",
+    "propose_account_transfer",
+    "propose_clarification",
+    "propose_balance_adjustment",  # ← fără asta, cardul nu apare niciodată
+}
+```
+
+### Soluția
+
+- `adjust_account_balance` — fix unitate (EUR, nu cenți)
+- `SetupBalancesModal` → `SetupBalancesCard` inline în chat
+- `propose_balance_adjustment` tool nou: LLM caută contul după nume (exact + parțial), calculează diff, returnează card cu sold curent / sold real / diferență. Confirm → `adjust_account_balance` în AB
+- Cardul de ajustare nu primește categorie — intenționat. AB va afișa tranzacția ca „needs category" — utilizatorul decide ce este (cheltuială uitată, transfer neînregistrat, eroare)
+
+### De reținut
+- **`create_transaction()` din actualpy primește EUR, nu cenți** — conversia la cenți e internă. Dacă calculezi în cenți și pasezi cenți, rezultatul e ×100 greșit.
+- **Orice `propose_*` tool nou → adaugă-l în `_PROPOSAL_TOOLS`** din `backend/api/chat.py` imediat, altfel cardul nu ajunge la frontend.
+- **UI în chat = inline, nu modal** — popupurile cu overlay sunt inconsistente cu tema. Tot ce apare ca răspuns al asistentului trebuie să fie un card inline, stilizat ca ProposalCard.

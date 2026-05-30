@@ -202,6 +202,27 @@ TOOLS: list[dict] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "propose_balance_adjustment",
+            "description": "Propose adjusting an account balance to match the real bank balance. Use when the user says the account balance is wrong, or wants to sync/reconcile an account balance.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "account_name": {
+                        "type": "string",
+                        "description": "The name of the account to adjust, e.g. 'ING' or 'Revolut'.",
+                    },
+                    "real_balance": {
+                        "type": "number",
+                        "description": "The correct real-world balance in EUR.",
+                    },
+                },
+                "required": ["account_name", "real_balance"],
+            },
+        },
+    },
 ]
 
 
@@ -242,4 +263,9 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
         from backend.tools.finance.actual_budget import propose_account_transfer
         return await propose_account_transfer(**arguments)
 
+    if name == "propose_balance_adjustment":
+        from backend.tools.finance.actual_budget import propose_balance_adjustment
+        return await propose_balance_adjustment(**arguments)
+
     return f"Unknown tool: {name}"
+

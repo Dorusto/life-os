@@ -451,6 +451,55 @@ class ActualBudgetClient:
                 return True
         return await self._run(_update)
 
+    async def adjust_account_balance(self, account_id: str, target_balance: float) -> float:
+        """
+        Create a balance adjustment transaction so the account's balance matches
+        target_balance. Returns the adjustment amount (positive = deposit,
+        negative = payment). Returns 0.0 if already matching (within 1 cent).
+        """
+        def _adjust():
+            from actual.queries import get_transactions, create_transaction
+            from actual.database import Accounts
+            from datetime import date as _date
+            import uuid
+
+            with self._get_actual() as actual:
+                actual.download_budget()
+
+                acc = actual.session.query(Accounts).filter(
+                    Accounts.id == account_id, Accounts.tombstone == 0
+                ).first()
+                if not acc:
+                    raise ValueError(f"Account not found: {account_id}")
+
+                txs = get_transactions(actual.session, account=acc)
+                current_cents = sum(int(tx.amount or 0) for tx in txs if not tx.tombstone)
+                target_cents = round(target_balance * 100)
+                diff_cents = target_cents - current_cents
+
+                if abs(diff_cents) < 1:
+                    return 0.0
+
+                diff_euros = diff_cents / 100
+                create_transaction(
+                    actual.session,
+                    date=_date.today(),
+                    account=account_id,
+                    payee=None,
+                    notes="[Balance Adjustment]",
+                    amount=diff_euros,
+                    category=None,
+                    imported_id=f"adj-{account_id[:8]}-{uuid.uuid4().hex[:8]}",
+                )
+                actual.commit()
+                logger.info(
+                    "Balance adjustment: account=%s target=%.2f diff=%.2f",
+                    account_id, target_balance, diff_euros,
+                )
+                return diff_euros
+
+        return await self._run(_adjust)
+
     async def get_total_balance(self) -> float:
         accounts = await self.get_accounts()
         return sum(acc.balance for acc in accounts)

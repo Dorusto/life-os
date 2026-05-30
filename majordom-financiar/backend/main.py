@@ -16,7 +16,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
-from backend.api import auth, receipts, transactions, chat, csv_import, proposals, budget, accounts, onboarding
+from backend.api import auth, receipts, transactions, chat, csv_import, proposals, budget, accounts, onboarding, setup, balance_adjustments
+
 from backend.core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -85,9 +86,12 @@ app.include_router(proposals.router, prefix="/api")
 app.include_router(budget.router, prefix="/api")
 app.include_router(accounts.router, prefix="/api")
 app.include_router(onboarding.router, prefix="/api")
+app.include_router(setup.router, prefix="/api")
+app.include_router(balance_adjustments.router, prefix="/api")
 
 
 @app.get("/api/health")
+
 async def health():
     """Used by Docker healthcheck and by Nginx to verify the backend is up.
 

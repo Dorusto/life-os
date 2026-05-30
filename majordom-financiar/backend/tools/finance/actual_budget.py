@@ -375,3 +375,77 @@ async def propose_account_transfer(
         "notes": notes,
         "accounts": accounts_list,
     })
+
+
+async def propose_balance_adjustment(account_name: str, real_balance: float) -> str:
+    """
+    Propose adjusting an account balance to match the real bank balance.
+    Returns a JSON string with type='balance_adjustment' for the frontend to render as a card.
+    """
+    import json
+    import uuid
+    from backend.tools import balance_adjustments as adj_store
+
+    client = _get_client()
+    accounts = await client.get_accounts()
+
+    # match by exact name first, then partial (case-insensitive)
+    matched = next((a for a in accounts if a.name.lower() == account_name.lower()), None)
+    if not matched:
+        matched = next((a for a in accounts if account_name.lower() in a.name.lower()), None)
+    if not matched:
+        names = ", ".join(a.name for a in accounts)
+        return json.dumps({"type": "error", "message": f"Account '{account_name}' not found. Available: {names}"})
+
+    proposal_id = uuid.uuid4().hex[:8]
+    adj_store.store(proposal_id, {
+        "account_id": matched.id,
+        "account_name": matched.name,
+        "current_balance": matched.balance,
+        "real_balance": real_balance,
+    })
+
+    return json.dumps({
+        "type": "balance_adjustment",
+        "id": proposal_id,
+        "account_name": matched.name,
+        "current_balance": matched.balance,
+        "real_balance": real_balance,
+        "diff": round(real_balance - matched.balance, 2),
+    })
+
+
+async def complete_setup(balances: list[dict]) -> str:
+    """
+    Adjust account balances in AB to match user-provided real values.
+    Marks setup as complete in user_preferences.
+    Returns a summary string for the LLM to use in its response.
+    """
+    from backend.core.memory.database import MemoryDB
+
+    client = _get_client()
+
+    # Fetch account names for the summary
+    accounts = await client.get_accounts()
+    account_name_map = {a.id: a.name for a in accounts}
+
+    results = []
+    for entry in balances:
+        account_id = entry["account_id"]
+        real_balance = float(entry["real_balance"])
+        try:
+            diff = await client.adjust_account_balance(account_id, real_balance)
+            name = account_name_map.get(account_id, account_id)
+            if abs(diff) >= 0.01:
+                results.append(f"{name}: adjusted {'+' if diff > 0 else ''}€{diff:.2f}")
+            else:
+                results.append(f"{name}: balance matches, no adjustment needed")
+        except Exception as e:
+            results.append(f"{account_id}: error — {e}")
+
+    db = MemoryDB(db_path=settings.memory.db_path)
+    db.set_preference("setup_complete", "1")
+
+    if results:
+        return "Setup complete. Adjustments:\n" + "\n".join(f"• {r}" for r in results)
+    return "Setup complete. All balances already matched — no adjustments needed."

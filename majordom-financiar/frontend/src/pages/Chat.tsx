@@ -1,22 +1,28 @@
 import { useState, useRef, useEffect, FormEvent } from 'react'
 import { Send } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import { sendChatMessageStreaming } from '../lib/api'
+import { sendChatMessageStreaming, getSetupStatus, completeSetup, type SetupAccount, type BalanceAdjustmentData } from '../lib/api'
 import { getToken, clearAuth } from '../lib/auth'
 import ProposalCard, { ProposalData } from '../components/ProposalCard'
 import BudgetRebalanceCard from '../components/BudgetRebalanceCard'
 import ClarificationCard from '../components/ClarificationCard'
 import AccountTransferCard from '../components/AccountTransferCard'
+import SetupBalancesCard from '../components/SetupBalancesCard'
+import BalanceAdjustmentCard from '../components/BalanceAdjustmentCard'
 import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from '../lib/api'
 
+
 export interface Message {
-  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment'
   content: string
   proposal?: ProposalData
   budgetRebalance?: BudgetRebalanceData
   clarification?: ClarificationData
   accountTransfer?: AccountTransferData
+  balanceAdjustment?: BalanceAdjustmentData
+  setupAccounts?: SetupAccount[]
 }
+
 
 export const INITIAL_MESSAGES: Message[] = [
   { role: 'assistant', content: "Hello! I'm Majordom, your financial assistant. Ask me anything about your spending, accounts, or savings goals." }
@@ -41,6 +47,8 @@ export default function Chat({ messages, setMessages }: ChatProps) {
   const [savedInput, setSavedInput] = useState('')
   const [isOnboarding, setIsOnboarding] = useState(false)
   const [onboardingProgress, setOnboardingProgress] = useState<{ current: number; total: number } | null>(null)
+  const [setupPending, setSetupPending] = useState(false)
+  const [setupAccounts, setSetupAccounts] = useState<SetupAccount[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   // Track if we're in the middle of an onboarding-start detection
@@ -87,6 +95,25 @@ export default function Chat({ messages, setMessages }: ChatProps) {
         localStorage.removeItem('onboarding_active')
         localStorage.removeItem('onboarding_state')
       })
+  }, [])
+
+  // Check first-launch setup — if not complete, inject welcome ClarificationCard
+  useEffect(() => {
+    getSetupStatus().then(status => {
+      if (!status.completed) {
+        setSetupPending(true)
+        setSetupAccounts(status.accounts)
+        setMessages([{
+          role: 'clarification',
+          content: '',
+          clarification: {
+            type: 'clarification' as const,
+            question: "Welcome to Majordom! One question before we start:",
+            options: ["Start tracking from today", "I have historical data to import"],
+          },
+        }])
+      }
+    }).catch(() => {})
   }, [])
 
   // Send a specific text programmatically (used by ClarificationCard option clicks)
@@ -304,8 +331,13 @@ export default function Chat({ messages, setMessages }: ChatProps) {
           setMessages(prev => [...prev, { role: 'account_transfer' as const, content: '', accountTransfer: parsed as AccountTransferData }])
           return
         }
+        if (parsed.type === 'balance_adjustment') {
+          setMessages(prev => [...prev, { role: 'balance_adjustment' as const, content: '', balanceAdjustment: parsed as BalanceAdjustmentData }])
+          return
+        }
 
         if (parsed.type === 'onboarding_question') {
+
           setOnboardingProgress({ current: parsed.question_num, total: parsed.total })
           localStorage.setItem('onboarding_state', JSON.stringify({
             current_question: parsed.question_num,
@@ -489,16 +521,40 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                 question={msg.clarification.question}
                 options={msg.clarification.options}
                 onSelected={(option) => {
-                  // Replace the card with the chosen option as plain text (so it looks answered)
+                  // Replace the card with the chosen option as plain text
                   setMessages(prev =>
                     prev.map((m, i) =>
-                      i === idx
-                        ? { role: 'assistant', content: option }
-                        : m
+                      i === idx ? { role: 'assistant' as const, content: option } : m
                     )
                   )
-                  // Send the chosen option as a new user message
-                  handleSendText(option)
+                  if (setupPending) {
+                    if (option === 'Start tracking from today') {
+                      setMessages(prev => [...prev, {
+                        role: 'setup_balances' as const,
+                        content: '',
+                        setupAccounts: setupAccounts,
+                      }])
+                    } else {
+                      // "I have historical data" — mark done, explain in chat
+                      completeSetup('history').catch(() => {})
+                      setSetupPending(false)
+                      handleSendText(option)
+                    }
+                  } else {
+                    handleSendText(option)
+                  }
+                }}
+              />
+            ) : msg.role === 'setup_balances' ? (
+              <SetupBalancesCard
+                accounts={msg.setupAccounts || []}
+                onComplete={(message) => {
+                  setSetupPending(false)
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx ? { role: 'status' as const, content: message } : m
+                    )
+                  )
                 }}
               />
             ) : msg.role === 'account_transfer' && msg.accountTransfer ? (
@@ -523,7 +579,30 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                   )
                 }}
               />
+            ) : msg.role === 'balance_adjustment' && msg.balanceAdjustment ? (
+              <BalanceAdjustmentCard
+                data={msg.balanceAdjustment}
+                onConfirmed={(message) => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx
+                        ? { role: 'status' as const, content: message }
+                        : m
+                    )
+                  )
+                }}
+                onCancelled={() => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx
+                        ? { role: 'status' as const, content: 'Cancelled.' }
+                        : m
+                    )
+                  )
+                }}
+              />
             ) : (
+
               <div
                 className={`
                   max-w-[80%] px-4 py-3 text-sm leading-relaxed rounded-2xl
@@ -609,6 +688,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
           <Send size={16} className="text-white" />
         </button>
       </form>
+
     </div>
   )
 }

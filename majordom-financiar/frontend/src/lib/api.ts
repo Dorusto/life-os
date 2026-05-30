@@ -238,6 +238,43 @@ export async function confirmCsvImport(data: ImportConfirm): Promise<ImportResul
   })
 }
 
+// --- Setup ---
+
+export interface SetupAccount {
+  id: string
+  name: string
+  balance: number
+}
+
+export interface SetupStatus {
+  completed: boolean
+  accounts: SetupAccount[]
+}
+
+export interface SetupAdjustment {
+  account_name: string
+  adjustment: number
+}
+
+export interface SetupCompleteResponse {
+  adjustments: SetupAdjustment[]
+}
+
+export async function getSetupStatus(): Promise<SetupStatus> {
+  return request<SetupStatus>('/setup/status')
+}
+
+export async function completeSetup(
+  path: 'today' | 'history',
+  balances: { account_id: string; real_balance: number }[] = [],
+  new_accounts: { name: string; balance: number }[] = [],
+): Promise<SetupCompleteResponse> {
+  return request<SetupCompleteResponse>('/setup/complete', {
+    method: 'POST',
+    body: JSON.stringify({ path, balances, new_accounts }),
+  })
+}
+
 // --- Chat ---
 
 export async function sendChatMessage(
@@ -462,3 +499,23 @@ export async function confirmAccountTransfer(data: AccountTransferData): Promise
     }),
   })
 }
+
+// --- Balance Adjustment ---
+
+export interface BalanceAdjustmentData {
+  type: 'balance_adjustment'
+  id: string
+  account_name: string
+  current_balance: number
+  real_balance: number
+  diff: number
+}
+
+export async function confirmBalanceAdjustment(id: string): Promise<{ message: string }> {
+  return request(`/balance-adjustments/${id}/confirm`, { method: 'POST' })
+}
+
+export async function cancelBalanceAdjustment(id: string): Promise<void> {
+  return request<void>(`/balance-adjustments/${id}/cancel`, { method: 'POST' })
+}
+

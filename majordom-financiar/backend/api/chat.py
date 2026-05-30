@@ -159,7 +159,8 @@ async def _call_ollama_non_streaming(messages: list[dict], ollama_url: str, mode
         return response.json()
 
 
-_PROPOSAL_TOOLS = {"propose_transaction", "propose_budget_rebalance", "propose_account_transfer", "propose_clarification"}
+_PROPOSAL_TOOLS = {"propose_transaction", "propose_budget_rebalance", "propose_account_transfer", "propose_clarification", "propose_balance_adjustment"}
+
 
 
 # Onboarding trigger keywords — if the user's last message matches any of these,

@@ -93,11 +93,12 @@ Replaces M2 Onboarding and reprioritises M4 Smart Alerts as the immediate next m
 
 | # | Feature | Notes |
 |---|---------|-------|
-| 2.0 | First launch welcome message | On first open (no conversation history in SQLite), Majordom introduces itself: who it is, what it does, and one simple next step ("Start by importing your first bank statement, or just ask me anything"). No wizard, no form — one message, then Majordom waits. |
+| ✅ 2.0 | First launch welcome + setup path | Shipped 2026-05-30. On first open: ClarificationCard with two options. **"Start tracking from today"** → `SetupBalancesCard` inline in chat (ProposalCard style) — lists all AB accounts with editable balance fields + "+" to add new accounts → `POST /api/setup/complete` adjusts balances in AB. **"I have historical data to import"** → marks setup complete, guides to CSV import via chat. Balance adjustment from chat also available at any time via `propose_balance_adjustment` tool (issue #68) — *"set my ING balance to €2430"* → confirmation card → AB adjustment transaction created. |
 | 2.1 | Daily message at configurable time | Default 20:00, adjustable through chat. APScheduler in FastAPI + Web Push (Telegram fallback). Uses `notification_rules` table (JSON config per type) + `notification_log` (anti-spam). |
 | 2.2 | Income detection from recurring credits | Detect salary from same-payee same-approximate-amount monthly credits. No setup question. |
 | 2.3 | Unexpected transaction reminder | SmartCategorizer assigns best-guess category to every transaction — nothing sits uncategorised in AB. Reminder fires for low-confidence assignments (< threshold) after 48h: *"You have X transactions I wasn't sure about. Want to review them?"* Threshold adjustable through chat. |
 | 2.4 | Import nudge | If no transaction imported in N days → proactive message: *"It's been a while since your last import. Want to add recent transactions?"* N adjustable through chat. |
+| 2.8 | Post-import reconciliation check | After each CSV import, Majordom asks: *"Balance for [account] in Actual Budget is now €X. Check your banking app — does it match?"* → Yes: done. No, it's €Y: Majordom calculates the difference and creates a Balance Adjustment transaction in AB automatically. Closes the most common first-day frustration (starting balance + partial import = mismatch). |
 | 2.5 | First goal proposal after 2 months of data | Conversational, not a form. Majordom proposes based on observed spending patterns. |
 | 2.6 | FIRE calculation | Available on demand at any time. After 6+ months of data, Majordom proactively opens the conversation. Before 6 months: calculation shown with explicit "preliminary estimate" caveat. |
 | 2.7 | Charts inline in chat | Chart type adapted to message context. See table below. |
@@ -117,7 +118,7 @@ Replaces M2 Onboarding and reprioritises M4 Smart Alerts as the immediate next m
 2. Update `categories.json` to reflect the actual AB structure (7 top-level category groups, SmartCategorizer suggests at subcategory level)
 3. Home UI redesign (see layout below)
 4. Implement APScheduler + `notification_rules` + `notification_log` (foundation for all 2.x features)
-5. Implement M2-NEW features in order: 2.1 → 2.3 → 2.4 → 2.2 → 2.5 → 2.6 → 2.7
+5. Implement M2-NEW features in order: 2.0 → 2.8 → 2.1 → 2.3 → 2.4 → 2.2 → 2.5 → 2.6 → 2.7
 
 **Navigation:** Home / Majordom (2 tabs). Import tab removed — entry point is the **+** button in the chat input field. Receipt and CSV flows unchanged technically. Urgent alerts: red dot on the Majordom tab icon, never banners on Home.
 

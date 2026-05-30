@@ -84,6 +84,12 @@ class MemoryDB:
                     created_at   TEXT DEFAULT (datetime('now'))
                 );
 
+                CREATE TABLE IF NOT EXISTS user_preferences (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    updated_at TEXT DEFAULT (datetime('now'))
+                );
+
                 CREATE TABLE IF NOT EXISTS onboarding_state (
                     id INTEGER PRIMARY KEY,
                     user_id TEXT NOT NULL DEFAULT 'default' UNIQUE,
@@ -282,6 +288,30 @@ class MemoryDB:
             sig = hashlib.md5(normalized.encode()).hexdigest()[:12]
             profile = CsvProfile(header_sig=sig, **entry["profile"])
             self.save_csv_profile(profile)
+
+    # --- User Preferences ---
+
+    def get_preference(self, key: str) -> str | None:
+        conn = self._get_conn()
+        try:
+            row = conn.execute(
+                "SELECT value FROM user_preferences WHERE key = ?", (key,)
+            ).fetchone()
+            return row["value"] if row else None
+        finally:
+            conn.close()
+
+    def set_preference(self, key: str, value: str):
+        conn = self._get_conn()
+        try:
+            conn.execute("""
+                INSERT INTO user_preferences (key, value, updated_at)
+                VALUES (?, ?, datetime('now'))
+                ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')
+            """, (key, value))
+            conn.commit()
+        finally:
+            conn.close()
 
     # --- Onboarding State ---
 
