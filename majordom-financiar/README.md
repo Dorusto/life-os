@@ -41,7 +41,6 @@ You don't learn Actual Budget. You don't configure categories. You don't set up 
 | 📄 Import a CSV bank export | Auto-detects format → shows preview → you set categories → saved to Actual Budget |
 | 💬 Chat with the assistant | Ask questions about your spending, balances, and categories |
 | 📊 Dashboard | Monthly spending by category (donut chart) + recent transactions |
-| 📱 Telegram bot *(optional)* | Same receipt + CSV import flow, directly in Telegram |
 
 **Everything runs on your own server. Zero cloud. Zero subscriptions.**
 
@@ -146,40 +145,6 @@ Duplicate detection is automatic — re-importing the same CSV is safe.
 
 ---
 
-### Telegram bot *(optional)*
-
-The bot offers the same receipt and CSV import flow via Telegram messages. It's optional and disabled by default.
-
-**Enable the bot:**
-
-1. Create a bot via [@BotFather](https://t.me/botfather) → copy the token
-2. Find your Telegram user ID: send `/start` to [@userinfobot](https://t.me/userinfobot)
-3. Add to `.env`:
-   ```
-   TELEGRAM_BOT_TOKEN=your_token_here
-   TELEGRAM_ALLOWED_USER_IDS=your_id_here
-   ```
-4. Start with the `telegram` profile:
-   ```bash
-   docker compose --profile telegram up -d
-   ```
-
-**Bot commands:**
-
-| Command | Description |
-|---------|-------------|
-| `/start` | Welcome + feature overview |
-| `/add 49.99 Kaufland` | Add a transaction manually |
-| `/balance` | Current account balances |
-| `/stats` | Monthly spending by category |
-| `/stats 3 2025` | Spending for a specific month |
-| `/categories` | List all categories in Actual Budget |
-| `/help` | Full help |
-
-Send a **receipt photo** or a **.csv file** directly — no command needed.
-
----
-
 ## Categories
 
 12 built-in categories:
@@ -201,11 +166,6 @@ USER2_USERNAME=partner2
 USER2_PASSWORD=...
 ```
 
-For the Telegram bot, separate multiple IDs with commas:
-```
-TELEGRAM_ALLOWED_USER_IDS=111111111,222222222
-```
-
 ---
 
 ## Architecture
@@ -222,12 +182,10 @@ majordom-financiar/
 │       ├── ocr/             # AI vision via Ollama
 │       └── config/          # Settings (loaded from .env)
 ├── frontend/          # React + Vite + Tailwind (PWA)
-├── bot/               # Telegram bot (optional transport)
 ├── scripts/           # Ollama entrypoint, dev helpers
 ├── data/              # SQLite DB + uploaded images (Docker volume)
 ├── docker-compose.yml
 ├── Dockerfile.backend
-├── Dockerfile.bot
 └── .env
 ```
 
@@ -285,7 +243,6 @@ Short version of what's coming:
 - [actualpy](https://github.com/bvanelli/actualpy) — Python client for Actual Budget
 - [FastAPI](https://fastapi.tiangolo.com/) — async Python web framework
 - [React](https://react.dev/) + [Vite](https://vitejs.dev/) + [Tailwind CSS](https://tailwindcss.com/)
-- [python-telegram-bot](https://github.com/python-telegram-bot/python-telegram-bot)
 
 ---
 

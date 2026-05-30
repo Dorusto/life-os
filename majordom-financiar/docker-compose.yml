@@ -86,30 +86,6 @@ services:
     networks:
       - majordom-net
 
-  # --- Telegram bot (optional transport) ---
-  # The web UI is the primary interface. The bot is kept as a fallback.
-  # Start both with: docker compose --profile telegram up
-  # Start web only:  docker compose up  (default)
-  majordom-bot:
-    profiles: ["telegram"]
-    build:
-      context: .
-      dockerfile: Dockerfile.bot
-    container_name: majordom-bot
-    restart: unless-stopped
-    env_file: .env
-    volumes:
-      - ./data:/app/data
-    depends_on:
-      actual-budget:
-        condition: service_healthy
-    networks:
-      - majordom-net
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
 volumes:
   actual-data:

@@ -94,7 +94,7 @@ Replaces M2 Onboarding and reprioritises M4 Smart Alerts as the immediate next m
 | # | Feature | Notes |
 |---|---------|-------|
 | ✅ 2.0 | First launch welcome + setup path | Shipped 2026-05-30. On first open: ClarificationCard with two options. **"Start tracking from today"** → `SetupBalancesCard` inline in chat (ProposalCard style) — lists all AB accounts with editable balance fields + "+" to add new accounts → `POST /api/setup/complete` adjusts balances in AB. **"I have historical data to import"** → marks setup complete, guides to CSV import via chat. Balance adjustment from chat also available at any time via `propose_balance_adjustment` tool (issue #68) — *"set my ING balance to €2430"* → confirmation card → AB adjustment transaction created. |
-| 2.1 | Daily message at configurable time | Default 20:00, adjustable through chat. APScheduler in FastAPI + Web Push (Telegram fallback). Uses `notification_rules` table (JSON config per type) + `notification_log` (anti-spam). |
+| 2.1 | Daily message at configurable time | Default 20:00, adjustable through chat. APScheduler in FastAPI + Web Push. Uses `notification_rules` table (JSON config per type) + `notification_log` (anti-spam). |
 | 2.2 | Income detection from recurring credits | Detect salary from same-payee same-approximate-amount monthly credits. No setup question. |
 | 2.3 | Unexpected transaction reminder | SmartCategorizer assigns best-guess category to every transaction — nothing sits uncategorised in AB. Reminder fires for low-confidence assignments (< threshold) after 48h: *"You have X transactions I wasn't sure about. Want to review them?"* Threshold adjustable through chat. |
 | 2.4 | Import nudge | If no transaction imported in N days → proactive message: *"It's been a while since your last import. Want to add recent transactions?"* N adjustable through chat. |
@@ -176,7 +176,7 @@ Proactive notifications so Majordom finds problems before the user does.
 
 | # | Feature | Notes |
 |---|---------|-------|
-| 4.1 | Extensible notification system | `notification_rules` (JSON config) + `notification_log` (anti-spam); APScheduler daily 08:00; Web Push primary, Telegram fallback |
+| 4.1 | Extensible notification system | `notification_rules` (JSON config) + `notification_log` (anti-spam); APScheduler daily 08:00; Web Push primary |
 | 4.2 | Budget alert | After each transaction: notify when category exceeds X% of monthly limit |
 | 4.3 | Income variance alert | When received salary differs from scheduled → notify + offer category reallocation |
 | 4.4 | Goal risk alert | Weekly: is contribution pace on track to meet goal date? |
@@ -219,7 +219,8 @@ External services and advanced tracking.
 | Budget rebalancing by percentage / income | "Move 10% of my income to Restaurants" or "take 20% from Personal and add to Groceries". Requires knowing monthly income from AB (scheduled transactions). Enhancement on top of M1.1. |
 | Document Management System | Full DMS: photo/PDF upload, AI type detection, field extraction, versioning, document storage. Cross-domain infrastructure — implement as foundation for Majordom Digital, not here. Financial-specific vehicle documents (tenaamstellingsverslag, insurance, APK) → handled in M3 as vehicle-scoped feature, not generic DMS. |
 | RON / multi-currency | Via Rule Action Templating workaround; covered in onboarding Q8 |
-| Automatic monthly report | Summary push / Telegram on 1st of month; Telegram version already implemented in `bot/handlers.py:_monthly_summary_job` (APScheduler, sends previous month stats) — port to backend as part of Milestone 4.1 notification system (web push primary, Telegram fallback) |
+| Automatic monthly report | Summary push notification on 1st of month — implement as part of Milestone 4.1 notification system (Web Push) |
+| MCP server endpoint | Expose `registry.py` tools through MCP standard; allows integration with OpenClaw/Hermes/Claude or any MCP-compatible agent. Implementation after M2 — tracked in issue #58. |
 
 ---
 
@@ -282,7 +283,7 @@ Three things, in this sequence, before any new feature is added.
 Clean up the existing codebase to match the architectural principle. The `transactions` and `budget_limits` tables in SQLite must be removed; data must flow through Actual Budget. Without this, every new feature is built on the wrong foundation. Details in `Up Next` below.
 
 **Step 2 — Account selection on web PWA** *(prerequisite)*
-Port the Telegram account selection flow to the browser. Required for correct transaction routing in all web flows (chat, receipt photo, CSV import). Details in `Up Next` below.
+Port the account selection flow to the browser. Required for correct transaction routing in all web flows (chat, receipt photo, CSV import). Details in `Up Next` below.
 
 **Step 3 — Budget status dashboard (home page)** *(first user-visible MVP feature)*
 The home page: budget overview for the current month, one row per category with a progress bar, data from Actual Budget via ActualQL. When a category goes over budget, Majordom initiates a conversational rebalancing in chat. This is the feature that makes Majordom feel like a product. Details in `Up Next` below.
@@ -294,11 +295,11 @@ The home page: budget overview for the current month, one row per category with 
 ### ✅ Implemented
 
 - **Import CSV bank transactions** — upload CSV, format detection with Ollama, saved profiles, deduplication, refunds handled correctly
-- **Categories on CSV import** — `actual_budget_id` saved in SQLite on import; category confirmation/change in Telegram automatically propagates to Actual Budget via `update_transaction_category(financial_id)`
+- **Categories on CSV import** — `actual_budget_id` saved in SQLite on import; category confirmation propagates to Actual Budget via `update_transaction_category(financial_id)`
 - **Intelligent auto-categorization** — only from `merchant_mappings` confirmed by user (`from_history`), not from AI threshold; new merchant → always asked with suggestion
 - **Standardized fields** — payee = merchant, notes = `[receipt photo]` / `[/add manual]` / `[import CSV]`
 - **Universal anti-duplicate** — receipt photo + /add + CSV use the same SHA256 hash(date+merchant+amount)
-- **Account selection on receipt photo (Telegram)** — if multiple accounts exist, the bot asks before saving
+- **Account selection on receipt photo** — if multiple accounts exist, the user is asked before saving
 - **12 clean categories** — Food, Restaurants, Transport, Utilities, Health, Clothing, Home & Maintenance, Entertainment & Vacation, Children, Personal Money, Investments & Savings, Other
 - **Web UI (PWA) v2** — FastAPI backend + React frontend, JWT authentication, receipt photo flow in browser, monthly spending chart
 
@@ -312,7 +313,7 @@ Audit done. Original violations fixed: `transactions` and `budget_limits` tables
 
 **Remaining issues found during audit — to be fixed before or alongside Milestone 1:**
 
-- **Bug (active) — `bot/csv_wizard.py:33-34`** — import paths use pre-refactor module names (`from config import settings`, `from csv_importer import ...`). Must be `from backend.core.config import settings` and `from backend.core.csv_importer import ...`. Telegram CSV import is currently broken in production.
+- ~~**Bug — `bot/csv_wizard.py:33-34`**~~ ✅ Won't fix — bot removed (issue #70).
 
 - ~~**Dead code — `backend/services/chat_service.py`**~~ ✅ Deleted 2026-05-19.
 
@@ -365,7 +366,7 @@ Issues found during a complete installation dry-run on a fresh Proxmox LXC (2026
 
 #### Account selection on web PWA
 
-Port the Telegram account selection flow to the web interface. When the user adds a transaction (receipt photo, manual entry, or CSV import) and has multiple accounts configured, the PWA must ask which account to use — same behavior as the Telegram bot.
+Port the account selection flow to the web interface. When the user adds a transaction (receipt photo, manual entry, or CSV import) and has multiple accounts configured, the PWA must ask which account to use.
 
 Applies to:
 - Receipt photo flow in browser
@@ -413,7 +414,7 @@ Dedicated page with a conversational financial assistant. Has access to real dat
 ---
 
 #### Interactive messages in chat (rich actions)
-Equivalent of Telegram buttons, but richer. AI includes structured blocks in the response (e.g., `<action type="category_select" options="..."/>`). The React frontend parses and renders interactive components: category buttons, date picker, transaction confirmation. After the user's action, the result is sent back as a user message.
+Rich interactive messages in chat. AI includes structured blocks in the response (e.g., `<action type="category_select" options="..."/>`). The React frontend parses and renders interactive components: category buttons, date picker, transaction confirmation. After the user's action, the result is sent back as a user message.
 
 Requires:
 - Extend `Message` interface with optional `actions` field
@@ -424,7 +425,7 @@ Requires:
 ---
 
 #### CSV import UI (web)
-Dedicated page for uploading and processing bank CSV. Port the wizard from Telegram to the web interface.
+Dedicated page for uploading and processing bank CSV.
 
 ---
 
@@ -565,7 +566,7 @@ These two systems must not conflict:
 - When importing CSV, Actual Budget rules fire first; Majordom does not overwrite the result unless the user explicitly changes the category
 - Do not disable Actual Budget's auto-rule learning — it is complementary to Majordom's mappings
 
-**Audit 2026-05-14:** `merchant_mappings` currently stored only in SQLite with local string IDs (`"groceries"`, `"transport"`) — not synced to Actual Budget. `categorizer.learn()` in `receipt_service.py` and `bot/handlers.py` must be extended to also create or update the corresponding AB rule. Until this is done, category mappings confirmed by the user are invisible to Actual Budget's own rule engine.
+**Audit 2026-05-14:** `merchant_mappings` currently stored only in SQLite with local string IDs (`"groceries"`, `"transport"`) — not synced to Actual Budget. `categorizer.learn()` in `receipt_service.py` must be extended to also create or update the corresponding AB rule. Until this is done, category mappings confirmed by the user are invisible to Actual Budget's own rule engine.
 
 **Reference:** [rules](https://actualbudget.org/docs/budgeting/rules)
 
@@ -748,7 +749,7 @@ Majordom guides the couple during onboarding (Q5):
 - **Basic** — create new budgets, collaborate on others'
 - **Admin** — all Basic + manage users directory, transfer budget ownership, enable universal file access
 
-Majordom's current multi-user (via `TELEGRAM_ALLOWED_USER_IDS`) must eventually integrate with Actual Budget's multi-user model.
+Majordom's current multi-user will eventually integrate with Actual Budget's multi-user model.
 
 **Reference:** [multi-user config](https://actualbudget.org/docs/config/multi-user)
 
@@ -766,7 +767,7 @@ Majordom's current multi-user (via `TELEGRAM_ALLOWED_USER_IDS`) must eventually 
 ---
 
 #### Installation README
-Step-by-step guide: Docker, Telegram bot token, Actual Budget, `.env` configuration, first start.
+Step-by-step guide: Docker, Actual Budget, `.env` configuration, first start.
 
 ---
 
@@ -801,7 +802,7 @@ Setting limits per category (native Actual Budget feature).
 
 #### Extensible notification system
 
-Generic architecture based on `notification_rules` (SQLite, JSON config per type) + `notification_log` (anti-spam). APScheduler runs daily at 08:00 in FastAPI. Delivery: **Web Push primary** (PWA), Telegram secondary/fallback.
+Generic architecture based on `notification_rules` (SQLite, JSON config per type) + `notification_log` (anti-spam). APScheduler runs daily at 08:00 in FastAPI. Delivery: **Web Push primary** (PWA).
 
 Rule types:
 
@@ -951,5 +952,4 @@ ZZP (Netherlands) for YouTube clips/paid activity. Separate deductible expenses 
 - **Voice input in PWA** — microphone button in chat; audio transcribed locally via Whisper (Ollama) → sent as text message; consistent with privacy-first stack and cross-browser
 - **GPU inference Ollama** — currently CPU (~60s/image); revisit with smaller models or quantization optimizations
 - **RON support** — enabled via multi-currency workaround (Rule Action Templating); see onboarding Q8
-- **Automatic monthly report** — summary sent via Telegram/web on the 1st of the month
-- **Setup wizard via Telegram** — `/setup` command that guides the new user: creates first account, configures preferred categories, tests connection with Actual Budget
+- **Automatic monthly report** — summary push notification on the 1st of the month

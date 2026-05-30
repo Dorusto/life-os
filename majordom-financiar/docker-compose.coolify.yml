@@ -89,25 +89,6 @@ services:
       majordom-api:
         condition: service_healthy
 
-  # --- Telegram bot (optional transport) ---
-  # Uncomment the entire block below to enable the Telegram bot.
-  # Make sure TELEGRAM_BOT_TOKEN and TELEGRAM_ALLOWED_USER_IDS are set
-  # in the Coolify environment variable editor.
-  #
-  # majordom-bot:
-  #   build:
-  #     context: .
-  #     dockerfile: Dockerfile.bot
-  #   container_name: majordom-bot
-  #   restart: unless-stopped
-  #   env_file: .env
-  #   volumes:
-  #     - ./data:/app/data
-  #   depends_on:
-  #     actual-budget:
-  #       condition: service_healthy
-  #     ollama:
-  #       condition: service_healthy
 
 volumes:
   actual-data:

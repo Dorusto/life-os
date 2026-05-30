@@ -51,8 +51,7 @@ Stop and ask. Do not make architecture decisions. For anything beyond the spec, 
 - **AI/OCR:** Ollama (qwen2.5vl:3b for vision, qwen2.5:7b for chat)
 - **Budget:** Actual Budget via actualpy
 - **Memory:** SQLite (`/app/data/memory.db`) — memory namespaces: finance/, wellness/, digital/
-- **Deploy:** Docker Compose (actual-budget, ollama, majordom-api, majordom-web)
-- **Bot:** python-telegram-bot 21 (maintenance mode — no new features)
+- **Deploy:** Docker Compose (`actual-budget`, `ollama`, `majordom-api`, `majordom-web`)
 
 ## Key files
 

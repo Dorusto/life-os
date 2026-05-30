@@ -256,5 +256,3 @@ docker run --rm \
 | `OLLAMA_VISION_MODEL` | No | `qwen2.5vl:7b` | Model for receipt OCR |
 | `OLLAMA_CHAT_MODEL` | No | `qwen2.5:7b` | Model for chat assistant |
 | `WEB_PORT` | No | `3000` | External port for the web UI |
-| `TELEGRAM_BOT_TOKEN` | No | — | Required only with `--profile telegram` |
-| `TELEGRAM_ALLOWED_USER_IDS` | No | — | Comma-separated Telegram user IDs |

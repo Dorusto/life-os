@@ -25,7 +25,6 @@ We'd love to know about your setup. This isn't a bug report, just a chance to sh
 
 - [ ] Web UI (receipt scanning)
 - [ ] Web UI (CSV import)
-- [ ] Telegram bot
 - [ ] Chat assistant
 - [ ] GPU acceleration for Ollama
 

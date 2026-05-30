@@ -132,7 +132,7 @@ What to do:
 Chat context fetch opens 3 parallel connections to Actual Budget. Fix: fetch all context in one session (sequential calls, single `with actual:` block). See `backend/api/chat.py` → `_fetch_financial_context()`.
 
 ### Step 3 — Account selection on web PWA
-Port the Telegram account selection flow to the browser. Required for correct transaction routing in receipt flow, manual entry, and CSV import.
+Port the account selection flow to the browser. Required for correct transaction routing in receipt flow, manual entry, and CSV import.
 
 ### Step 4 — Budget status dashboard (home page)
 First user-visible feature: budget overview per category with progress bars. Data from Actual Budget via ActualQL. Conversational rebalancing from chat when a category goes over budget.
@@ -148,7 +148,6 @@ Refactor `ActualBudgetClient` into the tool registry structure. This is when `ma
 |---|---|---|
 | Web frontend | React + TypeScript | Installable PWA |
 | Web backend | FastAPI (Python 3.11) | REST API + streaming chat |
-| Telegram bot | python-telegram-bot 21.6 | Maintenance mode — no new features |
 | LLM vision / chat | Ollama + local models | qwen2.5vl:3b (vision), qwen2.5:7b (chat) |
 | Finance tool | Actual Budget | Self-hosted Docker |
 | Finance client | actualpy | Python wrapper over AB API |
@@ -186,7 +185,6 @@ majordom-financiar/
 │       ├── memory/          ← SQLite (database.py, categorizer.py)
 │       └── config/          ← settings.py
 │
-├── bot/                     ← Telegram (maintenance mode)
 ├── scripts/
 │   ├── ai_helper.py         ← DeepSeek API wrapper for development
 │   └── prompts/             ← DeepSeek task prompts (one .md per task)
@@ -374,10 +372,23 @@ majordom       ← FastAPI backend (port 8000) + React frontend via Nginx (port 
 - [x] Streaming chat with financial context (read-only — no tool calling yet)
 - [x] Account selection on receipt confirm
 
-## Telegram bot (maintenance mode)
+## MCP Server
 
-Functional but no new features. Used as a fallback and notification channel. All new development happens on the web PWA.
+Majordom exposes its tool registry through the MCP (Model Context Protocol) standard. Any MCP-compatible agent — OpenClaw, Hermes, Claude, or any future agent — can call Majordom's tools directly.
+
+**Exposed tools (from `backend/tools/registry.py`):**
+- `get_accounts` — list all accounts with balances
+- `get_monthly_stats` — spending by category for a given month
+- `get_budget_status` — current month budget vs actual per category
+- `get_transactions` — recent transactions with filters
+- `get_spending_history` — multi-month spending trend
+- `propose_transaction` — propose a new transaction (requires user confirmation)
+- `propose_budget_rebalance` — propose moving funds between categories
+
+**Design principle:** the LLM inside the PWA uses these same tools via the tool registry. An external agent via MCP is just another caller — the tools and their behavior are identical.
+
+**Status:** planned — implementation scheduled after M2 (dedicated milestone TBD). Tracked in issue #58.
 
 ---
 
-*Last updated: 2026-05-10 — unified platform architecture established*
+*Last updated: 2026-05-30 — Telegram bot removed; MCP server section added*

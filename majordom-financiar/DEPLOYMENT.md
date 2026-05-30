@@ -16,7 +16,7 @@ nano .env
 ## Auto-deploy (GitHub Actions self-hosted runner)
 
 Every push to `main` that touches `majordom-financiar/**` automatically rebuilds
-and restarts `majordom-api`, `majordom-web`, and `majordom-bot`.
+and restarts `majordom-api` and `majordom-web`.
 
 The runner makes outbound connections to GitHub — no exposed ports needed.
 
@@ -52,7 +52,7 @@ sudo systemctl status actions.runner.*.service
 
 ```bash
 git pull
-docker compose up --build -d majordom-api majordom-web majordom-bot
+docker compose up --build -d majordom-api majordom-web
 ```
 
 ---
@@ -65,4 +65,3 @@ docker compose up --build -d majordom-api majordom-web majordom-bot
 | `majordom-ollama`| unless-stopped  | Local LLM (qwen3:8b)         |
 | `majordom-api`   | unless-stopped  | FastAPI backend               |
 | `majordom-web`   | unless-stopped  | React PWA (nginx)            |
-| `majordom-bot`   | unless-stopped  | Telegram bot (maintenance)   |

@@ -1,6 +1,3 @@
-# Telegram Bot (cu job-queue pentru task-uri programate)
-python-telegram-bot[job-queue]==21.6
-
 # HTTP async (Ollama API)
 aiohttp==3.10.5
 
