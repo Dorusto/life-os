@@ -1,5 +1,29 @@
 # Majordom — Roadmap
 
+---
+
+## Core Philosophy
+
+> **Majordom acts. The user approves.**
+
+Every product, UI, or architectural decision is filtered through two questions:
+1. Can Majordom deduce this from data?
+2. If not — can it ask conversationally, without a form?
+
+If both answers are no → only then is a dedicated UI built.
+
+**Principles:**
+- **Zero configuration at setup** — one question on first launch
+- **Proactive AI, not reactive** — Majordom initiates, not the user
+- **Everything through chat** — import, settings, preferences, goals — all through conversation
+- **The user approves, AI executes** — no action without confirmation
+- **At most one message per day** — quality, not quantity
+- **Everything is adjustable through chat** — no default is permanent
+
+*Added: 2026-05-30*
+
+---
+
 ## Milestones at a glance
 
 Progress overview. Each milestone is a coherent, shippable unit — do not start the next until the current one is complete. Details for every item are further down in this document.
@@ -55,20 +79,78 @@ Shipped 2026-05-20 as part of the tool_choice=auto validation. All 5 query tools
 
 ---
 
-### 🔲 Milestone 2 — Onboarding Flow
+### ~~🔲 Milestone 2 — Onboarding Flow~~ ❌ CANCELLED — replaced by M2-NEW
 
-The big one. Majordom configures Actual Budget entirely through conversation — the user never touches AB directly.
+The 15-question wizard was the wrong approach. The user doesn't know what they want until they see real data. Abstract questions produce inaccurate answers and unnecessary friction on day 1. All onboarding code (`onboarding_service.py`, `onboarding.py`, `onboarding_state` table, chat.py triggers, progress bar in UI) is to be removed as part of M2-NEW cleanup. `ClarificationCard` is **kept** — it is a generic chat mechanism used outside onboarding.
 
-**Entry point (decision pending):** For now, onboarding is triggered by a chat prompt (e.g. "Set up my budget"). Auto-redirect on first launch (when AB has no accounts) and a "Restart onboarding" option are deferred — decide before shipping M2.
+---
+
+### 🔲 M2-NEW — Proactive Majordom
+
+Replaces M2 Onboarding and reprioritises M4 Smart Alerts as the immediate next milestone after M1. Majordom deduces context from real data and initiates — the user never fills a setup form.
+
+**Philosophy:** Day 1 is one question. Weeks 1–4 are observation. Month 2+ is the first proactive insight.
 
 | # | Feature | Notes |
 |---|---------|-------|
-| ✅ 2.1 | Phase 1 — Discovery (15 questions) | Shipped 2026-05-21. 15 questions (blocks A–G), LLM-parsed answers, server-side state machine in SQLite, ClarificationCard for fixed-option questions, progress bar in chat UI. |
-| ✅ 2.2 | Phase 2 — AB configuration | Shipped 2026-05-21. Creates accounts, category groups + categories, recurring schedules, budget allocations. Known issues tracked in M2.5: duplicate detection when AB already has categories; smart income-based budget allocation. |
-| ⏸️ 2.3 | Transfer detection after historical import | On hold — only relevant when importing historical CSV data. Revisit if needed. |
-| ⏸️ 2.4 | Rules sync with Actual Budget | On hold — SmartCategorizer in SQLite covers auto-categorization without AB rules sync. |
-| 2.5 | Onboarding polish + smart budget | Fix "multiple rows" error when categories already exist (get-or-create); auto-allocate budget based on income % (50/30/20 adapted); use Q4 variable income in Phase 2 |
-| 2.6 | Charts in chat | When agent returns `{"type": "chart", ...}`, render Recharts inline in chat. LineChart + BarChart. Financial data from AB via tools; vehicle data from SQLite vehicle_log. System prompt instructs model to return chart JSON for trend/visualization requests. |
+| 2.1 | Daily message at configurable time | Default 20:00, adjustable through chat. APScheduler in FastAPI + Web Push (Telegram fallback). Uses `notification_rules` table (JSON config per type) + `notification_log` (anti-spam). |
+| 2.2 | Income detection from recurring credits | Detect salary from same-payee same-approximate-amount monthly credits. No setup question. |
+| 2.3 | Unexpected transaction reminder | SmartCategorizer assigns best-guess category to every transaction — nothing sits uncategorised in AB. Reminder fires for low-confidence assignments (< threshold) after 48h: *"You have X transactions I wasn't sure about. Want to review them?"* Threshold adjustable through chat. |
+| 2.4 | Import nudge | If no transaction imported in N days → proactive message: *"It's been a while since your last import. Want to add recent transactions?"* N adjustable through chat. |
+| 2.5 | First goal proposal after 2 months of data | Conversational, not a form. Majordom proposes based on observed spending patterns. |
+| 2.6 | FIRE calculation | Available on demand at any time. After 6+ months of data, Majordom proactively opens the conversation. Before 6 months: calculation shown with explicit "preliminary estimate" caveat. |
+| 2.7 | Charts inline in chat | Chart type adapted to message context. See table below. |
+
+**Chart type by message context:**
+
+| Majordom message | Chart type |
+|------------------|-----------|
+| Category budget exceeded | Bar — category vs budget |
+| FIRE progress | Projection with milestone marker |
+| Consistent savings | Trend line 3–6 months |
+| Duplicate subscriptions | Pie breakdown of Lifestyle |
+| Unusual transaction | Simple card with details |
+
+**Cleanup actions (do first, in order):**
+1. Delete onboarding code: `onboarding_service.py`, `api/onboarding.py`, `onboarding_state` table in `database.py`, all references in `chat.py` and frontend
+2. Update `categories.json` to reflect the actual AB structure (7 top-level category groups, SmartCategorizer suggests at subcategory level)
+3. Home UI redesign (see layout below)
+4. Implement APScheduler + `notification_rules` + `notification_log` (foundation for all 2.x features)
+5. Implement M2-NEW features in order: 2.1 → 2.3 → 2.4 → 2.2 → 2.5 → 2.6 → 2.7
+
+**Navigation:** Home / Majordom (2 tabs). Import tab removed — entry point is the **+** button in the chat input field. Receipt and CSV flows unchanged technically. Urgent alerts: red dot on the Majordom tab icon, never banners on Home.
+
+**Home screen layout:**
+
+```
+┌─────────────────────────────────────┐
+│  [€ 1,240]   [€ 280,000]   [3.2%]  │  ← 3 large numbers, glanceable
+│  Cashflow    Net Worth      FIRE    │
+│  this month  total          progress│
+├─────────────────────────────────────┤
+│  Obligations                        │  ← scroll starts here
+│  ING Mortgage  €890/mo  €186k left  │
+│  Next payment: Jun 1                │
+├─────────────────────────────────────┤
+│  Budget — May                       │
+│  🏠 Housing     ████░░  €920/€1100  │
+│  🛒 Daily Living ██░░░░  €340/€600  │
+│  🚗 Transport    ███░░░  €180/€250  │
+│  ...            (tap for subcats)   │
+├─────────────────────────────────────┤
+│  Goals                              │
+│  Emergency fund  ██████░  €8k/€10k │
+│  Vacation        ███░░░░  €600/€1.5k│
+└─────────────────────────────────────┘
+```
+
+- **Cashflow** — most actionable daily: am I on track this month? (+/- vs budget total)
+- **Net Worth** — slow-moving, changes monthly; second position
+- **FIRE %** — long-term perspective metric; third position. Shows "est." until 6+ months of data
+- **Obligations** — mortgage balance, monthly payment, next due date (from AB scheduled transactions)
+- **Categories** — 7 top-level with progress bars; tap to drill into subcategories
+- **Goals** — per-goal progress bar; data from AB
+- No FIRE projection chart on Home — projection lives in chat or goal detail view
 
 ---
 
@@ -122,6 +204,7 @@ External services and advanced tracking.
 
 | Feature | Notes |
 |---------|-------|
+| User data export | Triggered by *"Export all my data"* in chat. Generates `majordom-export-YYYY-MM-DD.zip` on demand: `transactions.csv` + `budgets.csv` + `goals.json` from AB; `csv_profiles.json` + `merchant_mappings.json` + `preferences.json` from SQLite. Endpoint `GET /api/export` streams ZIP directly — no server-side storage. GDPR Art. 20 compliant. |
 | Voice input in PWA | Whisper (Ollama local) → text; privacy-first |
 | Automatic bank sync | GoCardless/Nordigen — on hold; EU individual developer access restricted; monitor PSD2/PSD3 |
 | GPU inference for Ollama | Currently CPU (~60s/image); revisit with smaller quantized models |
@@ -131,8 +214,6 @@ External services and advanced tracking.
 | Actual Budget mobile access via HTTPS | AB requires HTTPS (SharedArrayBuffer). Currently only accessible via SSH tunnel from PC. When Majordom is mature enough, expose AB behind a proper reverse proxy with HTTPS so power users can access it directly from mobile when needed. Low priority — Majordom is the intended interface, not AB directly. |
 | Ollama model management from chat | User can type "install llava-phi3" or "what models do I have?" — Majordom queries and manages Ollama directly. Eliminates terminal access for model management. |
 | Editable amount on proposal cards | `BudgetRebalanceCard` and `AccountTransferCard` should have an editable amount field so the user can correct the amount directly on the card without restarting the conversation. |
-| Onboarding Q4 — variable income not used in Phase 2 | `income_type: "variable"` and `income_minimum` are collected but ignored during AB config. TODO: if variable → budget on `income_minimum` not average; recommend "live on last month's income" strategy; explain buffer (Q13 becomes more important); set income schedule with `isapprox` matching. |
-| Smart budget allocation strategy | Brainstorm needed. Current Phase 2 uses a fixed heuristic (15% groceries, 10% savings, etc). Desired: allocate based on % of salary, auto-adjust when salary arrives, end-of-month push notification with budget summary + leftover direction prompt. AB supports: goal templates (`#template N% of CATEGORY`), End of Month Cleanup (`#cleanup source/sink`), schedules. Majordom's role: make these conversational and automatic. |
 | Budget rebalancing by percentage / income | "Move 10% of my income to Restaurants" or "take 20% from Personal and add to Groceries". Requires knowing monthly income from AB (scheduled transactions). Enhancement on top of M1.1. |
 | Document Management System | Full DMS: photo/PDF upload, AI type detection, field extraction, versioning, document storage. Cross-domain infrastructure — implement as foundation for Majordom Digital, not here. Financial-specific vehicle documents (tenaamstellingsverslag, insurance, APK) → handled in M3 as vehicle-scoped feature, not generic DMS. |
 | RON / multi-currency | Via Rule Action Templating workaround; covered in onboarding Q8 |
@@ -386,193 +467,6 @@ CREATE TABLE documents (
     notes TEXT
 );
 ```
-
----
-
-#### Financial profile per user (onboarding)
-
-Each user builds their profile through conversation with Majordom. Majordom configures Actual Budget in the background — the user never touches Actual Budget directly.
-
-**Approach:** conversational chat flow (not a wizard UI). Two phases: Phase 1 collects information, Phase 2 executes the configuration in Actual Budget.
-
----
-
-### Phase 1 — Discovery
-
-Questions are grouped into blocks. Majordom asks them in order, skipping irrelevant ones based on previous answers.
-
----
-
-#### Block A — Budgeting style
-
-**Q1. How do you want to budget?**
-
-"Do you want to allocate every euro to a category (envelope — more control) or just track spending against a plan (tracking — simpler)?"
-
-Recommend envelope. Explain: in envelope mode, if you overspend a category this month, the deficit is automatically deducted from next month's available money.
-
----
-
-#### Block B — Household & income
-
-**Q2. How many people are in your household?**
-
-Determines which categories to suggest (Children category, per-person personal money allocations).
-
-**Q3. What is your total monthly take-home pay?**
-
-All sources: salary, rental income, freelance. If freelance or variable income: "What is your minimum reliable monthly amount?" — budget on that floor, not the average.
-
-**Q4. Is your income the same every month, or does it vary?**
-
-If variable → recommend the "live on last month's income" strategy (`holdBudgetForNextMonth`). Majordom explains: "You save this month's income and live off it next month — more stability when income fluctuates."
-
-**Q5. Do you manage finances together with a partner?**
-
-If yes: ask partner's income too; recommend a shared Majordom instance (Strategy A — shared budget file); explain contribution split proportional to income. Note: multi-user requires OpenID Provider setup.
-
----
-
-#### Block C — Accounts
-
-**Q6. What bank accounts do you use?**
-
-"For example: ING current account, Revolut, savings at ASN Bank." For each account: name + current balance.
-
-Majordom auto-classifies:
-- Current / checking account → **on-budget**
-- Savings used for day-to-day expenses → **on-budget**
-- Investment / ETF / pension → **off-budget** (tracking only, no budget impact)
-- Mortgage → **off-budget**
-- Cash → **on-budget**, creates a "Cash" account
-
-Explain: off-budget accounts appear in net worth reports but don't affect monthly budget allocations.
-
-**Q7. Do you have any credit cards?**
-
-If yes: "Do you pay the full balance each month, or do you carry a balance?"
-
-- Paying in full → on-budget account, no special setup needed
-- Carrying debt → create a "Credit Card Debt" category group + enable rollover overspending on those categories
-
-**Q8. Do you have transactions in currencies other than EUR?**
-
-"For example: Romanian leu (RON), British pounds (GBP)."
-
-If yes: set up currency conversion rules via Rule Action Templating. Ask for the current exchange rate. Majordom creates two rules per foreign currency: one to detect the account, one to convert and store the EUR equivalent.
-
----
-
-#### Block D — Fixed obligations & recurring transactions
-
-**Q9. What payments happen automatically every month?**
-
-"For example: rent or mortgage, subscriptions (Netflix, Spotify), insurance, loan payments, salary deposit date."
-
-For each: Majordom creates a schedule linked to the correct category.
-
-For **income schedules** (salary, received rent): the "approximately" option is enabled automatically (±7.5% match tolerance) to handle normal monthly variations. If the actual amount differs from the scheduled amount after CSV import, Majordom notifies via `income_variance` alert: *"Salary received: [actual] EUR (expected [scheduled] EUR, [diff] EUR). Your available budget this month is affected — do you want to adjust any category allocations?"*
-
-**Q10. Do you have loans or outstanding debts besides your mortgage?**
-
-For each: monthly payment + remaining balance → dedicated repayment category + payoff goal template. Skip credit card debt if already captured in Q7.
-
----
-
-#### Block E — Financial goals
-
-**Q11. What do you want to achieve financially?**
-
-Pick any that apply:
-- **Emergency fund** → current saved amount + target amount + target date
-- **Vacation** → destination + amount + date
-- **Car purchase** → amount + date
-- **House purchase** → down payment amount + date
-- **FIRE / early retirement** → target age or target portfolio size
-- **Pay off debt faster** → which debt, extra monthly amount
-- **Other** → free text
-
-For each goal: Majordom calculates the required monthly contribution and creates the appropriate goal template in the category notes.
-
----
-
-#### Block F — End-of-month behavior
-
-**Q12. What should happen to money left over at the end of the month?**
-
-Options:
-- **Roll it over per category** (default — surplus stays in the category for next month)
-- **Send everything to emergency fund** → `#cleanup sink` on the emergency fund category
-- **Split between savings and personal money** → `#cleanup sink` with weights on both
-- **I'll decide manually each month** → no automation
-
-**Q13. Do you want to build a one-month buffer?**
-
-"This means you save this month's income and spend it only next month — more financial stability, especially with variable income."
-
-If yes: guide through `holdBudgetForNextMonth` until the buffer is fully built.
-
----
-
-#### Block G — Historical data
-
-**Q14. Do you want to import past transactions from your bank?**
-
-"You can upload a CSV or OFX/QFX file. OFX/QFX is preferred — it has unique transaction IDs that prevent duplicates."
-
-If yes: trigger the CSV/OFX import flow after onboarding completes.
-
-**Q15. Transfer detection (automatic, after historical import)**
-
-After bulk import from multiple accounts: automatically detect transfer pairs (same amount, opposite sign, within 3 days) and present them for confirmation: *"Found X likely transfers between your accounts. Review and confirm?"* Majordom links confirmed pairs as proper transfers in Actual Budget.
-
----
-
-### Phase 2 — Configuration in Actual Budget
-
-Executed after Phase 1 is complete. Majordom performs each step and confirms with the user before moving to the next.
-
-**Step 1 — Accounts**
-Create all accounts with their initial balances. On-budget and off-budget per Block C answers.
-
-**Step 2 — Credit card debt setup** *(if applicable)*
-Create "Credit Card Debt" category group. Enable rollover overspending on those categories. Enter opening debt balance.
-
-**Step 3 — Currency conversion rules** *(if applicable)*
-Create Rule Action Templating rules for each foreign currency using the rate provided in Q8.
-
-**Step 4 — Schedules**
-Create schedules for all recurring transactions from Block D. Income schedules use "approximately" matching.
-
-**Step 5 — Categories**
-Propose a category list based on the household profile. User confirms, adds, removes, or renames before Majordom creates anything.
-
-**Step 6 — End-of-month automation** *(if applicable)*
-Add `#cleanup source` / `#cleanup sink` notes to relevant categories with correct weights per Q12 answer.
-
-**Step 7 — Monthly allocations**
-Suggest amounts per category based on income. User adjusts inline. Zero-sum enforced: To Budget must reach 0.
-
-**Step 8 — Goal templates**
-Create goal templates in category notes per Block E answers. Supported types:
-- `#template AMOUNT` — fixed monthly amount
-- `#template AMOUNT by YYYY-MM` — save toward a goal by date
-- `#template AMOUNT repeat every N weeks/months starting DATE` — periodic
-- `#template N% of CATEGORY` — percentage of income
-- `#template schedule NAME` — based on an existing schedule
-- `#template average N months` — based on N-month spending average
-- `#template copy` — copy budgeted amount from previous month
-- `#template X remainder` — distribute leftover "To Budget" with optional weighting
-- `#goal AMOUNT` — override goal indicator for long-term balance target
-
-**Step 9 — Buffer** *(if applicable)*
-Trigger `holdBudgetForNextMonth` for the full monthly income amount per Q13 answer.
-
-**Step 10 — Summary**
-"Setup complete: X accounts, X schedules, X categories, X goals, X rules created. Budget fully allocated."
-
-**Step 11 — Historical import** *(if applicable)*
-Hand off to CSV/OFX import flow. Run transfer detection afterward.
 
 ---
 
