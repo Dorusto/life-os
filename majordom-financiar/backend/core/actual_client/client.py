@@ -91,6 +91,16 @@ class ActualBudgetClient:
                 return result
         return await self._run(_get)
 
+    async def get_today_transactions(self) -> list:
+        """Fetch transactions for today only."""
+        def _get():
+            from actual.queries import get_transactions
+            with self._get_actual() as actual:
+                actual.download_budget()
+                today = date.today()
+                return get_transactions(actual.session, start_date=today, end_date=today)
+        return await self._run(_get)
+
     async def get_default_account(self) -> Account | None:
         accounts = await self.get_accounts()
         if not accounts:

@@ -11,7 +11,6 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import aiohttp
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
@@ -20,8 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.api import auth, receipts, transactions, chat, csv_import, proposals, budget, accounts, onboarding, setup, balance_adjustments, push
 
 from backend.core.config import settings
-
-scheduler = AsyncIOScheduler(timezone="Europe/Amsterdam")
+from backend.core.scheduler import scheduler
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +55,29 @@ async def lifespan(app: FastAPI):
         logger.warning("Could not initialize push service: %s", _e)
     scheduler.start()
     logger.info("APScheduler started")
+
+    try:
+        from backend.services.notification_service import run_daily_summary
+        from backend.core.memory.database import MemoryDB as _MemoryDB
+        from backend.core.config import settings as _settings
+
+        # Read time from notification_rules (default 20:00)
+        _rule = _MemoryDB(_settings.memory.db_path).get_notification_rule("daily_summary")
+        _time = (_rule or {}).get("config", {}).get("time", "20:00")
+        _hour, _minute = map(int, _time.split(":"))
+
+        scheduler.add_job(
+            run_daily_summary,
+            trigger="cron",
+            hour=_hour,
+            minute=_minute,
+            id="daily_summary",
+            replace_existing=True,
+        )
+        logger.info("Daily summary job scheduled at %s", _time)
+    except Exception as _e:
+        logger.warning("Could not schedule daily summary job: %s", _e)
+
     logger.info("Majordom API v2 started — uploads dir: %s", UPLOADS_DIR)
     yield
     scheduler.shutdown(wait=False)

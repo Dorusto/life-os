@@ -81,6 +81,28 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "set_notification_time",
+            "description": (
+                "Change the time of the daily financial summary notification. "
+                "Use when the user asks to change, update, or set the notification time, "
+                "e.g. 'change notification to 21:30', 'set daily message at 8am'. "
+                "Executes immediately — no confirmation needed."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "time": {
+                        "type": "string",
+                        "description": "New notification time in HH:MM 24h format, e.g. '21:30', '08:00'.",
+                    },
+                },
+                "required": ["time"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "propose_transaction",
             "description": (
                 "Propose adding a new transaction (expense OR income) to Actual Budget. "
@@ -266,6 +288,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "propose_balance_adjustment":
         from backend.tools.finance.actual_budget import propose_balance_adjustment
         return await propose_balance_adjustment(**arguments)
+
+    if name == "set_notification_time":
+        from backend.tools.settings.notifications import set_notification_time
+        return await set_notification_time(**arguments)
 
     return f"Unknown tool: {name}"
 
