@@ -47,16 +47,14 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const path = event.notification.data?.url || '/';
+  const path = event.notification.data?.url || '/chat';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if ('focus' in client) {
-          client.navigate(path);
-          return client.focus();
-        }
+      const existing = clientList.find(c => c.url.startsWith(self.location.origin));
+      if (existing) {
+        return existing.navigate(path).then(() => existing.focus());
       }
-      return clients.openWindow ? clients.openWindow(path) : null;
+      return clients.openWindow(path);
     })
   );
 });

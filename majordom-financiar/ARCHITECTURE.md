@@ -112,21 +112,18 @@ The codebase was built before the unified architecture was established. The curr
 ### Step 0 — Document (this file) ✅
 Establish the target architecture before touching any code.
 
-### Step 1 — Architecture audit (prerequisite for everything)
-The existing code violates the architectural principle in several places. These must be fixed before adding any new features — otherwise new code is built on the wrong foundation.
+### Step 1 — Architecture audit ✅ (complete 2026-05-31)
+The existing code violations have been resolved. SQLite is now strictly context/preference storage only.
 
-Known violations:
-- `transactions` table in SQLite — local copy of transactions; data belongs in Actual Budget
-- `budget_limits` table in SQLite — local copy of budget limits; limits belong in Actual Budget
-- `SmartCategorizer` uses TF-IDF on local SQLite data — should migrate to Actual Budget rules
-- Deduplication code may query local SQLite instead of relying on AB's `imported_id` check
+Resolved:
+- `transactions` table — dropped from SQLite (was empty; no code references remain)
+- `budget_limits` table — dropped from SQLite (was empty; no code references remain)
+- `SmartCategorizer` TF-IDF — replaced with `merchant_mappings` confirmed by user (history-based only)
+- Deduplication — uses SHA256 hash(date+merchant+amount) stored in `merchant_mappings.financial_id`
 
-What to do:
-1. Audit all SQLite reads/writes in `memory/database.py` and `memory/categorizer.py`
-2. For each piece of data: does it belong in Actual Budget? If yes, remove from SQLite and query AB instead
-3. Verify that `merchant_mappings` confirmed by the user are synced to AB rules
-4. Remove `transactions` and `budget_limits` tables once their usages are migrated
-5. After cleanup: re-test receipt photo flow, CSV import, and auto-categorization end-to-end
+Remaining (low priority, non-blocking):
+- `merchant_mappings` not yet synced to AB rules — category changes confirmed in Majordom are invisible to AB's own rule engine. Fix in a future session alongside M2 rules sync.
+- IBAN storage for auto-transfer detection — store `IBAN: NLxx...` in AB account `note` field; match against CSV Counterparty column to auto-select transfer destination. Tracked as M2.9.
 
 ### Step 2 — Fix bug #27 (429 too-many-requests)
 Chat context fetch opens 3 parallel connections to Actual Budget. Fix: fetch all context in one session (sequential calls, single `with actual:` block). See `backend/api/chat.py` → `_fetch_financial_context()`.

@@ -1219,3 +1219,134 @@ LLM-ul (`_suggest_categories_llm`) filtrează și el "Other" din sugestii.
 - **Detecția transferurilor din descriere lipsește** — ING exportă "Vacanta" ca merchant dar descripția conține "To Oranje spaarrekening". Backend-ul verifică doar merchant name vs. conturi AB. Issue #73.
 - **Retroactiv pentru transferuri e complex** — conversia unei tranzacții deja importate în transfer AB (două tranzacții linked) necesită delete + recreare. Issue #72, lăsat pentru mai târziu.
 - **`update_uncategorized_by_payee` folosește `ilike`** — join Transactions → Payees cu substring match. Dacă join-ul eșuează din cauza schemei actualpy, fallback: fetch all + filter în Python.
+
+---
+
+## 2026-05-31 — Detectarea transferurilor ING: de ce IBAN regex e gresit si cum functioneaza Code=GT
+
+### Problema
+La importul CSV ING, transferurile dintre conturi proprii (ING → BUNQ, ING → ING Savings) nu erau detectate automat. Planul initial: extrage IBAN-ul din campul "Notifications"/descriere cu regex, compara cu IBAN-urile conturilor AB. Rezultat: false positives — ODIDO, o persoana platita prin iDEAL, un Rabo Betaalverzoek — toate marcate gresit ca "Transfer?".
+
+### Ce s-a intamplat
+ING pune IBAN-ul destinatarului in campul Notifications pentru orice tranzactie, nu doar transferuri. `NLxxINGBxxxxxxxxxx` apare si pentru un transfer propriu si pentru o plata iDEAL la o persoana. Regex-ul nu poate distinge.
+
+In plus, conturile AB au nume in engleza (`ING Savings`), dar descrierile ING sunt in olandeza (`Oranje spaarrekening`). String matching intre ele nu functioneaza niciodata.
+
+**Solutia corecta era deja in CSV**: ING exporta coloana `Code` cu valoarea `GT` (Geldtransfer) exact pentru transferurile intre conturi proprii — atat la debit cat si la credit. Orice alta tranzactie are un alt cod (`BA`, `IC`, `OV`, etc.).
+
+```python
+# builtin_profiles.py — toate cele 3 profile ING (EN semicolon, EN comma, NL semicolon)
+"col_transfer_indicator": "Code",
+"transfer_indicator_value": "GT",
+```
+
+`seed_builtin_profiles()` face UPSERT la startup — profilul corectat suprascrie automat orice profil vechi detectat de Ollama.
+
+### Solutia
+```
+CSV row: Code=GT  →  normalizer.py  →  is_transfer_candidate=True
+                                        →  CsvImportCard afiseaza "Transfer?" pre-bifat
+                                        →  user confirma contul sursa/destinatie
+                                        →  actual.queries.create_transfer()  →  AB
+```
+
+### De retinut
+- **Regula de aur pentru transfer detection**: cauta indicatorul nativ al bancii in CSV (ING: `Code=GT`), nu string matching in descriere. Descrierile sunt pentru oameni, nu pentru masini.
+- **IBAN in descriere != transfer propriu**. ING pune IBAN-ul destinatarului pentru *orice* plata, inclusiv iDEAL. Regex pe descriere produce false positives inevitabil.
+
+---
+
+## 2026-05-31 — Trei gotcha-uri React in aceeasi componenta (CsvImportCard)
+
+### Problema
+La implementarea selectarii contului destinatie pentru transferuri in `CsvImportCard`, au aparut trei bug-uri distincte de React/browser care nu aveau legatura cu logica financiara.
+
+### Ce s-a intamplat
+
+**1. `<option value="" disabled>──────────</option>` apare ca valoare selectata**
+
+Separatorul decorativ si optiunea "— no category —" aveau ambele `value=""`. Browser-ul selecteaza primul match — adica separatorul. Orice rand fara categorie afisa liniile ca text selectat.
+
+Fix: sters complet separatorul. Niciun `<option>` decorativ fara `value` unic.
+
+**2. "← back to category" nu functiona — `onChange` nu se declansa**
+
+Select-ul pentru contul de transfer era setat cu `value=""` cand nu era ales niciun cont. Optiunea "← back to category" avea si ea `value=""`. Selectand-o din nou nu schimba valoarea → browser-ul nu declansa `onChange`.
+
+Fix: eliminata optiunea din select; adaugat un buton `×` separat care apeleaza direct `handleTransferAccountChange(row.id, '')`.
+
+**3. `setState` in timpul render-ului → infinite loop in `ReceiptCard`**
+
+```jsx
+// GRESIT — apelat in render
+if (status === 'reviewing' && draft && !merchant) {
+  setMerchant(draft.merchant)  // → trigger re-render → trigger iar → infinit
+}
+
+// CORECT — useEffect cu dependenta pe draft
+useEffect(() => {
+  if (!draft) return
+  setMerchant(draft.merchant ?? '')
+  setAmount(draft.amount?.toString() ?? '')
+}, [draft])
+```
+
+### Solutia
+Cele trei fix-uri sunt independente si au solutii simple odata identificate corect.
+
+### De retinut
+- **`onChange` pe `<select>` nu se declansa daca `value` nu se schimba** — daca vrei un buton "reseteaza", nu folosi o `<option>` cu aceeasi valoare ca cea curenta. Foloseste un element separat (buton, `×`).
+- **Niciodata `setState` in corp de functie render** — mutatiile de state la mount/update merg intotdeauna in `useEffect` cu dependentele corecte.
+
+---
+
+## 2026-05-31 — Bon inline in chat + curatenie SQLite
+
+### Problema
+Bonul foto era pe o pagina separata `/receipt`. La importul CSV, transferurile deja procesate declansau `IncomeSourceCard` in plus. In SQLite existau tabele orfane (`budget_limits`, `transactions`) fara nicio referinta in cod.
+
+### Ce s-a intamplat
+
+**Bon inline**: fluxul pe `/receipt` folosea `sessionStorage` ca sa paseze fisierul intre pagini. Mutat complet in chat: `handleReceiptFile(file)` adauga un mesaj `role: 'receipt'` cu `status: 'loading'` → `uploadReceipt()` in background → actualizeaza mesajul cu draft-ul → `ReceiptCard` afiseaza formularul inline. Nicio navigare, niciun `sessionStorage`.
+
+**IncomeSourceCard + transfer overlap**: dupa import, randurile procesate ca transferuri (cu `transfer_to_account_id` setat) apareau si in `unknown_income_rows` — doua card-uri pentru aceeasi tranzactie.
+
+```python
+# csv_import.py — conditia corecta
+unknown_income_rows = [
+    r for r in rows
+    if not r.is_expense
+    and not r.duplicate
+    and not r.category_name
+    and not r.transfer_to_account_id  # adaugat
+]
+```
+
+**SQLite orfan**: `budget_limits` si `transactions` aveau 0 randuri si nicio referinta in cod Python. Existau in DB (create la un punct in trecut) dar nu si in `database.py` la `CREATE TABLE`. Sterse via Docker exec:
+```bash
+docker compose exec majordom-api python3 -c "
+import sqlite3; conn = sqlite3.connect('/app/data/memory.db')
+conn.execute('DROP TABLE IF EXISTS budget_limits')
+conn.execute('DROP TABLE IF EXISTS transactions')
+conn.commit()
+"
+```
+
+Tabele ramase: `category_keywords`, `csv_profiles`, `merchant_mappings`, `notification_log`, `notification_rules`, `onboarding_state`, `push_subscriptions`, `sqlite_sequence`, `user_preferences`.
+
+### Solutia
+```
+Chat  →  + buton  →  camera/gallery  →  handleReceiptFile(file)
+                                              ↓
+                                      mesaj 'receipt' loading
+                                              ↓
+                                      uploadReceipt()  →  backend OCR
+                                              ↓
+                                      mesaj actualizat cu draft
+                                              ↓
+                                      ReceiptCard: formular inline
+```
+
+### De retinut
+- **Tabele pot exista in DB fara sa fie in schema `CREATE TABLE`** — `DROP TABLE` via Docker exec cand fisierul e owned by root din container.
+- **Orice rand procesat ca transfer trebuie exclus explicit din toate celelalte fluxuri** (IncomeSourceCard, categorization) — backend-ul nu stie automat ca un rand a fost "consumat" de o alta logica.

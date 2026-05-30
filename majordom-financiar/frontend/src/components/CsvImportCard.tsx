@@ -9,6 +9,8 @@ import {
 
 // --- Local types (mirrors ImportRow from api.ts with local UI additions) ---
 
+const TRANSFER_VALUE = '__transfer__'
+
 interface LocalRow {
   id: string
   date: string
@@ -22,6 +24,8 @@ interface LocalRow {
   isTransferCandidate: boolean
   excluded: boolean
   notes: string
+  transferToAccountId: string  // non-empty → this row is a transfer to that account
+  isManualTransfer: boolean    // true when user explicitly selected "↔ Transfer to…"
 }
 
 // Word-level Jaccard similarity for merchant name matching.
@@ -102,6 +106,8 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
       isTransferCandidate: r.is_transfer_candidate ?? false,
       excluded: r.is_transfer_candidate ?? false,
       notes: '',
+      transferToAccountId: '',
+      isManualTransfer: false,
     }))
   )
   const [importing, setImporting] = useState(false)
@@ -117,7 +123,9 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
   }
 
   const activeRows = rows.filter(r => !r.duplicate && !r.excluded)
+  const transferRows = rows.filter(r => !r.duplicate && r.isManualTransfer && r.transferToAccountId)
   const duplicateCount = rows.filter(r => r.duplicate).length
+  // A row needs action if: it's an active expense with no category AND not a transfer with account set
   const needsActionCount = activeRows.filter(r => r.categoryName === '' && r.is_expense).length
   const totalExpenses = activeRows.filter(r => r.is_expense).reduce((s, r) => s + r.amount, 0)
   const totalIncome = activeRows.filter(r => !r.is_expense).reduce((s, r) => s + r.amount, 0)
@@ -126,13 +134,39 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
     setRows(prev => {
       const merchant = prev.find(r => r.id === id)?.merchant ?? ''
       return prev.map(r => {
-        if (r.id === id) return { ...r, categoryName, categoryConfirmed: true }
-        if (!r.duplicate && !r.categoryConfirmed && merchantSimilarity(r.merchant, merchant) >= 0.5) {
+        if (r.id === id) {
+          // Switching to transfer clears the category; switching away clears the account
+          const isTransfer = categoryName === TRANSFER_VALUE
+          return {
+            ...r,
+            categoryName: isTransfer ? '' : categoryName,
+            categoryConfirmed: !isTransfer,
+            transferToAccountId: isTransfer ? r.transferToAccountId : '',
+            isManualTransfer: isTransfer,
+            excluded: isTransfer ? true : (r.isTransferCandidate ? r.excluded : false),
+          }
+        }
+        if (!r.duplicate && !r.categoryConfirmed && categoryName !== TRANSFER_VALUE && merchantSimilarity(r.merchant, merchant) >= 0.5) {
           return { ...r, categoryName, categoryConfirmed: true }
         }
         return r
       })
     })
+  }
+
+  function handleTransferAccountChange(id: string, value: string) {
+    if (!value) {
+      // User selected "← back" — cancel and return to category mode
+      setRows(prev => prev.map(r =>
+        r.id === id
+          ? { ...r, isManualTransfer: false, transferToAccountId: '', categoryName: '', excluded: false }
+          : r
+      ))
+    } else {
+      setRows(prev => prev.map(r =>
+        r.id === id ? { ...r, transferToAccountId: value, excluded: true } : r
+      ))
+    }
   }
 
   function handleToggleExclude(id: string) {
@@ -142,9 +176,14 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
   async function handleImport() {
     setImporting(true)
     try {
+      // Include regular rows + transfer rows (those excluded but with a destination account)
+      const rowsToSend = [
+        ...rows.filter(r => !r.excluded),
+        ...transferRows,
+      ]
       const result = await confirmCsvImport({
         account_id: accountId,
-        rows: rows.filter(r => !r.excluded).map(r => ({
+        rows: rowsToSend.map(r => ({
           date: r.date,
           merchant: r.merchant,
           amount: r.amount,
@@ -152,6 +191,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
           category_name: r.categoryName,
           duplicate: r.duplicate,
           is_transfer_candidate: r.isTransferCandidate,
+          transfer_to_account_id: r.transferToAccountId || undefined,
           notes: r.notes || undefined,
         })),
       })
@@ -251,15 +291,71 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
                   <td className="py-1">
                     {row.duplicate ? (
                       <span className="text-muted italic">duplicate</span>
-                    ) : row.isTransferCandidate && row.excluded ? (
-                      <span className="text-muted italic">Excluded</span>
+                    ) : row.isManualTransfer && row.transferToAccountId ? (
+                      // Transfer confirmed — full "A → B" badge + undo button
+                      (() => {
+                        const thisAccName = preview.accounts.find(a => a.id === accountId)?.name ?? '?'
+                        const otherAccName = preview.accounts.find(a => a.id === row.transferToAccountId)?.name ?? '?'
+                        const fromName = row.is_expense ? thisAccName : otherAccName
+                        const toName   = row.is_expense ? otherAccName : thisAccName
+                        return (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-blue-400 text-[11px] bg-blue-500/10 border border-blue-500/30 px-2 py-1 rounded-lg whitespace-nowrap leading-tight">
+                              {fromName} → {toName}
+                            </span>
+                            <button
+                              onClick={() => setRows(prev => prev.map(r =>
+                                r.id === row.id
+                                  ? { ...r, isManualTransfer: false, transferToAccountId: '', categoryName: '', excluded: false }
+                                  : r
+                              ))}
+                              className="text-muted hover:text-red-400 text-sm leading-none flex-shrink-0"
+                              title="Remove transfer"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        )
+                      })()
+                    ) : row.isManualTransfer && !row.transferToAccountId ? (
+                      // Transfer selected, waiting for the other account
+                      // Use a button for cancel — select option with value="" won't trigger
+                      // onChange when it's already the current value.
+                      <div className="flex gap-1 items-center">
+                        <select
+                          value=""
+                          onChange={e => handleTransferAccountChange(row.id, e.target.value)}
+                          className={`${selectClass} border-yellow-500/60 flex-1`}
+                          autoFocus
+                        >
+                          <option value="" disabled>
+                            {row.is_expense ? '— to which account? —' : '— from which account? —'}
+                          </option>
+                          {preview.accounts
+                            .filter(acc => acc.id !== accountId)
+                            .map((acc: AccountOption) => (
+                              <option key={acc.id} value={acc.id}>{acc.name}</option>
+                            ))}
+                        </select>
+                        <button
+                          onClick={() => handleTransferAccountChange(row.id, '')}
+                          className="text-muted hover:text-white text-sm leading-none flex-shrink-0 px-1"
+                          title="Cancel transfer"
+                        >
+                          ×
+                        </button>
+                      </div>
                     ) : (
+                      // Normal: category dropdown with Transfer as first option
                       <div className="relative">
                         <select
                           value={row.categoryName}
                           onChange={e => handleCategoryChange(row.id, e.target.value)}
                           className={`${selectClass} ${row.categoryName === '' ? 'border-yellow-500/60 pr-5' : !row.categoryConfirmed ? 'border-yellow-500/30 pr-5' : ''}`}
                         >
+                          <option value={TRANSFER_VALUE}>
+                            {row.is_expense ? '↔ Transfer to…' : '↔ Transfer from…'}
+                          </option>
                           <option value="">— no category —</option>
                           {preview.ab_categories.map(name => (
                             <option key={name} value={name}>{name}</option>

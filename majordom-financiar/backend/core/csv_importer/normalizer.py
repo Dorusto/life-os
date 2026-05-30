@@ -123,16 +123,16 @@ class CsvNormalizer:
             is_expense = amount_float < 0
 
         # Internal transfer candidate detection
-        # transfer_indicator_value="" means "column must be empty" (e.g. ING Counterparty field)
-        # transfer_indicator_value="X" means "column must equal X and direction must be Credit"
+        # transfer_indicator_value="" means "column must be empty" (e.g. empty Counterparty)
+        # transfer_indicator_value="X" means "column must equal X" — both directions
+        #   ING Code="GT" (Geldtransfer) marks own-account transfers as both debit and credit
         is_transfer_candidate = False
         if profile.col_transfer_indicator:
             indicator_raw = self._get_col(row, profile.col_transfer_indicator)
             if profile.transfer_indicator_value == "":
-                # Empty counterparty = own ING account transfer (both directions)
                 if not indicator_raw:
                     is_transfer_candidate = True
-            elif indicator_raw.lower() == profile.transfer_indicator_value.lower() and not is_expense:
+            elif indicator_raw.lower() == profile.transfer_indicator_value.lower():
                 is_transfer_candidate = True
 
         amount = abs(amount_float)

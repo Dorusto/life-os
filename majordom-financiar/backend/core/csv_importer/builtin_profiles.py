@@ -37,8 +37,8 @@ BUILTIN_PROFILES = [
             "decimal_sep": ",",
             "encoding": "utf-8",
             "confirmed": True,
-            "col_transfer_indicator": "",
-            "transfer_indicator_value": "",
+            "col_transfer_indicator": "Code",
+            "transfer_indicator_value": "GT",
         },
     },
     # -------------------------------------------------------------------------
@@ -66,8 +66,8 @@ BUILTIN_PROFILES = [
             "decimal_sep": ",",
             "encoding": "utf-8",
             "confirmed": True,
-            "col_transfer_indicator": "",
-            "transfer_indicator_value": "",
+            "col_transfer_indicator": "Code",
+            "transfer_indicator_value": "GT",
         },
     },
     # -------------------------------------------------------------------------
@@ -96,8 +96,8 @@ BUILTIN_PROFILES = [
             "decimal_sep": ",",
             "encoding": "utf-8",
             "confirmed": True,
-            "col_transfer_indicator": "",
-            "transfer_indicator_value": "",
+            "col_transfer_indicator": "Code",
+            "transfer_indicator_value": "GT",
         },
     },
     # -------------------------------------------------------------------------

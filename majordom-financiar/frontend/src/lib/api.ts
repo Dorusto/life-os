@@ -221,6 +221,7 @@ export interface ImportRowConfirm {
   category_name: string      // actual AB category name, or "" = uncategorized
   duplicate: boolean
   is_transfer_candidate: boolean
+  transfer_to_account_id?: string  // set → create AB transfer to this account
   notes?: string
 }
 
@@ -235,6 +236,8 @@ export interface ImportResult {
   skipped: number
   retroactively_updated?: number
   unknown_income_rows?: Array<{ payee: string; amount: number; date: string }>
+  account_balance?: number
+  account_name?: string
 }
 
 export async function previewCsvImport(file: File): Promise<ImportPreview> {

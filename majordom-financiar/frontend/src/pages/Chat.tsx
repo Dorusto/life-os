@@ -1,8 +1,7 @@
 import { useState, useRef, useEffect, FormEvent } from 'react'
 import { Send, Plus, Camera, Image, FileText, HelpCircle, X } from 'lucide-react'
-import { useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
-import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, type SetupAccount, type BalanceAdjustmentData, type ImportPreview } from '../lib/api'
+import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, uploadReceipt, type SetupAccount, type BalanceAdjustmentData, type ImportPreview, type ReceiptDraft } from '../lib/api'
 import CsvImportCard from '../components/CsvImportCard'
 import { getToken, clearAuth } from '../lib/auth'
 import ProposalCard, { ProposalData } from '../components/ProposalCard'
@@ -12,11 +11,13 @@ import AccountTransferCard from '../components/AccountTransferCard'
 import SetupBalancesCard from '../components/SetupBalancesCard'
 import BalanceAdjustmentCard from '../components/BalanceAdjustmentCard'
 import IncomeSourceCard from '../components/IncomeSourceCard'
+import ReconciliationCard from '../components/ReconciliationCard'
+import ReceiptCard from '../components/ReceiptCard'
 import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from '../lib/api'
 
 
 export interface Message {
-  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'income_source'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'income_source' | 'reconciliation' | 'receipt'
   content: string
   proposal?: ProposalData
   budgetRebalance?: BudgetRebalanceData
@@ -26,6 +27,8 @@ export interface Message {
   setupAccounts?: SetupAccount[]
   csvImport?: { status: 'loading' | 'ready' | 'error'; preview?: ImportPreview; error?: string }
   incomeRow?: { payee: string; amount: number; date: string }
+  reconciliation?: { accountName: string; balance: number; importedCount: number }
+  receipt?: { status: 'loading' | 'reviewing' | 'error'; imageUrl: string; draft?: ReceiptDraft; error?: string }
 }
 
 
@@ -45,7 +48,6 @@ interface ChatProps {
 }
 
 export default function Chat({ messages, setMessages }: ChatProps) {
-  const navigate = useNavigate()
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [sentHistory, setSentHistory] = useState<string[]>([])
@@ -56,6 +58,8 @@ export default function Chat({ messages, setMessages }: ChatProps) {
   const [showMediaMenu, setShowMediaMenu] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const csvInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const mediaMenuRef = useRef<HTMLDivElement>(null)
@@ -135,6 +139,43 @@ export default function Chat({ messages, setMessages }: ChatProps) {
       }
     }).catch(() => {})
   }, [])
+
+  function handleReceiptFile(file: File) {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const imageUrl = reader.result as string
+
+      // Add loading placeholder to chat
+      setMessages(prev => [...prev, {
+        role: 'receipt' as const,
+        content: '',
+        receipt: { status: 'loading' as const, imageUrl },
+      }])
+
+      uploadReceipt(file)
+        .then(draft => {
+          setMessages(prev => {
+            const idx = [...prev].reverse().findIndex(m => m.role === 'receipt' && m.receipt?.status === 'loading')
+            if (idx === -1) return prev
+            const realIdx = prev.length - 1 - idx
+            const updated = [...prev]
+            updated[realIdx] = { ...updated[realIdx], receipt: { status: 'reviewing', imageUrl, draft } }
+            return updated
+          })
+        })
+        .catch(err => {
+          setMessages(prev => {
+            const idx = [...prev].reverse().findIndex(m => m.role === 'receipt' && m.receipt?.status === 'loading')
+            if (idx === -1) return prev
+            const realIdx = prev.length - 1 - idx
+            const updated = [...prev]
+            updated[realIdx] = { ...updated[realIdx], receipt: { status: 'error', imageUrl, error: err.message || 'Failed to read receipt' } }
+            return updated
+          })
+        })
+    }
+    reader.readAsDataURL(file)
+  }
 
   async function handleCsvSelected(file: File) {
     // Append a loading placeholder to chat
@@ -728,6 +769,18 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                       })
                     }
                   }
+                  // Append reconciliation card if backend returned account balance
+                  if (result?.account_balance !== undefined && result.account_name) {
+                    newMessages.push({
+                      role: 'reconciliation' as const,
+                      content: '',
+                      reconciliation: {
+                        accountName: result.account_name,
+                        balance: result.account_balance,
+                        importedCount: result.imported,
+                      },
+                    })
+                  }
                   setMessages(prev => {
                     const updated = prev.map((m, i) =>
                       i === idx ? newMessages[0] : m
@@ -756,6 +809,48 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                       i === idx ? { role: 'status' as const, content: message } : m
                     )
                   )
+                }}
+              />
+            ) : msg.role === 'receipt' && msg.receipt ? (
+              <ReceiptCard
+                imageUrl={msg.receipt.imageUrl}
+                status={msg.receipt.status}
+                draft={msg.receipt.draft}
+                error={msg.receipt.error}
+                onConfirmed={(message) => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx ? { role: 'status' as const, content: message } : m
+                    )
+                  )
+                }}
+                onCancelled={() => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx ? { role: 'status' as const, content: 'Receipt cancelled.' } : m
+                    )
+                  )
+                }}
+              />
+            ) : msg.role === 'reconciliation' && msg.reconciliation ? (
+              <ReconciliationCard
+                accountName={msg.reconciliation.accountName}
+                balance={msg.reconciliation.balance}
+                importedCount={msg.reconciliation.importedCount}
+                onDismiss={() => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx ? { role: 'status' as const, content: 'Balance confirmed.' } : m
+                    )
+                  )
+                }}
+                onAdjust={(realBalance) => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx ? { role: 'status' as const, content: 'Checking balance...' } : m
+                    )
+                  )
+                  handleSendText(`Balance for ${msg.reconciliation!.accountName} should be €${realBalance.toFixed(2)}`)
                 }}
               />
             ) : (
@@ -835,8 +930,8 @@ export default function Chat({ messages, setMessages }: ChatProps) {
           {showMediaMenu && (
             <div className="absolute bottom-12 left-0 w-[208px] bg-surface border border-border rounded-2xl shadow-xl overflow-hidden z-50">
               {([
-                { icon: Camera,   label: 'Take photo',          action: () => navigate('/receipt') },
-                { icon: Image,    label: 'Choose from gallery',  action: () => navigate('/receipt') },
+                { icon: Camera,   label: 'Take photo',          action: () => cameraInputRef.current?.click() },
+                { icon: Image,    label: 'Choose from gallery',  action: () => galleryInputRef.current?.click() },
                 { icon: FileText, label: 'Upload CSV',           action: () => csvInputRef.current?.click() },
               ] as const).map(({ icon: Icon, label, action }) => (
                 <button
@@ -883,7 +978,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
         </button>
       </form>
 
-      {/* Hidden CSV file input */}
+      {/* Hidden file inputs */}
       <input
         ref={csvInputRef}
         type="file"
@@ -895,6 +990,31 @@ export default function Chat({ messages, setMessages }: ChatProps) {
           e.target.value = ''
           setShowMediaMenu(false)
           handleCsvSelected(f)
+        }}
+      />
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={e => {
+          const f = e.target.files?.[0]
+          if (!f) return
+          e.target.value = ''
+          handleReceiptFile(f)
+        }}
+      />
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={e => {
+          const f = e.target.files?.[0]
+          if (!f) return
+          e.target.value = ''
+          handleReceiptFile(f)
         }}
       />
     </div>

@@ -88,6 +88,7 @@ class ImportRowConfirm(BaseModel):
     category_name: str  # actual AB category name, or "" = leave uncategorized
     duplicate: bool
     is_transfer_candidate: bool = False
+    transfer_to_account_id: str = ""  # non-empty → create AB transfer to this account
     notes: str = ""
 
 
@@ -108,6 +109,8 @@ class ImportResult(BaseModel):
     merged: int = 0
     retroactively_updated: int = 0
     unknown_income_rows: list[UnknownIncomeRow] = []
+    account_balance: float | None = None
+    account_name: str | None = None
 
 # ---------------------------------------------------------------------------
 # Sync helpers — run in thread executor via ActualBudgetClient._run()
@@ -238,7 +241,28 @@ def _do_import(
                     skipped += 1
                 continue
 
-            # Skip internal transfer candidates — they are not expenses or income
+            # User-confirmed transfer → create proper AB transfer (two linked transactions).
+            # For expense rows: money leaves account_id → transfer_to_account_id.
+            # For income rows: money arrives from transfer_to_account_id → account_id.
+            if row.transfer_to_account_id:
+                from actual.queries import create_transfer as ab_create_transfer
+                from decimal import Decimal
+                tx_notes = f"[import CSV] {row.notes}".strip() if row.notes else "[import CSV]"
+                src = account_id if row.is_expense else row.transfer_to_account_id
+                dst = row.transfer_to_account_id if row.is_expense else account_id
+                ab_create_transfer(
+                    actual.session,
+                    date=tx_date,
+                    source_account=src,
+                    dest_account=dst,
+                    amount=Decimal(str(row.amount)),
+                    notes=tx_notes,
+                )
+                existing_ids.add(fid)
+                imported += 1
+                continue
+
+            # Skip auto-detected transfer candidates that have no user-confirmed destination
             if row.is_transfer_candidate:
                 skipped += 1
                 continue
@@ -513,7 +537,7 @@ async def preview_csv(
             currency=tx.currency,
             category_name=ab_name,
             # "Other" is a fallback, not a real categorization — never treat as confirmed.
-            # Amounts above €150 always require re-verification regardless of history.
+            # Amounts above €50 always require re-verification regardless of history.
             category_confirmed=(
                 bool(ab_name)
                 and pred.from_history
@@ -584,6 +608,10 @@ async def confirm_csv(
         lambda: _do_import(actual, body.account_id, body.rows)
     )
 
+    # Fetch current balance for the reconciliation message
+    accounts_after = await actual.get_accounts()
+    matched_account = next((a for a in accounts_after if a.id == body.account_id), None)
+
     # Teach SmartCategorizer from confirmed categories so future imports remember
     # merchant → AB category name mappings without any Ollama call.
     db = MemoryDB(db_path=settings.memory.db_path)
@@ -598,7 +626,7 @@ async def confirm_csv(
     seen_payees: set[str] = set()
     unknown_income_rows: list[UnknownIncomeRow] = []
     for row in body.rows:
-        if not row.is_expense and not row.duplicate and not row.category_name:
+        if not row.is_expense and not row.duplicate and not row.category_name and not row.transfer_to_account_id:
             if row.merchant not in seen_payees:
                 seen_payees.add(row.merchant)
                 unknown_income_rows.append(UnknownIncomeRow(
@@ -617,4 +645,6 @@ async def confirm_csv(
         merged=merged,
         retroactively_updated=retroactively_updated,
         unknown_income_rows=unknown_income_rows,
+        account_balance=matched_account.balance if matched_account else None,
+        account_name=matched_account.name if matched_account else None,
     )

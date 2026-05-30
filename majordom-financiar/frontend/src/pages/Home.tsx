@@ -1,31 +1,15 @@
-import { useRef, useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Camera, Image, LogOut, Bell } from 'lucide-react'
+import { LogOut, Bell } from 'lucide-react'
 import { getTransactions, getBudgetStatus, getAccounts } from '../lib/api'
 import { getUsername, clearAuth } from '../lib/auth'
 import { requestAndSubscribe } from '../lib/push'
 import TransactionItem from '../components/TransactionItem'
 import BudgetDashboard from '../components/BudgetDashboard'
 
-/**
- * Home screen — the main screen after login.
- *
- * Layout:
- *   - Top: greeting + logout
- *   - Center: two upload buttons (camera / gallery)
- *   - Bottom: last 5 transactions
- *
- * The two upload inputs (camera / gallery) are hidden <input> elements triggered
- * by button clicks. This is the standard PWA pattern for photo capture:
- *   - Camera button: capture="environment" → opens rear camera directly
- *   - Gallery button: no capture attr → opens photo library
- * Both require HTTPS in production (Tailscale or Coolify handle this).
- */
 export default function Home() {
   const navigate = useNavigate()
-  const cameraInputRef = useRef<HTMLInputElement>(null)
-  const galleryInputRef = useRef<HTMLInputElement>(null)
 
   const { data: transactions, isLoading } = useQuery({
     queryKey: ['transactions'],
@@ -45,27 +29,6 @@ export default function Home() {
   })
 
   const totalBalance = accounts?.reduce((sum, acc) => sum + acc.balance, 0) ?? null
-
-  function handleFile(file: File) {
-    // Store the selected file in sessionStorage as a data URL so ReceiptFlow
-    // can access it without re-uploading. We use sessionStorage (not state)
-    // because navigation clears component state.
-    const reader = new FileReader()
-    reader.onload = () => {
-      sessionStorage.setItem('pendingReceiptDataUrl', reader.result as string)
-      sessionStorage.setItem('pendingReceiptName', file.name)
-      sessionStorage.setItem('pendingReceiptType', file.type)
-      navigate('/receipt')
-    }
-    reader.readAsDataURL(file)
-  }
-
-  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (file) handleFile(file)
-    // Reset input so selecting the same file again triggers onChange
-    e.target.value = ''
-  }
 
   function handleLogout() {
     clearAuth()
@@ -118,61 +81,6 @@ export default function Home() {
         </button>
       )}
 
-      {/* Upload buttons */}
-      <section className="flex flex-col items-center px-5 pt-8 pb-6 gap-4">
-        <p className="text-muted text-sm tracking-wide uppercase text-xs">Add receipt</p>
-
-        {/* Camera button — opens rear camera directly */}
-        <div className="w-full max-w-xs flex flex-col gap-3">
-          <button
-            onClick={() => cameraInputRef.current?.click()}
-            className="
-              w-full py-5 rounded-2xl bg-accent hover:bg-accent-hover active:scale-[0.97]
-              flex items-center justify-center gap-3
-              text-white font-medium text-base
-              transition-all duration-150 shadow-lg shadow-accent/20
-            "
-          >
-            <Camera size={22} />
-            Take Photo
-          </button>
-
-          {/* Gallery button — opens photo library */}
-          <button
-            onClick={() => galleryInputRef.current?.click()}
-            className="
-              w-full py-4 rounded-2xl bg-surface hover:bg-surface-2 active:scale-[0.97]
-              border border-border hover:border-border-hover
-              flex items-center justify-center gap-3
-              text-white font-medium text-base
-              transition-all duration-150
-            "
-          >
-            <Image size={20} />
-            Choose from Gallery
-          </button>
-        </div>
-
-        {/* Hidden file inputs */}
-        <input
-          ref={cameraInputRef}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={handleInputChange}
-          className="hidden"
-          aria-hidden="true"
-        />
-        <input
-          ref={galleryInputRef}
-          type="file"
-          accept="image/*"
-          onChange={handleInputChange}
-          className="hidden"
-          aria-hidden="true"
-        />
-      </section>
-
       {/* Budget dashboard */}
       {budgetStatus && budgetStatus.length > 0 && (
         <section className="px-5 pb-4">
@@ -199,7 +107,7 @@ export default function Home() {
 
         {!isLoading && transactions && transactions.length === 0 && (
           <p className="text-muted text-sm text-center py-6">
-            No transactions yet. Add your first receipt above.
+            No transactions yet. Use the chat to add your first receipt.
           </p>
         )}
 
