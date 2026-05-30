@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Upload, ChevronLeft, ChevronRight, Check, AlertCircle, Loader2 } from 'lucide-react'
@@ -45,7 +45,12 @@ function merchantSimilarity(a: string, b: string): number {
 
 type Step = 1 | 2 | 3 | 4
 
-export default function ImportPage() {
+interface ImportPageProps {
+  initialFile?: File
+  onDone?: (result: ImportResult) => void
+}
+
+export default function ImportPage({ initialFile, onDone }: ImportPageProps) {
   const navigate = useNavigate()
   const [step, setStep] = useState<Step>(1)
   const [file, setFile] = useState<File | null>(null)
@@ -91,12 +96,21 @@ export default function ImportPage() {
     setRows(prev => prev.map(r => r.id === id ? { ...r, notes } : r))
   }
 
-  async function handlePreview() {
-    if (!file) return
+  useEffect(() => {
+    if (initialFile) {
+      setFile(initialFile)
+      handlePreview(initialFile)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  async function handlePreview(fileArg?: File) {
+    const f = fileArg ?? file
+    if (!f) return
     setLoading(true)
     setError(null)
     try {
-      const preview = await previewCsvImport(file)
+      const preview = await previewCsvImport(f)
       setRows(preview.rows.map(r => ({
         id: r.id,
         date: r.date,
@@ -232,7 +246,7 @@ export default function ImportPage() {
               skipped={importResult?.skipped ?? 0}
               merged={importResult?.merged}
               retroactivelyUpdated={importResult?.retroactively_updated}
-              onHome={() => navigate('/')}
+              onHome={() => onDone && importResult ? onDone(importResult) : navigate('/')}
             />
           )}
         </motion.div>

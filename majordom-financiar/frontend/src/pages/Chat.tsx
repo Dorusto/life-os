@@ -2,7 +2,8 @@ import { useState, useRef, useEffect, FormEvent } from 'react'
 import { Send, Plus, Camera, Image, FileText } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
-import { sendChatMessageStreaming, getSetupStatus, type SetupAccount, type BalanceAdjustmentData } from '../lib/api'
+import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, type SetupAccount, type BalanceAdjustmentData, type ImportPreview } from '../lib/api'
+import CsvImportCard from '../components/CsvImportCard'
 import { getToken, clearAuth } from '../lib/auth'
 import ProposalCard, { ProposalData } from '../components/ProposalCard'
 import BudgetRebalanceCard from '../components/BudgetRebalanceCard'
@@ -14,7 +15,7 @@ import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from
 
 
 export interface Message {
-  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import'
   content: string
   proposal?: ProposalData
   budgetRebalance?: BudgetRebalanceData
@@ -22,6 +23,7 @@ export interface Message {
   accountTransfer?: AccountTransferData
   balanceAdjustment?: BalanceAdjustmentData
   setupAccounts?: SetupAccount[]
+  csvImport?: { status: 'loading' | 'ready' | 'error'; preview?: ImportPreview; error?: string }
 }
 
 
@@ -50,6 +52,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
   const [isOnboarding, setIsOnboarding] = useState(false)
   const [onboardingProgress, setOnboardingProgress] = useState<{ current: number; total: number } | null>(null)
   const [showMediaMenu, setShowMediaMenu] = useState(false)
+  const csvInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const mediaMenuRef = useRef<HTMLDivElement>(null)
@@ -129,6 +132,45 @@ export default function Chat({ messages, setMessages }: ChatProps) {
       }
     }).catch(() => {})
   }, [])
+
+  async function handleCsvSelected(file: File) {
+    // Append a loading placeholder to chat
+    setMessages(prev => [...prev, {
+      role: 'csv_import' as const,
+      content: '',
+      csvImport: { status: 'loading' },
+    }])
+
+    try {
+      const preview = await previewCsvImport(file)
+      // Replace loading placeholder with real preview data
+      setMessages(prev => {
+        const idx = [...prev].reverse().findIndex(m => m.role === 'csv_import')
+        if (idx === -1) return prev
+        const realIdx = prev.length - 1 - idx
+        const updated = [...prev]
+        updated[realIdx] = {
+          role: 'csv_import' as const,
+          content: '',
+          csvImport: { status: 'ready', preview },
+        }
+        return updated
+      })
+    } catch (err) {
+      setMessages(prev => {
+        const idx = [...prev].reverse().findIndex(m => m.role === 'csv_import')
+        if (idx === -1) return prev
+        const realIdx = prev.length - 1 - idx
+        const updated = [...prev]
+        updated[realIdx] = {
+          role: 'csv_import' as const,
+          content: '',
+          csvImport: { status: 'error', error: err instanceof Error ? err.message : 'Failed to parse CSV' },
+        }
+        return updated
+      })
+    }
+  }
 
   // Send a specific text programmatically (used by ClarificationCard option clicks)
   function handleSendText(text: string) {
@@ -603,6 +645,20 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                   )
                 }}
               />
+            ) : msg.role === 'csv_import' && msg.csvImport ? (
+              <CsvImportCard
+                data={msg.csvImport}
+                onConfirmed={(message) => {
+                  setMessages(prev =>
+                    prev.map((m, i) => i === idx ? { role: 'status' as const, content: message } : m)
+                  )
+                }}
+                onCancelled={() => {
+                  setMessages(prev =>
+                    prev.map((m, i) => i === idx ? { role: 'status' as const, content: 'Import cancelled.' } : m)
+                  )
+                }}
+              />
             ) : (
 
               <div
@@ -682,7 +738,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
               {([
                 { icon: Camera,   label: 'Take photo',          action: () => navigate('/receipt') },
                 { icon: Image,    label: 'Choose from gallery',  action: () => navigate('/receipt') },
-                { icon: FileText, label: 'Upload CSV',           action: () => navigate('/import') },
+                { icon: FileText, label: 'Upload CSV',           action: () => csvInputRef.current?.click() },
               ] as const).map(({ icon: Icon, label, action }) => (
                 <button
                   key={label}
@@ -728,6 +784,20 @@ export default function Chat({ messages, setMessages }: ChatProps) {
         </button>
       </form>
 
+      {/* Hidden CSV file input */}
+      <input
+        ref={csvInputRef}
+        type="file"
+        accept=".csv"
+        className="hidden"
+        onChange={e => {
+          const f = e.target.files?.[0]
+          if (!f) return
+          e.target.value = ''
+          setShowMediaMenu(false)
+          handleCsvSelected(f)
+        }}
+      />
     </div>
   )
 }

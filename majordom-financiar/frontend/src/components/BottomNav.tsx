@@ -1,9 +1,10 @@
 import { NavLink } from 'react-router-dom'
-import { Home, Upload, MessageCircle } from 'lucide-react'
+import { Home, MessageCircle } from 'lucide-react'
 
 /**
- * Bottom navigation bar — visible on all main pages (Home, Import, Chat).
+ * Bottom navigation bar — visible on all main pages (Home, Chat).
  * Hidden on /login and /receipt (full-screen flows).
+ * CSV import is accessed via the + button in the Chat input bar.
  *
  * Uses NavLink so the active tab is highlighted automatically.
  * `pb-safe` ensures the bar clears the iOS home indicator on notched phones.
@@ -11,7 +12,6 @@ import { Home, Upload, MessageCircle } from 'lucide-react'
 
 const tabs = [
   { to: '/', icon: Home, label: 'Home' },
-  { to: '/import', icon: Upload, label: 'Import' },
   { to: '/chat', icon: MessageCircle, label: 'Chat' },
 ]
 
