@@ -186,6 +186,7 @@ export interface MonthlyStats {
   month: number
   year: number
   total: number
+  income: number
   count: number
   categories: CategoryStat[]
 }
@@ -403,6 +404,20 @@ export async function getMonthlyStats(month?: number, year?: number): Promise<Mo
   if (year) params.set('year', String(year))
   const qs = params.toString()
   return request<MonthlyStats>(`/stats${qs ? `?${qs}` : ''}`)
+}
+
+// --- Goals ---
+
+export interface Goal {
+  id: string
+  name: string
+  balance: number
+  target: number
+  percentage: number
+}
+
+export async function getGoals(): Promise<Goal[]> {
+  return request<Goal[]>('/accounts/goals')
 }
 
 // --- Budget ---

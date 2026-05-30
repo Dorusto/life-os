@@ -150,6 +150,7 @@ class ActualBudgetClient:
                 txs = get_transactions(actual.session, start_date=start, end_date=end)
 
                 total = 0.0
+                income = 0.0
                 count = 0
                 by_category: dict[str, dict] = defaultdict(lambda: {"total": 0.0, "count": 0, "name": ""})
 
@@ -157,12 +158,13 @@ class ActualBudgetClient:
                     if tx.tombstone or tx.starting_balance_flag:
                         continue
                     if tx.transferred_id:
-                        continue  # skip transfer legs — not spending
-                    if tx.category and getattr(tx.category, 'is_income', False):
-                        continue  # skip income-category transactions regardless of sign
+                        continue  # skip transfer legs — not spending/income
                     amount = float(tx.amount or 0) / 100
-                    if amount >= 0:
-                        continue  # skip income
+                    if amount > 0:
+                        income += amount
+                        continue
+                    if tx.category and getattr(tx.category, 'is_income', False):
+                        continue  # skip income-category transactions
                     amount = abs(amount)
                     total += amount
                     count += 1
@@ -215,6 +217,7 @@ class ActualBudgetClient:
                     "month": month,
                     "year": year,
                     "total": round(total, 2),
+                    "income": round(income, 2),
                     "count": count,
                     "categories": dict(by_category),
                 }
@@ -511,6 +514,70 @@ class ActualBudgetClient:
                 return diff_euros
 
         return await self._run(_adjust)
+
+    async def get_goals(self) -> list[dict]:
+        """
+        Return accounts that have a savings goal defined in their note field.
+        Format: the account note must contain a line "TARGET: 25000" (case-insensitive).
+        Returns list of {id, name, balance, target, percentage}.
+        """
+        def _get():
+            import re
+            from actual.queries import get_accounts, get_transactions
+            with self._get_actual() as actual:
+                actual.download_budget()
+                accounts = get_accounts(actual.session)
+                result = []
+                for acc in accounts:
+                    if acc.closed or acc.tombstone:
+                        continue
+                    note = acc.notes or ""
+                    match = re.search(r'TARGET:\s*([\d]+(?:\.\d+)?)', note, re.IGNORECASE)
+                    if not match:
+                        continue
+                    target = float(match.group(1))
+                    txs = get_transactions(actual.session, account=acc)
+                    balance = sum(
+                        float(tx.amount or 0) for tx in txs if not tx.tombstone
+                    ) / 100
+                    percentage = round(balance / target * 100, 1) if target > 0 else 0.0
+                    result.append({
+                        "id": str(acc.id),
+                        "name": acc.name,
+                        "balance": round(balance, 2),
+                        "target": target,
+                        "percentage": percentage,
+                    })
+                return result
+        return await self._run(_get)
+
+    async def set_account_goal(self, account_name: str, target: float) -> str:
+        """
+        Write or update TARGET: <amount> in the note field of the named account.
+        Returns the account name on success.
+        """
+        def _set():
+            import re
+            from actual.queries import get_accounts
+            with self._get_actual() as actual:
+                actual.download_budget()
+                accounts = get_accounts(actual.session)
+                acc = next(
+                    (a for a in accounts if a.name.lower() == account_name.lower() and not a.closed),
+                    None,
+                )
+                if not acc:
+                    raise ValueError(f"Account not found: {account_name}")
+                note = acc.notes or ""
+                new_tag = f"TARGET: {int(target) if target == int(target) else target}"
+                if re.search(r'TARGET:\s*[\d]+(?:\.\d+)?', note, re.IGNORECASE):
+                    note = re.sub(r'TARGET:\s*[\d]+(?:\.\d+)?', new_tag, note, flags=re.IGNORECASE)
+                else:
+                    note = (note.strip() + "\n" + new_tag).strip()
+                acc.notes = note
+                actual.commit()
+                return acc.name
+        return await self._run(_set)
 
     async def get_total_balance(self) -> float:
         accounts = await self.get_accounts()

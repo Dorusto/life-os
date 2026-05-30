@@ -145,6 +145,7 @@ class MonthlyStats(BaseModel):
     month: int
     year: int
     total: float        # total expenses this month
+    income: float       # total income this month
     count: int          # number of expense transactions
     categories: list[CategoryStat]  # sorted by total descending
 
@@ -188,9 +189,36 @@ async def monthly_stats(
         month=data["month"],
         year=data["year"],
         total=round(total, 2),
+        income=round(data.get("income", 0.0), 2),
         count=data.get("count", 0),
         categories=cats,
     )
+
+
+class Goal(BaseModel):
+    id: str
+    name: str
+    balance: float
+    target: float
+    percentage: float
+
+
+@router.get("/accounts/goals", response_model=list[Goal])
+async def list_goals(current_user: str = Depends(get_current_user)):
+    """
+    Return accounts that have a savings goal (TARGET: <amount> in their AB note field).
+    """
+    client = ActualBudgetClient(
+        url=settings.actual.url,
+        password=settings.actual.password,
+        sync_id=settings.actual.sync_id,
+    )
+    try:
+        data = await client.get_goals()
+    except Exception as e:
+        logger.error("Failed to fetch goals: %s", e)
+        raise HTTPException(status_code=500, detail="Could not fetch goals")
+    return [Goal(**item) for item in data]
 
 
 class BudgetCategory(BaseModel):

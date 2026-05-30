@@ -115,9 +115,9 @@ Replaces M2 Onboarding and reprioritises M4 Smart Alerts as the immediate next m
 | Unusual transaction | Simple card with details |
 
 **Cleanup actions (do first, in order):**
-1. Delete onboarding code: `onboarding_service.py`, `api/onboarding.py`, `onboarding_state` table in `database.py`, all references in `chat.py` and frontend
+1. ✅ Delete onboarding code: `onboarding_service.py`, `api/onboarding.py`, all references in `chat.py` and frontend — done 2026-05-31
 2. Update `categories.json` to reflect the actual AB structure (7 top-level category groups, SmartCategorizer suggests at subcategory level)
-3. Home UI redesign (see layout below)
+3. ✅ Home UI redesign — done 2026-05-31 (Cashflow + Net Worth metrics, Goals section, Recent removed)
 4. Implement APScheduler + `notification_rules` + `notification_log` (foundation for all 2.x features)
 5. Implement M2-NEW features in order: 2.0 → 2.8 → 2.1 → 2.3 → 2.4 → 2.2 → 2.5 → 2.6 → 2.7
 
@@ -791,8 +791,8 @@ Majordom should use the native Crossover Point Report rather than building a cus
 
 ---
 
-#### Savings goals
-Progress tracking: emergency fund, vacation, large purchases. Progress visualization in the PWA dashboard.
+#### ✅ Savings goals — done 2026-05-31 (issue #43)
+Progress bars in the Home screen for any AB account with `TARGET: <amount>` in its note field. Set via chat: *"set goal for ING savings to €25,000"* → `set_account_goal` tool writes the note. `/api/accounts/goals` endpoint returns all goal accounts with balance + percentage.
 
 ---
 

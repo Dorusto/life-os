@@ -1,20 +1,14 @@
-import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { LogOut, Bell } from 'lucide-react'
-import { getTransactions, getBudgetStatus, getAccounts } from '../lib/api'
+import { getBudgetStatus, getAccounts, getMonthlyStats, getGoals } from '../lib/api'
 import { getUsername, clearAuth } from '../lib/auth'
 import { requestAndSubscribe } from '../lib/push'
-import TransactionItem from '../components/TransactionItem'
 import BudgetDashboard from '../components/BudgetDashboard'
+import { useState, useEffect } from 'react'
 
 export default function Home() {
   const navigate = useNavigate()
-
-  const { data: transactions, isLoading } = useQuery({
-    queryKey: ['transactions'],
-    queryFn: () => getTransactions(5),
-  })
 
   const { data: budgetStatus } = useQuery({
     queryKey: ['budget'],
@@ -28,7 +22,20 @@ export default function Home() {
     staleTime: 120_000,
   })
 
-  const totalBalance = accounts?.reduce((sum, acc) => sum + acc.balance, 0) ?? null
+  const { data: stats } = useQuery({
+    queryKey: ['stats'],
+    queryFn: () => getMonthlyStats(),
+    staleTime: 120_000,
+  })
+
+  const { data: goals } = useQuery({
+    queryKey: ['goals'],
+    queryFn: () => getGoals(),
+    staleTime: 120_000,
+  })
+
+  const netWorth = accounts?.reduce((sum, acc) => sum + acc.balance, 0) ?? null
+  const cashflow = stats ? stats.income - stats.total : null
 
   function handleLogout() {
     clearAuth()
@@ -50,6 +57,9 @@ export default function Home() {
     setNotifState(result === 'unsupported' ? 'unsupported' : result)
   }
 
+  const now = new Date()
+  const monthName = now.toLocaleString('default', { month: 'long' })
+
   return (
     <div className="min-h-dvh bg-background flex flex-col overflow-y-auto">
       {/* Header */}
@@ -67,7 +77,7 @@ export default function Home() {
         </button>
       </header>
 
-      {/* Notification permission banner — shown only when not yet granted */}
+      {/* Notification permission banner */}
       {notifState === 'default' && (
         <button
           onClick={handleEnableNotifications}
@@ -81,46 +91,103 @@ export default function Home() {
         </button>
       )}
 
+      {/* Key metrics row */}
+      <section className="px-5 pt-4 pb-2">
+        <div className="grid grid-cols-2 gap-3">
+          <MetricCard
+            label="Cashflow"
+            sublabel={monthName}
+            value={cashflow}
+            format="currency"
+            highlight={cashflow !== null ? (cashflow >= 0 ? 'positive' : 'negative') : 'neutral'}
+          />
+          <MetricCard
+            label="Net Worth"
+            sublabel="total"
+            value={netWorth}
+            format="currency"
+            highlight="neutral"
+          />
+        </div>
+      </section>
+
+      {/* Goals */}
+      {goals && goals.length > 0 && (
+        <section className="px-5 pb-2">
+          <div className="bg-surface border border-border rounded-2xl px-4 py-4 space-y-4">
+            <h2 className="text-white text-sm font-semibold">Goals</h2>
+            {goals.map(goal => (
+              <div key={goal.id}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-white text-sm">{goal.name}</span>
+                  <span className="text-muted text-xs tabular-nums">
+                    €{goal.balance.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} / €{goal.target.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  </span>
+                </div>
+                <div className="relative w-full h-2 bg-background rounded-full overflow-hidden">
+                  <div
+                    className="absolute left-0 top-0 h-full rounded-full bg-accent transition-all duration-500"
+                    style={{ width: `${Math.min(goal.percentage, 100)}%` }}
+                  />
+                </div>
+                <p className="text-muted text-xs mt-1 text-right">{goal.percentage.toFixed(0)}%</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Budget dashboard */}
       {budgetStatus && budgetStatus.length > 0 && (
-        <section className="px-5 pb-4">
+        <section className="px-5 pb-24">
           <BudgetDashboard
             categories={budgetStatus}
-            month={new Date().getMonth() + 1}
-            year={new Date().getFullYear()}
-            totalBalance={totalBalance}
+            month={now.getMonth() + 1}
+            year={now.getFullYear()}
+            totalBalance={netWorth}
           />
         </section>
       )}
 
-      {/* Recent transactions — pb-24 leaves space for the fixed bottom nav */}
-      <section className="px-5 pb-24">
-        <h2 className="text-muted text-xs uppercase tracking-wide mb-3">Recent</h2>
-
-        {isLoading && (
-          <div className="space-y-3">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="h-14 rounded-xl bg-surface animate-pulse" />
-            ))}
-          </div>
-        )}
-
-        {!isLoading && transactions && transactions.length === 0 && (
-          <p className="text-muted text-sm text-center py-6">
-            No transactions yet. Use the chat to add your first receipt.
-          </p>
-        )}
-
-        {!isLoading && transactions && transactions.length > 0 && (
-          <div className="space-y-2">
-            {transactions.map(tx => (
-              <TransactionItem key={tx.id} transaction={tx} />
-            ))}
-          </div>
-        )}
-      </section>
     </div>
   )
+}
+
+interface MetricCardProps {
+  label: string
+  sublabel: string
+  value: number | null
+  format: 'currency' | 'percent'
+  highlight: 'positive' | 'negative' | 'neutral'
+}
+
+function MetricCard({ label, sublabel, value, format, highlight }: MetricCardProps) {
+  const formatted = value === null
+    ? '—'
+    : format === 'currency'
+      ? formatCurrency(value)
+      : `${value.toFixed(1)}%`
+
+  const valueClass =
+    highlight === 'positive' ? 'text-emerald-400' :
+    highlight === 'negative' ? 'text-red-400' :
+    'text-white'
+
+  return (
+    <div className="bg-surface border border-border rounded-2xl px-4 py-4">
+      <p className={`text-2xl font-bold tabular-nums ${valueClass}`}>{formatted}</p>
+      <p className="text-white text-sm font-medium mt-1">{label}</p>
+      <p className="text-muted text-xs">{sublabel}</p>
+    </div>
+  )
+}
+
+function formatCurrency(value: number): string {
+  const abs = Math.abs(value)
+  const sign = value < 0 ? '−' : ''
+  if (abs >= 1_000_000) return `${sign}€${(abs / 1_000_000).toFixed(1)}M`
+  if (abs >= 1_000) return `${sign}€${(abs / 1_000).toFixed(1)}k`
+  return `${sign}€${abs.toFixed(0)}`
 }
 
 function getGreeting(): string {

@@ -368,6 +368,8 @@ majordom       ← FastAPI backend (port 8000) + React frontend via Nginx (port 
 - [x] Web PWA: FastAPI + React, JWT auth, receipt flow, spending chart
 - [x] Streaming chat with financial context (read-only — no tool calling yet)
 - [x] Account selection on receipt confirm
+- [x] Home screen: Cashflow (income − expenses) + Net Worth metrics, Goals progress bars
+- [x] Savings goals: `TARGET: <amount>` in AB account note field → `set_account_goal` chat tool + `/api/accounts/goals` endpoint
 
 ## MCP Server
 

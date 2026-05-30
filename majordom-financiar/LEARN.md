@@ -1410,3 +1410,56 @@ Daily job la 21:30:
 - **pending_review are nevoie de tabel propriu** — trebuie sa stii CARE tranzactii sunt in asteptare, nu doar CAND s-a intamplat ultimul eveniment.
 - **INSERT OR IGNORE pe pending_review** — daca userul reimporta acelasi CSV, nu vrei duplicate. `financial_id` e PRIMARY KEY, conflictul e ignorat.
 - **cleanup_old_pending_reviews() rulat la fiecare nudge** — tabela ramane mica fara job separat de mentenanta.
+
+## 2026-05-31 — Home screen redesign + Goals cu TARGET: in nota contului AB
+
+### Problema
+
+Home screen-ul arata doar budget bars si tranzactii recente. Userul voia un overview real: cashflow lunar, net worth, si un tracker de economii (goals).
+
+### Ce s-a intamplat
+
+**Onboarding cleanup:**
+Codul de onboarding (M2 anulat) era inca in codebase desi flow-ul nu mai exista. `onboarding_service.py`, `api/onboarding.py`, router din `main.py`, blocul `ONBOARDING_TRIGGERS` din `chat.py`, si ~200 de linii din `Chat.tsx` (state, functii, progress bar). Sterse complet fara efecte secundare — `ClarificationCard` si `SetupBalancesCard` pastrate, sunt folosite in alte flow-uri.
+
+**Cashflow si Net Worth:**
+`get_monthly_stats()` calcula doar cheltuieli (skippa toate tranzactiile cu `amount > 0`). Adaugat calculul de `income` in acelasi loop: tranzactii pozitive fara `transferred_id` = venituri. Cashflow = income - total (cheltuieli).
+
+Net Worth = suma soldurilor din `/api/accounts` — contul returneaza deja toate conturile (on + off budget), nu era nevoie de endpoint nou.
+
+**Goals — pattern cu `TARGET:` in nota contului:**
+AB nu are un concept nativ de "goal". Solutia: campul `notes` al fiecarui cont poate fi citit si scris via actualpy (`acc.notes`). Format convenit: `TARGET: 25000`.
+
+```python
+# get_goals() — citeste toate conturile, parseaza TARGET: din note
+match = re.search(r'TARGET:\s*([\d]+(?:\.\d+)?)', note, re.IGNORECASE)
+if match:
+    target = float(match.group(1))
+    # calculeaza balance din tranzactii (ca in get_accounts)
+    # returneaza {name, balance, target, percentage}
+
+# set_account_goal() — scrie sau updateaza TARGET: in nota contului
+# daca exista deja TARGET: -> re.sub() pentru a-l inlocui
+# daca nu -> append la nota existenta
+acc.notes = re.sub(r'TARGET:\s*[\d]+(?:\.\d+)?', new_tag, note) or note + "\n" + new_tag
+actual.commit()
+```
+
+Tool-ul LLM `set_account_goal(account_name, target)` executa imediat (fara confirmare) — e o setare de preferinta, nu o tranzactie financiara.
+
+### Solutia
+
+```
+Home screen nou:
+  MetricCard: Cashflow = income − expenses (verde/rosu)
+  MetricCard: Net Worth = suma solduri on+off budget
+  Goals: cards cu progress bar pentru fiecare cont cu TARGET: in note
+  Budget: bars pe categorii (existent)
+  Recent: eliminat — disponibil via chat
+```
+
+### De retinut
+
+- **`acc.notes` in actualpy** — campul `notes` al unui cont AB poate fi citit si scris direct in sesiunea actualpy. Pattern `KEY: value` in notes e o modalitate simpla de a stoca metadata fara tabel extra.
+- **Re.sub vs append** — cand updatezi o nota cu un camp structurat, foloseste `re.sub()` sa inlocuiesti valoarea existenta, nu sa o adaugi din nou. Altfel nota creste la fiecare update.
+- **Cashflow vs income in get_monthly_stats()** — tranzactiile pozitive fara `transferred_id` sunt venituri. Cele cu `transferred_id` sunt jumatatile unui transfer intern (nu venituri reale). Nu le skippa pe cele cu `is_income` in categoria lor — acelea pot fi relevante.

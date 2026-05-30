@@ -227,6 +227,32 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "set_account_goal",
+            "description": (
+                "Set or update a savings goal for an account. "
+                "Use when the user says they want to save a target amount in an account, "
+                "e.g. 'set goal for ING Savings to €25,000' or 'I want to save €10k in Revolut'. "
+                "Executes immediately — no confirmation needed."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "account_name": {
+                        "type": "string",
+                        "description": "Exact account name as shown in the accounts list, e.g. 'ING savings'.",
+                    },
+                    "target": {
+                        "type": "number",
+                        "description": "Target amount in EUR, always positive, e.g. 25000.",
+                    },
+                },
+                "required": ["account_name", "target"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "propose_balance_adjustment",
             "description": "Propose adjusting an account balance to match the real bank balance. Use when the user says the account balance is wrong, or wants to sync/reconcile an account balance.",
             "parameters": {
@@ -288,6 +314,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "propose_balance_adjustment":
         from backend.tools.finance.actual_budget import propose_balance_adjustment
         return await propose_balance_adjustment(**arguments)
+
+    if name == "set_account_goal":
+        from backend.tools.finance.actual_budget import set_account_goal
+        return await set_account_goal(**arguments)
 
     if name == "set_notification_time":
         from backend.tools.settings.notifications import set_notification_time

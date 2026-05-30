@@ -449,3 +449,10 @@ async def complete_setup(balances: list[dict]) -> str:
     if results:
         return "Setup complete. Adjustments:\n" + "\n".join(f"• {r}" for r in results)
     return "Setup complete. All balances already matched — no adjustments needed."
+
+
+async def set_account_goal(account_name: str, target: float) -> str:
+    """Set or update a savings goal for an account (stored in AB account note as TARGET: N)."""
+    client = _get_client()
+    name = await client.set_account_goal(account_name=account_name, target=target)
+    return f"Goal set: {name} → target €{target:,.0f}"

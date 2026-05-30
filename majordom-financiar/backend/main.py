@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
-from backend.api import auth, receipts, transactions, chat, csv_import, proposals, budget, accounts, onboarding, setup, balance_adjustments, push, income_sources
+from backend.api import auth, receipts, transactions, chat, csv_import, proposals, budget, accounts, setup, balance_adjustments, push, income_sources
 
 from backend.core.config import settings
 from backend.core.scheduler import scheduler
@@ -156,7 +156,6 @@ app.include_router(csv_import.router, prefix="/api")
 app.include_router(proposals.router, prefix="/api")
 app.include_router(budget.router, prefix="/api")
 app.include_router(accounts.router, prefix="/api")
-app.include_router(onboarding.router, prefix="/api")
 app.include_router(setup.router, prefix="/api")
 app.include_router(balance_adjustments.router, prefix="/api")
 app.include_router(push.router, prefix="/api")

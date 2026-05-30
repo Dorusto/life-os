@@ -162,16 +162,6 @@ async def _call_ollama_non_streaming(messages: list[dict], ollama_url: str, mode
 _PROPOSAL_TOOLS = {"propose_transaction", "propose_budget_rebalance", "propose_account_transfer", "propose_clarification", "propose_balance_adjustment"}
 
 
-
-# Onboarding trigger keywords — if the user's last message matches any of these,
-# the chat endpoint returns onboarding_start to redirect to the onboarding flow.
-ONBOARDING_TRIGGERS = {
-    "set up my budget", "configure my budget", "start onboarding", "onboarding",
-    "configurez bugetul", "configura bugetul", "configurare buget", "setup buget",
-    "vreau sa incep", "incepe onboarding", "setup initial", "configurare initiala",
-}
-
-
 @router.post("/chat")
 async def chat_stream(
     req: ChatRequest,
@@ -179,49 +169,11 @@ async def chat_stream(
 ):
     """
     Flow:
-      0. Check for onboarding intent — if triggered, redirect to onboarding flow
       1. Ollama call (non-streaming) with all tools, tool_choice=auto
       2a. proposal tool called → return JSON card to frontend immediately
       2b. query tool(s) called → execute, append results, repeat up to 3 rounds
       2c. no tool calls → stream text response
     """
-    # Check for onboarding intent BEFORE the Ollama call
-    if req.messages:
-        last_user_msg = req.messages[-1].content.lower().strip()
-        if any(trigger in last_user_msg for trigger in ONBOARDING_TRIGGERS):
-            from backend.core.memory.database import MemoryDB
-            from backend.services.onboarding_service import OnboardingService
-
-            # Initialize the onboarding session and return first question
-            try:
-                memory_db = MemoryDB(settings.memory.db_path)
-                service = OnboardingService(memory_db)
-                first_question = await service.get_first_question(user_id=current_user or "default")
-
-                async def _start():
-                    import json
-                    yield json.dumps({"type": "onboarding_start"})
-                    yield "\n"
-                    q_payload = {
-                        "type": "onboarding_question",
-                        "question_num": first_question["question_num"],
-                        "total": first_question["total"],
-                        "text": first_question["text"],
-                    }
-                    if first_question.get("options"):
-                        q_payload["options"] = first_question["options"]
-                    yield json.dumps(q_payload)
-
-                streaming_headers = {
-                    "Cache-Control": "no-cache",
-                    "Connection": "keep-alive",
-                    "X-Accel-Buffering": "no",
-                }
-                return StreamingResponse(_start(), media_type="text/plain", headers=streaming_headers)
-            except Exception as e:
-                logger.exception("Failed to start onboarding: %s", e)
-                # Fall through to normal chat if onboarding fails
-
     messages = [{"role": "system", "content": _build_system_prompt()}]
     messages.extend([{"role": m.role, "content": m.content} for m in req.messages])
 
