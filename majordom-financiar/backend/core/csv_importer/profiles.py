@@ -27,6 +27,8 @@ class CsvProfile:
     decimal_sep: str = "."
     encoding: str = "utf-8"
     confirmed: bool = False         # Was explicitly confirmed by the user
+    col_transfer_indicator: str = ""    # column that identifies transfer type (e.g. "Code")
+    transfer_indicator_value: str = ""  # value meaning bank wire transfer (e.g. "OV")
 
 
 @dataclass
@@ -38,3 +40,4 @@ class NormalizedTransaction:
     currency: str = "EUR"
     description: str = ""
     is_expense: bool = True
+    is_transfer_candidate: bool = False  # True = likely internal transfer, exclude from import

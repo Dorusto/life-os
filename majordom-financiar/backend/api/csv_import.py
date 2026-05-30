@@ -24,10 +24,13 @@ Categories:
   shows it directly in the dropdown.  Confirm only assigns existing categories;
   it never creates new ones.
 """
+import asyncio
 import hashlib
+import json
 import logging
 from datetime import datetime as dt
 
+import aiohttp
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
@@ -66,6 +69,7 @@ class ImportRowPreview(BaseModel):
     category_name: str       # actual AB category name, or "" if unknown
     category_confirmed: bool  # True = from confirmed merchant history
     duplicate: bool
+    is_transfer_candidate: bool = False
 
 
 class ImportPreview(BaseModel):
@@ -83,6 +87,7 @@ class ImportRowConfirm(BaseModel):
     is_expense: bool
     category_name: str  # actual AB category name, or "" = leave uncategorized
     duplicate: bool
+    is_transfer_candidate: bool = False
     notes: str = ""
 
 
@@ -222,6 +227,11 @@ def _do_import(
                     skipped += 1
                 continue
 
+            # Skip internal transfer candidates — they are not expenses or income
+            if row.is_transfer_candidate:
+                skipped += 1
+                continue
+
             payee = get_or_create_payee(actual.session, row.merchant)
             cat_obj = all_cats.get(row.category_name) if row.category_name else None
 
@@ -245,6 +255,92 @@ def _do_import(
             logger.info("CSV import committed: %d rows, %d merged", imported, merged)
 
     return imported, skipped, merged
+
+
+# ---------------------------------------------------------------------------
+# LLM category suggestion helper
+# ---------------------------------------------------------------------------
+
+async def _suggest_categories_llm(
+    merchants: list[str],
+    ab_categories: list[str],
+    ollama_url: str,
+    model: str,
+) -> dict[str, str]:
+    """
+    One batch Ollama call: list of merchant names → {merchant: AB category name}.
+
+    Returns only entries where the suggested category exists in ab_categories.
+    Returns empty dict on any error — caller falls back to no suggestion.
+    """
+    if not merchants or not ab_categories:
+        return {}
+
+    # Deduplicate — send each unique merchant only once
+    unique_merchants = sorted(set(merchants))
+
+    prompt = (
+        "You are a personal finance assistant. Assign each merchant to the most appropriate "
+        "budget category from the list below. Return ONLY a JSON object: "
+        '{"merchant": "category"}. Use null if no category fits. Do not explain.\n\n'
+        f"Categories: {', '.join(ab_categories)}\n\n"
+        "Merchants:\n" + "\n".join(f"- {m}" for m in unique_merchants)
+    )
+
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": False,
+        "think": False,
+        "format": "json",
+    }
+
+    try:
+        timeout = aiohttp.ClientTimeout(total=180)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with session.post(f"{ollama_url}/api/chat", json=payload) as resp:
+                if resp.status != 200:
+                    text = await resp.text()
+                    logger.warning("LLM category suggestion returned %d: %s", resp.status, text[:200])
+                    return {}
+                data = await resp.json()
+
+        content = data.get("message", {}).get("content", "")
+        if not content:
+            logger.warning("LLM category suggestion returned empty content")
+            return {}
+
+        suggestions = json.loads(content)
+
+        # Ensure suggestions is a dict
+        if not isinstance(suggestions, dict):
+            logger.warning("LLM category suggestion did not return a dict: %r", type(suggestions))
+            return {}
+
+        # Filter: keep only entries where value is a string AND exists in ab_categories
+        ab_set = set(ab_categories)
+        filtered = {}
+        for merchant_name, cat in suggestions.items():
+            if isinstance(cat, str) and cat in ab_set:
+                filtered[merchant_name] = cat
+
+        if filtered:
+            logger.info("LLM suggested categories for %d/%d merchants", len(filtered), len(unique_merchants))
+
+        return filtered
+
+    except json.JSONDecodeError as e:
+        logger.warning("LLM category suggestion JSON parse error: %s", e)
+        return {}
+    except aiohttp.ClientError as e:
+        logger.warning("LLM category suggestion HTTP error: %s", e)
+        return {}
+    except asyncio.TimeoutError:
+        logger.warning("LLM category suggestion timed out")
+        return {}
+    except Exception as e:
+        logger.warning("LLM category suggestion unexpected error: %s", e, exc_info=True)
+        return {}
 
 
 # ---------------------------------------------------------------------------
@@ -315,8 +411,20 @@ async def preview_csv(
                     "Try a fresh export from your bank app."
                 ),
             )
-        db.save_csv_profile(profile)
-        logger.info("New CSV profile saved: %s", profile.source_name)
+        # Don't overwrite confirmed built-in profiles with Ollama guesses.
+        # If a confirmed profile already exists for this bank (different header
+        # variant), Ollama's detection is used for this import but not saved —
+        # this prevents bad Ollama mappings from polluting the profile store.
+        confirmed_banks = {p.source_name for p in db.get_all_csv_profiles() if p.confirmed}
+        if profile.source_name not in confirmed_banks:
+            db.save_csv_profile(profile)
+            logger.info("New CSV profile saved: %s", profile.source_name)
+        else:
+            logger.warning(
+                "Ollama detected %s but a confirmed profile already exists — "
+                "using Ollama result for this import without saving",
+                profile.source_name,
+            )
 
     # normalize() keeps only expenses + refunds, drops pure income rows
     transactions = normalizer.normalize(rows, profile)
@@ -362,7 +470,31 @@ async def preview_csv(
             category_name=ab_name,
             category_confirmed=(bool(ab_name) and pred.from_history),
             duplicate=(fid in existing_ids),
+            is_transfer_candidate=tx.is_transfer_candidate,
         ))
+
+    # LLM category suggestions for rows with no confirmed category
+    uncategorized_merchants = list({
+        r.merchant
+        for r in preview_rows
+        if not r.category_name and not r.duplicate and not r.is_transfer_candidate
+    })
+    if uncategorized_merchants:
+        llm_suggestions = await _suggest_categories_llm(
+            merchants=uncategorized_merchants,
+            ab_categories=ab_categories,
+            ollama_url=settings.ollama.url,
+            model=settings.ollama.categorize_model,
+        )
+        if llm_suggestions:
+            # Apply suggestions — create new objects (Pydantic models are immutable)
+            updated = []
+            for r in preview_rows:
+                suggested = llm_suggestions.get(r.merchant)
+                if suggested and not r.category_name and not r.duplicate:
+                    r = r.model_copy(update={"category_name": suggested, "category_confirmed": False})
+                updated.append(r)
+            preview_rows = updated
 
     dup_count = sum(1 for r in preview_rows if r.duplicate)
     logger.info(

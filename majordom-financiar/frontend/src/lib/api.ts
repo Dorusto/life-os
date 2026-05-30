@@ -191,6 +191,7 @@ export interface ImportRow {
   category_name: string      // actual AB category name, or "" if unknown
   category_confirmed: boolean
   duplicate: boolean
+  is_transfer_candidate: boolean
 }
 
 export interface ImportPreview {
@@ -208,6 +209,7 @@ export interface ImportRowConfirm {
   is_expense: boolean
   category_name: string      // actual AB category name, or "" = uncategorized
   duplicate: boolean
+  is_transfer_candidate: boolean
   notes?: string
 }
 

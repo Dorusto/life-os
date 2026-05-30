@@ -35,13 +35,17 @@ class ActualBudgetConfig:
 @dataclass
 class OllamaConfig:
     url: str = ""
-    vision_model: str = ""   # for receipt OCR (qwen2.5vl:7b)
-    chat_model: str = ""     # for financial assistant chat (qwen2.5:7b)
+    vision_model: str = ""      # for receipt OCR
+    chat_model: str = ""        # for financial assistant chat
+    categorize_model: str = ""  # for CSV merchant categorization (smaller = faster)
 
     def __post_init__(self):
         self.url = os.getenv("OLLAMA_URL", "http://ollama:11434")
         self.vision_model = os.getenv("OLLAMA_VISION_MODEL", "qwen2.5vl:7b")
         self.chat_model = os.getenv("OLLAMA_CHAT_MODEL", "qwen2.5:7b")
+        self.categorize_model = os.getenv(
+            "OLLAMA_CATEGORIZE_MODEL", self.chat_model
+        )
 
     @property
     def model(self) -> str:

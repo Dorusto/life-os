@@ -886,3 +886,31 @@ Lanț lung de investigație. Puncte cheie:
 - `transactions/description` în protocolul CRDT al AB = `payee_id` în SQLite (nu câmpul `notes`)
 - Diagnosticul corect pentru "payee lipsă": verifică direct în container cu `get_transactions()` + `tx.payee.name`, nu te baza pe UI care poate arăta cache
 - Onboarding state persistent în SQLite (`onboarding_state` table) — nu în memory LLM. Dacă userul închide browser-ul și revine, progresul e salvat.
+
+---
+
+## 2026-05-30 — Transfer detection: de ce a eșuat și ce e soluția corectă
+
+### Problema
+ING NL nu include câmpurile Group/Subgroup din web interface în exportul CSV. Transferurile interne (ex: ING Curent → ING Savings) apar ca tranzacții normale și trebuie excluse manual la import.
+
+### Ce s-a întâmplat
+Am implementat detecție automată bazată pe câmpuri CSV (`col_transfer_indicator`): dacă coloana `Counterparty` e goală → rând marcat ca transfer candidat. Logica e corectă (ING pune IBAN în Counterparty pentru transferuri externe, lasă gol pentru conturi proprii), dar implementarea a produs o corupție în SQLite:
+
+Profilul ING din SQLite a ajuns cu `col_merchant="Counterparty"` (adică colona pentru merchant era setată la coloana counterparty). Efectul: toți comercianții apăreau ca IBAN-uri goale sau date greșite. Cauza exactă a corupției nu e clară — probabil un conflict între re-seeding și modificarea manuală a SQLite.
+
+**Alte probleme descoperite:**
+- Profilul Dutch ING (Tegenrekening) era configurat cu `col_transfer_indicator="Counterparty"` — coloana greșită → toate rândurile Dutch ar fi fost marcate ca transfer
+- `bank2ynab` este un tool CLI, nu o bibliotecă Python — nu poate fi importat, profilele au fost copiate manual din `bank2ynab.conf`
+
+### Soluția (temporară)
+Detection dezactivat (`col_transfer_indicator=""`). Transferurile se exclud manual în preview.
+
+### Soluția corectă (ROADMAP)
+**Pair matching cross-cont:** după import, compară tranzacțiile deja existente în AB. Dacă suma +X apare la un cont și -X la altul în interval de ±3 zile → transfer. Nu depinde de câmpuri CSV, funcționează pentru orice bancă.
+
+### De reținut
+- Nu implementa detecție de transfer via câmpuri CSV — profilele sunt fragile și greu de testat corect
+- `docker compose restart` NU rebuild-uiește imaginea — codul baked în imagine rămâne vechi; trebuie `docker compose build --no-cache`
+- Verifică întotdeauna SQLite după seed: `docker exec majordom-api python3 -c "import sqlite3; ..."` — ce e în fișier și ce e în DB pot diferi dacă containerul n-a fost restartat
+- LLM category suggestions (task 007) implementat în `backend/api/csv_import.py` — funcționează când Ollama e accesibil din container

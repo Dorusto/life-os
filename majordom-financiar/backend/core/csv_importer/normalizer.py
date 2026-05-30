@@ -95,6 +95,17 @@ class CsvNormalizer:
             s = s.replace(",", "")
         return float(s)
 
+    def _get_col(self, row: dict, col_name: str) -> str:
+        """
+        Case-insensitive column lookup.
+        Returns the value of the column matching col_name (case-insensitive),
+        or empty string if not found.
+        """
+        for key, value in row.items():
+            if key.lower() == col_name.lower():
+                return (value or "").strip()
+        return ""
+
     def _normalize_row(self, row: dict, profile: CsvProfile) -> NormalizedTransaction | None:
         # Raw amount
         amount_raw = (row.get(profile.col_amount) or "").strip()
@@ -110,6 +121,19 @@ class CsvNormalizer:
         else:
             # No direction column → negative amount = expense
             is_expense = amount_float < 0
+
+        # Internal transfer candidate detection
+        # transfer_indicator_value="" means "column must be empty" (e.g. ING Counterparty field)
+        # transfer_indicator_value="X" means "column must equal X and direction must be Credit"
+        is_transfer_candidate = False
+        if profile.col_transfer_indicator:
+            indicator_raw = self._get_col(row, profile.col_transfer_indicator)
+            if profile.transfer_indicator_value == "":
+                # Empty counterparty = own ING account transfer (both directions)
+                if not indicator_raw:
+                    is_transfer_candidate = True
+            elif indicator_raw.lower() == profile.transfer_indicator_value.lower() and not is_expense:
+                is_transfer_candidate = True
 
         amount = abs(amount_float)
         if amount == 0:
@@ -142,6 +166,7 @@ class CsvNormalizer:
             currency=currency,
             description=description,
             is_expense=is_expense,
+            is_transfer_candidate=is_transfer_candidate,
         )
 
     def _parse_date(self, date_str: str, date_format: str) -> date | None:

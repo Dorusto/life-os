@@ -79,6 +79,8 @@ class MemoryDB:
                     decimal_sep  TEXT NOT NULL DEFAULT '.',
                     encoding     TEXT NOT NULL DEFAULT 'utf-8',
                     confirmed    INTEGER NOT NULL DEFAULT 0,
+                    col_transfer_indicator TEXT NOT NULL DEFAULT '',
+                    transfer_indicator_value TEXT NOT NULL DEFAULT '',
                     created_at   TEXT DEFAULT (datetime('now'))
                 );
 
@@ -94,6 +96,16 @@ class MemoryDB:
                 );
             """)
             conn.commit()
+            # Migrate existing csv_profiles table — add columns added after initial schema
+            for col, definition in [
+                ("col_transfer_indicator", "TEXT NOT NULL DEFAULT ''"),
+                ("transfer_indicator_value", "TEXT NOT NULL DEFAULT ''"),
+            ]:
+                try:
+                    conn.execute(f"ALTER TABLE csv_profiles ADD COLUMN {col} {definition}")
+                    conn.commit()
+                except Exception:
+                    pass  # column already exists
             logger.info(f"Database initialized: {self.db_path}")
         finally:
             conn.close()
@@ -190,8 +202,9 @@ class MemoryDB:
                 INSERT INTO csv_profiles
                     (source_name, header_sig, col_date, col_merchant, col_amount,
                      col_currency, col_direction, col_description, expense_indicator,
-                     date_format, delimiter, decimal_sep, encoding, confirmed)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                     date_format, delimiter, decimal_sep, encoding, confirmed,
+                     col_transfer_indicator, transfer_indicator_value)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(header_sig) DO UPDATE SET
                     source_name=excluded.source_name,
                     col_date=excluded.col_date,
@@ -205,7 +218,9 @@ class MemoryDB:
                     delimiter=excluded.delimiter,
                     decimal_sep=excluded.decimal_sep,
                     encoding=excluded.encoding,
-                    confirmed=excluded.confirmed
+                    confirmed=excluded.confirmed,
+                    col_transfer_indicator=excluded.col_transfer_indicator,
+                    transfer_indicator_value=excluded.transfer_indicator_value
             """, (
                 profile.source_name, profile.header_sig,
                 profile.col_date, profile.col_merchant, profile.col_amount,
@@ -213,6 +228,7 @@ class MemoryDB:
                 profile.expense_indicator, profile.date_format,
                 profile.delimiter, profile.decimal_sep, profile.encoding,
                 int(profile.confirmed),
+                profile.col_transfer_indicator, profile.transfer_indicator_value,
             ))
             conn.commit()
             return cursor.lastrowid

@@ -22,6 +22,8 @@ interface ImportRow {
   categoryConfirmed: boolean // true = from confirmed merchant history
   duplicate: boolean
   notes: string
+  isTransferCandidate: boolean
+  excluded: boolean   // true = user chose to exclude from import
 }
 
 // --- Main component ---
@@ -42,8 +44,9 @@ export default function ImportPage() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const activeRows = rows.filter(r => !r.duplicate)
+  const activeRows = rows.filter(r => !r.duplicate && !r.excluded)
   const duplicateCount = rows.filter(r => r.duplicate).length
+  const transferCandidateCount = rows.filter(r => r.isTransferCandidate).length
   const needsActionCount = activeRows.filter(r => r.categoryName === '').length
   const autoSuggestedCount = activeRows.filter(r => r.categoryName !== '' && !r.categoryConfirmed).length
   const totalExpenses = activeRows.filter(r => r.is_expense).reduce((s, r) => s + r.amount, 0)
@@ -90,6 +93,8 @@ export default function ImportPage() {
         categoryConfirmed: r.category_confirmed,
         duplicate: r.duplicate,
         notes: '',
+        isTransferCandidate: r.is_transfer_candidate ?? false,
+        excluded: r.is_transfer_candidate ?? false,  // excluded by default if transfer candidate
       })))
       setAccounts(preview.accounts)
       setAbCategories(preview.ab_categories)
@@ -107,19 +112,24 @@ export default function ImportPage() {
     }
   }
 
+  function handleToggleExclude(id: string) {
+    setRows(prev => prev.map(r => r.id === id ? { ...r, excluded: !r.excluded } : r))
+  }
+
   async function handleImport() {
     setLoading(true)
     setError(null)
     try {
       const result = await confirmCsvImport({
         account_id: accountId,
-        rows: rows.map(r => ({
+        rows: rows.filter(r => !r.excluded).map(r => ({
           date: r.date,
           merchant: r.merchant,
           amount: r.amount,
           is_expense: r.is_expense,
           category_name: r.categoryName,
           duplicate: r.duplicate,
+          is_transfer_candidate: r.isTransferCandidate,
           notes: r.notes || undefined,
         })),
       })
@@ -182,6 +192,7 @@ export default function ImportPage() {
               onAccountChange={setAccountId}
               onCategoryChange={handleCategoryChange}
               onNotesChange={handleNotesChange}
+              onToggleExclude={handleToggleExclude}
               onBack={() => setStep(1)}
               onNext={() => setStep(3)}
             />
@@ -190,6 +201,7 @@ export default function ImportPage() {
             <Step3Confirm
               activeCount={activeRows.length}
               duplicateCount={duplicateCount}
+              transferCandidateCount={transferCandidateCount}
               needsActionCount={needsActionCount}
               autoSuggestedCount={autoSuggestedCount}
               totalExpenses={totalExpenses}
@@ -322,7 +334,7 @@ function Step1Upload({ file, fileInputRef, loading, onDrop, onFileChange, onPick
 
 // --- Step 2: Preview table ---
 
-function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onAccountChange, onCategoryChange, onNotesChange, onBack, onNext }: {
+function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onAccountChange, onCategoryChange, onNotesChange, onToggleExclude, onBack, onNext }: {
   rows: ImportRow[]
   abCategories: string[]
   accounts: AccountOption[]
@@ -331,6 +343,7 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
   onAccountChange: (id: string) => void
   onCategoryChange: (rowId: string, categoryName: string) => void
   onNotesChange: (rowId: string, notes: string) => void
+  onToggleExclude: (rowId: string) => void
   onBack: () => void
   onNext: () => void
 }) {
@@ -372,8 +385,10 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {rows.map(row => (
-              <tr key={row.id} className={row.duplicate ? 'opacity-40' : ''}>
+            {rows.map(row => {
+              const dimmed = row.duplicate || (row.isTransferCandidate && row.excluded)
+              return (
+              <tr key={row.id} className={dimmed ? 'opacity-40' : ''}>
                 <td className="py-2 pr-2 text-muted whitespace-nowrap">{row.date.slice(5)}</td>
                 <td className="py-2 pr-2 text-white max-w-[80px] truncate">
                   <div className="flex items-center gap-1">
@@ -383,7 +398,23 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
                       </span>
                     )}
                     {row.merchant}
+                    {row.isTransferCandidate && (
+                      <span
+                        className="bg-blue-500/10 text-blue-400 border border-blue-500/30 text-[10px] px-1 rounded whitespace-nowrap"
+                        title="Likely internal transfer from own account"
+                      >
+                        Transfer?
+                      </span>
+                    )}
                   </div>
+                  {row.isTransferCandidate && (
+                    <button
+                      onClick={() => onToggleExclude(row.id)}
+                      className="text-[10px] text-blue-400 hover:text-blue-300 mt-0.5 block"
+                    >
+                      {row.excluded ? 'Include' : 'Exclude'}
+                    </button>
+                  )}
                 </td>
                 <td className="py-2 pr-2 text-white text-right whitespace-nowrap">
                   {row.is_expense ? '' : '+'}{row.currency === 'EUR' ? '€' : row.currency}{row.amount.toFixed(2)}
@@ -391,6 +422,8 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
                 <td className="py-2">
                   {row.duplicate ? (
                     <span className="text-muted italic">already imported</span>
+                  ) : row.isTransferCandidate && row.excluded ? (
+                    <span className="text-muted italic">Excluded</span>
                   ) : (
                     <div className="flex flex-col gap-1">
                       <div className="relative">
@@ -424,7 +457,8 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
                   )}
                 </td>
               </tr>
-            ))}
+              )
+            })}
           </tbody>
         </table>
       </div>
@@ -448,9 +482,10 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
 
 // --- Step 3: Confirm summary ---
 
-function Step3Confirm({ activeCount, duplicateCount, needsActionCount, autoSuggestedCount, totalExpenses, totalIncome, loading, onBack, onImport }: {
+function Step3Confirm({ activeCount, duplicateCount, transferCandidateCount, needsActionCount, autoSuggestedCount, totalExpenses, totalIncome, loading, onBack, onImport }: {
   activeCount: number
   duplicateCount: number
+  transferCandidateCount: number
   needsActionCount: number
   autoSuggestedCount: number
   totalExpenses: number
@@ -466,6 +501,9 @@ function Step3Confirm({ activeCount, duplicateCount, needsActionCount, autoSugge
         <div className="space-y-2">
           <SummaryRow label="Transactions to import" value={String(activeCount)} />
           <SummaryRow label="Duplicates skipped" value={String(duplicateCount)} muted />
+          {transferCandidateCount > 0 && (
+            <SummaryRow label="Likely transfers excluded" value={String(transferCandidateCount)} muted />
+          )}
           <div className="h-px bg-border my-1" />
           <SummaryRow
             label="Expenses"
