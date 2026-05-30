@@ -222,6 +222,7 @@ export interface ImportResult {
   imported: number
   merged?: number
   skipped: number
+  retroactively_updated?: number
 }
 
 export async function previewCsvImport(file: File): Promise<ImportPreview> {

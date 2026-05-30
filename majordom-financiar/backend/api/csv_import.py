@@ -100,6 +100,7 @@ class ImportResult(BaseModel):
     imported: int
     skipped: int
     merged: int = 0
+    retroactively_updated: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -164,7 +165,7 @@ def _do_import(
     actual_client: ActualBudgetClient,
     account_id: str,
     rows: list[ImportRowConfirm],
-) -> tuple[int, int, int]:
+) -> tuple[int, int, int, int]:
     """
     Write confirmed rows to Actual Budget in a single session.
 
@@ -175,8 +176,12 @@ def _do_import(
     Merge logic: if a duplicate already exists in AB without a category, and
     the CSV row has a confirmed category, assign the category instead of skipping.
 
-    Returns (imported, skipped, merged).
+    Retroactive categorization: after import, any existing uncategorized transaction
+    whose payee name matches a confirmed merchant in this import gets the same category.
+
+    Returns (imported, skipped, merged, retroactively_updated).
     """
+    from actual.database import Transactions
     from actual.queries import (
         create_transaction,
         get_categories,
@@ -250,11 +255,39 @@ def _do_import(
             existing_ids.add(fid)
             imported += 1
 
-        if imported > 0 or merged > 0:
-            actual.commit()
-            logger.info("CSV import committed: %d rows, %d merged", imported, merged)
+        # --- Retroactive categorization ---
+        # For each confirmed merchant→category in this import, find all existing
+        # uncategorized transactions with the same payee and assign the category.
+        merchant_category_map: dict[str, str] = {
+            row.merchant.lower(): row.category_name
+            for row in rows
+            if not row.duplicate and not row.is_transfer_candidate and row.category_name
+        }
 
-    return imported, skipped, merged
+        retroactively_updated = 0
+        if merchant_category_map:
+            uncategorized = actual.session.query(Transactions).filter(
+                Transactions.tombstone == 0,
+                Transactions.category_id == None,
+            ).all()
+            for tx in uncategorized:
+                if not tx.payee or not tx.payee.name:
+                    continue
+                cat_name = merchant_category_map.get(tx.payee.name.lower())
+                if cat_name:
+                    cat_obj = all_cats.get(cat_name)
+                    if cat_obj:
+                        tx.category_id = cat_obj.id
+                        retroactively_updated += 1
+
+        if imported > 0 or merged > 0 or retroactively_updated > 0:
+            actual.commit()
+            logger.info(
+                "CSV import committed: %d rows, %d merged, %d retroactively categorized",
+                imported, merged, retroactively_updated,
+            )
+
+    return imported, skipped, merged, retroactively_updated
 
 
 # ---------------------------------------------------------------------------
@@ -527,7 +560,7 @@ async def confirm_csv(
         sync_id=settings.actual.sync_id,
     )
 
-    imported, skipped, merged = await actual._run(
+    imported, skipped, merged, retroactively_updated = await actual._run(
         lambda: _do_import(actual, body.account_id, body.rows)
     )
 
@@ -541,7 +574,7 @@ async def confirm_csv(
                 categorizer.learn(row.merchant.lower(), row.category_name)
 
     logger.info(
-        "CSV confirmed [%s]: %d imported, %d skipped, %d merged",
-        current_user, imported, skipped, merged,
+        "CSV confirmed [%s]: %d imported, %d skipped, %d merged, %d retroactively updated",
+        current_user, imported, skipped, merged, retroactively_updated,
     )
-    return ImportResult(imported=imported, skipped=skipped, merged=merged)
+    return ImportResult(imported=imported, skipped=skipped, merged=merged, retroactively_updated=retroactively_updated)

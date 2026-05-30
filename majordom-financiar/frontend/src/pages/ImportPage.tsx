@@ -26,6 +26,21 @@ interface ImportRow {
   excluded: boolean   // true = user chose to exclude from import
 }
 
+// Word-level Jaccard similarity for merchant name matching.
+// Strips non-letter characters, splits on whitespace, keeps tokens ≥ 3 chars.
+// Returns 0..1; used to propagate category edits to same-merchant rows even
+// when bank adds a store number or address suffix ("BAS BOER 1974" ≈ "BAS BOER 197").
+function merchantSimilarity(a: string, b: string): number {
+  const tokens = (s: string) => new Set(
+    s.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(t => t.length >= 3)
+  )
+  const ta = tokens(a)
+  const tb = tokens(b)
+  const intersection = [...ta].filter(t => tb.has(t)).length
+  const union = new Set([...ta, ...tb]).size
+  return union === 0 ? 0 : intersection / union
+}
+
 // --- Main component ---
 
 type Step = 1 | 2 | 3 | 4
@@ -60,11 +75,11 @@ export default function ImportPage() {
   }
   function handleCategoryChange(id: string, categoryName: string) {
     setRows(prev => {
-      const merchant = prev.find(r => r.id === id)?.merchant
+      const merchant = prev.find(r => r.id === id)?.merchant ?? ''
       return prev.map(r => {
         if (r.id === id) return { ...r, categoryName, categoryConfirmed: true }
-        // Auto-propagate to same merchant — only unconfirmed, non-duplicate rows
-        if (r.merchant === merchant && !r.duplicate && !r.categoryConfirmed) {
+        // Auto-propagate to similar-merchant rows — only unconfirmed, non-duplicate rows
+        if (!r.duplicate && !r.categoryConfirmed && merchantSimilarity(r.merchant, merchant) >= 0.5) {
           return { ...r, categoryName, categoryConfirmed: true }
         }
         return r
@@ -216,6 +231,7 @@ export default function ImportPage() {
               imported={importResult?.imported ?? 0}
               skipped={importResult?.skipped ?? 0}
               merged={importResult?.merged}
+              retroactivelyUpdated={importResult?.retroactively_updated}
               onHome={() => navigate('/')}
             />
           )}
@@ -574,7 +590,7 @@ function SummaryRow({ label, value, muted, bold }: { label: string; value: strin
 
 // --- Step 4: Success ---
 
-function Step4Done({ imported, skipped, merged, onHome }: { imported: number; skipped: number; merged?: number; onHome: () => void }) {
+function Step4Done({ imported, skipped, merged, retroactivelyUpdated, onHome }: { imported: number; skipped: number; merged?: number; retroactivelyUpdated?: number; onHome: () => void }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center gap-6 px-5">
       <motion.div
@@ -605,6 +621,7 @@ function Step4Done({ imported, skipped, merged, onHome }: { imported: number; sk
           {imported} transactions added to Actual Budget
           {(merged ?? 0) > 0 && `, ${merged} categories updated`}
           {skipped > 0 && `, ${skipped} duplicates skipped`}
+          {(retroactivelyUpdated ?? 0) > 0 && `, ${retroactivelyUpdated} older transactions categorized`}
         </p>
       </motion.div>
 
