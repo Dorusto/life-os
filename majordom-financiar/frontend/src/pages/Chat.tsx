@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, FormEvent } from 'react'
 import { Send } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import { sendChatMessageStreaming, getSetupStatus, completeSetup, type SetupAccount, type BalanceAdjustmentData } from '../lib/api'
+import { sendChatMessageStreaming, getSetupStatus, type SetupAccount, type BalanceAdjustmentData } from '../lib/api'
 import { getToken, clearAuth } from '../lib/auth'
 import ProposalCard, { ProposalData } from '../components/ProposalCard'
 import BudgetRebalanceCard from '../components/BudgetRebalanceCard'
@@ -47,8 +47,6 @@ export default function Chat({ messages, setMessages }: ChatProps) {
   const [savedInput, setSavedInput] = useState('')
   const [isOnboarding, setIsOnboarding] = useState(false)
   const [onboardingProgress, setOnboardingProgress] = useState<{ current: number; total: number } | null>(null)
-  const [setupPending, setSetupPending] = useState(false)
-  const [setupAccounts, setSetupAccounts] = useState<SetupAccount[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   // Track if we're in the middle of an onboarding-start detection
@@ -97,21 +95,21 @@ export default function Chat({ messages, setMessages }: ChatProps) {
       })
   }, [])
 
-  // Check first-launch setup — if not complete, inject welcome ClarificationCard
+  // Check first-launch setup — if not complete, show welcome + balance entry card directly
   useEffect(() => {
     getSetupStatus().then(status => {
       if (!status.completed) {
-        setSetupPending(true)
-        setSetupAccounts(status.accounts)
-        setMessages([{
-          role: 'clarification',
-          content: '',
-          clarification: {
-            type: 'clarification' as const,
-            question: "Welcome to Majordom! One question before we start:",
-            options: ["Start tracking from today", "I have historical data to import"],
+        setMessages([
+          {
+            role: 'assistant',
+            content: "Welcome to Majordom! Before we start, enter your real account balances so your budget is accurate from day one.",
           },
-        }])
+          {
+            role: 'setup_balances',
+            content: '',
+            setupAccounts: status.accounts,
+          },
+        ])
       }
     }).catch(() => {})
   }, [])
@@ -527,34 +525,22 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                       i === idx ? { role: 'assistant' as const, content: option } : m
                     )
                   )
-                  if (setupPending) {
-                    if (option === 'Start tracking from today') {
-                      setMessages(prev => [...prev, {
-                        role: 'setup_balances' as const,
-                        content: '',
-                        setupAccounts: setupAccounts,
-                      }])
-                    } else {
-                      // "I have historical data" — mark done, explain in chat
-                      completeSetup('history').catch(() => {})
-                      setSetupPending(false)
-                      handleSendText(option)
-                    }
-                  } else {
-                    handleSendText(option)
-                  }
+                  handleSendText(option)
                 }}
               />
             ) : msg.role === 'setup_balances' ? (
               <SetupBalancesCard
                 accounts={msg.setupAccounts || []}
                 onComplete={(message) => {
-                  setSetupPending(false)
-                  setMessages(prev =>
-                    prev.map((m, i) =>
+                  setMessages(prev => [
+                    ...prev.map((m, i) =>
                       i === idx ? { role: 'status' as const, content: message } : m
-                    )
-                  )
+                    ),
+                    {
+                      role: 'assistant' as const,
+                      content: "You're all set! To keep your budget accurate, add transactions as you go — upload your bank's CSV or just tell me about expenses: *\"spent €45 at Lidl\"* and I'll record them. Try to do this at least once a week.",
+                    },
+                  ])
                 }}
               />
             ) : msg.role === 'account_transfer' && msg.accountTransfer ? (
