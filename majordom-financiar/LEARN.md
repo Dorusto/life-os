@@ -914,3 +914,37 @@ Detection dezactivat (`col_transfer_indicator=""`). Transferurile se exclud manu
 - `docker compose restart` NU rebuild-uiește imaginea — codul baked în imagine rămâne vechi; trebuie `docker compose build --no-cache`
 - Verifică întotdeauna SQLite după seed: `docker exec majordom-api python3 -c "import sqlite3; ..."` — ce e în fișier și ce e în DB pot diferi dacă containerul n-a fost restartat
 - LLM category suggestions (task 007) implementat în `backend/api/csv_import.py` — funcționează când Ollama e accesibil din container
+
+---
+
+## 2026-05-30 — Ollama corupe SQLite + SmartCategorizer vs AB
+
+### Problema
+După rebuild, importul CSV arăta din nou IBAN-uri ca merchant în loc de numele comerciantului. Plus: LLM-ul de categorization dădea timeout.
+
+### Ce s-a întâmplat
+
+**Corupția SQLite prin Ollama:**
+La un import anterior, CSV-ul a fost parsat cu delimitatorul greșit (`,` în loc de `;`) — probabil pentru că European amounts (`150,00`) au mai multe virgule decât puncte în primele rânduri, confuzând auto-detecția. Cu delimitatorul greșit, headers-ul devenea o singură coloană mare → signature MD5 necunoscută → Ollama chemat pentru detecție → Ollama a returnat `col_merchant="Counterparty"` → profil corupt salvat în SQLite cu un alt `header_sig`.
+
+Profilele built-in (re-seed la fiecare startup) nu suprascriu profilul corupt pentru că au `header_sig` diferit. Deci ambele coexistă în SQLite, și cel corupt câștigă dacă e detectat primul.
+
+**Fix anti-corrupție:** înainte să salveze un profil detectat de Ollama, backend-ul verifică dacă există deja un profil confirmat (`confirmed=True`) cu același `source_name`. Dacă da, Ollama e folosit pentru importul curent dar **nu se salvează** în SQLite.
+
+```python
+confirmed_banks = {p.source_name for p in db.get_all_csv_profiles() if p.confirmed}
+if profile.source_name not in confirmed_banks:
+    db.save_csv_profile(profile)
+```
+
+**Timeout LLM categorization:**
+`qwen3:14b` la 8.8GB depășește VRAM-ul de 8GB → rulează parțial pe CPU → lent. Timeout crescut de la 60s la 180s. Adăugat și `OLLAMA_CATEGORIZE_MODEL` în config — dacă vrei un model mai mic doar pentru categorization fără să afectezi chat-ul.
+
+**SmartCategorizer cu date vechi:**
+Mapările vechi (`'Home'`, `'personal'`, `'groceries'`) veneau din sesiuni de onboarding cu un sistem vechi de categorii. Deși AB are acum exact `'Home'`, `'Personal'`, `'Groceries'`, mapările cu casing greșit treceau prin fuzzy match și uneori dădeau rezultate surprinzătoare. Șterse manual — SmartCategorizer se repopulează corect prin confirmări de import.
+
+### De reținut
+- **Ollama poate salva profiluri greșite** — mereu verifică ce e în SQLite după un import pe format necunoscut: `docker exec majordom-api python3 -c "import sqlite3; conn = sqlite3.connect('/app/data/memory.db'); [print(r) for r in conn.execute('SELECT source_name, col_merchant FROM csv_profiles').fetchall()]"`
+- **SmartCategorizer ≠ date financiare** — stochează preferințe (`Albert Heijn → Groceries`), nu tranzacții. E un cache de performanță, nu o sursă de adevăr. AB rămâne sursa de adevăr pentru tot ce e financiar.
+- **SmartCategorizer se populează din confirmări de import** — după câteva importuri confirmate, recunoaște automat toți comercianții fără LLM. Dacă datele sunt vechi/greșite, șterge tot: `conn.execute('DELETE FROM merchant_mappings')`
+- **`logging.getLogger(__name__)` nu apare în docker logs** dacă root logger-ul nu e configurat — pentru debug rapid în container folosește `print(..., flush=True)` sau verifică direct cu `docker exec`
