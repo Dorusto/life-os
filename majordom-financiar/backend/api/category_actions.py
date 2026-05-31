@@ -41,6 +41,15 @@ async def confirm_category_action(
         elif action["action"] == "delete":
             await client.delete_category(action["category_name"])
             message = f"Category deleted: '{action['category_name']}'"
+        elif action["action"] == "set_goal":
+            await client.set_account_goal(
+                account_name=action["account_name"],
+                target=action["target"],
+                deadline=action.get("deadline"),
+            )
+            message = f"Goal set: {action['account_name']} → €{action['target']:,.0f}"
+            if action.get("deadline"):
+                message += f" by {action['deadline']}"
         else:
             raise HTTPException(status_code=400, detail=f"Unknown action: {action['action']}")
     except ValueError as e:

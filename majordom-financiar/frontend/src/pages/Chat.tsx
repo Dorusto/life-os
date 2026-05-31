@@ -13,11 +13,12 @@ import IncomeSourceCard from '../components/IncomeSourceCard'
 import ReconciliationCard from '../components/ReconciliationCard'
 import ReceiptCard from '../components/ReceiptCard'
 import CategoryActionCard from '../components/CategoryActionCard'
+import GoalProposalCard, { GoalProposalData } from '../components/GoalProposalCard'
 import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from '../lib/api'
 
 
 export interface Message {
-  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'income_source' | 'reconciliation' | 'receipt' | 'category_action'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'income_source' | 'reconciliation' | 'receipt' | 'category_action' | 'goal_proposal'
   content: string
   proposal?: ProposalData
   budgetRebalance?: BudgetRebalanceData
@@ -30,6 +31,7 @@ export interface Message {
   reconciliation?: { accountName: string; balance: number; importedCount: number }
   receipt?: { status: 'loading' | 'reviewing' | 'error'; imageUrl: string; draft?: ReceiptDraft; error?: string }
   categoryAction?: CategoryActionData
+  goalProposal?: GoalProposalData
 }
 
 
@@ -251,6 +253,10 @@ export default function Chat({ messages, setMessages }: ChatProps) {
         }
         if (parsed.type === 'category_action') {
           setMessages(prev => [...prev, { role: 'category_action' as const, content: '', categoryAction: parsed as CategoryActionData }])
+          return
+        }
+        if (parsed.type === 'goal_proposal') {
+          setMessages(prev => [...prev, { role: 'goal_proposal' as const, content: '', goalProposal: parsed as GoalProposalData }])
           return
         }
 
@@ -520,18 +526,32 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                 onConfirmed={(message) => {
                   setMessages(prev =>
                     prev.map((m, i) =>
-                      i === idx
-                        ? { role: 'status' as const, content: message }
-                        : m
+                      i === idx ? { role: 'status' as const, content: message } : m
                     )
                   )
                 }}
                 onCancelled={() => {
                   setMessages(prev =>
                     prev.map((m, i) =>
-                      i === idx
-                        ? { role: 'status' as const, content: 'Cancelled.' }
-                        : m
+                      i === idx ? { role: 'status' as const, content: 'Cancelled.' } : m
+                    )
+                  )
+                }}
+              />
+            ) : msg.role === 'goal_proposal' && msg.goalProposal ? (
+              <GoalProposalCard
+                data={msg.goalProposal}
+                onConfirmed={(message) => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx ? { role: 'status' as const, content: message } : m
+                    )
+                  )
+                }}
+                onCancelled={() => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx ? { role: 'status' as const, content: 'Cancelled.' } : m
                     )
                   )
                 }}

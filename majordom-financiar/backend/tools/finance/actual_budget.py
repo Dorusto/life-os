@@ -452,13 +452,20 @@ async def complete_setup(balances: list[dict]) -> str:
 
 
 async def set_account_goal(account_name: str, target: float, deadline: str | None = None) -> str:
-    """Set or update a savings goal for an account (stored in AB account note as TARGET: N [DEADLINE: YYYY-MM])."""
+    """Propose setting a savings goal. Returns a confirmation card — does NOT write yet."""
+    import uuid
+    from difflib import get_close_matches
+    from backend.tools import category_actions as action_store
     client = _get_client()
-    name = await client.set_account_goal(account_name=account_name, target=target, deadline=deadline)
-    msg = f"Goal set: {name} → target €{target:,.0f}"
-    if deadline:
-        msg += f", deadline {deadline}"
-    return msg
+    accounts = await client.get_accounts()
+    all_names = [a.name for a in accounts]
+    exact = next((n for n in all_names if n.lower() == account_name.lower()), None)
+    resolved = exact or (get_close_matches(account_name, all_names, n=1, cutoff=0.6) or [None])[0]
+    if not resolved:
+        return json.dumps({"type": "error", "message": f"Account not found: {account_name!r}. Available: {', '.join(all_names)}"})
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {"action": "set_goal", "account_name": resolved, "target": target, "deadline": deadline})
+    return json.dumps({"type": "goal_proposal", "id": action_id, "account_name": resolved, "target": target, "deadline": deadline})
 
 
 async def rename_category(old_name: str, new_name: str) -> str:
