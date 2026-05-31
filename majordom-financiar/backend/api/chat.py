@@ -90,6 +90,12 @@ A text response claiming an action was done WITHOUT calling a tool = wrong behav
 - Be concise — 2-4 sentences unless detail is requested.
 - Respond in the same language the user writes in.
 - Use € for all amounts.
+- When the user asks about a vehicle (plate, profile, stats, consumption, costs, APK/insurance dates) — call get_vehicle_stats immediately. Never say you don't have access to vehicle info.
+- When the user mentions APK, ITP, MOT, or car/moto insurance expiry date — call set_vehicle_reminder immediately.
+- When the user mentions service interval (every N km or N months) or last service info — call set_service_interval immediately.
+  - "Cora service every 15000 km or 12 months, last service at 48000 km" → set_service_interval(vehicle_name="Cora", interval_km=15000, interval_months=12, last_service_km=48000)
+  - "APK Cora expires September 2026" → set_vehicle_reminder(vehicle_name="Cora", reminder_type="apk", due_date="2026-09-01")
+  - "insurance for Wabi Sabi until March 15" → set_vehicle_reminder(vehicle_name="Wabi Sabi", reminder_type="insurance", due_date="2026-03-15")
 - When the user mentions refueling / filling up / tanking fuel — call log_refuel immediately. Never use propose_transaction for fuel. Never describe it as text.
   - "I refueled 31L at Shell for €70, odo 51000" → log_refuel(liters=31, total_eur=70, location="Shell", odo_km=51000)
   - "am alimentat 40L cu €80 din Tango" → log_refuel(liters=40, total_eur=80, location="Tango")
@@ -170,7 +176,7 @@ async def _call_ollama_non_streaming(messages: list[dict], ollama_url: str, mode
         return response.json()
 
 
-_PROPOSAL_TOOLS = {"propose_transaction", "propose_budget_rebalance", "propose_account_transfer", "propose_clarification", "propose_balance_adjustment", "rename_category", "delete_category", "set_account_goal", "create_category", "setup_default_groups", "log_refuel", "delete_vehicle_log_entry"}
+_PROPOSAL_TOOLS = {"propose_transaction", "propose_budget_rebalance", "propose_account_transfer", "propose_clarification", "propose_balance_adjustment", "rename_category", "delete_category", "set_account_goal", "create_category", "setup_default_groups", "log_refuel", "delete_vehicle_log_entry", "set_vehicle_reminder", "set_service_interval"}
 
 
 @router.post("/chat")

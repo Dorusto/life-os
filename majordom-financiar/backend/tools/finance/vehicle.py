@@ -109,6 +109,140 @@ async def log_refuel(
     })
 
 
+async def set_vehicle_reminder(
+    vehicle_name: str,
+    reminder_type: str,
+    due_date: str,
+) -> str:
+    """
+    Propose setting an APK/ITP or insurance expiry date on a vehicle.
+    reminder_type: 'apk' or 'insurance'.
+    due_date: ISO date string YYYY-MM-DD.
+    Returns a confirmation card — does NOT write yet.
+    """
+    import uuid
+    import json as _json
+    from datetime import date as _date
+    from backend.tools import vehicle_reminder_actions as action_store
+
+    db_path = settings.memory.db_path
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute(
+            "SELECT id, name, apk_due, insurance_due FROM vehicles WHERE lower(name) LIKE lower(?) AND active=1 LIMIT 1",
+            (f"%{vehicle_name}%",),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not row:
+        return f"No vehicle found matching '{vehicle_name}'."
+
+    rtype = reminder_type.lower().strip()
+    if rtype not in ("apk", "insurance"):
+        return f"Invalid reminder type '{reminder_type}'. Use 'apk' or 'insurance'."
+
+    try:
+        due = _date.fromisoformat(due_date)
+        days_remaining = (due - _date.today()).days
+    except ValueError:
+        return f"Invalid date format '{due_date}'. Use YYYY-MM-DD."
+
+    # Fetch all active vehicles for the selector
+    conn2 = sqlite3.connect(db_path)
+    conn2.row_factory = sqlite3.Row
+    try:
+        all_vehicles = [dict(r) for r in conn2.execute(
+            "SELECT id, name FROM vehicles WHERE active=1 ORDER BY name"
+        ).fetchall()]
+    finally:
+        conn2.close()
+
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {
+        "vehicle_id": row["id"],
+        "field": "apk_due" if rtype == "apk" else "insurance_due",
+        "due_date": due_date,
+    })
+
+    label = "APK/ITP" if rtype == "apk" else "Insurance"
+    return _json.dumps({
+        "type": "vehicle_reminder",
+        "id": action_id,
+        "vehicle_id": row["id"],
+        "vehicle_name": row["name"],
+        "vehicles": all_vehicles,
+        "reminder_type": rtype,
+        "label": label,
+        "due_date": due_date,
+        "days_remaining": days_remaining,
+    })
+
+
+async def set_service_interval(
+    vehicle_name: str,
+    interval_km: int | None = None,
+    interval_months: int | None = None,
+    last_service_km: float | None = None,
+    last_service_date: str | None = None,
+) -> str:
+    """
+    Set service interval and last service info for a vehicle.
+    Returns a confirmation card — does NOT write yet.
+    interval_km: km between services, e.g. 15000.
+    interval_months: months between services, e.g. 12.
+    last_service_km: odometer at last service.
+    last_service_date: date of last service, YYYY-MM-DD.
+    """
+    import uuid
+    import json as _json
+    from backend.tools import vehicle_reminder_actions as action_store
+
+    db_path = settings.memory.db_path
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute(
+            "SELECT id, name FROM vehicles WHERE lower(name) LIKE lower(?) AND active=1 LIMIT 1",
+            (f"%{vehicle_name}%",),
+        ).fetchone()
+        all_vehicles = [dict(r) for r in conn.execute(
+            "SELECT id, name FROM vehicles WHERE active=1 ORDER BY name"
+        ).fetchall()]
+    finally:
+        conn.close()
+
+    if not row:
+        return f"No vehicle found matching '{vehicle_name}'."
+
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {
+        "action": "set_service",
+        "vehicle_id": row["id"],
+        "interval_km": interval_km,
+        "interval_months": interval_months,
+        "last_service_km": last_service_km,
+        "last_service_date": last_service_date,
+    })
+
+    return _json.dumps({
+        "type": "vehicle_reminder",
+        "id": action_id,
+        "vehicle_id": row["id"],
+        "vehicle_name": row["name"],
+        "vehicles": all_vehicles,
+        "reminder_type": "service",
+        "label": "Service",
+        "interval_km": interval_km,
+        "interval_months": interval_months,
+        "last_service_km": last_service_km,
+        "last_service_date": last_service_date or "",
+        "due_date": last_service_date or "",
+        "days_remaining": 0,
+    })
+
+
 async def get_vehicle_log(vehicle_name: str = "", limit: int = 10) -> str:
     """
     Return the last N refuel entries for a vehicle from vehicle_log.
@@ -226,32 +360,32 @@ async def get_vehicle_stats(vehicle_name: str = "", period: str = "") -> str:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     try:
-        # Resolve vehicle_id from name
+        # Resolve vehicle profile from name
         vehicle_clause = ""
         params: list = []
         if vehicle_name:
-            row = conn.execute(
-                "SELECT id, name FROM vehicles WHERE lower(name) LIKE lower(?) AND active=1 LIMIT 1",
+            profile = conn.execute(
+                "SELECT * FROM vehicles WHERE lower(name) LIKE lower(?) AND active=1 LIMIT 1",
                 (f"%{vehicle_name}%",)
             ).fetchone()
-            if not row:
+            if not profile:
                 return f"No vehicle found matching '{vehicle_name}'."
-            vehicle_id = row["id"]
-            display_name = row["name"]
+            vehicle_id = profile["id"]
+            display_name = profile["name"]
             vehicle_clause = "AND vehicle_id = ?"
             params.append(vehicle_id)
         else:
-            # List all active vehicles if no name given
             vehicles = conn.execute(
-                "SELECT id, name FROM vehicles WHERE active=1 ORDER BY name"
+                "SELECT * FROM vehicles WHERE active=1 ORDER BY name"
             ).fetchall()
             if not vehicles:
                 return "No vehicles found. Import your Fuelio history first."
             if len(vehicles) > 1:
                 names = ", ".join(v["name"] for v in vehicles)
                 return f"Multiple vehicles found: {names}. Specify which one."
-            vehicle_id = vehicles[0]["id"]
-            display_name = vehicles[0]["name"]
+            profile = vehicles[0]
+            vehicle_id = profile["id"]
+            display_name = profile["name"]
             vehicle_clause = "AND vehicle_id = ?"
             params.append(vehicle_id)
 
@@ -318,6 +452,41 @@ async def get_vehicle_stats(vehicle_name: str = "", period: str = "") -> str:
     period_label = f" ({period})" if period else " (all time)"
     lines = [f"**{display_name.title()} stats{period_label}:**"]
 
+    # Vehicle profile
+    profile_parts = []
+    if profile["make"] or profile["model"]:
+        profile_parts.append(f"{profile['make'] or ''} {profile['model'] or ''}".strip())
+    if profile["year"]:
+        profile_parts.append(str(profile["year"]))
+    if profile["plate"]:
+        profile_parts.append(f"plate: {profile['plate']}")
+    if profile["fuel_type"]:
+        profile_parts.append(profile["fuel_type"])
+    if profile_parts:
+        lines.append(f"- Profile: {' · '.join(profile_parts)}")
+    if profile["apk_due"]:
+        lines.append(f"- APK/ITP due: {profile['apk_due']}")
+    if profile["insurance_due"]:
+        lines.append(f"- Insurance due: {profile['insurance_due']}")
+
+    # Service interval info
+    if profile["service_interval_km"] or profile["service_interval_months"]:
+        interval_parts = []
+        if profile["service_interval_km"]:
+            interval_parts.append(f"every {profile['service_interval_km']:,} km")
+        if profile["service_interval_months"]:
+            interval_parts.append(f"every {profile['service_interval_months']} months")
+        lines.append(f"- Service interval: {' or '.join(interval_parts)}")
+        if profile["last_service_km"]:
+            lines.append(f"- Last service: {profile['last_service_km']:.0f} km")
+            if profile["service_interval_km"]:
+                next_km = profile["last_service_km"] + profile["service_interval_km"]
+                remaining = next_km - (max_odo or 0)
+                lines.append(f"- Next service: {next_km:.0f} km ({remaining:.0f} km remaining)")
+        if profile["last_service_date"]:
+            lines.append(f"- Last service date: {profile['last_service_date']}")
+
+    # Operational stats
     if fill_count == 0:
         lines.append("No fuel entries found for this period.")
     else:

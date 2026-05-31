@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, FormEvent } from 'react'
 import { Send, Plus, Camera, Image, FileText, HelpCircle, X } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, type SetupAccount, type BalanceAdjustmentData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type FuelConfirmResponse, type VehicleLogActionData } from '../lib/api'
+import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, type SetupAccount, type BalanceAdjustmentData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type FuelConfirmResponse, type VehicleLogActionData, type VehicleReminderData } from '../lib/api'
 import CsvImportCard from '../components/CsvImportCard'
 import FuelioImportCard, { FuelioImportData } from '../components/FuelioImportCard'
 import ProposalCard, { ProposalData } from '../components/ProposalCard'
@@ -17,11 +17,12 @@ import FuelReceiptCard from '../components/FuelReceiptCard'
 import CategoryActionCard from '../components/CategoryActionCard'
 import GoalProposalCard, { GoalProposalData } from '../components/GoalProposalCard'
 import VehicleLogActionCard from '../components/VehicleLogActionCard'
+import VehicleReminderCard from '../components/VehicleReminderCard'
 import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from '../lib/api'
 
 
 export interface Message {
-  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'fuelio_import' | 'income_source' | 'reconciliation' | 'receipt' | 'category_action' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'fuelio_import' | 'income_source' | 'reconciliation' | 'receipt' | 'category_action' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder'
   content: string
   proposal?: ProposalData
   budgetRebalance?: BudgetRebalanceData
@@ -45,6 +46,7 @@ export interface Message {
   goalProposal?: GoalProposalData
   fuelLog?: { draft: ReceiptDraft; fuelStats?: FuelConfirmResponse }
   vehicleLogAction?: VehicleLogActionData
+  vehicleReminder?: VehicleReminderData
 }
 
 
@@ -323,6 +325,10 @@ export default function Chat({ messages, setMessages }: ChatProps) {
         }
         if (parsed.type === 'vehicle_log_action') {
           setMessages(prev => [...prev, { role: 'vehicle_log_action' as const, content: '', vehicleLogAction: parsed as VehicleLogActionData }])
+          return
+        }
+        if (parsed.type === 'vehicle_reminder') {
+          setMessages(prev => [...prev, { role: 'vehicle_reminder' as const, content: '', vehicleReminder: parsed as VehicleReminderData }])
           return
         }
 
@@ -625,6 +631,24 @@ export default function Chat({ messages, setMessages }: ChatProps) {
             ) : msg.role === 'vehicle_log_action' && msg.vehicleLogAction ? (
               <VehicleLogActionCard
                 data={msg.vehicleLogAction}
+                onConfirmed={(message) => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx ? { role: 'status' as const, content: message } : m
+                    )
+                  )
+                }}
+                onCancelled={() => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx ? { role: 'status' as const, content: 'Cancelled.' } : m
+                    )
+                  )
+                }}
+              />
+            ) : msg.role === 'vehicle_reminder' && msg.vehicleReminder ? (
+              <VehicleReminderCard
+                data={msg.vehicleReminder}
                 onConfirmed={(message) => {
                   setMessages(prev =>
                     prev.map((m, i) =>

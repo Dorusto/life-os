@@ -170,15 +170,20 @@ majordom-financiar/
 │   │   ├── auth.py              ← JWT authentication
 │   │   ├── chat.py              ← Chat endpoint + Ollama streaming + _PROPOSAL_TOOLS
 │   │   ├── transactions.py      ← GET /transactions, /accounts, /stats
-│   │   ├── receipts.py          ← Receipt photo flow (grocery + fuel dual-write)
-│   │   ├── vehicle_proposals.py ← POST /vehicle/proposals/{id}/confirm (text refuel)
-│   │   └── csv_import.py        ← CSV import flow
+│   │   ├── receipts.py              ← Receipt photo flow (grocery + fuel dual-write)
+│   │   ├── vehicle_proposals.py     ← POST /vehicle/proposals/{id}/confirm (text refuel)
+│   │   ├── vehicle_log_actions.py   ← POST /vehicle-log-actions/{id}/confirm|cancel
+│   │   ├── vehicle_reminder_actions.py ← POST /vehicle-reminder-actions/{id}/confirm|cancel
+│   │   └── csv_import.py            ← CSV import flow
 │   ├── tools/
-│   │   ├── registry.py          ← TOOLS list + execute_tool dispatcher
-│   │   ├── vehicle_proposals.py ← In-memory store for pending refuel proposals
+│   │   ├── registry.py              ← TOOLS list + execute_tool dispatcher
+│   │   ├── vehicle_proposals.py     ← In-memory store for pending refuel proposals
+│   │   ├── vehicle_log_actions.py   ← In-memory store for pending log delete proposals
+│   │   ├── vehicle_reminder_actions.py ← In-memory store for pending reminder proposals
+│   │   ├── category_actions.py      ← In-memory store for pending category proposals
 │   │   └── finance/
 │   │       ├── actual_budget.py ← AB client wrapper (add_transaction etc.)
-│   │       └── vehicle.py       ← log_refuel + get_vehicle_stats chat tools
+│   │       └── vehicle.py       ← log_refuel, get_vehicle_stats, set_vehicle_reminder, set_service_interval, get_vehicle_log, delete_vehicle_log_entry
 │   ├── services/
 │   │   ├── chat_service.py      ← ChatService (Ollama wrapper)
 │   │   └── receipt_service.py
@@ -407,6 +412,9 @@ majordom       ← FastAPI backend (port 8000) + React frontend via Nginx (port 
 - [x] Account selection on receipt confirm
 - [x] Home screen: Cashflow (income − expenses) + Net Worth metrics, Goals progress bars
 - [x] Savings goals: `TARGET: <amount>` in AB account note field → `set_account_goal` chat tool + `/api/accounts/goals` endpoint
+- [x] Vehicle reminders: APK/insurance/service — `set_vehicle_reminder` + `set_service_interval` chat tools; daily digest bundles all alerts into one Web Push
+- [x] Daily digest: single APScheduler job at configured time — financial summary + vehicle alerts + import nudge + pending review → one push
+- [x] Vehicle log management: `get_vehicle_log` + `delete_vehicle_log_entry` chat tools
 
 ## MCP Server
 

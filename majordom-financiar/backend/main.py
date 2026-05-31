@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
-from backend.api import auth, receipts, transactions, chat, csv_import, proposals, budget, accounts, setup, balance_adjustments, push, income_sources, category_actions, fuelio_import, vehicle_proposals, vehicle_log_actions
+from backend.api import auth, receipts, transactions, chat, csv_import, proposals, budget, accounts, setup, balance_adjustments, push, income_sources, category_actions, fuelio_import, vehicle_proposals, vehicle_log_actions, vehicle_reminder_actions
 
 from backend.core.config import settings
 from backend.core.scheduler import scheduler
@@ -60,6 +60,13 @@ async def lifespan(app: FastAPI):
                 config={"min_age_hours": 48},
             )
             logger.info("Default notification rule seeded: pending_review at 48h")
+        if not db.get_notification_rule("vehicle_reminders"):
+            db.upsert_notification_rule(
+                rule_type="vehicle_reminders",
+                enabled=True,
+                config={"warn_days": 30},
+            )
+            logger.info("Default notification rule seeded: vehicle_reminders at 30 days")
     except Exception as _e:
         logger.warning("Could not seed built-in CSV profiles: %s", _e)
     try:
@@ -71,7 +78,7 @@ async def lifespan(app: FastAPI):
     logger.info("APScheduler started")
 
     try:
-        from backend.services.notification_service import run_daily_summary, run_import_nudge, run_pending_review_nudge
+        from backend.services.notification_service import run_daily_digest
         from backend.core.memory.database import MemoryDB as _MemoryDB
         from backend.core.config import settings as _settings
 
@@ -81,30 +88,14 @@ async def lifespan(app: FastAPI):
         _hour, _minute = map(int, _time.split(":"))
 
         scheduler.add_job(
-            run_daily_summary,
+            run_daily_digest,
             trigger="cron",
             hour=_hour,
             minute=_minute,
-            id="daily_summary",
+            id="daily_digest",
             replace_existing=True,
         )
-        scheduler.add_job(
-            run_import_nudge,
-            trigger="cron",
-            hour=_hour,
-            minute=_minute,
-            id="import_nudge",
-            replace_existing=True,
-        )
-        scheduler.add_job(
-            run_pending_review_nudge,
-            trigger="cron",
-            hour=_hour,
-            minute=_minute,
-            id="pending_review",
-            replace_existing=True,
-        )
-        logger.info("Daily jobs scheduled at %s: summary, import nudge, pending review", _time)
+        logger.info("Daily digest scheduled at %s (financial summary + all alerts in one push)", _time)
     except Exception as _e:
         logger.warning("Could not schedule daily summary job: %s", _e)
 
@@ -164,6 +155,7 @@ app.include_router(category_actions.router, prefix="/api")
 app.include_router(fuelio_import.router, prefix="/api")
 app.include_router(vehicle_proposals.router, prefix="/api")
 app.include_router(vehicle_log_actions.router, prefix="/api")
+app.include_router(vehicle_reminder_actions.router, prefix="/api")
 
 
 @app.get("/api/health")

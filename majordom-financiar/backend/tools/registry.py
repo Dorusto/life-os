@@ -365,9 +365,10 @@ TOOLS: list[dict] = [
         "function": {
             "name": "get_vehicle_stats",
             "description": (
-                "Get vehicle operational statistics: fuel consumption, cost per km, total spending. "
-                "Use when the user asks about their car or motorcycle stats, average consumption, "
-                "how much they spent on fuel or maintenance, or wants a vehicle summary."
+                "Get full vehicle profile and operational statistics: plate number, make, model, year, "
+                "fuel type, APK/insurance due dates, service interval, fuel consumption, cost per km. "
+                "Use when the user asks about ANY vehicle info — plate number, registration, profile, "
+                "stats, average consumption, spending on fuel or maintenance, or a vehicle summary."
             ),
             "parameters": {
                 "type": "object",
@@ -405,6 +406,74 @@ TOOLS: list[dict] = [
                     "full_tank": {"type": "boolean", "description": "True if filled to full (default), False if partial"},
                 },
                 "required": ["liters", "total_eur"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "set_service_interval",
+            "description": (
+                "Set or update the service interval for a vehicle. "
+                "Use when the user says their car needs service every N km or every N months, "
+                "or mentions the last service date/odometer. "
+                "A confirmation card appears — nothing is saved until the user confirms."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "vehicle_name": {
+                        "type": "string",
+                        "description": "Vehicle name or partial name.",
+                    },
+                    "interval_km": {
+                        "type": "integer",
+                        "description": "Service interval in km, e.g. 15000.",
+                    },
+                    "interval_months": {
+                        "type": "integer",
+                        "description": "Service interval in months, e.g. 12.",
+                    },
+                    "last_service_km": {
+                        "type": "number",
+                        "description": "Odometer reading at last service.",
+                    },
+                    "last_service_date": {
+                        "type": "string",
+                        "description": "Date of last service in YYYY-MM-DD format.",
+                    },
+                },
+                "required": ["vehicle_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "set_vehicle_reminder",
+            "description": (
+                "Set an APK/ITP or insurance expiry date on a vehicle. "
+                "Use when the user mentions when their APK, ITP, MOT, or car insurance expires. "
+                "A confirmation card appears — nothing is saved until the user confirms."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "vehicle_name": {
+                        "type": "string",
+                        "description": "Vehicle name or partial name, e.g. 'cora', 'wabi sabi'.",
+                    },
+                    "reminder_type": {
+                        "type": "string",
+                        "enum": ["apk", "insurance"],
+                        "description": "'apk' for APK/ITP/MOT inspection, 'insurance' for car insurance.",
+                    },
+                    "due_date": {
+                        "type": "string",
+                        "description": "Expiry date in ISO format YYYY-MM-DD. If user says 'June 2026', use 2026-06-01.",
+                    },
+                },
+                "required": ["vehicle_name", "reminder_type", "due_date"],
             },
         },
     },
@@ -529,6 +598,14 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "log_refuel":
         from backend.tools.finance.vehicle import log_refuel
         return await log_refuel(**arguments)
+
+    if name == "set_vehicle_reminder":
+        from backend.tools.finance.vehicle import set_vehicle_reminder
+        return await set_vehicle_reminder(**arguments)
+
+    if name == "set_service_interval":
+        from backend.tools.finance.vehicle import set_service_interval
+        return await set_service_interval(**arguments)
 
     if name == "get_vehicle_log":
         from backend.tools.finance.vehicle import get_vehicle_log

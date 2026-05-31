@@ -161,8 +161,8 @@ Complete replacement for Fuelio. **Architecture:** AB holds financial costs (fro
 | ✅ 3.2 | Fuelio CSV import | Historical → vehicle_log only; Active field fix; FuelioImportCard |
 | ✅ 3.3 | Refuel recording from photos | FuelReceiptCard unified (photo + text); dual-write AB + vehicle_log; post-confirm Fuelio-style stats; ODO validation |
 | ✅ 3.3b | log_refuel chat tool | Text input → same FuelReceiptCard; `[fuel] NL — Vehicle` in AB notes; vehicle proposals endpoint |
-| 3.4 | Consumption + cost calculations | L/100km per fill-up already in confirm-fuel endpoint; moving average + charts = backlog |
-| 3.5 | Reminders | APK/ITP + insurance (30 days before); service by km or date; Majordom proactively suggests if no reminders set |
+| ⏸️ 3.4 | Consumption + cost calculations | On hold — moving average adds limited value without proactive surfacing; revisit when charts are prioritized |
+| ➡️ 3.5 | Reminders | Merged into M4.6 — same feature, implemented there with full notification_rules infrastructure |
 | ✅ 3.6 | Vehicle log management via chat | `get_vehicle_log` (last N refuels per vehicle) + `delete_vehicle_log_entry` (confirmation card); useful for cleanup of test/duplicate entries. AB transaction not deleted on log delete — issue #83 |
 
 **Fuelio features backlog** (investigate before implementing — may need dedicated UI tab):
@@ -181,15 +181,16 @@ Proactive notifications so Majordom finds problems before the user does.
 
 | # | Feature | Notes |
 |---|---------|-------|
-| 4.1 | Extensible notification system | `notification_rules` (JSON config) + `notification_log` (anti-spam); APScheduler daily 08:00; Web Push primary |
+| ✅ 4.1 | Extensible notification system | Shipped in M2.1: `notification_rules` + `notification_log` + APScheduler + Web Push. Infrastructure reused by all subsequent alerts. |
 | 4.2 | Budget alert | After each transaction: notify when category exceeds X% of monthly limit |
 | 4.3 | Income variance alert | When received salary differs from scheduled → notify + offer category reallocation |
 | 4.4 | Goal risk alert | Weekly: is contribution pace on track to meet goal date? |
 | 4.5 | Recurring expense audit | Monthly: surface all recurring transactions + forgotten subscriptions |
-| 4.6 | Vehicle reminders | Daily: APK/ITP, insurance, service by km |
+| ✅ 4.6 | Vehicle reminders | Daily digest at configured time: APK/ITP, insurance (expiry + setup nudge), service by km/date. All bundled in one push. `set_vehicle_reminder` + `set_service_interval` chat tools. |
 | 4.7 | Market correction alert | Daily: ETF price API → notify on dip beyond threshold → "Buy from opportunity fund?" |
 | 4.8 | Savings goals progress | Emergency fund, vacation, large purchases — progress bars in PWA |
 | 4.9 | FIRE / Crossover Point Report | Use AB's native experimental report; Chat AI explains conversationally |
+| 4.10 | Daily digest in chat | When user opens chat, today's digest appears as first assistant message. `GET /api/notifications/today` → frontend injects on mount. |
 
 ---
 

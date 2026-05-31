@@ -5,6 +5,62 @@
 
 ---
 
+## 2026-05-31 — M4.6: vehicle reminders + notification bundling
+
+### Problema
+
+Trei probleme separate:
+1. Nu existau notificări pentru APK/insurance/service — userul uita datele importante
+2. Fiecare tip de notificare trimitea un push separat → spam (3 push-uri la 20:00 în aceeași secundă)
+3. Vehiculele nu aveau profilul complet accesibil prin chat (plăcuță, make/model, date service)
+
+### Ce s-a întâmplat
+
+**Bundling notificări — decizie arhitecturală importantă:**
+
+Inițial: 4 joburi APScheduler separate (daily_summary, import_nudge, pending_review, vehicle_reminders), fiecare trimitea propriul push. Userul putea primi 4 push-uri în aceeași secundă.
+
+Soluție: un singur job `run_daily_digest` la ora configurată (20:00). Toate checker-ele returnează `str | None` (fără side effects). Orchestratorul colectează, concatenează cu ` · ` și trimite UN singur push. Anti-spam logat separat per tip.
+
+```
+_check_financial_summary() → "Spent €45 today..."
+_check_import_nudge()      → "7 days since last import"
+_check_pending_review()    → None (nimic de revizuit)
+_check_vehicle_reminders() → ["🚗 Cora insurance expires in 18 days"]
+                          ↓
+"Spent €45 today... · 7 days since last import · 🚗 Cora insurance expires in 18 days"
+→ UN singur push
+```
+
+**Vehicle reminders — 3 tipuri de alertă:**
+- APK/insurance expiry: alert când < 30 zile, anti-spam 7 zile
+- Service by km: alert când remaining ≤ 2000 km, anti-spam 7 zile
+- Service by date: alert când ≤ 30 zile, anti-spam 7 zile
+- Setup nudge: dacă APK sau insurance nu sunt setate → nudge la 30 zile
+
+**`get_vehicle_stats` extins** cu profilul complet — plăcuță, make/model, APK/insurance due, service interval. LLM poate răspunde la "what's Cora's plate?" fără tool separat.
+
+**`VehicleReminderCard`** — card diferit pentru APK/insurance (un câmp dată) vs service (4 câmpuri: interval km, interval luni, last service km, last service date). Selector vehicul dacă >1 vehicul activ.
+
+### Surprize și blocaje
+
+**LLM nu apela `get_vehicle_stats`** când userul întreba de plăcuță — spunea "I don't have access to vehicle profiles". Fix: descriere tool actualizată + linie explicită în system prompt.
+
+**`docker compose exec` fără PYTHONPATH** — importurile backend eșuau silențios. Întotdeauna folosește `-e PYTHONPATH=/app` pentru test manual.
+
+**Anti-spam și test manual** — pentru a testa digestul manual trebuie șters `notification_log`. Altfel anti-spam-ul blochează corect a doua trimitere din aceeași zi.
+
+**Push subscription Firefox vs Chrome Android** — subscripțiile sunt per-browser. Notificările Web Push ajung doar la browserul care s-a abonat. Dacă testezi pe Firefox desktop și vrei notificări pe Android, trebuie să deschizi app-ul în Chrome Android și să accepți permisiunea acolo.
+
+### De reținut
+
+- **Un push per zi, nu per alertă** — design-ul corect pentru daily digest. Altfel userul dezactivează notificările.
+- **Checker functions = pure** — returnează text, nu trimit push. Orchestratorul decide ce, când și cum trimite. Mai ușor de testat, mai ușor de extins.
+- **`vehicle_reminders` rule config** — `warn_days` (30) și `warn_km` (2000) configurabile în `notification_rules.config`. Nu hardcodat.
+- **Service interval pe `vehicles`, nu pe `vehicle_log`** — `service_interval_km`, `service_interval_months`, `last_service_km`, `last_service_date` sunt câmpuri pe vehicul, nu pe intrări din log.
+
+---
+
 ## 2026-05-31 — M3.6: vehicle log management via chat
 
 ### Problema

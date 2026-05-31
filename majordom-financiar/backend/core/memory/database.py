@@ -196,6 +196,18 @@ class MemoryDB:
                 conn.commit()
             except Exception:
                 pass  # column already exists
+            # Add service reminder columns to vehicles
+            for col, defn in [
+                ("service_interval_km", "INTEGER DEFAULT NULL"),
+                ("service_interval_months", "INTEGER DEFAULT NULL"),
+                ("last_service_km", "REAL DEFAULT NULL"),
+                ("last_service_date", "TEXT DEFAULT NULL"),
+            ]:
+                try:
+                    conn.execute(f"ALTER TABLE vehicles ADD COLUMN {col} {defn}")
+                    conn.commit()
+                except Exception:
+                    pass  # column already exists
             logger.info(f"Database initialized: {self.db_path}")
         finally:
             conn.close()
@@ -714,5 +726,46 @@ class MemoryDB:
                 ORDER BY date DESC LIMIT 1
             """, (vehicle_id,)).fetchone()
             return dict(row) if row else None
+        finally:
+            conn.close()
+
+    def get_vehicles_with_reminders(self) -> list[dict]:
+        """Return active vehicles that have at least one reminder date set."""
+        conn = self._get_conn()
+        try:
+            rows = conn.execute("""
+                SELECT id, name, apk_due, insurance_due
+                FROM vehicles
+                WHERE active = 1 AND (apk_due IS NOT NULL OR insurance_due IS NOT NULL)
+                ORDER BY name
+            """).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+    def update_vehicle_due_date(self, vehicle_id: int, field: str, value: str) -> None:
+        """Set apk_due or insurance_due on a vehicle. field must be 'apk_due' or 'insurance_due'."""
+        if field not in ("apk_due", "insurance_due"):
+            raise ValueError(f"Invalid field: {field!r}")
+        conn = self._get_conn()
+        try:
+            conn.execute(f"UPDATE vehicles SET {field} = ? WHERE id = ?", (value, vehicle_id))
+            conn.commit()
+        finally:
+            conn.close()
+
+    def update_vehicle_service(self, vehicle_id: int, interval_km: int | None,
+                               interval_months: int | None, last_km: float | None,
+                               last_date: str | None) -> None:
+        """Set service interval and last service info on a vehicle."""
+        conn = self._get_conn()
+        try:
+            conn.execute("""
+                UPDATE vehicles
+                SET service_interval_km=?, service_interval_months=?,
+                    last_service_km=?, last_service_date=?
+                WHERE id=?
+            """, (interval_km, interval_months, last_km, last_date, vehicle_id))
+            conn.commit()
         finally:
             conn.close()

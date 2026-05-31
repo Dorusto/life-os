@@ -691,3 +691,34 @@ export async function confirmVehicleLogAction(id: string): Promise<{ message: st
 export async function cancelVehicleLogAction(id: string): Promise<void> {
   return request<void>(`/vehicle-log-actions/${id}/cancel`, { method: 'POST' })
 }
+
+// --- Vehicle reminder actions ---
+
+export interface VehicleReminderData {
+  id: string
+  vehicle_id: number
+  vehicle_name: string
+  vehicles: { id: number; name: string }[]
+  reminder_type: 'apk' | 'insurance' | 'service'
+  label: string
+  due_date: string
+  days_remaining: number
+  interval_km?: number | null
+  interval_months?: number | null
+  last_service_km?: number | null
+  last_service_date?: string | null
+}
+
+export async function confirmVehicleReminder(
+  id: string,
+  override?: { due_date?: string; vehicle_id?: number }
+): Promise<{ message: string }> {
+  return request(`/vehicle-reminder-actions/${id}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify(override ?? {}),
+  })
+}
+
+export async function cancelVehicleReminder(id: string): Promise<void> {
+  return request<void>(`/vehicle-reminder-actions/${id}/cancel`, { method: 'POST' })
+}
