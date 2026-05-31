@@ -202,7 +202,7 @@ function GroupRow({
         </div>
       </div>
       {hasBudget && (
-        <div className="h-1 bg-border/40 rounded-full overflow-hidden">
+        <div className="h-px bg-border/40 rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{ width: `${Math.min(percentage, 100)}%`, backgroundColor: color }}
