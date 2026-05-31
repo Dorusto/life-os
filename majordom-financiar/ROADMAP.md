@@ -116,7 +116,7 @@ Replaces M2 Onboarding and reprioritises M4 Smart Alerts as the immediate next m
 
 **Cleanup actions (do first, in order):**
 1. ✅ Delete onboarding code: `onboarding_service.py`, `api/onboarding.py`, all references in `chat.py` and frontend — done 2026-05-31
-2. Update `categories.json` to reflect the actual AB structure (7 top-level category groups, SmartCategorizer suggests at subcategory level)
+2. ✅ Update `categories.json` + BudgetDashboard grouping + expand — done 2026-05-31 (issue #74)
 3. ✅ Home UI redesign — done 2026-05-31 (Cashflow + Net Worth metrics, Goals section, Recent removed)
 4. Implement APScheduler + `notification_rules` + `notification_log` (foundation for all 2.x features)
 5. Implement M2-NEW features in order: 2.0 → 2.8 → 2.1 → 2.3 → 2.4 → 2.2 → 2.5 → 2.6 → 2.7
