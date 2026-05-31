@@ -145,7 +145,7 @@ Refactor `ActualBudgetClient` into the tool registry structure. This is when `ma
 |---|---|---|
 | Web frontend | React + TypeScript | Installable PWA |
 | Web backend | FastAPI (Python 3.11) | REST API + streaming chat |
-| LLM vision / chat | Ollama + local models | qwen2.5vl:3b (vision), qwen2.5:7b (chat) |
+| LLM vision / chat | Ollama + local models | qwen2.5vl:3b (vision), qwen3:14b (chat) |
 | Finance tool | Actual Budget | Self-hosted Docker |
 | Finance client | actualpy | Python wrapper over AB API |
 | Investment tool | Ghostfolio | Self-hosted Docker (planned) |
@@ -382,7 +382,7 @@ User: "I refueled 40L at Shell for €90, odo 51500"
 | `ACTUAL_BUDGET_SYNC_ID` | Sync ID from Actual Budget settings |
 | `OLLAMA_URL` | Ollama URL |
 | `OLLAMA_VISION_MODEL` | Vision model (qwen2.5vl:3b) |
-| `OLLAMA_CHAT_MODEL` | Chat model (qwen2.5:7b) |
+| `OLLAMA_CHAT_MODEL` | Chat model (qwen3:14b) |
 | `MEMORY_DB_PATH` | SQLite path (/app/data/memory.db) |
 | `JWT_SECRET` | Secret for JWT tokens |
 | `USER1_USERNAME` / `USER1_PASSWORD` | Web UI credentials |

@@ -166,11 +166,13 @@ async def _call_ollama_non_streaming(messages: list[dict], ollama_url: str, mode
             "num_predict": 512,
         },
     }
-    async with httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
         try:
             response = await client.post(f"{ollama_url}/api/chat", json=payload)
         except httpx.ConnectError:
             raise HTTPException(status_code=503, detail="Cannot connect to Ollama. Is Ollama running?")
+        except httpx.ReadTimeout:
+            raise HTTPException(status_code=503, detail="Ollama timed out — model is too slow or overloaded. Try again.")
         if response.status_code != 200:
             raise HTTPException(status_code=503, detail=f"Ollama error {response.status_code}")
         return response.json()
