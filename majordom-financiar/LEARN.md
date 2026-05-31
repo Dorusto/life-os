@@ -1836,6 +1836,56 @@ Goals cu deadline:
 - **Keyword emoji fallback** — mai robust decat un map strict: prinde variante de naming ("Food", "Foods", "Eating") fara configuratie explicita.
 - **Corupere SQLite Actual Budget** — aparut de doua ori in sesiune: "database disk image is malformed". Fix: `docker compose restart actual-budget`. Cauza probabila: lock neterminat dupa operatii in paralel. Nu blocheaza date, containerul se recupereaza la restart.
 
+---
+
+## 2026-06-01 — Migrare la OpenAI-compatible API + OpenRouter
+
+### Problema
+
+Chat-ul nu mai funcționa după ce Ollama a fost migrat pe LXC și s-a schimbat endpoint-ul din `/api/chat` (format nativ Ollama) la `/v1/chat/completions` (OpenAI-compatible). Eroarea din browser: `NS_ERROR_FAILURE` — conexiunea cădea fără răspuns HTTP.
+
+### Ce s-a întâmplat
+
+**Bug 1 — Ollama `/v1/chat/completions` + `num_ctx` ignorat**
+
+Ollama's native `/api/chat` accepta câmpul `options.num_ctx: 8192`. Endpoint-ul OpenAI-compatible `/v1/chat/completions` ignoră `options` → context window revenea la default (2048 tokens) → overflow cu ~3500 tokens de tool schemas + system prompt → Ollama cădea sau returna eroare fără răspuns HTTP valid. Soluție: switch la OpenRouter (cloud) care nu are această limitare.
+
+**Bug 2 — double `/v1` în URL**
+
+`.env` configurat cu `LLM_BASE_URL=https://openrouter.ai/api/v1`. Codul adaugă `/v1/chat/completions` → URL final: `.../api/v1/v1/chat/completions` → 404. Fix: `LLM_BASE_URL=https://openrouter.ai/api` (fără `/v1` la sfârșit).
+
+**Bug 3 — `arguments` ca string, nu dict**
+
+Ollama's `/api/chat` returna `tool_calls[].function.arguments` deja parsat ca dict Python. OpenAI format returnează același câmp ca **JSON string** (`"{\"month\": 5}"`). Codul făcea `**args` direct → `TypeError: argument after ** must be a mapping, not str`. Fix în `chat.py`:
+```python
+if isinstance(args, str):
+    args = json.loads(args)
+```
+
+**Bug 4 — model ID greșit pentru vision**
+
+`LLM_VISION_MODEL=google/gemini-2.0-flash-lite` → OpenRouter returnează 400 (`not a valid model ID`). Modelul a dispărut pe 1 Iunie 2026. ID-ul corect curent: `google/gemini-2.5-flash-lite`.
+
+### Soluția
+
+Stack-ul final pe OpenRouter:
+```
+LLM_BASE_URL=https://openrouter.ai/api
+LLM_API_KEY=sk-or-...
+LLM_CHAT_MODEL=deepseek/deepseek-chat
+LLM_VISION_MODEL=google/gemini-2.5-flash-lite
+```
+
+Chat: ~12 secunde (vs 4 minute pe Ollama CPU). OCR bon: instant.
+
+### De reținut
+
+- **OpenAI format vs Ollama format** — `arguments` e string în OpenAI, dict în Ollama. Orice migrare de la Ollama nativ la OpenAI-compatible necesită `json.loads(args)` înainte de `**args`.
+- **`LLM_BASE_URL` nu include `/v1`** — codul adaugă `/v1/chat/completions`. Dacă provider-ul tău are URL cu `/v1`, scoate-l din env var.
+- **Ollama `/v1/chat/completions` ignoră `options.num_ctx`** — dacă rămâi pe Ollama cu endpoint OpenAI-compatible, trebuie să trimiți `num_ctx` ca parametru de top-level, nu în `options`.
+
+---
+
 ### Adendum — setup_default_groups tool
 
 `setup_default_groups` — tool care creează cele 7 grupuri standard dacă nu există deja. Verifică `get_category_groups()` → filtrează cele existente → propune crearea celor lipsă. Util atât pentru setup initial cât și pentru utilizatori cu structura parțial creată (creează doar ce lipsește, nu suprascrie).
