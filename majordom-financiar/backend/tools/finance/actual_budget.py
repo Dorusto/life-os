@@ -456,3 +456,18 @@ async def set_account_goal(account_name: str, target: float) -> str:
     client = _get_client()
     name = await client.set_account_goal(account_name=account_name, target=target)
     return f"Goal set: {name} → target €{target:,.0f}"
+
+
+async def rename_category(old_name: str, new_name: str) -> str:
+    """Rename a budget category. old_name must match exactly (case-insensitive). new_name is the replacement."""
+    from difflib import get_close_matches
+    client = _get_client()
+    # Fuzzy-resolve old_name against actual categories in AB
+    cats = await client.get_categories()
+    all_names = [c.name for c in cats]
+    exact = next((n for n in all_names if n.lower() == old_name.lower()), None)
+    resolved = exact or (get_close_matches(old_name, all_names, n=1, cutoff=0.6) or [None])[0]
+    if not resolved:
+        return f"Category not found: {old_name!r}. Available: {', '.join(all_names)}"
+    await client.rename_category(resolved, new_name)
+    return f"Category renamed: {resolved!r} → {new_name!r}"

@@ -253,6 +253,31 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "rename_category",
+            "description": (
+                "Rename an existing budget category. "
+                "Use when the user says 'rename category X to Y', 'change the name of X', 'call X something else'. "
+                "Executes immediately — no confirmation needed."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "old_name": {
+                        "type": "string",
+                        "description": "Current name of the category to rename.",
+                    },
+                    "new_name": {
+                        "type": "string",
+                        "description": "New name for the category, exactly as the user specified.",
+                    },
+                },
+                "required": ["old_name", "new_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "propose_balance_adjustment",
             "description": "Propose adjusting an account balance to match the real bank balance. Use when the user says the account balance is wrong, or wants to sync/reconcile an account balance.",
             "parameters": {
@@ -318,6 +343,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "set_account_goal":
         from backend.tools.finance.actual_budget import set_account_goal
         return await set_account_goal(**arguments)
+
+    if name == "rename_category":
+        from backend.tools.finance.actual_budget import rename_category
+        return await rename_category(**arguments)
 
     if name == "set_notification_time":
         from backend.tools.settings.notifications import set_notification_time

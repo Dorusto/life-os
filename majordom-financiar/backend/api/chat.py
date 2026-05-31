@@ -191,8 +191,9 @@ async def chat_stream(
         try:
             response = await _call_ollama_non_streaming(messages, ollama_url, model)
         except HTTPException as e:
+            detail = e.detail
             async def error_gen():
-                yield f"Error: {e.detail}"
+                yield f"Error: {detail}"
             return StreamingResponse(error_gen(), media_type="text/plain", headers=streaming_headers)
 
         assistant_message = response.get("message", {})

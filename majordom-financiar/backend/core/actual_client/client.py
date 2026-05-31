@@ -628,6 +628,20 @@ class ActualBudgetClient:
                 return Category(id=str(cat.id), name=cat.name, group_name=group_name)
         return await self._run(_create)
 
+    async def rename_category(self, old_name: str, new_name: str) -> None:
+        """Rename an existing category. Raises ValueError if not found."""
+        def _rename():
+            from actual.queries import get_category
+            with self._get_actual() as actual:
+                actual.download_budget()
+                cat = get_category(actual.session, old_name)
+                if not cat:
+                    raise ValueError(f"Category not found: {old_name}")
+                cat.name = new_name
+                actual.commit()
+                logger.info(f"Category renamed: {old_name!r} → {new_name!r}")
+        return await self._run(_rename)
+
     async def create_schedule(self, name: str, amount: float, day_of_month: int, account_id: str, is_income: bool = False) -> str:
         """Create a monthly recurring schedule in Actual Budget. Returns the schedule ID."""
         def _create():
