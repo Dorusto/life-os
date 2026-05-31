@@ -1463,3 +1463,64 @@ Home screen nou:
 - **`acc.notes` in actualpy** — campul `notes` al unui cont AB poate fi citit si scris direct in sesiunea actualpy. Pattern `KEY: value` in notes e o modalitate simpla de a stoca metadata fara tabel extra.
 - **Re.sub vs append** — cand updatezi o nota cu un camp structurat, foloseste `re.sub()` sa inlocuiesti valoarea existenta, nu sa o adaugi din nou. Altfel nota creste la fiecare update.
 - **Cashflow vs income in get_monthly_stats()** — tranzactiile pozitive fara `transferred_id` sunt venituri. Cele cu `transferred_id` sunt jumatatile unui transfer intern (nu venituri reale). Nu le skippa pe cele cu `is_income` in categoria lor — acelea pot fi relevante.
+
+## 2026-05-31 — Category groups: grouping + expand in BudgetDashboard
+
+### Problema
+
+Tot sistemul (budget bars, stats, SmartCategorizer) lucra cu subcategorii individuale afisate flat. Userul voia budget bars grupate pe cele 7 categorii principale, cu expand optional pe subcategorii — un singur tap sa vada detaliu.
+
+### Ce s-a intamplat
+
+**`cat.group.name` exista deja in actualpy, nu era expus:**
+`get_categories()` returna obiecte cu `cat.group` disponibil, dar `get_budget_status()` nu il folosea. Fix simplu: un al doilea dict `cat_group_map` construit in acelasi loop cu `cat_name_map`:
+
+```python
+cat_group_map: dict[str, str] = {}
+for cat in all_cats:
+    if cat.id:
+        cat_name_map[str(cat.id)] = cat.name or "Uncategorized"
+        cat_group_map[str(cat.id)] = cat.group.name if cat.group else "Unexpected"
+```
+
+`group_name` adaugat in fiecare element din result dict si in modelul Pydantic `BudgetCategory`.
+
+**Fals pozitiv in pre-commit hook:**
+Hook-ul `check-private-data.sh` prindea `password=settings.actual.password` ca "Real credential value" — pattern-ul `PASSWORD\s*=\s*[^\s]{10+}` era prea larg. Fix: `settings\.` adaugat la lookahead-ul negativ al regex-ului, alaturi de `your_|paste_|change_|example`:
+
+```bash
+# inainte
+'(PASSWORD|...)\s*=\s*(?!your_|paste_|...)[^\s]{10,}'
+
+# dupa
+'(PASSWORD|...)\s*=\s*(?!your_|paste_|...|settings\.)[^\s]{10,}'
+```
+
+Credential hardcodat (ex. `JWT_SECRET=` urmat de valoarea reala) e in continuare prins. Referinta la variabila de configuratie (`password=settings.actual.password`) nu mai este.
+
+**Grupuri necunoscute in frontend:**
+Userul are categorii in grupul "Majordom" din AB (creat anterior de setup), nu in cele 7 grupuri standard. `BudgetDashboard` trateaza asta corect: grupurile din `GROUP_ORDER` apar primele, restul la final:
+
+```typescript
+const orderedGroups = [
+  ...GROUP_ORDER.filter(g => groupMap[g]),         // cele 7 standard
+  ...Object.keys(groupMap).filter(g => !GROUP_ORDER.includes(g)), // orice altceva
+]
+```
+
+### Solutia
+
+```
+categories.json: camp "group" adaugat la fiecare categorie
+backend client.py: cat_group_map in get_budget_status() → group_name in response
+BudgetCategory model: group_name: str = "Unexpected"
+api.ts interface: group_name: string adaugat
+BudgetDashboard: grupuri cu bara sumara → tap → subcategorii inline
+setup.py: _ensure_default_categories() → creeaza 7 grupuri la prima configurare daca AB e gol
+```
+
+### De retinut
+
+- **`cat.group.name` in actualpy** — grupul categoriei e disponibil direct pe obiectul `cat` returnat de `get_categories()`. Nu trebuie query suplimentar.
+- **Fals pozitiv in hook: `settings.` ca prefix safe** — orice valoare care incepe cu `settings.` e o referinta la configuratie, nu o credentiala. Adauga-o la lista de exceptii ori de cate ori extinzi hook-ul.
+- **Grupuri necunoscute la final, nu erori** — cand datele din AB nu respecta nomenclatorul standard (utilizatorul poate redenumi grupuri), nu bloca afisarea: arata grupurile cunoscute in ordine fixa, restul la final fara mesaj de eroare.
