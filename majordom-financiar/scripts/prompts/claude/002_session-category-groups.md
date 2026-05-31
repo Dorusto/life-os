@@ -14,54 +14,55 @@
 Acum tot sistemul (budget bars, stats, SmartCategorizer) lucrează cu **subcategorii** individuale.
 Userul vrea să lucreze cu **7 grupuri principale**, cu expand opțional pe subcategorii.
 
-### Pasul 0 — Confirmă structura de categorii (5 min, fără cod)
+### Structura de categorii — CONFIRMATĂ DE USER
 
-Tabelul propus în issue #74 (bazat pe ce există acum în AB):
+7 categorii fixe, universale, exhaustive:
 
-| Grup | Subcategorii posibile |
-|------|-----------------------|
-| 🏠 Housing | Home, Utilities |
-| 🛒 Daily Living | Groceries, Restaurants, Health |
-| 🚗 Transport | Transport |
-| 🎭 Entertainment | Divertisment, Vacation |
-| 👤 Personal | Personal, Clothing, Children |
-| 💰 Savings & Investments | Savings, Investments |
-| 📦 Other | Other, Uncategorized |
+| # | Categorie | Ce acoperă | Subcategorii din `categories.json` |
+|---|-----------|------------|-------------------------------------|
+| 1 | 🏠 Housing | chirie, ipotecă, utilități, reparații, curățenie | Home & Maintenance, Utilities |
+| 2 | 🛒 Daily Living | mâncare, igienă, îmbrăcăminte, copii, animale | Groceries & Drinks, Clothing, Children |
+| 3 | 🚗 Transport | mașină, combustibil, transport public, moto, parking | Transport |
+| 4 | 💊 Health | medicamente, doctor, sală, psiholog, asigurări sănătate | Health |
+| 5 | 🎯 Lifestyle | restaurante, vacanțe, abonamente, hobby, cadouri | Restaurants & Cafes, Entertainment & Vacation, Personal |
+| 6 | 💰 Finance | investiții, economii, asigurări, taxe, rate | Investments & Savings |
+| 7 | ⚡ Unexpected | tot ce nu se încadrează — AI decide dacă creează subcategorie | Other |
 
-**Înainte de orice cod:** cere userului să confirme sau ajusteze acest tabel.
-Categoriile confirmate devin sursa de adevăr pentru tot ce urmează.
+**Nu mai e nevoie de confirmare — implementează direct.**
 
-### Pasul 1 — Backend: expune `group_name` în `/api/budget`
+### Pasul 1 — Update `categories.json`
 
-`get_categories()` din actualpy returnează deja `cat.group.name` — nu e expus în API.
+Adaugă câmpul `"group"` la fiecare categorie din `backend/core/config/categories.json`.
+SmartCategorizer citește `name` și `keywords`, ignoră `group`.
 
-Fișiere de modificat:
-- `backend/core/actual_client/client.py` → `get_budget_status()`: adaugă `group_name` în fiecare item din result
-- `backend/api/transactions.py` → `BudgetCategory` model: adaugă `group_name: str`
+### Pasul 2 — Backend: expune `group_name` în `/api/budget`
 
-### Pasul 2 — Frontend: BudgetDashboard cu grouping + expand
+`get_budget_status()` în `client.py` returnează `category_name`. Adaugă `group_name`:
+- `ActualBudgetClient.get_budget_status()` → lookup grup după `cat.group.name` din actualpy
+- `BudgetCategory` model din `transactions.py` → câmp nou `group_name: str`
 
-`frontend/src/components/BudgetDashboard.tsx` — componenta existentă afișează bare plate.
+Fallback: dacă categoria din AB nu are grup → `"Unexpected"`.
+
+### Pasul 3 — Frontend: BudgetDashboard cu grouping + expand
+
+`frontend/src/components/BudgetDashboard.tsx` — afișează bare plate acum.
 
 Comportament nou:
 - Grupează categoriile după `group_name`
-- Afișează o bară per grup (sum budgeted / sum spent)
-- Tap pe grup → expand inline → bare individuale pentru subcategorii
+- O bară per grup (sum budgeted / sum spent)
+- Tap pe grup → expand inline → bare individuale subcategorii
 - Subcategoriile cu 0 budgeted și 0 spent → ascunse
+- Ordinea fixă: Housing → Daily Living → Transport → Health → Lifestyle → Finance → Unexpected
 
-### Pasul 3 — Auto-creare categorii în AB la setup
+### Pasul 4 — Auto-creare categorii în AB la setup
 
-`backend/api/setup.py` → `POST /api/setup/complete`: dacă AB nu are nicio categorie → creează grupurile + subcategoriile din structura confirmată.
-
-`backend/core/actual_client/client.py` → deja există `create_category_group()` și `create_category()`.
-
-### Pasul 4 — Update `categories.json`
-
-`backend/core/memory/categories.json` (sau echivalentul) — înlocuiește cu subcategoriile confirmate.
-SmartCategorizer sugerează la nivel de subcategorie (unchanged).
+`backend/api/setup.py` → `POST /api/setup/complete`: dacă AB nu are nicio categorie →
+creează cele 7 grupuri + subcategoriile din tabelul de mai sus.
+`create_category_group()` și `create_category()` există deja în `client.py`.
 
 ## Fișiere cheie
 
+- `backend/core/config/categories.json` — sursa de adevăr pentru categorii + grupuri
 - `backend/core/actual_client/client.py` — `get_budget_status()`, `create_category_group()`, `create_category()`
 - `backend/api/transactions.py` — `BudgetCategory` model, `/api/budget` endpoint
 - `backend/api/setup.py` — `POST /api/setup/complete`
@@ -73,4 +74,4 @@ SmartCategorizer sugerează la nivel de subcategorie (unchanged).
 1. Citește `ARCHITECTURE.md`, `ROADMAP.md`
 2. Rulează `gh issue list` și `gh issue view 74`
 3. Citește fișierele cheie de mai sus
-4. **Confirmă structura de categorii cu userul** — fără asta nu poți scrie nimic
+4. Implementează în ordinea pașilor 1 → 2 → 3 → 4
