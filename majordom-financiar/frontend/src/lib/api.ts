@@ -86,12 +86,56 @@ export interface ReceiptDraft {
   category_source: 'history' | 'keywords' | 'ai' | 'none'
   categories: Category[]
   accounts: AccountOption[]
+  // Fuel receipt fields
+  receipt_type: 'fuel' | 'grocery'
+  liters: number | null
+  price_per_liter: number | null
+  fuel_grade: string | null
+  vehicles: VehicleOption[]
+  suggested_vehicle_id: number | null
+}
+
+export interface VehicleOption {
+  id: number
+  name: string
+  last_odo: number | null
 }
 
 export interface ConfirmResponse {
   success: boolean
   duplicate: boolean
   transaction_id: string | null
+}
+
+export interface FuelConfirmRequest {
+  receipt_id: string
+  account_id: string
+  category_name: string
+  date: string
+  station: string
+  total_eur: number
+  vehicle_id: number
+  liters: number
+  price_per_liter: number | null
+  odo_km: number | null
+  full_tank: boolean
+  missed_fill: boolean
+  fuel_grade: string | null
+  notes: string | null
+}
+
+export interface FuelConfirmResponse {
+  success: boolean
+  duplicate: boolean
+  transaction_id: string | null
+  vehicle_log_id: number | null
+  km_since_last: number | null
+  consumption_l100km: number | null
+  cost_per_km: number | null
+  vehicle_name: string | null
+  liters: number | null
+  price_per_liter: number | null
+  fuel_grade: string | null
 }
 
 export interface Transaction {
@@ -154,6 +198,13 @@ export async function confirmReceipt(data: {
   notes?: string
 }): Promise<ConfirmResponse> {
   return request<ConfirmResponse>(`/receipts/${data.receipt_id}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function confirmFuelReceipt(data: FuelConfirmRequest): Promise<FuelConfirmResponse> {
+  return request<FuelConfirmResponse>(`/receipts/${data.receipt_id}/confirm-fuel`, {
     method: 'POST',
     body: JSON.stringify(data),
   })

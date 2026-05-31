@@ -85,7 +85,8 @@ class ReceiptService:
 
         Returns a dict with keys:
           merchant, amount, date, suggested_category_id, category_source,
-          categories (list), accounts (list)
+          categories (list), accounts (list),
+          receipt_type, liters, price_per_liter, fuel_grade, vehicles, suggested_vehicle_id
         """
         # Run vision model — this is the slow step (~30-60s on CPU)
         receipt = await self._vision.extract_from_bytes(image_bytes)
@@ -118,12 +119,14 @@ class ReceiptService:
             self._actual.get_categories(),
         )
 
-        return {
+        # Build base result
+        result = {
             "merchant": merchant,
             "amount": receipt.total,
             "date": date_str,
             "suggested_category_id": prediction.category_id if prediction.confidence > 0 else None,
             "category_source": source,
+            # Fuel receipts override category below after receipt_type is known
             "categories": [
                 {"id": cat.name, "name": cat.name, "emoji": "📦"}
                 for cat in ab_categories
@@ -132,7 +135,51 @@ class ReceiptService:
                 {"id": acc.id, "name": acc.name}
                 for acc in accounts
             ],
+            # Fuel fields
+            "receipt_type": receipt.receipt_type or "grocery",
+            "liters": receipt.liters,
+            "price_per_liter": receipt.price_per_liter,
+            "fuel_grade": receipt.fuel_grade,
+            "vehicles": [],
+            "suggested_vehicle_id": None,
         }
+
+        # For fuel receipts: override category to a transport default
+        if receipt.receipt_type == "fuel":
+            category_names = [cat.name for cat in ab_categories]
+            fuel_default = next(
+                (n for n in category_names if any(k in n.lower() for k in ("car", "transport", "fuel", "motorbike"))),
+                None,
+            )
+            if fuel_default:
+                result["suggested_category_id"] = fuel_default
+                result["category_source"] = "keywords"
+
+        # If this is a fuel receipt, detect closest vehicle by ODO
+        if receipt.receipt_type == "fuel":
+            try:
+                vehicles = self._db.get_last_odo_per_vehicle()
+                result["vehicles"] = [
+                    {"id": v["id"], "name": v["name"], "last_odo": v["last_odo"]}
+                    for v in vehicles if v["active"]
+                ]
+
+                # If user entered an ODO and we have vehicles, pick closest
+                if receipt.liters is not None and result["vehicles"]:
+                    # We don't have user-entered ODO at this stage (OCR can't read ODO),
+                    # but we pre-select the vehicle with the highest last_odo as a reasonable guess
+                    # (user can override in the frontend)
+                    sorted_vehicles = sorted(
+                        result["vehicles"],
+                        key=lambda v: v["last_odo"] if v["last_odo"] is not None else 0,
+                        reverse=True,
+                    )
+                    if sorted_vehicles:
+                        result["suggested_vehicle_id"] = sorted_vehicles[0]["id"]
+            except Exception as e:
+                logger.warning("Vehicle detection failed: %s", e)
+
+        return result
 
     async def confirm(
         self,

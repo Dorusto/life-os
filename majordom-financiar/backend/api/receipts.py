@@ -1,8 +1,9 @@
 """
 Receipt endpoints — the core user flow:
 
-  POST /api/receipts          → upload image, run OCR, return extracted data
-  POST /api/receipts/{id}/confirm → user confirms/edits → save to Actual Budget
+  POST /api/receipts                  → upload image, run OCR, return extracted data
+  POST /api/receipts/{id}/confirm     → user confirms/edits → save to Actual Budget
+  POST /api/receipts/{id}/confirm-fuel → fuel receipt confirm → save AB + vehicle_log
 
 Why two steps instead of one?
 OCR accuracy on receipts is around 80-90%. The user must always review and
@@ -29,6 +30,8 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
+from backend.core.memory.database import MemoryDB
+from backend.core.config import settings
 from backend.services.receipt_service import ReceiptService
 
 logger = logging.getLogger(__name__)
@@ -70,6 +73,13 @@ class ReceiptDraft(BaseModel):
     category_source: str        # "history" | "keywords" | "ai" | "none"
     categories: list[Category]
     accounts: list[AccountOption]
+    # Fuel receipt fields
+    receipt_type: str = "grocery"          # "fuel" | "grocery"
+    liters: Optional[float] = None
+    price_per_liter: Optional[float] = None
+    fuel_grade: Optional[str] = None
+    vehicles: list[dict] = []              # [{id, name, last_odo}] for vehicle selector
+    suggested_vehicle_id: Optional[int] = None  # pre-selected from ODO proximity
 
 
 class ConfirmRequest(BaseModel):
@@ -86,6 +96,41 @@ class ConfirmResponse(BaseModel):
     success: bool
     duplicate: bool
     transaction_id: Optional[str]
+
+
+class FuelConfirmRequest(BaseModel):
+    receipt_id: str
+    # AB transaction fields
+    account_id: str
+    category_name: str     # e.g. "Car Costs", "Motorbike Costs"
+    date: str              # YYYY-MM-DD
+    station: str           # payee in AB
+    total_eur: float
+    # vehicle_log fields
+    vehicle_id: int
+    liters: float
+    price_per_liter: Optional[float] = None
+    odo_km: Optional[float] = None
+    full_tank: bool = True
+    missed_fill: bool = False
+    fuel_grade: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class FuelConfirmResponse(BaseModel):
+    success: bool
+    duplicate: bool
+    transaction_id: Optional[str] = None
+    vehicle_log_id: Optional[int] = None
+    km_since_last: Optional[float] = None
+    consumption_l100km: Optional[float] = None
+    cost_per_km: Optional[float] = None
+    odo_warning: bool = False
+    # Echoed back for stats display
+    vehicle_name: Optional[str] = None
+    liters: Optional[float] = None
+    price_per_liter: Optional[float] = None
+    fuel_grade: Optional[str] = None
 
 
 # --- Routes ---
@@ -153,10 +198,17 @@ async def upload_receipt(
         category_source=result.get("category_source", "none"),
         categories=[Category(**c) for c in result.get("categories", [])],
         accounts=[AccountOption(**a) for a in result.get("accounts", [])],
+        receipt_type=result.get("receipt_type", "grocery"),
+        liters=result.get("liters"),
+        price_per_liter=result.get("price_per_liter"),
+        fuel_grade=result.get("fuel_grade"),
+        vehicles=result.get("vehicles", []),
+        suggested_vehicle_id=result.get("suggested_vehicle_id"),
     )
 
 
 @router.post("/receipts/{receipt_id}/confirm", response_model=ConfirmResponse)
+
 async def confirm_receipt(
     receipt_id: str,
     request: ConfirmRequest,
@@ -198,4 +250,147 @@ async def confirm_receipt(
         success=True,
         duplicate=result.get("duplicate", False),
         transaction_id=result.get("transaction_id"),
+    )
+
+
+def _build_fuel_notes(liters: float, vehicle_id: int, db) -> str:
+    try:
+        vehicles = db.get_vehicles()
+        v = next((v for v in vehicles if v["id"] == vehicle_id), None)
+        name = v["name"] if v else None
+    except Exception:
+        name = None
+    return f"[fuel] {liters}L — {name}" if name else f"[fuel] {liters}L"
+
+
+@router.post("/receipts/{receipt_id}/confirm-fuel", response_model=FuelConfirmResponse)
+async def confirm_fuel_receipt(
+    receipt_id: str,
+    request: FuelConfirmRequest,
+    current_user: str = Depends(get_current_user),
+):
+    """
+    Confirm a fuel receipt: saves AB transaction + vehicle_log entry.
+    Returns post-confirm stats (km since last, consumption, cost/km).
+    """
+    if receipt_id != request.receipt_id:
+        raise HTTPException(status_code=400, detail="Receipt ID mismatch")
+
+    image_path = UPLOADS_DIR / f"{receipt_id}.jpg"
+    if not image_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="Receipt image not found. Upload the image first.",
+        )
+
+    db = MemoryDB(db_path=settings.memory.db_path)
+    service = ReceiptService()
+
+    # Step 1: Get last fuel entry BEFORE inserting the new one (for stats)
+    last_entry = db.get_last_fuel_entry(request.vehicle_id)
+    last_odo = last_entry["odo_km"] if last_entry else None
+
+    # Step 2: Save AB transaction using category_name (AB name like "Car Costs")
+    # service.confirm() uses category_id which is an internal slug.
+    # We pass the category_name directly since ActualBudgetClient.get_or_create_category
+    # looks up by name. We'll call _actual.add_transaction directly via service.
+    try:
+        tx_result = await service.confirm(
+            merchant=request.station,
+            amount=request.total_eur,
+            date=request.date,
+            category_id=request.category_name,  # category_name is the AB display name
+            account_id=request.account_id,
+            notes=request.notes or _build_fuel_notes(request.liters, request.vehicle_id, db),
+            confirmed_by=current_user,
+        )
+    except Exception as e:
+        logger.error("Failed to save fuel transaction %s: %s", receipt_id, e)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to save transaction: {str(e)}",
+        )
+
+    # Step 3: Insert vehicle_log entry
+    price_per_liter = request.price_per_liter
+    if price_per_liter is None and request.liters > 0:
+        price_per_liter = round(request.total_eur / request.liters, 4)
+
+    vehicle_entry = {
+        "vehicle_id": request.vehicle_id,
+        "date": request.date,
+        "odo_km": request.odo_km,
+        "entry_type": "fuel",
+        "fuel_liters": request.liters,
+        "fuel_price_per_liter": price_per_liter,
+        "fuel_full_tank": int(request.full_tank),
+        "fuel_missed": int(request.missed_fill),
+        "cost_total": request.total_eur,
+        "cost_currency": "EUR",
+        "fuel_grade": request.fuel_grade,
+        "notes": request.notes,
+        "source": "receipt_photo",
+        "fuelio_unique_id": None,
+        "financial_id": tx_result.get("transaction_id"),
+    }
+
+    inserted, _ = db.insert_vehicle_log_entries([vehicle_entry])
+    vehicle_log_id = None
+    if inserted > 0:
+        # The insert was successful, but we don't have a clean way to get the ID
+        # from the batch insert. Just mark it as inserted.
+        pass
+
+    # Step 4: Calculate post-confirm stats
+    km_since_last = None
+    consumption_l100km = None
+    cost_per_km = None
+    odo_warning = False
+
+    if request.odo_km is not None and last_odo is not None:
+        km_since_last = request.odo_km - last_odo
+        if km_since_last > 1500:
+            odo_warning = True
+
+        if km_since_last > 0:
+            cost_per_km = round(request.total_eur / km_since_last, 4)
+
+        # Consumption only if both entries are full_tank and not missed_fill
+        if (
+            request.full_tank
+            and not request.missed_fill
+            and last_entry
+            and last_entry.get("fuel_full_tank")
+            and not last_entry.get("fuel_missed")
+            and km_since_last > 0
+        ):
+            consumption_l100km = round(request.liters / km_since_last * 100, 1)
+
+    # Cleanup the image after successful processing
+    try:
+        image_path.unlink(missing_ok=True)
+    except Exception:
+        pass
+
+    vehicle_name = None
+    try:
+        vs = db.get_vehicles()
+        v = next((v for v in vs if v["id"] == request.vehicle_id), None)
+        vehicle_name = v["name"] if v else None
+    except Exception:
+        pass
+
+    return FuelConfirmResponse(
+        success=True,
+        duplicate=tx_result.get("duplicate", False),
+        transaction_id=tx_result.get("transaction_id"),
+        vehicle_log_id=vehicle_log_id,
+        km_since_last=km_since_last,
+        consumption_l100km=consumption_l100km,
+        cost_per_km=cost_per_km,
+        odo_warning=odo_warning,
+        vehicle_name=vehicle_name,
+        liters=request.liters,
+        price_per_liter=request.price_per_liter,
+        fuel_grade=request.fuel_grade,
     )

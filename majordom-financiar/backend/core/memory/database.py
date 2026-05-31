@@ -180,7 +180,7 @@ class MemoryDB:
                 );
             """)
             conn.commit()
-            # Migrate existing csv_profiles table — add columns added after initial schema
+            # Migrate existing tables — add columns added after initial schema
             for col, definition in [
                 ("col_transfer_indicator", "TEXT NOT NULL DEFAULT ''"),
                 ("transfer_indicator_value", "TEXT NOT NULL DEFAULT ''"),
@@ -190,6 +190,12 @@ class MemoryDB:
                     conn.commit()
                 except Exception:
                     pass  # column already exists
+            # Add fuel_grade column to vehicle_log (added for fuel receipt flow)
+            try:
+                conn.execute("ALTER TABLE vehicle_log ADD COLUMN fuel_grade TEXT DEFAULT NULL")
+                conn.commit()
+            except Exception:
+                pass  # column already exists
             logger.info(f"Database initialized: {self.db_path}")
         finally:
             conn.close()
@@ -654,8 +660,8 @@ class MemoryDB:
                       (vehicle_id, date, odo_km, entry_type, fuel_liters, fuel_price_per_liter,
                        fuel_full_tank, fuel_missed, cost_total, cost_currency, remind_odo,
                        remind_date, repeat_odo, repeat_months, location, notes,
-                       source, fuelio_unique_id)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                       source, fuelio_unique_id, financial_id, fuel_grade)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
                 """, (
                     e.get("vehicle_id"), e.get("date"), e.get("odo_km"), e.get("entry_type"),
                     e.get("fuel_liters"), e.get("fuel_price_per_liter"), e.get("fuel_full_tank"),
@@ -663,6 +669,7 @@ class MemoryDB:
                     e.get("remind_odo"), e.get("remind_date"), e.get("repeat_odo"),
                     e.get("repeat_months"), e.get("location"), e.get("notes"),
                     e.get("source", "fuelio_import"), e.get("fuelio_unique_id"),
+                    e.get("financial_id"), e.get("fuel_grade"),
                 ))
                 inserted += cursor.rowcount
             conn.commit()
@@ -672,10 +679,40 @@ class MemoryDB:
             conn.close()
 
     def get_vehicles(self) -> list[dict]:
-        """Return all vehicles ordered by active DESC, name."""
+        """Return active vehicles ordered by name."""
         conn = self._get_conn()
         try:
-            rows = conn.execute("SELECT * FROM vehicles ORDER BY active DESC, name").fetchall()
+            rows = conn.execute("SELECT * FROM vehicles WHERE active=1 ORDER BY name").fetchall()
             return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+    def get_last_odo_per_vehicle(self) -> list[dict]:
+        """Return last recorded ODO for each active vehicle. Used for vehicle detection."""
+        conn = self._get_conn()
+        try:
+            rows = conn.execute("""
+                SELECT v.id, v.name, v.active,
+                       MAX(vl.odo_km) as last_odo
+                FROM vehicles v
+                LEFT JOIN vehicle_log vl ON vl.vehicle_id = v.id AND vl.odo_km IS NOT NULL
+                WHERE v.active = 1
+                GROUP BY v.id
+                ORDER BY v.name
+            """).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+    def get_last_fuel_entry(self, vehicle_id: int) -> dict | None:
+        """Return the most recent full-tank fuel entry for consumption calculation."""
+        conn = self._get_conn()
+        try:
+            row = conn.execute("""
+                SELECT * FROM vehicle_log
+                WHERE vehicle_id = ? AND entry_type = 'fuel' AND fuel_full_tank = 1 AND fuel_missed = 0
+                ORDER BY date DESC LIMIT 1
+            """, (vehicle_id,)).fetchone()
+            return dict(row) if row else None
         finally:
             conn.close()

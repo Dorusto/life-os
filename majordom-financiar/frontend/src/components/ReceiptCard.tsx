@@ -9,6 +9,7 @@ interface ReceiptCardProps {
   error?: string
   onConfirmed: (message: string) => void
   onCancelled: () => void
+  onSwitchToFuel?: () => void  // NEW: show fuel tab header when receipt_type was fuel
 }
 
 export default function ReceiptCard({
@@ -18,6 +19,7 @@ export default function ReceiptCard({
   error,
   onConfirmed,
   onCancelled,
+  onSwitchToFuel,
 }: ReceiptCardProps) {
   const [merchant, setMerchant] = useState(draft?.merchant ?? '')
   const [amount, setAmount] = useState(draft?.amount != null ? String(draft.amount) : '')
@@ -100,6 +102,21 @@ export default function ReceiptCard({
 
       {status === 'reviewing' && draft && (
         <div className="px-4 py-3 space-y-3">
+          {/* Fuel/Grocery tab header — shown when receipt_type was fuel */}
+          {onSwitchToFuel && (
+            <div className="flex gap-2 mb-2 border-b border-border">
+              <button
+                onClick={onSwitchToFuel}
+                className="tab-inactive text-sm pb-2 px-1 text-muted hover:text-white transition-colors"
+              >
+                ⛽ Fuel Receipt
+              </button>
+              <button className="tab-active text-sm pb-2 px-1 text-accent font-medium border-b-2 border-accent">
+                🛒 Grocery Receipt
+              </button>
+            </div>
+          )}
+
           {draft.category_source === 'history' && (
             <p className="text-xs text-green-400">✓ Category from your history</p>
           )}

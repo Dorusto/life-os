@@ -171,7 +171,7 @@ def _parse_vehicle_section(headers: list[str], rows: list[list[str]]) -> dict:
         "plate": _field("Plate"),
         "tank_capacity": _parse_cost(_field("Tank1Capacity")),
         "fuel_type": "petrol",  # FuelType 100/110/111 are all petrol variants
-        "active": 1,
+        "active": _parse_int(_field("Active")) if _field("Active") in ("0", "1") else 1,
     }
     return data
 

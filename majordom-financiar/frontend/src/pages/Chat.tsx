@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, FormEvent } from 'react'
 import { Send, Plus, Camera, Image, FileText, HelpCircle, X } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, type SetupAccount, type BalanceAdjustmentData, type ImportPreview, type ReceiptDraft, type CategoryActionData } from '../lib/api'
+import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, type SetupAccount, type BalanceAdjustmentData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type FuelConfirmResponse } from '../lib/api'
 import CsvImportCard from '../components/CsvImportCard'
 import FuelioImportCard, { FuelioImportData } from '../components/FuelioImportCard'
 import ProposalCard, { ProposalData } from '../components/ProposalCard'
@@ -13,6 +13,7 @@ import BalanceAdjustmentCard from '../components/BalanceAdjustmentCard'
 import IncomeSourceCard from '../components/IncomeSourceCard'
 import ReconciliationCard from '../components/ReconciliationCard'
 import ReceiptCard from '../components/ReceiptCard'
+import FuelReceiptCard from '../components/FuelReceiptCard'
 import CategoryActionCard from '../components/CategoryActionCard'
 import GoalProposalCard, { GoalProposalData } from '../components/GoalProposalCard'
 import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from '../lib/api'
@@ -31,7 +32,14 @@ export interface Message {
   fuelioImport?: FuelioImportData
   incomeRow?: { payee: string; amount: number; date: string }
   reconciliation?: { accountName: string; balance: number; importedCount: number }
-  receipt?: { status: 'loading' | 'reviewing' | 'error'; imageUrl: string; draft?: ReceiptDraft; error?: string }
+  receipt?: {
+    status: 'loading' | 'reviewing' | 'error'
+    imageUrl: string
+    draft?: ReceiptDraft
+    error?: string
+    activeTab?: 'fuel' | 'grocery'
+    fuelStats?: FuelConfirmResponse
+  }
   categoryAction?: CategoryActionData
   goalProposal?: GoalProposalData
 }
@@ -666,26 +674,76 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                 }}
               />
             ) : msg.role === 'receipt' && msg.receipt ? (
-              <ReceiptCard
-                imageUrl={msg.receipt.imageUrl}
-                status={msg.receipt.status}
-                draft={msg.receipt.draft}
-                error={msg.receipt.error}
-                onConfirmed={(message) => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: message } : m
+              // Show fuel stats after confirmation
+              msg.receipt.status === 'reviewing' && msg.receipt.fuelStats ? (
+                <PendingFuelStatsDisplay msg={msg.receipt} />
+              ) : msg.receipt.status === 'reviewing' && msg.receipt.draft?.receipt_type === 'fuel' && msg.receipt.activeTab !== 'grocery' ? (
+                <FuelReceiptCard
+                  draft={msg.receipt.draft}
+                  imageUrl={msg.receipt.imageUrl}
+                  onConfirmed={(stats) => {
+                    setMessages(prev =>
+                      prev.map((m, i) =>
+                        i === idx
+                          ? {
+                              ...m,
+                              receipt: {
+                                ...m.receipt!,
+                                fuelStats: stats,
+                              },
+                            }
+                          : m
+                      )
                     )
-                  )
-                }}
-                onCancelled={() => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: 'Receipt cancelled.' } : m
+                  }}
+                  onCancelled={() => {
+                    setMessages(prev =>
+                      prev.map((m, i) =>
+                        i === idx ? { role: 'status' as const, content: 'Receipt cancelled.' } : m
+                      )
                     )
-                  )
-                }}
-              />
+                  }}
+                  onSwitchToGrocery={() => {
+                    setMessages(prev =>
+                      prev.map((m, i) =>
+                        i === idx
+                          ? { ...m, receipt: { ...m.receipt!, activeTab: 'grocery' } }
+                          : m
+                      )
+                    )
+                  }}
+                />
+              ) : (
+                <ReceiptCard
+                  imageUrl={msg.receipt.imageUrl}
+                  status={msg.receipt.status}
+                  draft={msg.receipt.draft}
+                  error={msg.receipt.error}
+                  onSwitchToFuel={() => {
+                    setMessages(prev =>
+                      prev.map((m, i) =>
+                        i === idx
+                          ? { ...m, receipt: { ...m.receipt!, activeTab: 'fuel' } }
+                          : m
+                      )
+                    )
+                  }}
+                  onConfirmed={(message) => {
+                    setMessages(prev =>
+                      prev.map((m, i) =>
+                        i === idx ? { role: 'status' as const, content: message } : m
+                      )
+                    )
+                  }}
+                  onCancelled={() => {
+                    setMessages(prev =>
+                      prev.map((m, i) =>
+                        i === idx ? { role: 'status' as const, content: 'Receipt cancelled.' } : m
+                      )
+                    )
+                  }}
+                />
+              )
             ) : msg.role === 'reconciliation' && msg.reconciliation ? (
               <ReconciliationCard
                 accountName={msg.reconciliation.accountName}
@@ -885,6 +943,44 @@ function TypingDots() {
           style={{ animationDelay: `${i * 150}ms` }}
         />
       ))}
+    </div>
+  )
+}
+
+/** Post-confirm fuel stats displayed as grey text after the card is confirmed. */
+function PendingFuelStatsDisplay({ msg }: { msg: NonNullable<Message['receipt']> }) {
+  const stats = msg.fuelStats
+  if (!stats) return null
+
+  const draft = msg.draft
+  const vehicleName = draft?.vehicles?.find(v => v.id === draft?.suggested_vehicle_id)?.name ?? 'Vehicle'
+
+  const name = stats.vehicle_name ?? vehicleName
+
+  return (
+    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm max-w-[420px] w-full px-4 py-3 space-y-1">
+      {stats.success ? (
+        <>
+          <p className="text-sm text-white font-medium">✅ Refuel logged — {name}</p>
+          {stats.liters != null && (
+            <p className="text-xs text-muted">
+              {stats.liters}L
+              {stats.price_per_liter != null && ` → €${stats.price_per_liter.toFixed(3)}/L`}
+              {stats.fuel_grade && ` (${stats.fuel_grade})`}
+            </p>
+          )}
+          {(stats.km_since_last != null || stats.consumption_l100km != null || stats.cost_per_km != null) && (
+            <p className="text-xs text-muted">
+              {stats.km_since_last != null && `+${Math.round(stats.km_since_last).toLocaleString()} km`}
+              {stats.consumption_l100km != null && `  |  ${stats.consumption_l100km.toFixed(1)} L/100km`}
+              {stats.cost_per_km != null && `  |  €${stats.cost_per_km.toFixed(3)}/km`}
+            </p>
+          )}
+          {draft?.merchant && <p className="text-xs text-muted">{draft.merchant}</p>}
+        </>
+      ) : (
+        <p className="text-xs text-red-400">❌ Failed to save fuel receipt.</p>
+      )}
     </div>
   )
 }

@@ -24,24 +24,44 @@ from backend.core.ocr.parser import ReceiptData, ReceiptItem
 
 logger = logging.getLogger(__name__)
 
-EXTRACT_PROMPT = """You are a receipt data extraction system. Analyze the receipt image and extract information as JSON.
+EXTRACT_PROMPT = """You are a receipt data extraction system. Analyze the receipt image and return JSON.
 
-Return ONLY a valid JSON object, no extra text, no markdown, no ```json.
+Return ONLY valid JSON, no markdown, no extra text.
 
 Required format:
 {
-  "merchant": "store or company name",
-  "total": 0.00,
+  "receipt_type": "fuel",
+  "merchant": "Shell Alphen aan den Rijn",
+  "total": 71.24,
   "currency": "EUR",
-  "date": "DD.MM.YYYY"
+  "date": "25.05.2026",
+  "liters": 30.07,
+  "price_per_liter": 2.369,
+  "fuel_grade": "95+"
+}
+
+OR for non-fuel receipts:
+{
+  "receipt_type": "grocery",
+  "merchant": "Albert Heijn",
+  "total": 24.50,
+  "currency": "EUR",
+  "date": "25.05.2026",
+  "liters": null,
+  "price_per_liter": null,
+  "fuel_grade": null
 }
 
 Rules:
-- "merchant": main store name (e.g. "Albert Heijn", "Jumbo", "Lidl", "Kaufland")
-- "total": the final amount paid, as a decimal number (e.g. 12.45)
-- "currency": detect from receipt symbols or context — use "EUR" for €, "RON" for lei/RON, "GBP" for £, etc. Default to "EUR" if unclear.
-- "date": receipt date in DD.MM.YYYY format, empty string if not found
-- If you cannot identify a value with certainty, use null for numbers or "" for text
+- "receipt_type": "fuel" for gas stations (brandstof/benzine/diesel/petrol), "grocery" for everything else
+- "merchant": full station name including city if visible (e.g. "Shell Alphen aan den Rijn", "Total Oostzaan")
+- "total": total amount paid (look for TOTAAL, TOTAL, BEDRAG)
+- "currency": "EUR" default
+- "date": read every date on the receipt; use the transaction date (often at the bottom like "30-04-2026 12:16:14"). Return in DD.MM.YYYY format, empty string if not found
+- "liters": liters dispensed. On Dutch receipts liters often appear in parentheses like "(POMP 4; 31.37 L * €2.349/L)" — extract 31.37. Look for L, ltr, litre, liter anywhere on the receipt. null if not fuel
+- "price_per_liter": price per liter (look for €/L, prijs/liter, the number after * €). null if not fuel
+- "fuel_grade": fuel type string as shown (e.g. "95+", "Euro 95", "E10", "Diesel", "Euro 95 F10"). null if not fuel
+- Use null for any value you cannot find with certainty
 """
 
 
@@ -155,6 +175,22 @@ class VisionEngine:
         # Data
         date_str = data.get("date") or ""
         receipt.date = self._parse_date(date_str)
+
+        # Fuel receipt fields
+        receipt.receipt_type = data.get("receipt_type") or "grocery"
+        liters = data.get("liters")
+        if liters is not None:
+            try:
+                receipt.liters = float(liters)
+            except (ValueError, TypeError):
+                receipt.liters = None
+        price_per_liter = data.get("price_per_liter")
+        if price_per_liter is not None:
+            try:
+                receipt.price_per_liter = float(price_per_liter)
+            except (ValueError, TypeError):
+                receipt.price_per_liter = None
+        receipt.fuel_grade = data.get("fuel_grade")
 
         # Items
         items_raw = data.get("items") or []

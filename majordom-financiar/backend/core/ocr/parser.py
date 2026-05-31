@@ -38,6 +38,11 @@ class ReceiptData:
     items: list[ReceiptItem] = field(default_factory=list)
     raw_text: str = ""
     cui: str = ""
+    # Fuel receipt fields
+    receipt_type: str = "grocery"       # "fuel" | "grocery"
+    liters: float | None = None
+    price_per_liter: float | None = None
+    fuel_grade: str | None = None
 
     @property
     def is_valid(self) -> bool:
