@@ -36,8 +36,8 @@ services:
       - ./scripts/ollama-entrypoint.sh:/entrypoint.sh
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
     environment:
-      - OLLAMA_VISION_MODEL=${OLLAMA_VISION_MODEL:-qwen2.5vl:7b}
-      - OLLAMA_CHAT_MODEL=${OLLAMA_CHAT_MODEL:-qwen2.5:7b}
+      - LLM_VISION_MODEL=${LLM_VISION_MODEL:-qwen2.5vl:7b}
+      - LLM_CHAT_MODEL=${LLM_CHAT_MODEL:-qwen2.5:7b}
       - OLLAMA_FLASH_ATTENTION=1
     # Uncomment the block below if your Coolify host has an NVIDIA GPU
     # and the NVIDIA Container Toolkit is installed:

@@ -9,8 +9,8 @@ Two-step design (same reason as receipts):
   2. Confirm does the actual write — no silent auto-imports.
 
 Profile detection order:
-  SQLite (instant, by header signature MD5) → Ollama fallback (unknown formats).
-  Once Ollama detects a format it is saved to SQLite for future imports.
+  SQLite (instant, by header signature MD5) → LLM fallback (unknown formats).
+  Once LLM detects a format it is saved to SQLite for future imports.
 
 Deduplication:
   SHA256(date+merchant+amount)[:16] — same hash as add_transaction and
@@ -328,11 +328,12 @@ def _do_import(
 async def _suggest_categories_llm(
     merchants: list[str],
     ab_categories: list[str],
-    ollama_url: str,
+    llm_url: str,
     model: str,
+    api_key: str = "",
 ) -> dict[str, str]:
     """
-    One batch Ollama call: list of merchant names → {merchant: AB category name}.
+    One batch LLM call: list of merchant names → {merchant: AB category name}.
 
     Returns only entries where the suggested category exists in ab_categories.
     Returns empty dict on any error — caller falls back to no suggestion.
@@ -355,21 +356,24 @@ async def _suggest_categories_llm(
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "stream": False,
-        "think": False,
-        "format": "json",
+        "options": {"temperature": 0.0, "num_predict": 400},
     }
+
+    headers = {"Content-Type": "application/json"}
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
 
     try:
         timeout = aiohttp.ClientTimeout(total=180)
         async with aiohttp.ClientSession(timeout=timeout) as session:
-            async with session.post(f"{ollama_url}/api/chat", json=payload) as resp:
+            async with session.post(f"{llm_url}/v1/chat/completions", json=payload, headers=headers) as resp:
                 if resp.status != 200:
                     text = await resp.text()
                     logger.warning("LLM category suggestion returned %d: %s", resp.status, text[:200])
                     return {}
                 data = await resp.json()
 
-        content = data.get("message", {}).get("content", "")
+        content = data.get("choices", [{}])[0].get("message", {}).get("content", "")
         if not content:
             logger.warning("LLM category suggestion returned empty content")
             return {}
@@ -422,8 +426,8 @@ async def preview_csv(
     Upload a CSV bank export and get a preview with duplicate detection.
 
     Profile detection:
-      - Known format (by header signature): instant, no Ollama call needed.
-      - Unknown format: sent to Ollama for analysis, saved for future imports.
+      - Known format (by header signature): instant, no LLM call needed.
+      - Unknown format: sent to LLM for analysis, saved for future imports.
     """
     filename = file.filename or ""
     if not filename.lower().endswith(".csv"):
@@ -442,7 +446,11 @@ async def preview_csv(
         raise HTTPException(status_code=400, detail=f"Cannot parse CSV: {e}")
 
     db = MemoryDB(db_path=settings.memory.db_path)
-    detector = CsvProfileDetector(settings.ollama.url, settings.ollama.model)
+    detector = CsvProfileDetector(
+        settings.ollama.base_url,
+        settings.ollama.model,
+        api_key=settings.ollama.api_key,
+    )
 
     # Try multiple delimiters — auto-detected first, then common alternatives.
     # This handles cases where the delimiter detector picks the wrong one
@@ -467,8 +475,8 @@ async def preview_csv(
         raise HTTPException(status_code=400, detail="CSV is empty or has no data rows")
 
     if profile is None:
-        # Ollama call — may take 30-60s on first import of a new bank format
-        profile = await detector.detect_with_ollama(headers, rows[:3], delimiter)
+        # LLM call — may take 30-60s on first import of a new bank format
+        profile = await detector.detect_with_llm(headers, rows[:3], delimiter)
         if profile is None:
             raise HTTPException(
                 status_code=422,
@@ -477,18 +485,18 @@ async def preview_csv(
                     "Try a fresh export from your bank app."
                 ),
             )
-        # Don't overwrite confirmed built-in profiles with Ollama guesses.
+        # Don't overwrite confirmed built-in profiles with LLM guesses.
         # If a confirmed profile already exists for this bank (different header
-        # variant), Ollama's detection is used for this import but not saved —
-        # this prevents bad Ollama mappings from polluting the profile store.
+        # variant), LLM's detection is used for this import but not saved —
+        # this prevents bad LLM mappings from polluting the profile store.
         confirmed_banks = {p.source_name for p in db.get_all_csv_profiles() if p.confirmed}
         if profile.source_name not in confirmed_banks:
             db.save_csv_profile(profile)
             logger.info("New CSV profile saved: %s", profile.source_name)
         else:
             logger.warning(
-                "Ollama detected %s but a confirmed profile already exists — "
-                "using Ollama result for this import without saving",
+                "LLM detected %s but a confirmed profile already exists — "
+                "using LLM result for this import without saving",
                 profile.source_name,
             )
 
@@ -559,8 +567,9 @@ async def preview_csv(
         llm_suggestions = await _suggest_categories_llm(
             merchants=uncategorized_merchants,
             ab_categories=ab_categories,
-            ollama_url=settings.ollama.url,
+            llm_url=settings.ollama.base_url,
             model=settings.ollama.categorize_model,
+            api_key=settings.ollama.api_key,
         )
         if llm_suggestions:
             # Apply suggestions — create new objects (Pydantic models are immutable)
@@ -614,7 +623,7 @@ async def confirm_csv(
     matched_account = next((a for a in accounts_after if a.id == body.account_id), None)
 
     # Teach SmartCategorizer from confirmed categories so future imports remember
-    # merchant → AB category name mappings without any Ollama call.
+    # merchant → AB category name mappings without any LLM call.
     db = MemoryDB(db_path=settings.memory.db_path)
     categorizer = SmartCategorizer(db=db)
     for row in body.rows:

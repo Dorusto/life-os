@@ -62,6 +62,7 @@ docker compose up --build -d majordom-api majordom-web
 | Container        | Restart policy  | Notes                        |
 |------------------|-----------------|------------------------------|
 | `actual-budget`  | unless-stopped  | Actual Budget server         |
-| `majordom-ollama`| unless-stopped  | Local LLM (qwen3:8b)         |
+| `majordom-ollama`| unless-stopped  | Local LLM (ollama profile)   |
+
 | `majordom-api`   | unless-stopped  | FastAPI backend               |
 | `majordom-web`   | unless-stopped  | React PWA (nginx)            |

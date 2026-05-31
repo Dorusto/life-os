@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 """
-Vision-based extraction engine using an AI vision model (Ollama).
+Vision-based extraction engine using an AI vision model.
 
 Replaces the classic Tesseract + OpenCV + regex pipeline with a single
-call to a local multimodal model. Sends the image directly, receives
+call to a multimodal model. Sends the image directly, receives
 structured JSON with receipt data.
 
 Recommended model: qwen2.5vl:7b (~5GB VRAM, excellent for documents)
@@ -66,11 +66,18 @@ Rules:
 
 
 class VisionEngine:
-    """Extract data from receipts using a local AI vision model (Ollama)."""
+    """Extract data from receipts using an AI vision model."""
 
-    def __init__(self, ollama_url: str, model: str):
-        self.ollama_url = ollama_url.rstrip("/")
+    def __init__(self, llm_url: str, model: str, api_key: str = ""):
+        self.llm_url = llm_url.rstrip("/")
         self.model = model
+        self.api_key = api_key
+
+    def _build_headers(self) -> dict[str, str]:
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
 
     async def extract_from_path(self, image_path: str | Path) -> ReceiptData:
         """Extract data from an image file."""
@@ -78,10 +85,10 @@ class VisionEngine:
         return await self.extract_from_bytes(image_bytes)
 
     async def extract_from_bytes(self, image_bytes: bytes) -> ReceiptData:
-        """Extract data directly from bytes (from Telegram)."""
+        """Extract data directly from bytes."""
         resized = self._resize_image(image_bytes)
         b64_image = base64.b64encode(resized).decode("utf-8")
-        return await self._call_ollama(b64_image)
+        return await self._call_llm(b64_image)
 
     def _resize_image(self, image_bytes: bytes, max_size: int = 1000) -> bytes:
         """
@@ -102,15 +109,17 @@ class VisionEngine:
         img.convert("RGB").save(buf, format="JPEG", quality=90)
         return buf.getvalue()
 
-    async def _call_ollama(self, b64_image: str) -> ReceiptData:
-        """Call the Ollama API and parse the response."""
+    async def _call_llm(self, b64_image: str) -> ReceiptData:
+        """Call the LLM API and parse the response."""
         payload = {
             "model": self.model,
             "messages": [
                 {
                     "role": "user",
-                    "content": EXTRACT_PROMPT,
-                    "images": [b64_image],
+                    "content": [
+                        {"type": "text", "text": EXTRACT_PROMPT},
+                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64_image}"}},
+                    ],
                 }
             ],
             "stream": False,
@@ -121,29 +130,31 @@ class VisionEngine:
             },
         }
 
-        logger.info(f"Sending image to Ollama ({self.model})...")
+        logger.info(f"Sending image to LLM ({self.model})...")
 
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.ollama_url}/api/chat",
+                    f"{self.llm_url}/v1/chat/completions",
                     json=payload,
+                    headers=self._build_headers(),
                     timeout=aiohttp.ClientTimeout(total=300),
                 ) as resp:
                     if resp.status != 200:
                         text = await resp.text()
-                        raise Exception(f"Ollama error {resp.status}: {text[:200]}")
+                        raise Exception(f"LLM error {resp.status}: {text[:200]}")
                     data = await resp.json()
 
-            raw_content = data["message"]["content"].strip()
-            logger.debug(f"Ollama response:\n{raw_content}")
+            # OpenAI format: choices[0].message.content
+            raw_content = data["choices"][0]["message"]["content"].strip()
+            logger.debug(f"LLM response:\n{raw_content}")
 
             return self._parse_response(raw_content)
 
         except aiohttp.ClientConnectorError:
             raise Exception(
-                f"Cannot connect to Ollama ({self.ollama_url}). "
-                "Make sure Ollama is running on the host."
+                f"Cannot connect to LLM ({self.llm_url}). "
+                "Make sure the provider is running."
             )
 
     def _parse_response(self, content: str) -> ReceiptData:
@@ -249,11 +260,29 @@ class VisionEngine:
         return date.today()
 
     async def is_available(self) -> bool:
-        """Check if Ollama is available and the model is installed."""
+        """Check if LLM provider is reachable and the model is available.
+
+        Tries OpenAI-compatible /v1/models first (works with OpenRouter,
+        DeepSeek, etc.), then falls back to Ollama-specific /api/tags.
+        """
+        try:
+            async with aiohttp.ClientSession() as session:
+                # Try OpenAI-compatible endpoint first
+                async with session.get(
+                    f"{self.llm_url}/v1/models",
+                    headers=self._build_headers(),
+                    timeout=aiohttp.ClientTimeout(total=5),
+                ) as resp:
+                    if resp.status == 200:
+                        return True  # cloud APIs are reachable
+        except Exception:
+            pass
+
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
-                    f"{self.ollama_url}/api/tags",
+                    f"{self.llm_url}/api/tags",
+                    headers=self._build_headers(),
                     timeout=aiohttp.ClientTimeout(total=5),
                 ) as resp:
                     if resp.status != 200:
@@ -264,3 +293,4 @@ class VisionEngine:
                     return any(self.model.split(":")[0] in m for m in models)
         except Exception:
             return False
+

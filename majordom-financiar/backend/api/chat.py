@@ -1,5 +1,5 @@
 """
-Chat endpoint — financial assistant powered by local Ollama.
+Chat endpoint — financial assistant powered by local/cloud LLM.
 
 POST /api/chat  →  sends a message + history, returns assistant reply.
 
@@ -114,52 +114,61 @@ Today's date: {date.today().isoformat()}
 """
 
 
-async def _stream_ollama_response(messages: list[dict], ollama_url: str, model: str) -> AsyncGenerator[str, None]:
-    """Stream response from Ollama API."""
+def _build_headers() -> dict[str, str]:
+    """Build HTTP headers with optional Authorization for cloud APIs."""
+    headers = {"Content-Type": "application/json"}
+    if settings.ollama.api_key:
+        headers["Authorization"] = f"Bearer {settings.ollama.api_key}"
+    return headers
+
+
+async def _stream_llm_response(messages: list[dict], llm_url: str, model: str) -> AsyncGenerator[str, None]:
+    """Stream response from OpenAI-compatible LLM API."""
     payload = {
         "model": model,
         "messages": messages,
         "stream": True,
-        "think": False,
         "options": {
             "temperature": 0.3,
             "num_predict": 512,
             "num_ctx": 8192,
         },
     }
+    headers = _build_headers()
     
     async with httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as client:
         try:
-            async with client.stream("POST", f"{ollama_url}/api/chat", json=payload) as response:
+            async with client.stream("POST", f"{llm_url}/v1/chat/completions", json=payload, headers=headers) as response:
                 if response.status_code != 200:
                     error_text = await response.aread()
-                    raise HTTPException(status_code=503, detail=f"Ollama error {response.status_code}: {error_text.decode()}")
+                    raise HTTPException(status_code=503, detail=f"LLM error {response.status_code}: {error_text.decode()}")
                 
                 async for chunk in response.aiter_lines():
                     if chunk.strip():
+                        if chunk.startswith("data: "):
+                            chunk = chunk[6:]
+                        if chunk == "[DONE]":
+                            break
                         try:
                             data = json.loads(chunk)
-                            if "message" in data and "content" in data["message"]:
-                                yield data["message"]["content"]
-                            elif "response" in data:
-                                yield data["response"]
+                            content = data.get("choices", [{}])[0].get("delta", {}).get("content", "")
+                            if content:
+                                yield content
                         except json.JSONDecodeError:
-                            # Skip invalid JSON chunks
                             continue
         except httpx.ConnectError:
-            raise HTTPException(status_code=503, detail="Cannot connect to Ollama. Is Ollama running?")
+            raise HTTPException(status_code=503, detail="Cannot connect to LLM. Is the provider running?")
         except Exception as e:
             logger.error("Streaming error: %s", e)
             raise HTTPException(status_code=500, detail="Failed to stream response from assistant")
 
 
-async def _call_ollama_non_streaming(messages: list[dict], ollama_url: str, model: str) -> dict:
-    """Call Ollama without streaming. All tools available, tool_choice=auto."""
+async def _call_llm(messages: list[dict], llm_url: str, model: str) -> dict:
+    """Call LLM without streaming. All tools available, tool_choice=auto."""
     payload = {
         "model": model,
         "messages": messages,
         "stream": False,
-        "think": False,
         "tools": TOOLS,
         "tool_choice": "auto",
         "options": {
@@ -168,15 +177,16 @@ async def _call_ollama_non_streaming(messages: list[dict], ollama_url: str, mode
             "num_ctx": 8192,
         },
     }
+    headers = _build_headers()
     async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
         try:
-            response = await client.post(f"{ollama_url}/api/chat", json=payload)
+            response = await client.post(f"{llm_url}/v1/chat/completions", json=payload, headers=headers)
         except httpx.ConnectError:
-            raise HTTPException(status_code=503, detail="Cannot connect to Ollama. Is Ollama running?")
+            raise HTTPException(status_code=503, detail="Cannot connect to LLM. Is the provider running?")
         except httpx.ReadTimeout:
-            raise HTTPException(status_code=503, detail="Ollama timed out — model is too slow or overloaded. Try again.")
+            raise HTTPException(status_code=503, detail="LLM timed out — model is too slow or overloaded. Try again.")
         if response.status_code != 200:
-            raise HTTPException(status_code=503, detail=f"Ollama error {response.status_code}")
+            raise HTTPException(status_code=503, detail=f"LLM error {response.status_code}")
         return response.json()
 
 
@@ -190,7 +200,7 @@ async def chat_stream(
 ):
     """
     Flow:
-      1. Ollama call (non-streaming) with all tools, tool_choice=auto
+      1. LLM call (non-streaming) with all tools, tool_choice=auto
       2a. proposal tool called → return JSON card to frontend immediately
       2b. query tool(s) called → execute, append results, repeat up to 3 rounds
       2c. no tool calls → stream text response
@@ -198,7 +208,7 @@ async def chat_stream(
     messages = [{"role": "system", "content": _build_system_prompt()}]
     messages.extend([{"role": m.role, "content": m.content} for m in req.messages])
 
-    ollama_url = settings.ollama.url
+    llm_url = settings.ollama.base_url
     model = settings.ollama.chat_model or "qwen2.5:7b"
 
     streaming_headers = {
@@ -210,14 +220,15 @@ async def chat_stream(
     # Up to 3 rounds of query tool calls before streaming the final answer
     for _ in range(3):
         try:
-            response = await _call_ollama_non_streaming(messages, ollama_url, model)
+            response = await _call_llm(messages, llm_url, model)
         except HTTPException as e:
             detail = e.detail
             async def error_gen():
                 yield f"Error: {detail}"
             return StreamingResponse(error_gen(), media_type="text/plain", headers=streaming_headers)
 
-        assistant_message = response.get("message", {})
+        # OpenAI format: choices[0].message
+        assistant_message = response.get("choices", [{}])[0].get("message", {})
         tool_calls = assistant_message.get("tool_calls") or []
         logger.info("LLM — tools=%s", [tc.get("function", {}).get("name") for tc in tool_calls])
 
@@ -253,7 +264,7 @@ async def chat_stream(
             yield text
         else:
             try:
-                async for chunk in _stream_ollama_response(messages, ollama_url, model):
+                async for chunk in _stream_llm_response(messages, llm_url, model):
                     yield chunk
             except HTTPException as e:
                 yield f"Error: {e.detail}"

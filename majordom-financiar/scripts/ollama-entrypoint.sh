@@ -1,8 +1,8 @@
 #!/bin/sh
 set -e
 
-VISION_MODEL="${OLLAMA_VISION_MODEL:-qwen2.5vl:7b}"
-CHAT_MODEL="${OLLAMA_CHAT_MODEL:-qwen2.5:7b}"
+VISION_MODEL="${LLM_VISION_MODEL:-qwen2.5vl:7b}"
+CHAT_MODEL="${LLM_CHAT_MODEL:-qwen2.5:7b}"
 
 echo "=== Majordom Ollama ==="
 echo "Vision model: $VISION_MODEL"

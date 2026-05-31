@@ -65,8 +65,9 @@ class ReceiptService:
         # All dependencies are constructed from settings so there's one place
         # to change connection details: the .env file.
         self._vision = VisionEngine(
-            ollama_url=settings.ollama.url,
+            llm_url=settings.ollama.base_url,
             model=settings.ollama.model,
+            api_key=settings.ollama.api_key,
         )
         self._db = MemoryDB(db_path=settings.memory.db_path)
         self._categorizer = SmartCategorizer(db=self._db)

@@ -8,16 +8,26 @@ from dataclasses import dataclass, field
 
 
 @dataclass
-class TelegramConfig:
-    bot_token: str = ""
-    allowed_user_ids: list[int] = field(default_factory=list)
+class LLMConfig:
+    base_url: str = ""
+    api_key: str = ""
+    vision_model: str = ""      # for receipt OCR
+    chat_model: str = ""        # for financial assistant chat
+    categorize_model: str = ""  # for CSV merchant categorization (smaller = faster)
 
     def __post_init__(self):
-        self.bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "")
-        raw_ids = os.getenv("TELEGRAM_ALLOWED_USER_IDS", "")
-        self.allowed_user_ids = [
-            int(uid.strip()) for uid in raw_ids.split(",") if uid.strip()
-        ]
+        self.base_url = os.getenv("LLM_BASE_URL", "http://ollama:11434")
+        self.api_key = os.getenv("LLM_API_KEY", "")
+        self.vision_model = os.getenv("LLM_VISION_MODEL", "qwen2.5vl:7b")
+        self.chat_model = os.getenv("LLM_CHAT_MODEL", "qwen2.5:7b")
+        self.categorize_model = os.getenv(
+            "LLM_CATEGORIZE_MODEL", self.chat_model
+        )
+
+    @property
+    def model(self) -> str:
+        """Backward-compat alias for vision model (used by VisionEngine)."""
+        return self.vision_model
 
 
 @dataclass
@@ -30,27 +40,6 @@ class ActualBudgetConfig:
         self.url = os.getenv("ACTUAL_BUDGET_URL", "http://actual-budget:5006")
         self.password = os.getenv("ACTUAL_BUDGET_PASSWORD", "")
         self.sync_id = os.getenv("ACTUAL_BUDGET_SYNC_ID", "")
-
-
-@dataclass
-class OllamaConfig:
-    url: str = ""
-    vision_model: str = ""      # for receipt OCR
-    chat_model: str = ""        # for financial assistant chat
-    categorize_model: str = ""  # for CSV merchant categorization (smaller = faster)
-
-    def __post_init__(self):
-        self.url = os.getenv("OLLAMA_URL", "http://ollama:11434")
-        self.vision_model = os.getenv("OLLAMA_VISION_MODEL", "qwen2.5vl:7b")
-        self.chat_model = os.getenv("OLLAMA_CHAT_MODEL", "qwen2.5:7b")
-        self.categorize_model = os.getenv(
-            "OLLAMA_CATEGORIZE_MODEL", self.chat_model
-        )
-
-    @property
-    def model(self) -> str:
-        """Backward-compat alias for vision model (used by VisionEngine)."""
-        return self.vision_model
 
 
 @dataclass
@@ -67,9 +56,8 @@ class MemoryConfig:
 
 @dataclass
 class Settings:
-    telegram: TelegramConfig = field(default_factory=TelegramConfig)
     actual: ActualBudgetConfig = field(default_factory=ActualBudgetConfig)
-    ollama: OllamaConfig = field(default_factory=OllamaConfig)
+    ollama: LLMConfig = field(default_factory=LLMConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     default_currency: str = "EUR"
     log_level: str = "INFO"
@@ -83,10 +71,6 @@ class Settings:
     def validate(self) -> list[str]:
         """Check that all critical settings are configured."""
         errors = []
-        if not self.telegram.bot_token:
-            errors.append("TELEGRAM_BOT_TOKEN is missing")
-        if not self.telegram.allowed_user_ids:
-            errors.append("TELEGRAM_ALLOWED_USER_IDS is missing")
         if not self.actual.password:
             errors.append("ACTUAL_BUDGET_PASSWORD is missing")
         return errors

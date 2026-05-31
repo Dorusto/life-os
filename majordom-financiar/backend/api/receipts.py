@@ -141,9 +141,10 @@ async def upload_receipt(
     current_user: str = Depends(get_current_user),
 ):
     """
-    Upload a receipt image (from camera or gallery), run Ollama OCR,
+    Upload a receipt image (from camera or gallery), run vision LLM OCR,
     and return the extracted data for the user to review.
     """
+
     if file.content_type not in ALLOWED_MIME_TYPES:
         raise HTTPException(
             status_code=400,
@@ -177,7 +178,9 @@ async def upload_receipt(
         logger.error("OCR failed for receipt %s: %s", receipt_id, e)
         raise HTTPException(
             status_code=500,
-            detail="Failed to process image. Make sure Ollama is running and the model is loaded.",
+            detail="Failed to process image. Make sure the LLM provider is reachable and the vision model is loaded.",
+
+
         )
 
     logger.info(

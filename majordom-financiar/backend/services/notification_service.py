@@ -35,6 +35,14 @@ _FINANCIAL_SYSTEM_PROMPT = (
 )
 
 
+def _build_headers() -> dict[str, str]:
+    """Build HTTP headers with optional Authorization for cloud APIs."""
+    headers = {"Content-Type": "application/json"}
+    if settings.ollama.api_key:
+        headers["Authorization"] = f"Bearer {settings.ollama.api_key}"
+    return headers
+
+
 # ---------------------------------------------------------------------------
 # Private checkers — return a short alert string or None (no side effects)
 # ---------------------------------------------------------------------------
@@ -79,13 +87,18 @@ async def _check_financial_summary(db: MemoryDB) -> str | None:
                 {"role": "user", "content": json.dumps(summary, ensure_ascii=False)},
             ],
             "stream": False,
-            "think": False,
             "options": {"temperature": 0.7, "num_predict": 150},
         }
+        headers = _build_headers()
         async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as http_client:
-            resp = await http_client.post(f"{settings.ollama.url}/api/chat", json=payload)
+            resp = await http_client.post(
+                f"{settings.ollama.base_url}/v1/chat/completions",
+                json=payload,
+                headers=headers,
+            )
             resp.raise_for_status()
-            text = resp.json()["message"]["content"].strip()
+            data = resp.json()
+            text = data["choices"][0]["message"]["content"].strip()
 
         # Store transaction count for logging after push is sent
         _check_financial_summary._tx_count = len(today_transactions)

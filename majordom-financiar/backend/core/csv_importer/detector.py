@@ -1,12 +1,12 @@
 from __future__ import annotations
 """
-Auto-detection of CSV structure with Ollama.
+Auto-detection of CSV structure with LLM.
 
 Flow:
 1. Compute header_signature (MD5 on sorted columns)
 2. Look up in SQLite for a previously saved profile (instant detection)
-3. If not found → send headers + 3 rows to Ollama text model
-4. Ollama returns JSON with column mapping
+3. If not found → send headers + 3 rows to LLM text model
+4. LLM returns JSON with column mapping
 5. User confirms → profile is saved for next time
 """
 import hashlib
@@ -50,9 +50,16 @@ FIRST 3 ROWS:
 
 class CsvProfileDetector:
 
-    def __init__(self, ollama_url: str, ollama_model: str):
-        self.ollama_url = ollama_url.rstrip("/")
-        self.ollama_model = ollama_model
+    def __init__(self, llm_url: str, llm_model: str, api_key: str = ""):
+        self.llm_url = llm_url.rstrip("/")
+        self.llm_model = llm_model
+        self.api_key = api_key
+
+    def _build_headers(self) -> dict[str, str]:
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        return headers
 
     def header_signature(self, headers: list[str]) -> str:
         """MD5 on sorted and lowercased headers — stable format fingerprint."""
@@ -77,14 +84,14 @@ class CsvProfileDetector:
                 return "."
         return "."
 
-    async def detect_with_ollama(
+    async def detect_with_llm(
         self,
         headers: list[str],
         sample_rows: list[dict],
         delimiter: str,
     ) -> CsvProfile | None:
         """
-        Detect CSV structure by sending headers and 3 rows to Ollama.
+        Detect CSV structure by sending headers and 3 rows to LLM.
         Returns a proposed CsvProfile (unconfirmed) or None on failure.
         """
         headers_str = str(headers)
@@ -96,29 +103,31 @@ class CsvProfileDetector:
         prompt = _DETECT_PROMPT.format(headers=headers_str, rows=rows_str)
 
         payload = {
-            "model": self.ollama_model,
+            "model": self.llm_model,
             "messages": [{"role": "user", "content": prompt}],
             "stream": False,
             "options": {"temperature": 0.0, "num_predict": 400},
         }
 
-        logger.info(f"Sending CSV to Ollama for detection ({self.ollama_model})...")
+        logger.info(f"Sending CSV to LLM for detection ({self.llm_model})...")
 
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                    f"{self.ollama_url}/api/chat",
+                    f"{self.llm_url}/v1/chat/completions",
                     json=payload,
+                    headers=self._build_headers(),
                     timeout=aiohttp.ClientTimeout(total=90),
                 ) as resp:
                     if resp.status != 200:
                         body = await resp.text()
-                        logger.error(f"Ollama error {resp.status}: {body[:200]}")
+                        logger.error(f"LLM error {resp.status}: {body[:200]}")
                         return None
                     data = await resp.json()
 
-            content = data["message"]["content"].strip()
-            logger.debug(f"Ollama CSV detection response:\n{content}")
+            # OpenAI format: choices[0].message.content
+            content = data["choices"][0]["message"]["content"].strip()
+            logger.debug(f"LLM CSV detection response:\n{content}")
 
             parsed = json.loads(self._extract_json(content))
 
@@ -144,10 +153,10 @@ class CsvProfileDetector:
             )
 
         except json.JSONDecodeError as e:
-            logger.error(f"Invalid JSON from Ollama: {e}")
+            logger.error(f"Invalid JSON from LLM: {e}")
             return None
         except Exception as e:
-            logger.error(f"Ollama detection error: {e}", exc_info=True)
+            logger.error(f"LLM detection error: {e}", exc_info=True)
             return None
 
     def _extract_json(self, text: str) -> str:

@@ -266,7 +266,8 @@ url = settings.ollama.url
 
 # WRONG:
 import os
-url = os.getenv("OLLAMA_URL")
+url = settings.ollama.base_url
+
 ```
 
 ### 5. Transaction deduplication
@@ -380,9 +381,12 @@ User: "I refueled 40L at Shell for €90, odo 51500"
 | `ACTUAL_BUDGET_URL` | Internal Docker URL (http://actual-budget:5006) |
 | `ACTUAL_BUDGET_PASSWORD` | Actual Budget password |
 | `ACTUAL_BUDGET_SYNC_ID` | Sync ID from Actual Budget settings |
-| `OLLAMA_URL` | Ollama URL |
-| `OLLAMA_VISION_MODEL` | Vision model (qwen2.5vl:3b) |
-| `OLLAMA_CHAT_MODEL` | Chat model (qwen3.5:9b — also used for vision) |
+| `LLM_BASE_URL` | LLM provider URL (default: http://ollama:11434) |
+| `LLM_API_KEY` | API key for cloud providers (empty for local Ollama) |
+| `LLM_VISION_MODEL` | Vision model (qwen2.5vl:7b) |
+| `LLM_CHAT_MODEL` | Chat model (qwen3.5:9b — also used for vision) |
+| `LLM_CATEGORIZE_MODEL` | Model for CSV categorization (optional, defaults to chat) |
+
 | `MEMORY_DB_PATH` | SQLite path (/app/data/memory.db) |
 | `JWT_SECRET` | Secret for JWT tokens |
 | `USER1_USERNAME` / `USER1_PASSWORD` | Web UI credentials |

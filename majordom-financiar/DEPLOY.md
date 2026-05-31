@@ -83,15 +83,20 @@ JWT_SECRET=                        # generate: python3 -c "import secrets; print
 ACTUAL_BUDGET_PASSWORD=another_strong_password
 ACTUAL_BUDGET_SYNC_ID=             # fill after first boot — see step 6
 
-# Ollama — point to your external server (the machine with your GPU):
-OLLAMA_URL=http://192.168.x.x:11434
-OLLAMA_VISION_MODEL=qwen2.5vl:7b
-OLLAMA_CHAT_MODEL=qwen2.5:7b
+# LLM Provider — point to your external Ollama server (the machine with your GPU):
+# For OpenRouter: LLM_BASE_URL=https://openrouter.ai/api/v1 and LLM_API_KEY.
+# Any OpenAI-compatible API works.
+LLM_BASE_URL=http://192.168.x.x:11434
+LLM_API_KEY=                          # leave empty for local Ollama
+LLM_VISION_MODEL=qwen2.5vl:7b
+LLM_CHAT_MODEL=qwen2.5:7b
+
 ```
 
-> **No GPU in the LXC?** That's fine — set `OLLAMA_URL` to an external machine that runs Ollama (e.g. your desktop with a GPU). Start Majordom without the ollama profile and it will use the remote server.
+> **No GPU in the LXC?** That's fine — set `LLM_BASE_URL` to an external machine that runs Ollama (e.g. your desktop with a GPU). Start Majordom without the ollama profile and it will use the remote server.
 >
 > **GPU available on this host?** Use `--profile ollama-local` in step 5 to start Ollama inside Docker.
+
 
 ### 5. Start
 
@@ -113,7 +118,8 @@ docker compose --profile ollama-local up -d
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml --profile ollama-local up -d
 ```
 
-> **Important:** only use one Ollama option. If `OLLAMA_URL` points to an external server, do not use `--profile ollama-local`. See `.env.example` for details.
+> **Important:** only use one LLM option. If `LLM_BASE_URL` points to an external server, do not use `--profile ollama-local`. See `.env.example` for details.
+
 
 Check status:
 
@@ -252,7 +258,9 @@ docker run --rm \
 | `ACTUAL_BUDGET_URL` | No | `http://actual-budget:5006` | Internal URL to Actual Budget |
 | `ACTUAL_BUDGET_PASSWORD` | Yes | — | Actual Budget file password |
 | `ACTUAL_BUDGET_SYNC_ID` | Yes | — | From Actual Budget → Settings → Advanced |
-| `OLLAMA_URL` | No | `http://ollama:11434` | Ollama server URL (local or external) |
-| `OLLAMA_VISION_MODEL` | No | `qwen2.5vl:7b` | Model for receipt OCR |
-| `OLLAMA_CHAT_MODEL` | No | `qwen2.5:7b` | Model for chat assistant |
+| `LLM_BASE_URL` | No | `http://ollama:11434` | LLM provider URL (local Ollama or cloud API) |
+| `LLM_API_KEY` | No | — | API key for cloud providers (leave empty for local Ollama) |
+| `LLM_VISION_MODEL` | No | `qwen2.5vl:7b` | Model for receipt OCR |
+| `LLM_CHAT_MODEL` | No | `qwen2.5:7b` | Model for chat assistant |
+| `LLM_CATEGORIZE_MODEL` | No | (same as chat) | Model for CSV categorization (smaller = faster) |
 | `WEB_PORT` | No | `3000` | External port for the web UI |
