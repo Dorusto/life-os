@@ -124,6 +124,16 @@ class MemoryDB:
                     user_agent  TEXT NOT NULL DEFAULT '',
                     created_at  TEXT DEFAULT (datetime('now'))
                 );
+
+                CREATE TABLE IF NOT EXISTS pending_review (
+                    financial_id TEXT PRIMARY KEY,
+                    merchant     TEXT NOT NULL,
+                    amount       REAL NOT NULL,
+                    date         TEXT NOT NULL,
+                    category_name TEXT NOT NULL,
+                    imported_at  TEXT NOT NULL DEFAULT (datetime('now')),
+                    notified_at  TEXT DEFAULT NULL
+                );
             """)
             conn.commit()
             # Migrate existing csv_profiles table — add columns added after initial schema
@@ -499,6 +509,63 @@ class MemoryDB:
         conn = self._get_conn()
         try:
             conn.execute("DELETE FROM push_subscriptions WHERE endpoint = ?", (endpoint,))
+            conn.commit()
+        finally:
+            conn.close()
+
+    # --- Pending Review ---
+
+    def add_pending_reviews(self, rows: list[dict]):
+        """Insert low-confidence categorized transactions for later review.
+
+        Each dict: {financial_id, merchant, amount, date, category_name}.
+        Uses INSERT OR IGNORE to avoid duplicates on re-import.
+        """
+        conn = self._get_conn()
+        try:
+            conn.executemany("""
+                INSERT OR IGNORE INTO pending_review
+                    (financial_id, merchant, amount, date, category_name)
+                VALUES (:financial_id, :merchant, :amount, :date, :category_name)
+            """, rows)
+            conn.commit()
+        finally:
+            conn.close()
+
+    def get_unnotified_pending_reviews(self, min_age_hours: int = 48) -> list[dict]:
+        """Return pending reviews older than min_age_hours that haven't been notified yet."""
+        conn = self._get_conn()
+        try:
+            rows = conn.execute("""
+                SELECT * FROM pending_review
+                WHERE notified_at IS NULL
+                  AND imported_at <= datetime('now', ?)
+                ORDER BY imported_at
+            """, (f"-{min_age_hours} hours",)).fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            conn.close()
+
+    def mark_pending_reviews_notified(self, financial_ids: list[str]):
+        conn = self._get_conn()
+        try:
+            conn.executemany(
+                "UPDATE pending_review SET notified_at = datetime('now') WHERE financial_id = ?",
+                [(fid,) for fid in financial_ids],
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def cleanup_old_pending_reviews(self, older_than_days: int = 30):
+        """Remove notified reviews older than N days to keep the table small."""
+        conn = self._get_conn()
+        try:
+            conn.execute("""
+                DELETE FROM pending_review
+                WHERE notified_at IS NOT NULL
+                  AND notified_at <= datetime('now', ?)
+            """, (f"-{older_than_days} days",))
             conn.commit()
         finally:
             conn.close()

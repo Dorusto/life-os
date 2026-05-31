@@ -165,3 +165,49 @@ async def run_import_nudge():
 
     except Exception as e:
         logger.error("Import nudge job failed: %s", e, exc_info=True)
+
+
+async def run_pending_review_nudge():
+    """Send a push if there are low-confidence categorizations older than 48h.
+
+    Only fires once per batch — marks records as notified so the user isn't
+    nudged again for the same transactions.
+    """
+    try:
+        db = MemoryDB(settings.memory.db_path)
+        rule = db.get_notification_rule("pending_review")
+        if not rule or not rule["enabled"]:
+            return
+
+        min_age_hours = rule["config"].get("min_age_hours", 48)
+        pending = db.get_unnotified_pending_reviews(min_age_hours=min_age_hours)
+        if not pending:
+            return
+
+        # Anti-spam: don't send more than once per day
+        last_nudge = db.get_last_notification("pending_review")
+        if last_nudge and last_nudge["sent_at"][:10] == date.today().isoformat():
+            return
+
+        count = len(pending)
+        financial_ids = [p["financial_id"] for p in pending]
+
+        push_svc = get_push_service()
+        body = (
+            f"I categorized {count} transaction{'s' if count > 1 else ''} automatically. "
+            "Want to review them?"
+        )
+        await push_svc.send_to_all(
+            user_id="default",
+            title="Majordom",
+            body=body,
+            url="/chat",
+        )
+
+        db.mark_pending_reviews_notified(financial_ids)
+        db.cleanup_old_pending_reviews()
+        db.log_notification("pending_review", {"count": count})
+        logger.info("Pending review nudge sent — %d transactions", count)
+
+    except Exception as e:
+        logger.error("Pending review nudge job failed: %s", e, exc_info=True)

@@ -86,6 +86,7 @@ class ImportRowConfirm(BaseModel):
     amount: float
     is_expense: bool
     category_name: str  # actual AB category name, or "" = leave uncategorized
+    category_confirmed: bool = False  # True = from history; False = LLM suggestion
     duplicate: bool
     is_transfer_candidate: bool = False
     transfer_to_account_id: str = ""  # non-empty → create AB transfer to this account
@@ -640,6 +641,26 @@ async def confirm_csv(
             "imported": imported,
             "account": matched_account.name if matched_account else "",
         })
+
+    # Track low-confidence categorizations (LLM-suggested, not from history)
+    # for the pending_review nudge (M2.3).
+    low_confidence = [
+        {
+            "financial_id": _financial_id(row.date, row.merchant, row.amount),
+            "merchant": row.merchant,
+            "amount": row.amount,
+            "date": row.date,
+            "category_name": row.category_name,
+        }
+        for row in body.rows
+        if row.category_name
+        and not row.category_confirmed
+        and not row.duplicate
+        and not row.transfer_to_account_id
+        and not row.is_transfer_candidate
+    ]
+    if low_confidence:
+        db.add_pending_reviews(low_confidence)
 
     logger.info(
         "CSV confirmed [%s]: %d imported, %d skipped, %d merged, %d retroactively updated, %d unknown income rows",

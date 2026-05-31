@@ -219,6 +219,7 @@ export interface ImportRowConfirm {
   amount: number
   is_expense: boolean
   category_name: string      // actual AB category name, or "" = uncategorized
+  category_confirmed: boolean  // true = from history; false = LLM suggestion
   duplicate: boolean
   is_transfer_candidate: boolean
   transfer_to_account_id?: string  // set → create AB transfer to this account

@@ -189,6 +189,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
           amount: r.amount,
           is_expense: r.is_expense,
           category_name: r.categoryName,
+          category_confirmed: r.categoryConfirmed,
           duplicate: r.duplicate,
           is_transfer_candidate: r.isTransferCandidate,
           transfer_to_account_id: r.transferToAccountId || undefined,

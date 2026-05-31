@@ -53,6 +53,13 @@ async def lifespan(app: FastAPI):
                 config={"days": 7},
             )
             logger.info("Default notification rule seeded: import_nudge at 7 days")
+        if not db.get_notification_rule("pending_review"):
+            db.upsert_notification_rule(
+                rule_type="pending_review",
+                enabled=True,
+                config={"min_age_hours": 48},
+            )
+            logger.info("Default notification rule seeded: pending_review at 48h")
     except Exception as _e:
         logger.warning("Could not seed built-in CSV profiles: %s", _e)
     try:
@@ -64,7 +71,7 @@ async def lifespan(app: FastAPI):
     logger.info("APScheduler started")
 
     try:
-        from backend.services.notification_service import run_daily_summary, run_import_nudge
+        from backend.services.notification_service import run_daily_summary, run_import_nudge, run_pending_review_nudge
         from backend.core.memory.database import MemoryDB as _MemoryDB
         from backend.core.config import settings as _settings
 
@@ -89,7 +96,15 @@ async def lifespan(app: FastAPI):
             id="import_nudge",
             replace_existing=True,
         )
-        logger.info("Daily summary + import nudge jobs scheduled at %s", _time)
+        scheduler.add_job(
+            run_pending_review_nudge,
+            trigger="cron",
+            hour=_hour,
+            minute=_minute,
+            id="pending_review",
+            replace_existing=True,
+        )
+        logger.info("Daily jobs scheduled at %s: summary, import nudge, pending review", _time)
     except Exception as _e:
         logger.warning("Could not schedule daily summary job: %s", _e)
 
