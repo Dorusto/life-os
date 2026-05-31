@@ -71,6 +71,18 @@ services:
       retries: 5
       start_period: 15s
 
+  sqlite-web:
+    image: coleifer/sqlite-web
+    container_name: majordom-sqlite-web
+    restart: unless-stopped
+    ports:
+      - "8888:8080"
+    volumes:
+      - ./data:/data
+    command: ["sqlite_web", "-H", "0.0.0.0", "-p", "8080", "/data/memory.db"]
+    networks:
+      - majordom-net
+
   majordom-web:
     build:
       context: ./frontend
