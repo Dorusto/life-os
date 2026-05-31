@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, FormEvent } from 'react'
 import { Send, Plus, Camera, Image, FileText, HelpCircle, X } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, type SetupAccount, type BalanceAdjustmentData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type FuelConfirmResponse } from '../lib/api'
+import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, type SetupAccount, type BalanceAdjustmentData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type FuelConfirmResponse, type VehicleLogActionData } from '../lib/api'
 import CsvImportCard from '../components/CsvImportCard'
 import FuelioImportCard, { FuelioImportData } from '../components/FuelioImportCard'
 import ProposalCard, { ProposalData } from '../components/ProposalCard'
@@ -16,11 +16,12 @@ import ReceiptCard from '../components/ReceiptCard'
 import FuelReceiptCard from '../components/FuelReceiptCard'
 import CategoryActionCard from '../components/CategoryActionCard'
 import GoalProposalCard, { GoalProposalData } from '../components/GoalProposalCard'
+import VehicleLogActionCard from '../components/VehicleLogActionCard'
 import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from '../lib/api'
 
 
 export interface Message {
-  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'fuelio_import' | 'income_source' | 'reconciliation' | 'receipt' | 'category_action' | 'goal_proposal' | 'fuel_log'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'fuelio_import' | 'income_source' | 'reconciliation' | 'receipt' | 'category_action' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action'
   content: string
   proposal?: ProposalData
   budgetRebalance?: BudgetRebalanceData
@@ -43,6 +44,7 @@ export interface Message {
   categoryAction?: CategoryActionData
   goalProposal?: GoalProposalData
   fuelLog?: { draft: ReceiptDraft; fuelStats?: FuelConfirmResponse }
+  vehicleLogAction?: VehicleLogActionData
 }
 
 
@@ -317,6 +319,10 @@ export default function Chat({ messages, setMessages }: ChatProps) {
         }
         if (parsed.type === 'fuel_log') {
           setMessages(prev => [...prev, { role: 'fuel_log' as const, content: '', fuelLog: { draft: parsed as unknown as ReceiptDraft } }])
+          return
+        }
+        if (parsed.type === 'vehicle_log_action') {
+          setMessages(prev => [...prev, { role: 'vehicle_log_action' as const, content: '', vehicleLogAction: parsed as VehicleLogActionData }])
           return
         }
 
@@ -601,6 +607,24 @@ export default function Chat({ messages, setMessages }: ChatProps) {
             ) : msg.role === 'goal_proposal' && msg.goalProposal ? (
               <GoalProposalCard
                 data={msg.goalProposal}
+                onConfirmed={(message) => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx ? { role: 'status' as const, content: message } : m
+                    )
+                  )
+                }}
+                onCancelled={() => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx ? { role: 'status' as const, content: 'Cancelled.' } : m
+                    )
+                  )
+                }}
+              />
+            ) : msg.role === 'vehicle_log_action' && msg.vehicleLogAction ? (
+              <VehicleLogActionCard
+                data={msg.vehicleLogAction}
                 onConfirmed={(message) => {
                   setMessages(prev =>
                     prev.map((m, i) =>

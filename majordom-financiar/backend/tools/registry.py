@@ -408,6 +408,53 @@ TOOLS: list[dict] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_vehicle_log",
+            "description": (
+                "Return the last N refuel entries for a vehicle from the vehicle log. "
+                "Use when the user asks to see their refuel history, recent fill-ups, or wants to find an entry to delete. "
+                "Each entry shows date, odometer, liters, cost, location, and an ID for reference."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "vehicle_name": {
+                        "type": "string",
+                        "description": "Vehicle name or partial name, e.g. 'cora', 'wabi sabi'. Leave empty if user has one vehicle.",
+                    },
+                    "limit": {
+                        "type": "integer",
+                        "description": "Number of entries to return (default 10, max 50).",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_vehicle_log_entry",
+            "description": (
+                "Propose deleting a vehicle log entry by its ID. "
+                "Use when the user asks to remove or delete a specific refuel entry. "
+                "A confirmation card appears — nothing is deleted until the user confirms. "
+                "Use get_vehicle_log first to find the entry ID."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "entry_id": {
+                        "type": "integer",
+                        "description": "The numeric ID of the vehicle log entry to delete (shown as 'ID #N' in get_vehicle_log output).",
+                    },
+                },
+                "required": ["entry_id"],
+            },
+        },
+    },
 ]
 
 async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
@@ -482,6 +529,14 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "log_refuel":
         from backend.tools.finance.vehicle import log_refuel
         return await log_refuel(**arguments)
+
+    if name == "get_vehicle_log":
+        from backend.tools.finance.vehicle import get_vehicle_log
+        return await get_vehicle_log(**arguments)
+
+    if name == "delete_vehicle_log_entry":
+        from backend.tools.finance.vehicle import delete_vehicle_log_entry
+        return await delete_vehicle_log_entry(**arguments)
 
     return f"Unknown tool: {name}"
 

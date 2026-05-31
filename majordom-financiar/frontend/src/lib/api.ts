@@ -669,3 +669,25 @@ export async function confirmCategoryAction(
 export async function cancelCategoryAction(id: string): Promise<void> {
   return request<void>(`/category-actions/${id}/cancel`, { method: 'POST' })
 }
+
+// --- Vehicle log actions ---
+
+export interface VehicleLogActionData {
+  id: string
+  action: 'delete'
+  entry_id: number
+  vehicle_name: string
+  date: string
+  odo_km: number | null
+  fuel_liters: number | null
+  cost_total: number | null
+  location: string | null
+}
+
+export async function confirmVehicleLogAction(id: string): Promise<{ message: string }> {
+  return request(`/vehicle-log-actions/${id}/confirm`, { method: 'POST' })
+}
+
+export async function cancelVehicleLogAction(id: string): Promise<void> {
+  return request<void>(`/vehicle-log-actions/${id}/cancel`, { method: 'POST' })
+}

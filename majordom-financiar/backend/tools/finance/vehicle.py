@@ -109,6 +109,111 @@ async def log_refuel(
     })
 
 
+async def get_vehicle_log(vehicle_name: str = "", limit: int = 10) -> str:
+    """
+    Return the last N refuel entries for a vehicle from vehicle_log.
+    Includes entry ID so the user can reference entries for deletion.
+    """
+    db_path = settings.memory.db_path
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        vehicle_clause = ""
+        params: list = []
+        if vehicle_name:
+            row = conn.execute(
+                "SELECT id, name FROM vehicles WHERE lower(name) LIKE lower(?) LIMIT 1",
+                (f"%{vehicle_name}%",),
+            ).fetchone()
+            if not row:
+                return f"No vehicle found matching '{vehicle_name}'."
+            display_name = row["name"]
+            vehicle_clause = "AND vl.vehicle_id = ?"
+            params.append(row["id"])
+        else:
+            vehicles = conn.execute(
+                "SELECT id, name FROM vehicles WHERE active=1 ORDER BY name"
+            ).fetchall()
+            if not vehicles:
+                return "No vehicles found."
+            if len(vehicles) > 1:
+                names = ", ".join(v["name"] for v in vehicles)
+                return f"Multiple vehicles: {names}. Specify which one."
+            display_name = vehicles[0]["name"]
+            vehicle_clause = "AND vl.vehicle_id = ?"
+            params.append(vehicles[0]["id"])
+
+        params.append(limit)
+        rows = conn.execute(f"""
+            SELECT vl.id, vl.date, vl.odo_km, vl.fuel_liters, vl.cost_total,
+                   vl.location, vl.entry_type, vl.fuel_full_tank, vl.source,
+                   v.name as vehicle_name
+            FROM vehicle_log vl
+            JOIN vehicles v ON v.id = vl.vehicle_id
+            WHERE vl.entry_type = 'fuel'
+              {vehicle_clause}
+            ORDER BY vl.date DESC
+            LIMIT ?
+        """, params).fetchall()
+    finally:
+        conn.close()
+
+    if not rows:
+        return f"No fuel entries found for {display_name}."
+
+    lines = [f"**{display_name} — last {len(rows)} refuel(s):**"]
+    for i, r in enumerate(rows, 1):
+        date_str = (r["date"] or "")[:10]
+        odo = f"{r['odo_km']:.0f} km" if r["odo_km"] else "—"
+        liters = f"{r['fuel_liters']:.1f}L" if r["fuel_liters"] else "—"
+        cost = f"€{r['cost_total']:.2f}" if r["cost_total"] else "—"
+        location = r["location"] or "—"
+        lines.append(f"{i}. {date_str} | {odo} | {liters} | {cost} | {location} (ID #{r['id']})")
+    return "\n".join(lines)
+
+
+async def delete_vehicle_log_entry(entry_id: int) -> str:
+    """
+    Propose deleting a vehicle log entry. Returns a confirmation card — does NOT delete yet.
+    Use the entry ID shown by get_vehicle_log.
+    """
+    import uuid
+    import json as _json
+    from backend.tools import vehicle_log_actions as action_store
+
+    db_path = settings.memory.db_path
+    conn = sqlite3.connect(db_path)
+    conn.row_factory = sqlite3.Row
+    try:
+        row = conn.execute("""
+            SELECT vl.*, v.name as vehicle_name
+            FROM vehicle_log vl
+            JOIN vehicles v ON v.id = vl.vehicle_id
+            WHERE vl.id = ?
+        """, (entry_id,)).fetchone()
+    finally:
+        conn.close()
+
+    if not row:
+        return f"No vehicle log entry found with ID #{entry_id}."
+
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {"entry_id": entry_id})
+
+    return _json.dumps({
+        "type": "vehicle_log_action",
+        "id": action_id,
+        "action": "delete",
+        "entry_id": entry_id,
+        "vehicle_name": row["vehicle_name"],
+        "date": (row["date"] or "")[:10],
+        "odo_km": row["odo_km"],
+        "fuel_liters": row["fuel_liters"],
+        "cost_total": row["cost_total"],
+        "location": row["location"],
+    })
+
+
 async def get_vehicle_stats(vehicle_name: str = "", period: str = "") -> str:
     """
     Return vehicle operational stats from vehicle_log.
