@@ -1350,3 +1350,63 @@ Chat  →  + buton  →  camera/gallery  →  handleReceiptFile(file)
 ### De retinut
 - **Tabele pot exista in DB fara sa fie in schema `CREATE TABLE`** — `DROP TABLE` via Docker exec cand fisierul e owned by root din container.
 - **Orice rand procesat ca transfer trebuie exclus explicit din toate celelalte fluxuri** (IncomeSourceCard, categorization) — backend-ul nu stie automat ca un rand a fost "consumat" de o alta logica.
+
+---
+
+## 2026-05-31 — M2.4 + M2.3: doua job-uri proactive cu un singur pattern
+
+### Problema
+M2.4 (import nudge) si M2.3 (pending review) sunt doua notificari proactive diferite, dar cu acelasi mecanism: verifica o conditie zilnic → trimite push daca e indeplinita → anti-spam.
+
+### Ce s-a intamplat
+
+**M2.4 — Import nudge:**
+Logica: daca `notification_log` nu are niciun entry `csv_import` in ultimele N zile → push.
+- Fiecare import reusit (imported > 0) logheaza un entry `csv_import` in `notification_log`
+- Job-ul zilnic citeste ultimul entry, calculeaza diferenta de zile
+- Daca userul nu a importat niciodata → nu trimite (nu vrei sa enervezi un user nou)
+- Daca a importat dar a trecut mai mult de N zile → push
+
+```
+notification_log:
+  rule_type="csv_import"  ← loggat la fiecare import reusit
+  rule_type="import_nudge" ← loggat cand s-a trimis nudge-ul
+```
+
+**M2.3 — Pending review nudge:**
+Logica: la import, randul cu categorie sugerata de LLM (nu din history) e salvat in `pending_review`. Dupa 48h → push daca exista randuri nenotificate.
+
+```
+pending_review:
+  financial_id (PK)
+  merchant, amount, date, category_name
+  imported_at  ← cand a fost importat
+  notified_at  ← NULL pana cand job-ul trimite push
+```
+
+Job-ul:
+1. `get_unnotified_pending_reviews(min_age_hours=48)` → randuri cu `notified_at IS NULL` si `imported_at <= now - 48h`
+2. Daca exista → push
+3. `mark_pending_reviews_notified(ids)` → seteaza `notified_at`
+4. `cleanup_old_pending_reviews()` → sterge cele notificate de >30 zile
+
+**Category_confirmed — campul care leaga frontend de backend:**
+`ImportRowPreview` returna `category_confirmed: bool` din preview. Dar `ImportRowConfirm` (payload trimis la confirm) nu il includea. Adaugat explicit, altfel backend-ul nu stia care randuri erau din history si care din LLM.
+
+### Solutia
+```
+CSV import confirm:
+  row.category_name != "" AND NOT row.category_confirmed
+      → INSERT INTO pending_review
+
+Daily job la 21:30:
+  run_daily_summary()       → rezumat zilnic
+  run_import_nudge()        → daca n-a importat in 7 zile
+  run_pending_review_nudge() → daca are categorii nerevizuite >48h
+```
+
+### De retinut
+- **notification_log e suficient pentru import_nudge** — nu ai nevoie de tabel separat, `sent_at` al ultimului `csv_import` e tot ce iti trebuie.
+- **pending_review are nevoie de tabel propriu** — trebuie sa stii CARE tranzactii sunt in asteptare, nu doar CAND s-a intamplat ultimul eveniment.
+- **INSERT OR IGNORE pe pending_review** — daca userul reimporta acelasi CSV, nu vrei duplicate. `financial_id` e PRIMARY KEY, conflictul e ignorat.
+- **cleanup_old_pending_reviews() rulat la fiecare nudge** — tabela ramane mica fara job separat de mentenanta.
