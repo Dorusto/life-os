@@ -360,6 +360,23 @@ export async function completeSetup(
   })
 }
 
+// --- Chat History ---
+
+export async function getChatHistory(): Promise<{ role: string; content: string; ts: number }[]> {
+  return request('/chat/history')
+}
+
+export async function saveChatHistory(messages: { role: string; content: string }[]): Promise<void> {
+  await request('/chat/history', {
+    method: 'POST',
+    body: JSON.stringify(messages),
+  })
+}
+
+export async function clearChatHistory(): Promise<void> {
+  await request('/chat/history', { method: 'DELETE' })
+}
+
 // --- Chat ---
 
 export async function sendChatMessage(

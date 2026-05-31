@@ -135,6 +135,15 @@ class MemoryDB:
                     notified_at  TEXT DEFAULT NULL
                 );
 
+                CREATE TABLE IF NOT EXISTS chat_history (
+                    id        INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id   TEXT NOT NULL,
+                    role      TEXT NOT NULL,
+                    content   TEXT NOT NULL,
+                    ts        INTEGER NOT NULL
+                );
+                CREATE INDEX IF NOT EXISTS idx_chat_history_user ON chat_history(user_id, ts);
+
                 CREATE TABLE IF NOT EXISTS vehicles (
                     id INTEGER PRIMARY KEY,
                     user_id INTEGER,
@@ -766,6 +775,54 @@ class MemoryDB:
                     last_service_km=?, last_service_date=?
                 WHERE id=?
             """, (interval_km, interval_months, last_km, last_date, vehicle_id))
+            conn.commit()
+        finally:
+            conn.close()
+
+    # --- Chat History ---
+
+    def get_chat_history(self, user_id: str, limit: int = 100) -> list[dict]:
+        """Return last `limit` messages for a user, oldest first."""
+        conn = self._get_conn()
+        try:
+            rows = conn.execute("""
+                SELECT role, content, ts FROM chat_history
+                WHERE user_id = ?
+                ORDER BY ts ASC
+                LIMIT ?
+            """, (user_id, limit)).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+    def save_chat_messages(self, user_id: str, messages: list[dict]) -> int:
+        """Insert chat messages and trim to last 500. Returns number saved."""
+        conn = self._get_conn()
+        try:
+            import time
+            now_ms = int(time.time() * 1000)
+            for msg in messages:
+                conn.execute(
+                    "INSERT INTO chat_history (user_id, role, content, ts) VALUES (?, ?, ?, ?)",
+                    (user_id, msg["role"], msg["content"], now_ms)
+                )
+            # Trim beyond last 500 for this user
+            conn.execute("""
+                DELETE FROM chat_history
+                WHERE user_id = ? AND id NOT IN (
+                    SELECT id FROM chat_history WHERE user_id = ? ORDER BY ts DESC LIMIT 500
+                )
+            """, (user_id, user_id))
+            conn.commit()
+            return len(messages)
+        finally:
+            conn.close()
+
+    def clear_chat_history(self, user_id: str) -> None:
+        """Delete all chat messages for a user."""
+        conn = self._get_conn()
+        try:
+            conn.execute("DELETE FROM chat_history WHERE user_id = ?", (user_id,))
             conn.commit()
         finally:
             conn.close()

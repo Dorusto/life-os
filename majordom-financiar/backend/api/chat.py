@@ -205,8 +205,12 @@ async def chat_stream(
       2b. query tool(s) called → execute, append results, repeat up to 3 rounds
       2c. no tool calls → stream text response
     """
+    # Limit history sent to LLM to avoid context overflow
+    MAX_CONTEXT = 10
+    history = req.messages[-MAX_CONTEXT:] if len(req.messages) > MAX_CONTEXT else req.messages
+
     messages = [{"role": "system", "content": _build_system_prompt()}]
-    messages.extend([{"role": m.role, "content": m.content} for m in req.messages])
+    messages.extend([{"role": m.role, "content": m.content} for m in history])
 
     llm_url = settings.ollama.base_url
     model = settings.ollama.chat_model or "qwen2.5:7b"

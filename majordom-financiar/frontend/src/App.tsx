@@ -7,6 +7,7 @@ import Home from './pages/Home'
 import ReceiptFlow from './pages/ReceiptFlow'
 import ImportPage from './pages/ImportPage'
 import Chat, { type Message, INITIAL_MESSAGES } from './pages/Chat'
+import { getChatHistory } from './lib/api'
 import BottomNav from './components/BottomNav'
 
 /**
@@ -36,6 +37,16 @@ function Layout() {
     if (isAuthenticated()) {
       requestAndSubscribe()
     }
+  }, [])
+
+  // Load chat history from server on mount
+  useEffect(() => {
+    if (!isAuthenticated()) return
+    getChatHistory().then(msgs => {
+      if (msgs.length > 0) {
+        setChatMessages(msgs.map(m => ({ role: m.role as Message['role'], content: m.content })))
+      }
+    }).catch(() => {})
   }, [])
 
   return (

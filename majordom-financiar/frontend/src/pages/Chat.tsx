@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, FormEvent } from 'react'
-import { Send, Plus, Camera, Image, FileText, HelpCircle, X } from 'lucide-react'
+import { Send, Plus, Camera, Image, FileText, HelpCircle, X, Trash2 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, type SetupAccount, type BalanceAdjustmentData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type FuelConfirmResponse, type VehicleLogActionData, type VehicleReminderData } from '../lib/api'
+import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, saveChatHistory, clearChatHistory, type SetupAccount, type BalanceAdjustmentData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type FuelConfirmResponse, type VehicleLogActionData, type VehicleReminderData } from '../lib/api'
 import CsvImportCard from '../components/CsvImportCard'
 import FuelioImportCard, { FuelioImportData } from '../components/FuelioImportCard'
 import ProposalCard, { ProposalData } from '../components/ProposalCard'
@@ -272,6 +272,20 @@ export default function Chat({ messages, setMessages }: ChatProps) {
       },
       () => {
         setLoading(false)
+        // Save complete exchange to server history
+        setMessages(prev => {
+          const msgs = prev.filter(m => m.role === 'user' || m.role === 'assistant')
+          // Extract user message and last assistant reply from the exchange
+          const lastUser = msgs.filter(m => m.role === 'user').slice(-1)[0]
+          const lastAssistant = msgs.filter(m => m.role === 'assistant').slice(-1)[0]
+          if (lastUser && lastAssistant) {
+            saveChatHistory([
+              { role: 'user', content: lastUser.content },
+              { role: 'assistant', content: lastAssistant.content },
+            ])
+          }
+          return prev
+        })
       },
       (error) => {
         console.error('Chat error:', error)
@@ -396,6 +410,12 @@ export default function Chat({ messages, setMessages }: ChatProps) {
     setInput(suggestion)
   }
 
+  async function handleClearHistory() {
+    if (!window.confirm('Clear all chat history?')) return
+    await clearChatHistory()
+    setMessages(INITIAL_MESSAGES)
+  }
+
   return (
     <div className="h-dvh pb-16 bg-background flex flex-col">
       {/* Header */}
@@ -404,13 +424,22 @@ export default function Chat({ messages, setMessages }: ChatProps) {
           <p className="text-xs tracking-widest uppercase text-muted">Your financial advisor</p>
           <h1 className="font-display text-3xl font-bold text-white mt-0.5">Majordom</h1>
         </div>
-        <button
-          onClick={() => setShowHelp(true)}
-          className="mb-0.5 text-muted hover:text-white transition-colors"
-          title="How to use Majordom"
-        >
-          <HelpCircle size={20} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleClearHistory}
+            className="mb-0.5 text-muted hover:text-red-400 transition-colors"
+            title="Clear chat history"
+          >
+            <Trash2 size={18} />
+          </button>
+          <button
+            onClick={() => setShowHelp(true)}
+            className="mb-0.5 text-muted hover:text-white transition-colors"
+            title="How to use Majordom"
+          >
+            <HelpCircle size={20} />
+          </button>
+        </div>
       </header>
 
       {/* Help modal */}
