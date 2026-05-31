@@ -628,6 +628,20 @@ class ActualBudgetClient:
                 return Category(id=str(cat.id), name=cat.name, group_name=group_name)
         return await self._run(_create)
 
+    async def delete_category(self, name: str) -> None:
+        """Soft-delete a category by setting tombstone=1. Raises ValueError if not found."""
+        def _delete():
+            from actual.queries import get_category
+            with self._get_actual() as actual:
+                actual.download_budget()
+                cat = get_category(actual.session, name)
+                if not cat:
+                    raise ValueError(f"Category not found: {name}")
+                cat.tombstone = 1
+                actual.commit()
+                logger.info(f"Category deleted: {name!r}")
+        return await self._run(_delete)
+
     async def rename_category(self, old_name: str, new_name: str) -> None:
         """Rename an existing category. Raises ValueError if not found."""
         def _rename():

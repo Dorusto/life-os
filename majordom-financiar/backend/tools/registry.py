@@ -253,6 +253,27 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "delete_category",
+            "description": (
+                "Permanently delete a budget category. "
+                "Use ONLY when the user explicitly says 'delete', 'remove', or 'get rid of' a category. "
+                "Executes immediately — no confirmation needed."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Name of the category to delete.",
+                    },
+                },
+                "required": ["name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "rename_category",
             "description": (
                 "Rename an existing budget category. "
@@ -343,6 +364,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "set_account_goal":
         from backend.tools.finance.actual_budget import set_account_goal
         return await set_account_goal(**arguments)
+
+    if name == "delete_category":
+        from backend.tools.finance.actual_budget import delete_category
+        return await delete_category(**arguments)
 
     if name == "rename_category":
         from backend.tools.finance.actual_budget import rename_category

@@ -471,3 +471,17 @@ async def rename_category(old_name: str, new_name: str) -> str:
         return f"Category not found: {old_name!r}. Available: {', '.join(all_names)}"
     await client.rename_category(resolved, new_name)
     return f"Category renamed: {resolved!r} → {new_name!r}"
+
+
+async def delete_category(name: str) -> str:
+    """Delete a budget category. Use only when the user explicitly asks to delete/remove a category."""
+    from difflib import get_close_matches
+    client = _get_client()
+    cats = await client.get_categories()
+    all_names = [c.name for c in cats]
+    exact = next((n for n in all_names if n.lower() == name.lower()), None)
+    resolved = exact or (get_close_matches(name, all_names, n=1, cutoff=0.6) or [None])[0]
+    if not resolved:
+        return f"Category not found: {name!r}. Available: {', '.join(all_names)}"
+    await client.delete_category(resolved)
+    return f"Category deleted: {resolved!r}"
