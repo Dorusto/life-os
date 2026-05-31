@@ -292,6 +292,7 @@ The home page: budget overview for the current month, one row per category with 
 - **Savings goals with deadline** — `TARGET: N DEADLINE: YYYY-MM` in AB account note; Home shows "by Mon YYYY" + "€X/mo needed"; `set_account_goal` has editable confirmation card (2026-05-31)
 - **Confirmation card rule** — all write tools go through proposal → card with editable fields → confirm → execute; no direct execution (2026-05-31)
 - **Visual alignment on Home** — colored top border on all cards (Cashflow green/red, Net Worth blue, Budget indigo, Goals per-color); smart emoji fallback for custom group names (2026-05-31)
+- **`setup_default_groups` chat tool** — creates the 7 standard groups with default subcategories, skips existing ones; confirmation card before executing (2026-05-31)
 
 ---
 

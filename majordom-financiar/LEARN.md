@@ -1598,3 +1598,9 @@ Goals cu deadline:
 - **`input type="month"` pentru deadline** — format nativ `YYYY-MM`, picker calendar pe Android/Chrome fara librarie. Compatibil direct cu formatul de stocare.
 - **Keyword emoji fallback** — mai robust decat un map strict: prinde variante de naming ("Food", "Foods", "Eating") fara configuratie explicita.
 - **Corupere SQLite Actual Budget** — aparut de doua ori in sesiune: "database disk image is malformed". Fix: `docker compose restart actual-budget`. Cauza probabila: lock neterminat dupa operatii in paralel. Nu blocheaza date, containerul se recupereaza la restart.
+
+### Adendum — setup_default_groups tool
+
+`setup_default_groups` — tool care creează cele 7 grupuri standard dacă nu există deja. Verifică `get_category_groups()` → filtrează cele existente → propune crearea celor lipsă. Util atât pentru setup initial cât și pentru utilizatori cu structura parțial creată (creează doar ce lipsește, nu suprascrie).
+
+Pattern refolosit: `category_actions` store + confirm endpoint + `CategoryActionCard` extins cu `action: "setup_groups"`. Nu a necesitat componente noi — aceeași infrastructură ca rename/delete/create.
