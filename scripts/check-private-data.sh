@@ -39,7 +39,7 @@ check "Actual Budget Sync ID"      'ACTUAL_BUDGET_SYNC_ID\s*=\s*[a-f0-9]{8}-[a-f
 check "Real Telegram user ID"      'TELEGRAM_ALLOWED_USER_IDS\s*=\s*(?!1{9}|2{9})[\d,\s]+'
 
 # Credentials with real values (not placeholders)
-check "Real credential value"      '(PASSWORD|BOT_TOKEN|API_KEY|JWT_SECRET)\s*=\s*(?!your_|paste_|change_|example|\.\.\.|\*+|"")[^\s]{10,}'
+check "Real credential value"      '(PASSWORD|BOT_TOKEN|API_KEY|JWT_SECRET)\s*=\s*(?!your_|paste_|change_|example|\.\.\.|\*+|""|settings\.)[^\s]{10,}'
 
 if [[ $ERRORS -gt 0 ]]; then
     echo ""

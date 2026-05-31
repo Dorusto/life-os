@@ -425,6 +425,7 @@ export async function getGoals(): Promise<Goal[]> {
 export interface BudgetCategory {
   category_id: string
   category_name: string
+  group_name: string
   budgeted: number
   spent: number
   percentage: number

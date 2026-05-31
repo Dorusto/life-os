@@ -224,6 +224,7 @@ async def list_goals(current_user: str = Depends(get_current_user)):
 class BudgetCategory(BaseModel):
     category_id: str
     category_name: str
+    group_name: str = "Unexpected"
     budgeted: float
     spent: float
     percentage: float

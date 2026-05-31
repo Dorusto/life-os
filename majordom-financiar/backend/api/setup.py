@@ -97,13 +97,13 @@ async def setup_complete(
     db = MemoryDB(db_path=settings.memory.db_path)
     adjustments: list[AdjustmentResult] = []
 
-    if body.path == "today" and (body.balances or body.new_accounts):
-        client = ActualBudgetClient(
-            url=settings.actual.url,
-            password=settings.actual.password,
-            sync_id=settings.actual.sync_id,
-        )
+    client = ActualBudgetClient(
+        url=settings.actual.url,
+        password=settings.actual.password,
+        sync_id=settings.actual.sync_id,
+    )
 
+    if body.path == "today" and (body.balances or body.new_accounts):
         # Create new accounts first, then adjust their balance
         for new_acc in body.new_accounts:
             if not new_acc.name.strip():
@@ -134,6 +134,42 @@ async def setup_complete(
                 except Exception as e:
                     logger.warning("Balance adjustment failed for %s: %s", entry.account_id, e)
 
+    # Auto-create default category groups if AB has none
+    try:
+        await _ensure_default_categories(client)
+    except Exception as e:
+        logger.warning("Default category creation failed (non-fatal): %s", e)
+
     db.set_preference(SETUP_KEY, "1")
     logger.info("Setup completed by %s (path=%s, adjustments=%d)", current_user, body.path, len(adjustments))
     return SetupCompleteResponse(adjustments=adjustments)
+
+
+# Groups and their subcategories from categories.json
+_DEFAULT_GROUPS: list[tuple[str, list[str]]] = [
+    ("Housing",      ["Home & Maintenance", "Utilities"]),
+    ("Daily Living", ["Groceries & Drinks", "Clothing", "Children"]),
+    ("Transport",    ["Transport"]),
+    ("Health",       ["Health"]),
+    ("Lifestyle",    ["Restaurants & Cafes", "Entertainment & Vacation", "Personal"]),
+    ("Finance",      ["Investments & Savings"]),
+    ("Unexpected",   ["Other"]),
+]
+
+
+async def _ensure_default_categories(client: ActualBudgetClient) -> None:
+    existing = await client.get_categories()
+    if existing:
+        return
+    logger.info("No categories in AB — creating default 7 groups")
+    for group_name, sub_names in _DEFAULT_GROUPS:
+        try:
+            await client.create_category_group(group_name)
+        except Exception as e:
+            logger.warning("Could not create group %s: %s", group_name, e)
+            continue
+        for sub_name in sub_names:
+            try:
+                await client.create_category(sub_name, group_name)
+            except Exception as e:
+                logger.warning("Could not create category %s in %s: %s", sub_name, group_name, e)

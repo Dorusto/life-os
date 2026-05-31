@@ -3,6 +3,7 @@
     {
       "id": "groceries",
       "name": "Groceries & Drinks",
+      "group": "Daily Living",
       "emoji": "🛒",
       "keywords": [
         "albert heijn", "jumbo", "lidl", "aldi", "plus supermarkt", "dirk", "coop",
@@ -15,6 +16,7 @@
     {
       "id": "restaurants",
       "name": "Restaurants & Cafes",
+      "group": "Lifestyle",
       "emoji": "🍽️",
       "keywords": [
         "restaurant", "cafe", "cafetaria", "eetcafe", "broodjeszaak", "lunchroom", "bar",
@@ -28,6 +30,7 @@
     {
       "id": "transport",
       "name": "Transport",
+      "group": "Transport",
       "emoji": "🚗",
       "keywords": [
         "ns ", "ovchipkaart", "ov-chipkaart", "9292", "connexxion", "arriva", "ret", "gvb", "htm", "qbuzz",
@@ -42,6 +45,7 @@
     {
       "id": "utilities",
       "name": "Utilities",
+      "group": "Housing",
       "emoji": "💡",
       "keywords": [
         "vattenfall", "eneco", "essent", "nuon", "greenchoice", "budget energie", "oxxio",
@@ -54,6 +58,7 @@
     {
       "id": "health",
       "name": "Health",
+      "group": "Health",
       "emoji": "💊",
       "keywords": [
         "apotheek", "pharmacie", "farmacie",
@@ -68,6 +73,7 @@
     {
       "id": "clothing",
       "name": "Clothing",
+      "group": "Daily Living",
       "emoji": "👕",
       "keywords": [
         "h&m", "zara", "uniqlo", "primark", "c&a", "mango", "cos ",
@@ -82,6 +88,7 @@
     {
       "id": "home",
       "name": "Home & Maintenance",
+      "group": "Housing",
       "emoji": "🏠",
       "keywords": [
         "ikea", "praxis", "gamma", "karwei", "hornbach", "intratuin", "formido",
@@ -97,6 +104,7 @@
     {
       "id": "entertainment",
       "name": "Entertainment & Vacation",
+      "group": "Lifestyle",
       "emoji": "🎬",
       "keywords": [
         "netflix", "spotify", "videoland", "disney", "hbo", "amazon prime", "apple tv",
@@ -112,6 +120,7 @@
     {
       "id": "children",
       "name": "Children",
+      "group": "Daily Living",
       "emoji": "👨‍👩‍👧‍👦",
       "keywords": [
         "school", "scoala", "schoolboeken", "schoolspullen",
@@ -124,6 +133,7 @@
     {
       "id": "personal",
       "name": "Personal",
+      "group": "Lifestyle",
       "emoji": "💰",
       "keywords": [
         "bol.com boeken", "bruna", "selexyz", "donner", "readshop", "libris",
@@ -136,6 +146,7 @@
     {
       "id": "investments",
       "name": "Investments & Savings",
+      "group": "Finance",
       "emoji": "📈",
       "keywords": [
         "degiro", "nse", "vanguard", "etf", "beurs",
@@ -147,6 +158,7 @@
     {
       "id": "income",
       "name": "Income",
+      "group": "Income",
       "emoji": "💵",
       "keywords": [
         "salaris", "loon", "salary", "wages",
@@ -161,6 +173,7 @@
     {
       "id": "other",
       "name": "Other",
+      "group": "Unexpected",
       "emoji": "📦",
       "keywords": []
     }

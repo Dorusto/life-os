@@ -372,9 +372,11 @@ class ActualBudgetClient:
                 # --- 3. Fetch all categories for name resolution ---
                 all_cats = get_categories(actual.session)  # non-tombstoned only
                 cat_name_map: dict[str, str] = {}
+                cat_group_map: dict[str, str] = {}
                 for cat in all_cats:
                     if cat.id:
                         cat_name_map[str(cat.id)] = cat.name or "Uncategorized"
+                        cat_group_map[str(cat.id)] = cat.group.name if cat.group else "Unexpected"
 
                 # --- 3b. Remap spending from tombstoned categories to living ones ---
                 # When a category is deleted in AB, its transactions keep the old
@@ -433,6 +435,7 @@ class ActualBudgetClient:
                     result.append({
                         "category_id": cat_id,
                         "category_name": cat_name_map.get(cat_id, "Unknown"),
+                        "group_name": cat_group_map.get(cat_id, "Unexpected"),
                         "budgeted": budgeted,
                         "spent": spent,
                         "percentage": percentage,
