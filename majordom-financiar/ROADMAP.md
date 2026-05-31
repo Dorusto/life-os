@@ -163,7 +163,7 @@ Complete replacement for Fuelio. **Architecture:** AB holds financial costs (fro
 | ✅ 3.3b | log_refuel chat tool | Text input → same FuelReceiptCard; `[fuel] NL — Vehicle` in AB notes; vehicle proposals endpoint |
 | 3.4 | Consumption + cost calculations | L/100km per fill-up already in confirm-fuel endpoint; moving average + charts = backlog |
 | 3.5 | Reminders | APK/ITP + insurance (30 days before); service by km or date; Majordom proactively suggests if no reminders set |
-| 3.6 | Vehicle log management via chat | `get_vehicle_log` (last N refuels per vehicle) + `delete_vehicle_log_entry` (confirmation card); useful for cleanup of test/duplicate entries |
+| ✅ 3.6 | Vehicle log management via chat | `get_vehicle_log` (last N refuels per vehicle) + `delete_vehicle_log_entry` (confirmation card); useful for cleanup of test/duplicate entries. AB transaction not deleted on log delete — issue #83 |
 
 **Fuelio features backlog** (investigate before implementing — may need dedicated UI tab):
 - Mileage log view per vehicle (grouped by month, like Fuelio screenshot)

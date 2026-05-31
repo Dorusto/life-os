@@ -5,6 +5,46 @@
 
 ---
 
+## 2026-05-31 — M3.6: vehicle log management via chat
+
+### Problema
+
+Nu exista nicio modalitate de a vedea sau șterge intrări din `vehicle_log` prin chat. Util mai ales pentru intrări duplicate sau de test (ex: importuri Fuelio cu date lipsă).
+
+### Ce s-a întâmplat
+
+Implementare directă de Claude (nu DeepSeek) — refactor cu convenții de codebase, 9 fișiere cuplate. Pattern folosit: identic cu `delete_category` / `category_actions`:
+
+```
+Tool returnează JSON cu type="vehicle_log_action" + id propunere
+  → _PROPOSAL_TOOLS → frontend primește JSON direct
+  → VehicleLogActionCard cu buton Delete roșu
+  → confirm → POST /api/vehicle-log-actions/{id}/confirm → DELETE SQLite
+```
+
+**Întrebare bună de la user:** dacă șterg din vehicle_log, se șterge și tranzacția din AB?
+
+Răspuns: **Nu** — actuala implementare șterge doar SQLite. Decizia corectă:
+- `financial_id = NULL` (importuri Fuelio) → SQLite only, nu există AB transaction
+- `financial_id = UUID` (alimentări noi) → ar trebui să șteargă și din AB
+
+Creat issue #83 pentru asta și lăsat simplu deocamdată.
+
+### Soluția
+
+- `get_vehicle_log(vehicle_name, limit)` — returnează text cu ID-uri vizibile pentru referință
+- `delete_vehicle_log_entry(entry_id)` — card de confirmare → DELETE din SQLite
+- Store in-memory `vehicle_log_actions.py` (identic cu `category_actions.py`)
+- `VehicleLogActionCard` — card simplu fără câmpuri editabile (delete nu are ce edita)
+
+### De reținut
+
+- **`financial_id` în `vehicle_log`** — prezent pentru alimentări înregistrate prin Majordom (foto/text), NULL pentru importuri Fuelio. Orice delete complet (SQLite + AB) trebuie să verifice câmpul ăsta.
+- **Carduri fără editare** — nu toate cardurile de confirmare au câmpuri editabile. `VehicleLogActionCard` e simplu: afișează detaliile + Delete/Cancel. Nu orice card trebuie să fie complex.
+- **Claude direct vs DeepSeek** — taskuri cu >3 fișiere cuplate și convenții de codebase → Claude. Verificarea costă mai mult decât implementarea.
+
+---
+
 ## 2026-05-31 — M3.3 FuelReceiptCard unificat + log_refuel endpoint
 
 ### Problema
