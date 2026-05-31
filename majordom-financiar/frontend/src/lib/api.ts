@@ -571,3 +571,20 @@ export async function cancelBalanceAdjustment(id: string): Promise<void> {
   return request<void>(`/balance-adjustments/${id}/cancel`, { method: 'POST' })
 }
 
+
+// --- Category actions ---
+
+export interface CategoryActionData {
+  id: string
+  action: 'rename' | 'delete'
+  category_name: string
+  new_name?: string
+}
+
+export async function confirmCategoryAction(id: string): Promise<{ message: string }> {
+  return request(`/category-actions/${id}/confirm`, { method: 'POST' })
+}
+
+export async function cancelCategoryAction(id: string): Promise<void> {
+  return request<void>(`/category-actions/${id}/cancel`, { method: 'POST' })
+}

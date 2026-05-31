@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, FormEvent } from 'react'
 import { Send, Plus, Camera, Image, FileText, HelpCircle, X } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, uploadReceipt, type SetupAccount, type BalanceAdjustmentData, type ImportPreview, type ReceiptDraft } from '../lib/api'
+import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, uploadReceipt, type SetupAccount, type BalanceAdjustmentData, type ImportPreview, type ReceiptDraft, type CategoryActionData } from '../lib/api'
 import CsvImportCard from '../components/CsvImportCard'
 import ProposalCard, { ProposalData } from '../components/ProposalCard'
 import BudgetRebalanceCard from '../components/BudgetRebalanceCard'
@@ -12,11 +12,12 @@ import BalanceAdjustmentCard from '../components/BalanceAdjustmentCard'
 import IncomeSourceCard from '../components/IncomeSourceCard'
 import ReconciliationCard from '../components/ReconciliationCard'
 import ReceiptCard from '../components/ReceiptCard'
+import CategoryActionCard from '../components/CategoryActionCard'
 import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from '../lib/api'
 
 
 export interface Message {
-  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'income_source' | 'reconciliation' | 'receipt'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'income_source' | 'reconciliation' | 'receipt' | 'category_action'
   content: string
   proposal?: ProposalData
   budgetRebalance?: BudgetRebalanceData
@@ -28,6 +29,7 @@ export interface Message {
   incomeRow?: { payee: string; amount: number; date: string }
   reconciliation?: { accountName: string; balance: number; importedCount: number }
   receipt?: { status: 'loading' | 'reviewing' | 'error'; imageUrl: string; draft?: ReceiptDraft; error?: string }
+  categoryAction?: CategoryActionData
 }
 
 
@@ -245,6 +247,10 @@ export default function Chat({ messages, setMessages }: ChatProps) {
         }
         if (parsed.type === 'balance_adjustment') {
           setMessages(prev => [...prev, { role: 'balance_adjustment' as const, content: '', balanceAdjustment: parsed as BalanceAdjustmentData }])
+          return
+        }
+        if (parsed.type === 'category_action') {
+          setMessages(prev => [...prev, { role: 'category_action' as const, content: '', categoryAction: parsed as CategoryActionData }])
           return
         }
 
@@ -489,6 +495,28 @@ export default function Chat({ messages, setMessages }: ChatProps) {
             ) : msg.role === 'balance_adjustment' && msg.balanceAdjustment ? (
               <BalanceAdjustmentCard
                 data={msg.balanceAdjustment}
+                onConfirmed={(message) => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx
+                        ? { role: 'status' as const, content: message }
+                        : m
+                    )
+                  )
+                }}
+                onCancelled={() => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx
+                        ? { role: 'status' as const, content: 'Cancelled.' }
+                        : m
+                    )
+                  )
+                }}
+              />
+            ) : msg.role === 'category_action' && msg.categoryAction ? (
+              <CategoryActionCard
+                data={msg.categoryAction}
                 onConfirmed={(message) => {
                   setMessages(prev =>
                     prev.map((m, i) =>

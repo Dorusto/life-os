@@ -459,29 +459,34 @@ async def set_account_goal(account_name: str, target: float) -> str:
 
 
 async def rename_category(old_name: str, new_name: str) -> str:
-    """Rename a budget category. old_name must match exactly (case-insensitive). new_name is the replacement."""
+    """Propose renaming a budget category. Returns a confirmation card — does NOT rename yet."""
+    import uuid
     from difflib import get_close_matches
+    from backend.tools import category_actions as action_store
     client = _get_client()
-    # Fuzzy-resolve old_name against actual categories in AB
     cats = await client.get_categories()
     all_names = [c.name for c in cats]
     exact = next((n for n in all_names if n.lower() == old_name.lower()), None)
     resolved = exact or (get_close_matches(old_name, all_names, n=1, cutoff=0.6) or [None])[0]
     if not resolved:
-        return f"Category not found: {old_name!r}. Available: {', '.join(all_names)}"
-    await client.rename_category(resolved, new_name)
-    return f"Category renamed: {resolved!r} → {new_name!r}"
+        return json.dumps({"type": "error", "message": f"Category not found: {old_name!r}. Available: {', '.join(all_names)}"})
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {"action": "rename", "category_name": resolved, "new_name": new_name})
+    return json.dumps({"type": "category_action", "id": action_id, "action": "rename", "category_name": resolved, "new_name": new_name})
 
 
 async def delete_category(name: str) -> str:
-    """Delete a budget category. Use only when the user explicitly asks to delete/remove a category."""
+    """Propose deleting a budget category. Returns a confirmation card — does NOT delete yet."""
+    import uuid
     from difflib import get_close_matches
+    from backend.tools import category_actions as action_store
     client = _get_client()
     cats = await client.get_categories()
     all_names = [c.name for c in cats]
     exact = next((n for n in all_names if n.lower() == name.lower()), None)
     resolved = exact or (get_close_matches(name, all_names, n=1, cutoff=0.6) or [None])[0]
     if not resolved:
-        return f"Category not found: {name!r}. Available: {', '.join(all_names)}"
-    await client.delete_category(resolved)
-    return f"Category deleted: {resolved!r}"
+        return json.dumps({"type": "error", "message": f"Category not found: {name!r}. Available: {', '.join(all_names)}"})
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {"action": "delete", "category_name": resolved})
+    return json.dumps({"type": "category_action", "id": action_id, "action": "delete", "category_name": resolved})
