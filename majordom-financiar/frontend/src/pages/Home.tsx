@@ -249,8 +249,16 @@ function MetricCard({ label, sublabel, value, format, highlight }: MetricCardPro
     highlight === 'negative' ? 'text-red-400' :
     'text-white'
 
+  const topColor =
+    highlight === 'positive' ? '#22C55E' :
+    highlight === 'negative' ? '#EF4444' :
+    '#3B82F6'
+
   return (
-    <div className="bg-surface border border-border rounded-2xl px-4 py-4">
+    <div
+      className="bg-surface border border-border rounded-2xl px-4 py-4 overflow-hidden"
+      style={{ borderTopColor: topColor, borderTopWidth: '3px' }}
+    >
       <p className={`font-display text-2xl font-bold tabular-nums ${valueClass}`}>{formatted}</p>
       <p className="text-white text-sm font-medium mt-1">{label}</p>
       <p className="text-muted text-xs">{sublabel}</p>

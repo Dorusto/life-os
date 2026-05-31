@@ -73,7 +73,11 @@ export default function BudgetDashboard({ categories, month, year, totalBalance 
   }
 
   return (
-    <div className="bg-surface rounded-2xl p-4">
+    <div
+      className="bg-surface border border-border rounded-2xl overflow-hidden"
+      style={{ borderTopColor: '#6366F1', borderTopWidth: '3px' }}
+    >
+    <div className="p-4">
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div>
@@ -148,6 +152,7 @@ export default function BudgetDashboard({ categories, month, year, totalBalance 
         </div>
       )}
     </div>
+    </div>
   )
 }
 
@@ -173,7 +178,7 @@ function GroupRow({
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-base leading-none">{emoji}</span>
-          <span className="text-white text-sm font-medium truncate">{name}</span>
+          <span className="text-white text-sm font-semibold truncate">{name}</span>
           <span className="text-muted text-xs">{isExpanded ? '▲' : '▼'}</span>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0 ml-2">
@@ -197,7 +202,7 @@ function GroupRow({
         </div>
       </div>
       {hasBudget && (
-        <div className="h-px bg-border/40 rounded-full overflow-hidden">
+        <div className="h-1 bg-border/40 rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{ width: `${Math.min(percentage, 100)}%`, backgroundColor: color }}
@@ -244,7 +249,7 @@ function SubcategoryRow({ category, isLast }: { category: BudgetCategory; isLast
         </div>
       </div>
       {hasBudget && (
-        <div className="h-0.5 bg-border/20 rounded-full overflow-hidden">
+        <div className="h-px bg-border/30 rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{ width: `${Math.min(percentage, 100)}%`, backgroundColor: color }}
