@@ -105,6 +105,10 @@ Majordom deduces context from real data and initiates — the user never fills a
 
 Proactive financial insights: goal proposals, FIRE projection, charts in chat.
 
+**Foundation (already done):** At first setup (`POST /api/setup/complete`), if Actual Budget has no categories, Majordom auto-creates the 7 standard groups with their default subcategories. This is the starting point — the user builds their category structure from here. See `backend/api/setup.py → _ensure_default_categories()`.
+
+**Advanced onboarding (issue #59):** Conditional catalog activation — start from the 7 standard groups and activate extra categories based on user profile (has children → add Children group, has car → add Vehicle Costs, etc.). AI maps answers to catalog entries, never invents category names. Planned post-M2.5.
+
 | # | Feature | Notes |
 |---|---------|-------|
 | 2.5 | First goal proposal after 2 months of data | Conversational, not a form. Majordom proposes based on observed spending patterns. |
