@@ -1,15 +1,12 @@
 from __future__ import annotations
 """
-Parser for Romanian receipts.
+Receipt data structures and text-based fallback parser.
 
 Extracts structured information from OCR text:
 - Store/merchant name
 - Transaction date
 - Total amount
 - Individual items (optional)
-
-Romanian receipts have a fairly standardized format (fiscal requirement),
-which makes regex parsing quite reliable.
 """
 import re
 from datetime import datetime, date
@@ -62,12 +59,12 @@ class ReceiptData:
 
 class ReceiptParser:
     """
-    Smart parser for Romanian receipts.
+    Text-based fallback receipt parser (used when vision LLM is unavailable).
 
     Parsing strategy:
-    1. Look for the merchant in the first 5 lines (always there)
-    2. Search for the total with regex on keywords (TOTAL, TOTAL DE PLATA)
-    3. Look for the date in common Romanian formats
+    1. Look for the merchant in the first 5 lines
+    2. Search for the total with regex on keywords (TOTAL, TOTAAL, BEDRAG)
+    3. Look for the date in common formats (DD-MM-YYYY, DD.MM.YYYY, YYYY-MM-DD)
     4. Optionally: extract individual items
     """
 

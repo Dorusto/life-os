@@ -93,6 +93,7 @@ export interface ReceiptDraft {
   fuel_grade: string | null
   vehicles: VehicleOption[]
   suggested_vehicle_id: number | null
+  odo_km?: number | null
 }
 
 export interface VehicleOption {

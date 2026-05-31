@@ -3,6 +3,112 @@ import sqlite3
 from backend.core.config import settings
 
 
+async def log_refuel(
+    liters: float,
+    total_eur: float,
+    vehicle_name: str = "",
+    odo_km: float | None = None,
+    location: str = "",
+    full_tank: bool = True,
+) -> str:
+    """
+    Create a pending refuel proposal. Returns JSON with type='fuel_log'.
+    Does NOT write to DB — only stores a pending proposal for frontend confirmation.
+    """
+    import json
+    from datetime import date as _date
+    from backend.tools import vehicle_proposals
+    from backend.core.memory.database import MemoryDB
+    from backend.core.config import settings as _settings
+    from backend.tools.finance.actual_budget import _get_client
+
+    today = _date.today().isoformat()
+    db = MemoryDB(db_path=_settings.memory.db_path)
+
+    # Resolve vehicle from name or ODO proximity
+    vehicles = db.get_last_odo_per_vehicle()
+    vehicle_id = None
+    display_name = vehicle_name
+
+    if vehicle_name:
+        matched = next((v for v in vehicles if vehicle_name.lower() in v["name"].lower()), None)
+    elif odo_km is not None:
+        # Pick vehicle whose last_odo is closest to odo_km
+        active = [v for v in vehicles if v["active"]]
+        matched = min(active, key=lambda v: abs((v["last_odo"] or 0) - odo_km), default=None)
+    else:
+        active = [v for v in vehicles if v["active"]]
+        matched = active[0] if len(active) == 1 else None
+
+    if matched:
+        vehicle_id = matched["id"]
+        display_name = matched["name"]
+
+    # Resolve account + categories from AB
+    account_id, account_name = "", ""
+    accounts_list = []
+    categories_list = []
+    try:
+        client = _get_client()
+        import asyncio
+        accounts, ab_cats = await asyncio.gather(
+            client.get_accounts(),
+            client.get_categories(),
+        )
+        if accounts:
+            account_id = accounts[0].id
+            account_name = accounts[0].name
+            accounts_list = [{"id": a.id, "name": a.name} for a in accounts]
+        categories_list = [{"id": c.name, "name": c.name, "emoji": "📦"} for c in ab_cats]
+    except Exception:
+        pass
+
+    # Default category: pick transport-related from AB, or fallback by vehicle type
+    is_moto = matched and any(kw in matched["name"].lower() for kw in ["wabi", "honda", "suzuki", "yamaha", "moto"])
+    preferred = "Motorbike Costs" if is_moto else "Car Costs"
+    transport_keywords = ("motorbike", "car", "transport", "fuel") if is_moto else ("car", "transport", "fuel", "motorbike")
+    category_name = next(
+        (c.name for c in ab_cats if any(k in c.name.lower() for k in transport_keywords)),
+        preferred,
+    )
+
+    proposal_id = vehicle_proposals.create(
+        vehicle_id=vehicle_id,
+        vehicle_name=display_name,
+        liters=liters,
+        total_eur=total_eur,
+        odo_km=odo_km,
+        location=location,
+        full_tank=full_tank,
+        missed_fill=False,
+        date=today,
+        account_id=account_id,
+        account_name=account_name,
+        category_name=category_name,
+    )
+
+    price_per_liter = round(total_eur / liters, 3) if liters else None
+
+    return json.dumps({
+        "type": "fuel_log",
+        "receipt_id": proposal_id,
+        "receipt_type": "fuel",
+        "merchant": location,
+        "amount": total_eur,
+        "date": today,
+        "suggested_category_id": category_name,
+        "category_source": "keywords",
+        "categories": categories_list,
+        "accounts": accounts_list,
+        "liters": liters,
+        "price_per_liter": price_per_liter,
+        "fuel_grade": None,
+        "vehicles": vehicles,
+        "suggested_vehicle_id": vehicle_id,
+        "odo_km": odo_km,
+    })
+
+
 async def get_vehicle_stats(vehicle_name: str = "", period: str = "") -> str:
     """
     Return vehicle operational stats from vehicle_log.

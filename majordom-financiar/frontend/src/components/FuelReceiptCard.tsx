@@ -1,27 +1,39 @@
 import { useState } from 'react'
 import { Loader2, Check } from 'lucide-react'
-import { confirmFuelReceipt, type ReceiptDraft, type FuelConfirmResponse } from '../lib/api'
+import { confirmFuelReceipt, type ReceiptDraft, type FuelConfirmResponse, type VehicleOption, type AccountOption, type Category } from '../lib/api'
+import { getToken } from '../lib/auth'
+
+// Helper: get base URL for API calls
+const BASE = '/api'
 
 interface FuelReceiptCardProps {
   draft: ReceiptDraft
-  imageUrl: string
+  imageUrl?: string          // undefined in text mode (no photo)
+  confirmEndpoint?: string   // defaults to /receipts/{receipt_id}/confirm-fuel
   onConfirmed: (stats: FuelConfirmResponse) => void
   onCancelled: () => void
-  onSwitchToGrocery: () => void  // called when user clicks Grocery tab
+  onSwitchToGrocery?: () => void  // only in photo mode
 }
 
 export default function FuelReceiptCard({
   draft,
   imageUrl,
+  confirmEndpoint,
   onConfirmed,
   onCancelled,
   onSwitchToGrocery,
 }: FuelReceiptCardProps) {
-  const [vehicle, setVehicle] = useState(draft.suggested_vehicle_id ?? draft.vehicles[0]?.id ?? '')
+  const proposalId = draft.receipt_id
+
+  // Derive vehicles list
+  const vehicles = draft.vehicles ?? []
+  const suggestedVehicleId = draft.suggested_vehicle_id ?? null
+
+  const [vehicle, setVehicle] = useState<number | ''>(suggestedVehicleId ?? vehicles[0]?.id ?? '')
   const [liters, setLiters] = useState(draft.liters?.toString() ?? '')
   const [pricePerL, setPricePerL] = useState(draft.price_per_liter?.toString() ?? '')
   const [total, setTotal] = useState(draft.amount?.toString() ?? '')
-  const [odo, setOdo] = useState('')
+  const [odo, setOdo] = useState(draft.odo_km?.toString() ?? '')
   const [fullTank, setFullTank] = useState(true)
   const [missedFill, setMissedFill] = useState(false)
   const [station, setStation] = useState(draft.merchant ?? '')
@@ -30,12 +42,18 @@ export default function FuelReceiptCard({
   const [category, setCategory] = useState(draft.suggested_category_id ?? 'Car Costs')
   const [saving, setSaving] = useState(false)
 
+  // Derive accounts + categories list
+  const accounts: AccountOption[] = draft.accounts ?? []
+  const categories: Category[] = draft.categories ?? []
+
   // ODO validation
-  const selectedVehicle = draft.vehicles.find(v => v.id === vehicle)
+  const selectedVehicle = vehicles.find((v: VehicleOption) => v.id === vehicle)
   const odoNum = odo ? parseFloat(odo) : null
-  const odoDiff = selectedVehicle?.last_odo != null && odoNum != null
-    ? Math.abs(odoNum - selectedVehicle.last_odo)
+  const odoRawDiff = selectedVehicle?.last_odo != null && odoNum != null
+    ? odoNum - selectedVehicle.last_odo
     : null
+  const odoDiff = odoRawDiff != null ? Math.abs(odoRawDiff) : null
+  const odoBackwards = odoRawDiff != null && odoRawDiff < 0
   const odoWarning = odoDiff != null && odoDiff > 1500
 
   // Numeric values
@@ -70,12 +88,11 @@ export default function FuelReceiptCard({
   }
 
   async function handleConfirm() {
-    if (!draft || !litersNum || !totalNum || !vehicle) return
+    if (!litersNum || !totalNum || !vehicle) return
     setSaving(true)
     try {
-      const response = await confirmFuelReceipt({
-        receipt_id: draft.receipt_id,
-        account_id: accountId,
+      const body = {
+        account_id: accountId || 'dummy',
         category_name: category,
         date,
         station,
@@ -86,10 +103,36 @@ export default function FuelReceiptCard({
         odo_km: odoNum,
         full_tank: fullTank,
         missed_fill: missedFill,
-        fuel_grade: draft.fuel_grade,
-        notes: null,
-      })
-      onConfirmed(response)
+        notes: null as string | null,
+      }
+
+      if (confirmEndpoint) {
+        // Text mode — POST directly to custom endpoint
+        const token = getToken()
+        const res = await fetch(`${BASE}${confirmEndpoint}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(body),
+        })
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({ detail: 'Request failed' }))
+          throw new Error(errBody.detail || 'Request failed')
+        }
+        const response: FuelConfirmResponse = await res.json()
+        onConfirmed(response)
+      } else {
+        // Photo mode — use existing API function
+        const response = await confirmFuelReceipt({
+          receipt_id: proposalId,
+          ...body,
+          fuel_grade: draft.fuel_grade ?? null,
+          notes: null,
+        })
+        onConfirmed(response)
+      }
     } catch (err) {
       onConfirmed({
         success: false,
@@ -118,31 +161,42 @@ export default function FuelReceiptCard({
 
   return (
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm max-w-[420px] w-full overflow-hidden">
-      {/* Photo thumbnail */}
-      <div className="relative w-full h-[112px] bg-black flex-shrink-0">
-        <img
-          src={imageUrl}
-          alt="Fuel Receipt"
-          className="w-full h-full object-cover opacity-80"
-        />
-      </div>
+      {/* Photo thumbnail — only shown if imageUrl is provided */}
+      {imageUrl && (
+        <div className="relative w-full h-[112px] bg-black flex-shrink-0">
+          <img
+            src={imageUrl}
+            alt="Fuel Receipt"
+            className="w-full h-full object-cover opacity-80"
+          />
+        </div>
+      )}
 
-      {/* Tab header */}
-      <div className="flex gap-2 px-4 pt-3 border-b border-border">
-        <button className="tab-active text-sm pb-2 px-1 text-accent font-medium border-b-2 border-accent">
-          ⛽ Fuel Receipt
-        </button>
-        <button
-          onClick={onSwitchToGrocery}
-          className="tab-inactive text-sm pb-2 px-1 text-muted hover:text-white transition-colors"
-        >
-          🛒 Grocery Receipt
-        </button>
-      </div>
+      {/* Tab header — shown in photo mode only (text mode = always fuel) */}
+      {onSwitchToGrocery && (
+        <div className="flex gap-2 px-4 pt-3 border-b border-border">
+          <button className="tab-active text-sm pb-2 px-1 text-accent font-medium border-b-2 border-accent">
+            ⛽ Fuel Receipt
+          </button>
+          <button
+            onClick={onSwitchToGrocery}
+            className="tab-inactive text-sm pb-2 px-1 text-muted hover:text-white transition-colors"
+          >
+            🛒 Grocery Receipt
+          </button>
+        </div>
+      )}
+
+      {/* Text mode header — always show when no tabs */}
+      {!onSwitchToGrocery && (
+        <div className="px-4 pt-3 pb-1 border-b border-border">
+          <p className="text-sm text-white font-medium">⛽ Refuel</p>
+        </div>
+      )}
 
       <div className="px-4 py-3 space-y-3">
         {/* Vehicle selector */}
-        {draft.vehicles.length > 0 && (
+        {vehicles.length > 0 && (
           <div className="flex flex-col gap-1">
             <label className={labelCls}>Vehicle</label>
             <select
@@ -150,7 +204,7 @@ export default function FuelReceiptCard({
               onChange={e => setVehicle(Number(e.target.value))}
               className={inputCls}
             >
-              {draft.vehicles.map(v => (
+              {vehicles.map((v: VehicleOption) => (
                 <option key={v.id} value={v.id}>
                   {v.name}{v.last_odo ? ` (${v.last_odo.toLocaleString()} km)` : ''}
                 </option>
@@ -213,12 +267,17 @@ export default function FuelReceiptCard({
             className={inputCls}
             placeholder="49453"
           />
-          {odoDiff != null && !odoWarning && (
+          {odoBackwards && (
+            <span className="text-xs text-red-400">
+              ⛔ ODO goes backwards ({odoRawDiff!.toLocaleString()} km) — check value
+            </span>
+          )}
+          {!odoBackwards && odoDiff != null && !odoWarning && (
             <span className="text-xs text-green-400">
               +{odoDiff.toLocaleString()} km ✓
             </span>
           )}
-          {odoWarning && (
+          {!odoBackwards && odoWarning && (
             <span className="text-xs text-yellow-400">
               ⚠️ ODO difference is {odoDiff!.toLocaleString()} km — check if correct
             </span>
@@ -277,27 +336,41 @@ export default function FuelReceiptCard({
               onChange={e => setAccountId(e.target.value)}
               className={inputCls}
             >
-              {draft.accounts.map(acc => (
-                <option key={acc.id} value={acc.id}>{acc.name}</option>
-              ))}
+              {accounts.length > 0 ? (
+                accounts.map((acc: AccountOption) => (
+                  <option key={acc.id} value={acc.id}>{acc.name}</option>
+                ))
+              ) : (
+                <option value={accountId}>{accountId || 'Default'}</option>
+              )}
             </select>
           </div>
         </div>
 
-        {/* Category */}
+        {/* Category — dropdown always (both modes supply categories list) */}
         <div className="flex flex-col gap-1">
           <label className={labelCls}>Category</label>
-          <select
-            value={category}
-            onChange={e => setCategory(e.target.value)}
-            className={inputCls}
-          >
-            {draft.categories.map(cat => (
-              <option key={cat.id} value={cat.id}>
-                {cat.emoji} {cat.name}
-              </option>
-            ))}
-          </select>
+          {categories.length > 0 ? (
+            <select
+              value={category}
+              onChange={e => setCategory(e.target.value)}
+              className={inputCls}
+            >
+              {categories.map((cat: Category) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.emoji} {cat.name}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              type="text"
+              value={category}
+              onChange={e => setCategory(e.target.value)}
+              className={inputCls}
+              placeholder="Car Costs"
+            />
+          )}
         </div>
 
         {/* Buttons */}

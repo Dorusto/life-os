@@ -385,8 +385,30 @@ TOOLS: list[dict] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "log_refuel",
+            "description": (
+                "Log a vehicle refuel when the user mentions filling up with fuel. "
+                "Use when user says: 'filled up', 'tanked', 'put fuel', 'alimentat', 'getankt'. "
+                "A confirmation card appears — nothing is saved until the user confirms."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "liters": {"type": "number", "description": "Liters added, e.g. 40.5"},
+                    "total_eur": {"type": "number", "description": "Total paid in EUR, e.g. 72.50"},
+                    "vehicle_name": {"type": "string", "description": "Vehicle name if mentioned, e.g. 'cora', 'wabi sabi'"},
+                    "odo_km": {"type": "number", "description": "Odometer in km if mentioned"},
+                    "location": {"type": "string", "description": "Station name or city if mentioned"},
+                    "full_tank": {"type": "boolean", "description": "True if filled to full (default), False if partial"},
+                },
+                "required": ["liters", "total_eur"],
+            },
+        },
+    },
 ]
-
 
 async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "get_accounts":
@@ -456,6 +478,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "get_vehicle_stats":
         from backend.tools.finance.vehicle import get_vehicle_stats
         return await get_vehicle_stats(**arguments)
+
+    if name == "log_refuel":
+        from backend.tools.finance.vehicle import log_refuel
+        return await log_refuel(**arguments)
 
     return f"Unknown tool: {name}"
 

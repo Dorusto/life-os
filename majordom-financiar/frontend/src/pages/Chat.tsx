@@ -20,7 +20,7 @@ import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from
 
 
 export interface Message {
-  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'fuelio_import' | 'income_source' | 'reconciliation' | 'receipt' | 'category_action' | 'goal_proposal'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'fuelio_import' | 'income_source' | 'reconciliation' | 'receipt' | 'category_action' | 'goal_proposal' | 'fuel_log'
   content: string
   proposal?: ProposalData
   budgetRebalance?: BudgetRebalanceData
@@ -34,7 +34,7 @@ export interface Message {
   reconciliation?: { accountName: string; balance: number; importedCount: number }
   receipt?: {
     status: 'loading' | 'reviewing' | 'error'
-    imageUrl: string
+    imageUrl?: string
     draft?: ReceiptDraft
     error?: string
     activeTab?: 'fuel' | 'grocery'
@@ -42,6 +42,7 @@ export interface Message {
   }
   categoryAction?: CategoryActionData
   goalProposal?: GoalProposalData
+  fuelLog?: { draft: ReceiptDraft; fuelStats?: FuelConfirmResponse }
 }
 
 
@@ -312,6 +313,10 @@ export default function Chat({ messages, setMessages }: ChatProps) {
         }
         if (parsed.type === 'goal_proposal') {
           setMessages(prev => [...prev, { role: 'goal_proposal' as const, content: '', goalProposal: parsed as GoalProposalData }])
+          return
+        }
+        if (parsed.type === 'fuel_log') {
+          setMessages(prev => [...prev, { role: 'fuel_log' as const, content: '', fuelLog: { draft: parsed as unknown as ReceiptDraft } }])
           return
         }
 
@@ -744,6 +749,47 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                   }}
                 />
               )
+            ) : msg.role === 'fuel_log' && msg.fuelLog ? (
+              // Show fuel stats after confirmation
+              msg.fuelLog.fuelStats ? (
+                <PendingFuelStatsDisplay draft={msg.fuelLog.draft} stats={msg.fuelLog.fuelStats} />
+              ) : (
+                <FuelReceiptCard
+                  draft={msg.fuelLog.draft}
+                  confirmEndpoint={`/vehicle/proposals/${msg.fuelLog.draft.receipt_id}/confirm`}
+                  onConfirmed={(stats) => {
+                    setMessages(prev =>
+                      prev.map((m, i) =>
+                        i === idx
+                          ? {
+                              ...m,
+                              fuelLog: {
+                                ...m.fuelLog!,
+                                fuelStats: stats,
+                              },
+                            }
+                          : m
+                      )
+                    )
+                  }}
+                  onCancelled={() => {
+                    setMessages(prev =>
+                      prev.map((m, i) =>
+                        i === idx ? { role: 'status' as const, content: 'Cancelled.' } : m
+                      )
+                    )
+                  }}
+                  onSwitchToGrocery={() => {
+                    setMessages(prev =>
+                      prev.map((m, i) =>
+                        i === idx
+                          ? { role: 'receipt' as const, content: '', receipt: { status: 'reviewing' as const, draft: m.fuelLog!.draft, activeTab: 'grocery' as const } }
+                          : m
+                      )
+                    )
+                  }}
+                />
+              )
             ) : msg.role === 'reconciliation' && msg.reconciliation ? (
               <ReconciliationCard
                 accountName={msg.reconciliation.accountName}
@@ -948,35 +994,39 @@ function TypingDots() {
 }
 
 /** Post-confirm fuel stats displayed as grey text after the card is confirmed. */
-function PendingFuelStatsDisplay({ msg }: { msg: NonNullable<Message['receipt']> }) {
-  const stats = msg.fuelStats
-  if (!stats) return null
+function PendingFuelStatsDisplay({ msg, draft: propDraft, stats: propStats }: {
+  msg?: NonNullable<Message['receipt']>
+  draft?: ReceiptDraft
+  stats?: FuelConfirmResponse
+}) {
+  // Support both: receipt mode (msg with embedded fuelStats) and fuel_log mode (draft + stats)
+  const resolvedStats = propStats ?? msg?.fuelStats ?? null
+  const resolvedDraft = propDraft ?? msg?.draft ?? null
+  if (!resolvedStats) return null
 
-  const draft = msg.draft
-  const vehicleName = draft?.vehicles?.find(v => v.id === draft?.suggested_vehicle_id)?.name ?? 'Vehicle'
-
-  const name = stats.vehicle_name ?? vehicleName
+  const vehicleName = resolvedDraft?.vehicles?.find(v => v.id === resolvedDraft?.suggested_vehicle_id)?.name ?? 'Vehicle'
+  const name = resolvedStats.vehicle_name ?? vehicleName
 
   return (
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm max-w-[420px] w-full px-4 py-3 space-y-1">
-      {stats.success ? (
+      {resolvedStats.success ? (
         <>
           <p className="text-sm text-white font-medium">✅ Refuel logged — {name}</p>
-          {stats.liters != null && (
+          {resolvedStats.liters != null && (
             <p className="text-xs text-muted">
-              {stats.liters}L
-              {stats.price_per_liter != null && ` → €${stats.price_per_liter.toFixed(3)}/L`}
-              {stats.fuel_grade && ` (${stats.fuel_grade})`}
+              {resolvedStats.liters}L
+              {resolvedStats.price_per_liter != null && ` → €${resolvedStats.price_per_liter.toFixed(3)}/L`}
+              {resolvedStats.fuel_grade && ` (${resolvedStats.fuel_grade})`}
             </p>
           )}
-          {(stats.km_since_last != null || stats.consumption_l100km != null || stats.cost_per_km != null) && (
+          {(resolvedStats.km_since_last != null || resolvedStats.consumption_l100km != null || resolvedStats.cost_per_km != null) && (
             <p className="text-xs text-muted">
-              {stats.km_since_last != null && `+${Math.round(stats.km_since_last).toLocaleString()} km`}
-              {stats.consumption_l100km != null && `  |  ${stats.consumption_l100km.toFixed(1)} L/100km`}
-              {stats.cost_per_km != null && `  |  €${stats.cost_per_km.toFixed(3)}/km`}
+              {resolvedStats.km_since_last != null && `+${Math.round(resolvedStats.km_since_last).toLocaleString()} km`}
+              {resolvedStats.consumption_l100km != null && `  |  ${resolvedStats.consumption_l100km.toFixed(1)} L/100km`}
+              {resolvedStats.cost_per_km != null && `  |  €${resolvedStats.cost_per_km.toFixed(3)}/km`}
             </p>
           )}
-          {draft?.merchant && <p className="text-xs text-muted">{draft.merchant}</p>}
+          {resolvedDraft?.merchant && <p className="text-xs text-muted">{resolvedDraft.merchant}</p>}
         </>
       ) : (
         <p className="text-xs text-red-400">❌ Failed to save fuel receipt.</p>

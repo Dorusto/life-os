@@ -3,7 +3,7 @@ import { Loader2, Check, AlertCircle } from 'lucide-react'
 import { confirmReceipt, type ReceiptDraft } from '../lib/api'
 
 interface ReceiptCardProps {
-  imageUrl: string
+  imageUrl?: string
   status: 'loading' | 'reviewing' | 'error'
   draft?: ReceiptDraft
   error?: string
@@ -70,20 +70,24 @@ export default function ReceiptCard({
 
   return (
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm max-w-[420px] w-full overflow-hidden">
-      {/* Photo thumbnail with loading overlay */}
-      <div className="relative w-full h-[112px] bg-black flex-shrink-0">
-        <img
-          src={imageUrl}
-          alt="Receipt"
-          className="w-full h-full object-cover opacity-80"
-        />
-        {status === 'loading' && (
-          <div className="absolute inset-0 bg-background/70 backdrop-blur-sm flex flex-col items-center justify-center gap-2">
-            <Loader2 size={20} className="animate-spin text-accent" />
-            <p className="text-white text-xs">Reading receipt…</p>
-          </div>
-        )}
-      </div>
+      {/* Photo thumbnail with loading overlay — hidden when no image */}
+      {(imageUrl || status === 'loading') && (
+        <div className="relative w-full h-[112px] bg-black flex-shrink-0">
+          {imageUrl && (
+            <img
+              src={imageUrl}
+              alt="Receipt"
+              className="w-full h-full object-cover opacity-80"
+            />
+          )}
+          {status === 'loading' && (
+            <div className="absolute inset-0 bg-background/70 backdrop-blur-sm flex flex-col items-center justify-center gap-2">
+              <Loader2 size={20} className="animate-spin text-accent" />
+              <p className="text-white text-xs">Reading receipt…</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {status === 'error' && (
         <div className="px-4 py-4 space-y-3">

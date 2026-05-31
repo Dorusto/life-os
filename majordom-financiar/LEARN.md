@@ -5,6 +5,73 @@
 
 ---
 
+## 2026-05-31 — M3.3 FuelReceiptCard unificat + log_refuel endpoint
+
+### Problema
+
+Existau două moduri separate pentru cardul de alimentare: modul foto (folosea `ReceiptDraft`) și modul text (folosea `FuelLogData`, o interfață separată inventată de DeepSeek). Asta ducea la cod duplicat, comportament inconsistent și bug-uri greu de depanat. Tabul Grocery lipsea în modul text. ODO nu era pre-completat din mesajul utilizatorului. Endpoint-ul de confirmare pentru modul text (`/vehicle/proposals/{id}/confirm`) era plin de bug-uri (metode inventate, semnături greșite, câmpuri lipsă).
+
+### Ce s-a întâmplat
+
+**Lecția principală: DeepSeek nu cunoaște convențiile codebase-ului.**
+
+Am delegat la DeepSeek un refactor frontend cu 4 fișiere strâns cuplate. A generat 6 bug-uri consecutive, toate din aceeași cauză — nu știa:
+- cheia reală din localStorage (`'majordom_token'`, nu `'auth_token'`)
+- că `_get_client()` e sincronă (a pus `await`)
+- că `insert_vehicle_log_entries` primește câmpuri cu prefix `fuel_` (a trimis `liters`, `full_tank`)
+- că `get_last_fuel_entry()` există (a inventat `get_last_vehicle_log()`)
+- că `add_transaction()` e funcție de modul, nu metodă pe client
+- că stats trebuie calculate înainte de insert, nu după
+
+**Regula actualizată:** DeepSeek → taskuri izolate și mecanice. Claude → refactoruri cu >2 fișiere cuplate sau care depind de convenții de codebase.
+
+**Arhitectura `vehicle_proposals` (text mode flow):**
+```
+User: "I refueled 40L at Shell for €90, odo 51500km"
+  → LLM apelează log_refuel(liters=40, total_eur=90, location="Shell", odo_km=51500)
+  → tool creează proposal în memorie (dict în-process, nu DB)
+  → returnează JSON cu type="fuel_log" + receipt_id=proposal_id
+  → chat.py vede "log_refuel" în _PROPOSAL_TOOLS → yield JSON la frontend
+  → frontend parsează type="fuel_log" → randează FuelReceiptCard cu confirmEndpoint
+  → user confirmă → POST /api/vehicle/proposals/{id}/confirm
+  → backend: citește last_odo DIN FAȚĂ (înainte de insert!) → scrie AB → scrie vehicle_log → calculează stats
+  → returnează FuelConfirmResponse cu km_since_last, L/100km, €/km
+```
+
+**Ordinea operațiilor în confirm endpoint — critică:**
+```python
+# CORECT — citește last_odo ÎNAINTE de insert
+last_entry = db.get_last_fuel_entry(vehicle_id)
+last_odo = last_entry["odo_km"] if last_entry else None
+
+# ... scrie AB ...
+# ... insert vehicle_log ...
+
+# Calculează stats cu last_odo citit anterior
+km_since_last = request.odo_km - last_odo
+```
+Dacă citești last_odo după insert, `get_last_fuel_entry` returnează tocmai ce ai inserat → `km_since_last = 0`.
+
+**Note AB format:** `[fuel] 40.0L — Cora` (vehicul, nu stație). Stația merge ca `payee` în AB.
+
+### Soluția
+
+- `FuelReceiptCard` acceptă doar `ReceiptDraft` (eliminat `FuelLogData` și `isTextMode`)
+- `log_refuel` returnează JSON compatibil cu `ReceiptDraft` (inclusiv `odo_km`, `vehicles`, `accounts`, `categories`)
+- Același card, același comportament, indiferent de sursă (foto sau text)
+- Tabul Grocery vizibil în ambele moduri; switch din text mode → `ReceiptCard` fără imagine (container negru eliminat când `imageUrl` lipsește)
+- Auth în fetch manual: `getToken()` din `auth.ts`, nu `localStorage.getItem('auth_token')`
+
+### De reținut
+
+- **`_PROPOSAL_TOOLS`** — orice tool nou care returnează un card trebuie adăugat explicit. Dacă lipsește, JSON-ul merge la LLM ca text, nu la frontend ca card.
+- **`vehicle_proposals` store** — dict in-memory în procesul Python. Se pierde la restart. Propunerile expiră natural (utilizatorul nu poate confirma după restart). Acceptabil pentru un flow de ~30 secunde.
+- **DeepSeek cu fetch manual** — include întotdeauna în prompt: "use `getToken()` from `../lib/auth`, not `localStorage.getItem`". Cheia e `'majordom_token'`.
+- **Citește last_odo înainte de insert** — valabil și pentru endpoint-ul foto (`receipts.py` face asta corect din start).
+- **`docker compose restart` nu rebuild** — refolosește imaginea veche. Întotdeauna `docker compose up -d --build` pentru a aplica modificări de cod.
+
+---
+
 ## 1. De ce tot codul e `async` — și ce înseamnă asta
 
 ### Problema
