@@ -85,26 +85,33 @@ The 15-question wizard was the wrong approach. The user doesn't know what they w
 
 ---
 
-### 🔲 M2-NEW — Proactive Majordom
+### ✅ M2-NEW — Proactive Majordom (complete 2026-05-31)
 
-Replaces M2 Onboarding and reprioritises M4 Smart Alerts as the immediate next milestone after M1. Majordom deduces context from real data and initiates — the user never fills a setup form.
-
-**Philosophy:** Day 1 is one question. Weeks 1–4 are observation. Month 2+ is the first proactive insight.
+Majordom deduces context from real data and initiates — the user never fills a setup form.
 
 | # | Feature | Notes |
 |---|---------|-------|
-| ✅ 2.0 | First launch welcome + setup path | Shipped 2026-05-30. On first open: ClarificationCard with two options. **"Start tracking from today"** → `SetupBalancesCard` inline in chat (ProposalCard style) — lists all AB accounts with editable balance fields + "+" to add new accounts → `POST /api/setup/complete` adjusts balances in AB. **"I have historical data to import"** → marks setup complete, guides to CSV import via chat. Balance adjustment from chat also available at any time via `propose_balance_adjustment` tool (issue #68) — *"set my ING balance to €2430"* → confirmation card → AB adjustment transaction created. |
-| ✅ 2.1 | Daily message at configurable time | Shipped 2026-05-30. APScheduler AsyncIOScheduler + Web Push (VAPID/pywebpush). Daily LLM summary at 20:00 via `run_daily_summary()`. `set_notification_time` chat tool reschedules live. Tailscale HTTPS required on mobile for Web Push. |
-| ✅ 2.2 | Income detection + CSV import in chat | Shipped 2026-05-30. CSV import moved from separate tab to inline chat card (`CsvImportCard`). `IncomeSourceCard` asks user to name unknown income payees at import time (Income mode: creates AB category + retroactive update; Transfer mode: saves mapping for future auto-detection). SmartCategorizer: never learns "Other", transactions >€50 always show `?`. Recurring credits batch detection dropped — redundant: IncomeSourceCard at import time covers the same need more naturally. |
-| ✅ 2.3 | Unexpected transaction reminder | Shipped 2026-05-31. `pending_review` table tracks LLM-suggested (not history-confirmed) categorizations at import time. Daily APScheduler job fires after 48h if unreviewed rows exist → Web Push *"I categorized X transactions automatically. Want to review them?"* Anti-spam: max once per day, marks rows as notified, cleans up entries older than 30 days. |
-| ✅ 2.4 | Import nudge | Shipped 2026-05-31. APScheduler daily job checks `notification_log` for last `csv_import` entry. If >7 days → Web Push nudge. Anti-spam: max once per day. Rule `import_nudge` in `notification_rules` (configurable `days`, default 7). |
-| ✅ 2.8 | Post-import reconciliation check | Shipped 2026-05-31. After each CSV import, Majordom shows a `ReconciliationCard` inline in chat: *"Balance for [account] is now €X. Does this match your banking app?"* → Yes: dismissed. No: user enters real balance → `propose_balance_adjustment` tool → AB adjustment transaction created automatically. `ImportResult` returns `account_balance` + `account_name` from backend after import. |
-| ⏸️ 2.9 | IBAN auto-detection for CSV transfers | On hold. Store `IBAN: NLxx...` in AB account `note` field (via chat tool `set_account_iban`). On CSV import: read account notes → build IBAN→account map → match against Counterparty column → auto-select transfer destination for GT rows. Requires: new chat tool + AB note read/write + CSV profile `col_counterparty`. **De evaluat**: GT rows sunt deja vizibile ca transfer candidates în UI — beneficiul auto-selectiei destinației poate să nu justifice efortul dacă numărul de transferuri lunare e mic. |
-| 2.5 | First goal proposal after 2 months of data | Conversational, not a form. Majordom proposes based on observed spending patterns. |
-| 2.6 | FIRE calculation | Available on demand at any time. After 6+ months of data, Majordom proactively opens the conversation. Before 6 months: calculation shown with explicit "preliminary estimate" caveat. |
-| 2.7 | Charts inline in chat | Chart type adapted to message context. See table below. |
+| ✅ 2.0 | First launch welcome + setup path | Shipped 2026-05-30. `SetupBalancesCard` in chat — lists AB accounts with editable balances + add new accounts → `POST /api/setup/complete`. Balance adjustment available at any time via `propose_balance_adjustment` tool. |
+| ✅ 2.1 | Daily message at configurable time | Shipped 2026-05-30. APScheduler + Web Push (VAPID/pywebpush). Daily LLM summary at 20:00. `set_notification_time` tool reschedules live. |
+| ✅ 2.2 | Income detection + CSV import in chat | Shipped 2026-05-30. CSV import via inline `CsvImportCard`. `IncomeSourceCard` names unknown income payees at import time. |
+| ✅ 2.3 | Unexpected transaction reminder | Shipped 2026-05-31. `pending_review` table + daily job → Web Push after 48h if unreviewed categorizations exist. |
+| ✅ 2.4 | Import nudge | Shipped 2026-05-31. Daily job → Web Push if no CSV import in 7 days. |
+| ✅ 2.8 | Post-import reconciliation check | Shipped 2026-05-31. `ReconciliationCard` after CSV import: balance confirmation → auto balance adjustment if needed. |
+| ⏸️ 2.9 | IBAN auto-detection for CSV transfers | On hold — GT transfer candidates already visible in UI; auto-detection may not justify the complexity. |
 
-**Chart type by message context:**
+---
+
+### 🔲 M2.5 — Insights & Analytics
+
+Proactive financial insights: goal proposals, FIRE projection, charts in chat.
+
+| # | Feature | Notes |
+|---|---------|-------|
+| 2.5 | First goal proposal after 2 months of data | Conversational, not a form. Majordom proposes based on observed spending patterns. |
+| 2.6 | FIRE calculation | Available on demand at any time. After 6+ months of data, Majordom proactively opens the conversation. Before 6 months: shown with "preliminary estimate" caveat. Discuss with user before implementing (proxy via AB off-budget accounts or wait for Ghostfolio). |
+| 2.7 | Charts inline in chat | Chart type adapted to message context. |
+
+**Chart type by message context (for 2.7):**
 
 | Majordom message | Chart type |
 |------------------|-----------|
@@ -114,46 +121,9 @@ Replaces M2 Onboarding and reprioritises M4 Smart Alerts as the immediate next m
 | Duplicate subscriptions | Pie breakdown of Lifestyle |
 | Unusual transaction | Simple card with details |
 
-**Cleanup actions (do first, in order):**
-1. ✅ Delete onboarding code: `onboarding_service.py`, `api/onboarding.py`, all references in `chat.py` and frontend — done 2026-05-31
-2. ✅ Update `categories.json` + BudgetDashboard grouping + expand — done 2026-05-31 (issue #74)
-3. ✅ Home UI redesign — done 2026-05-31 (Cashflow + Net Worth metrics, Goals section, Recent removed)
-4. Implement APScheduler + `notification_rules` + `notification_log` (foundation for all 2.x features)
-5. Implement M2-NEW features in order: 2.0 → 2.8 → 2.1 → 2.3 → 2.4 → 2.2 → 2.5 → 2.6 → 2.7
-
-**Navigation:** Home / Majordom (2 tabs). Import tab removed — entry point is the **+** button in the chat input field. Receipt and CSV flows unchanged technically. Urgent alerts: red dot on the Majordom tab icon, never banners on Home.
-
-**Home screen layout:**
-
-```
-┌─────────────────────────────────────┐
-│  [€ 1,240]   [€ 280,000]   [3.2%]  │  ← 3 large numbers, glanceable
-│  Cashflow    Net Worth      FIRE    │
-│  this month  total          progress│
-├─────────────────────────────────────┤
-│  Obligations                        │  ← scroll starts here
-│  ING Mortgage  €890/mo  €186k left  │
-│  Next payment: Jun 1                │
-├─────────────────────────────────────┤
-│  Budget — May                       │
-│  🏠 Housing     ████░░  €920/€1100  │
-│  🛒 Daily Living ██░░░░  €340/€600  │
-│  🚗 Transport    ███░░░  €180/€250  │
-│  ...            (tap for subcats)   │
-├─────────────────────────────────────┤
-│  Goals                              │
-│  Emergency fund  ██████░  €8k/€10k │
-│  Vacation        ███░░░░  €600/€1.5k│
-└─────────────────────────────────────┘
-```
-
-- **Cashflow** — most actionable daily: am I on track this month? (+/- vs budget total)
-- **Net Worth** — slow-moving, changes monthly; second position
-- **FIRE %** — long-term perspective metric; third position. Shows "est." until 6+ months of data
-- **Obligations** — mortgage balance, monthly payment, next due date (from AB scheduled transactions)
-- **Categories** — 7 top-level with progress bars; tap to drill into subcategories
-- **Goals** — per-goal progress bar; data from AB
-- No FIRE projection chart on Home — projection lives in chat or goal detail view
+**Home screen pending (after M2.5):**
+- **FIRE %** — 3rd metric card; shows "est." until 6+ months of data (issue #77 for trend, FIRE needs M2.5/2.6)
+- **Obligations** — mortgage balance, monthly payment, next due date; needs discussion before implementing (see CLAUDE.md)
 
 ---
 
