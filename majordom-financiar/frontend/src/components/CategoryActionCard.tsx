@@ -9,16 +9,20 @@ interface Props {
 }
 
 export default function CategoryActionCard({ data, onConfirmed, onCancelled }: Props) {
+  const [categoryName, setCategoryName] = useState(data.action === 'create' ? data.category_name : '')
+  const [groupName, setGroupName] = useState(data.group_name ?? '')
   const [loading, setLoading] = useState(false)
 
   async function handleConfirm() {
     setLoading(true)
     try {
-      const result = await confirmCategoryAction(data.id)
+      const overrides = data.action === 'create'
+        ? { category_name: categoryName || data.category_name, group_name: groupName || data.group_name }
+        : undefined
+      const result = await confirmCategoryAction(data.id, overrides)
       onConfirmed(result.message)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Unknown error'
-      onConfirmed(`Error: ${msg}`)
+      onConfirmed(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
     }
@@ -31,19 +35,21 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   }
 
   const isDelete = data.action === 'delete'
+  const isCreate = data.action === 'create'
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[80%] space-y-3">
+    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
       <div>
         <p className="text-white font-medium">
-          {isDelete ? 'Delete category?' : 'Rename category?'}
+          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : 'Rename category?'}
         </p>
-        {isDelete ? (
+        {isDelete && (
           <p className="text-muted text-sm mt-0.5">
             <span className="text-white">{data.category_name}</span>
             {' '}will be removed. Existing transactions won't be lost.
           </p>
-        ) : (
+        )}
+        {!isDelete && !isCreate && (
           <p className="text-muted text-sm mt-0.5">
             <span className="text-white">{data.category_name}</span>
             {' → '}
@@ -52,23 +58,56 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         )}
       </div>
 
+      {isCreate && (
+        <div className="space-y-2">
+          <div className="space-y-1">
+            <p className="text-muted text-xs">Category name</p>
+            <input
+              type="text"
+              value={categoryName}
+              onChange={e => setCategoryName(e.target.value)}
+              className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+            />
+          </div>
+          <div className="space-y-1">
+            <p className="text-muted text-xs">Group</p>
+            {data.available_groups && data.available_groups.length > 0 ? (
+              <select
+                value={groupName}
+                onChange={e => setGroupName(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              >
+                {data.available_groups.map(g => (
+                  <option key={g} value={g}>{g}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={groupName}
+                onChange={e => setGroupName(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              />
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-2">
         <button
           onClick={handleConfirm}
-          disabled={loading}
+          disabled={loading || (isCreate && !categoryName)}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-50 ${
-            isDelete
-              ? 'bg-red-600 hover:bg-red-700'
-              : 'bg-accent hover:bg-accent-hover'
+            isDelete ? 'bg-red-600 hover:bg-red-700' : 'bg-accent hover:bg-accent-hover'
           }`}
         >
           <Check size={14} />
-          {isDelete ? 'Delete' : 'Rename'}
+          {isDelete ? 'Delete' : isCreate ? 'Create' : 'Rename'}
         </button>
         <button
           onClick={handleCancel}
           disabled={loading}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-surface-2 hover:bg-surface-hover border border-border text-muted hover:text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-surface-2 border border-border text-muted hover:text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
         >
           <X size={14} />
           Cancel

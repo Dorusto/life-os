@@ -28,6 +28,8 @@ def _get_client() -> ActualBudgetClient:
 class GoalOverride(BaseModel):
     target: float | None = None
     deadline: str | None = None
+    category_name: str | None = None
+    group_name: str | None = None
 
 
 @router.post("/category-actions/{action_id}/confirm")
@@ -48,6 +50,11 @@ async def confirm_category_action(
         elif action["action"] == "delete":
             await client.delete_category(action["category_name"])
             message = f"Category deleted: '{action['category_name']}'"
+        elif action["action"] == "create":
+            cat_name = override.category_name or action["category_name"]
+            grp_name = override.group_name or action["group_name"]
+            await client.create_category(cat_name, grp_name)
+            message = f"Category created: '{cat_name}' in group '{grp_name}'"
         elif action["action"] == "set_goal":
             target = override.target if override.target is not None else action["target"]
             deadline = override.deadline if override.deadline is not None else action.get("deadline")

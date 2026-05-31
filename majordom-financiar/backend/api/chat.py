@@ -159,7 +159,7 @@ async def _call_ollama_non_streaming(messages: list[dict], ollama_url: str, mode
         return response.json()
 
 
-_PROPOSAL_TOOLS = {"propose_transaction", "propose_budget_rebalance", "propose_account_transfer", "propose_clarification", "propose_balance_adjustment", "rename_category", "delete_category", "set_account_goal"}
+_PROPOSAL_TOOLS = {"propose_transaction", "propose_budget_rebalance", "propose_account_transfer", "propose_clarification", "propose_balance_adjustment", "rename_category", "delete_category", "set_account_goal", "create_category"}
 
 
 @router.post("/chat")

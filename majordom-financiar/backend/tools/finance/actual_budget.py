@@ -500,3 +500,17 @@ async def delete_category(name: str) -> str:
     action_id = uuid.uuid4().hex[:8]
     action_store.store(action_id, {"action": "delete", "category_name": resolved})
     return json.dumps({"type": "category_action", "id": action_id, "action": "delete", "category_name": resolved})
+
+
+async def create_category(name: str, group_name: str) -> str:
+    """Propose creating a new category in a group. Returns a confirmation card — does NOT create yet."""
+    import uuid
+    from difflib import get_close_matches
+    from backend.tools import category_actions as action_store
+    client = _get_client()
+    groups = await client.get_category_groups()
+    exact = next((g for g in groups if g.lower() == group_name.lower()), None)
+    resolved_group = exact or (get_close_matches(group_name, groups, n=1, cutoff=0.5) or [group_name])[0]
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {"action": "create", "category_name": name, "group_name": resolved_group, "available_groups": groups})
+    return json.dumps({"type": "category_action", "id": action_id, "action": "create", "category_name": name, "group_name": resolved_group, "available_groups": groups})

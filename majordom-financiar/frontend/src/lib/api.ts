@@ -579,14 +579,16 @@ export async function cancelBalanceAdjustment(id: string): Promise<void> {
 
 export interface CategoryActionData {
   id: string
-  action: 'rename' | 'delete'
+  action: 'rename' | 'delete' | 'create'
   category_name: string
   new_name?: string
+  group_name?: string
+  available_groups?: string[]
 }
 
 export async function confirmCategoryAction(
   id: string,
-  override?: { target?: number; deadline?: string | null }
+  override?: { target?: number; deadline?: string | null; category_name?: string; group_name?: string }
 ): Promise<{ message: string }> {
   return request(`/category-actions/${id}/confirm`, {
     method: 'POST',

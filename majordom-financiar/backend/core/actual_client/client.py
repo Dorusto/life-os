@@ -640,6 +640,16 @@ class ActualBudgetClient:
                 return str(group.id)
         return await self._run(_create)
 
+    async def get_category_groups(self) -> list[str]:
+        """Return names of all non-hidden category groups."""
+        def _get():
+            from actual.queries import get_category_groups
+            with self._get_actual() as actual:
+                actual.download_budget()
+                groups = get_category_groups(actual.session)
+                return [g.name for g in groups if not g.tombstone and g.name]
+        return await self._run(_get)
+
     async def create_category(self, name: str, group_name: str) -> Category:
         """Create a category in a category group. Returns the Category."""
         def _create():

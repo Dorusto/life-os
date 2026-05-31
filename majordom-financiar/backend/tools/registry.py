@@ -257,6 +257,33 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "create_category",
+            "description": (
+                "Propose creating a new category inside an existing group. "
+                "Use when the user says 'create category X in group Y', 'add category X to group Y', "
+                "'create subcategory X under Y'. "
+                "Groups are the top-level buckets (e.g. Housing, Savings, Food). "
+                "Categories are the items inside groups."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Name for the new category.",
+                    },
+                    "group_name": {
+                        "type": "string",
+                        "description": "Name of the group to create the category in.",
+                    },
+                },
+                "required": ["name", "group_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "delete_category",
             "description": (
                 "Permanently delete a budget category. "
@@ -368,6 +395,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "set_account_goal":
         from backend.tools.finance.actual_budget import set_account_goal
         return await set_account_goal(**arguments)
+
+    if name == "create_category":
+        from backend.tools.finance.actual_budget import create_category
+        return await create_category(**arguments)
 
     if name == "delete_category":
         from backend.tools.finance.actual_budget import delete_category

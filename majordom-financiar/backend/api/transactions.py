@@ -134,6 +134,20 @@ async def list_categories(current_user: str = Depends(get_current_user)):
     return [CategoryItem(id=cat.id, name=cat.name) for cat in cats]
 
 
+@router.get("/category-groups", response_model=list[str])
+async def list_category_groups(current_user: str = Depends(get_current_user)):
+    client = ActualBudgetClient(
+        url=settings.actual.url,
+        password=settings.actual.password,
+        sync_id=settings.actual.sync_id,
+    )
+    try:
+        return await client.get_category_groups()
+    except Exception as e:
+        logger.error("Failed to fetch category groups: %s", e)
+        raise HTTPException(status_code=500, detail="Could not fetch category groups")
+
+
 class CategoryStat(BaseModel):
     name: str
     total: float

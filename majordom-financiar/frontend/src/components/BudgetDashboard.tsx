@@ -18,6 +18,23 @@ const GROUP_EMOJI: Record<string, string> = {
   Unexpected: '⚡',
 }
 
+function getGroupEmoji(name: string): string {
+  if (GROUP_EMOJI[name]) return GROUP_EMOJI[name]
+  const l = name.toLowerCase()
+  if (l.includes('hous') || l.includes('home') || l.includes('rent') || l.includes('util')) return '🏠'
+  if (l.includes('food') || l.includes('grocer') || l.includes('eat') || l.includes('drink')) return '🛒'
+  if (l.includes('transport') || l.includes('car') || l.includes('fuel') || l.includes('travel')) return '🚗'
+  if (l.includes('health') || l.includes('medical') || l.includes('gym') || l.includes('sport')) return '💊'
+  if (l.includes('lifestyle') || l.includes('entertain') || l.includes('fun') || l.includes('hobby')) return '🎯'
+  if (l.includes('financ') || l.includes('invest') || l.includes('saving') || l.includes('budget')) return '💰'
+  if (l.includes('personal') || l.includes('self') || l.includes('care')) return '👤'
+  if (l.includes('child') || l.includes('kid') || l.includes('family') || l.includes('baby')) return '👨‍👩‍👧‍👦'
+  if (l.includes('cloth') || l.includes('fashion') || l.includes('wear')) return '👕'
+  if (l.includes('restaurant') || l.includes('cafe') || l.includes('dining')) return '🍽️'
+  if (l.includes('vacation') || l.includes('holiday') || l.includes('trip')) return '✈️'
+  return '📦'
+}
+
 interface Props {
   categories: BudgetCategory[]
   month: number
@@ -128,7 +145,7 @@ export default function BudgetDashboard({ categories, month, year, totalBalance 
               <div key={groupName} className={isLast ? '' : 'border-b border-border/20'}>
                 <GroupRow
                   name={groupName}
-                  emoji={GROUP_EMOJI[groupName] ?? '📦'}
+                  emoji={getGroupEmoji(groupName)}
                   budgeted={groupBudgeted}
                   spent={groupSpent}
                   percentage={groupPct}
