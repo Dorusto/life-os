@@ -21,4 +21,4 @@ jobs:
         run: |
           cd "$MAJORDOM_PATH/majordom-financiar"
           docker compose build --no-cache majordom-api majordom-web
-          docker compose up -d majordom-api majordom-web
+          docker compose up -d
