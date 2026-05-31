@@ -157,10 +157,10 @@ Complete replacement for Fuelio. **Architecture:** AB holds financial costs (fro
 
 | # | Feature | Notes |
 |---|---------|-------|
-| 3.1 | Vehicle profiles + log (SQLite schema) | ✅ Done — `vehicles` + `vehicle_log` tables, `get_vehicle_stats` tool |
-| 3.2 | Fuelio CSV import | ✅ Done — Historical → vehicle_log only; Active field fix; FuelioImportCard |
-| 3.3 | Refuel recording from photos | ✅ Done — FuelReceiptCard unified (photo + text); dual-write AB + vehicle_log; post-confirm Fuelio-style stats; ODO validation |
-| 3.3b | log_refuel chat tool | ✅ Done — Text input → same FuelReceiptCard; `[fuel] NL — Vehicle` in AB notes; vehicle proposals endpoint |
+| ✅ 3.1 | Vehicle profiles + log (SQLite schema) | `vehicles` + `vehicle_log` tables, `get_vehicle_stats` tool |
+| ✅ 3.2 | Fuelio CSV import | Historical → vehicle_log only; Active field fix; FuelioImportCard |
+| ✅ 3.3 | Refuel recording from photos | FuelReceiptCard unified (photo + text); dual-write AB + vehicle_log; post-confirm Fuelio-style stats; ODO validation |
+| ✅ 3.3b | log_refuel chat tool | Text input → same FuelReceiptCard; `[fuel] NL — Vehicle` in AB notes; vehicle proposals endpoint |
 | 3.4 | Consumption + cost calculations | L/100km per fill-up already in confirm-fuel endpoint; moving average + charts = backlog |
 | 3.5 | Reminders | APK/ITP + insurance (30 days before); service by km or date; Majordom proactively suggests if no reminders set |
 
