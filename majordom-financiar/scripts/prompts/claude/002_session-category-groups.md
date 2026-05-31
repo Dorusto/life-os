@@ -30,6 +30,8 @@ Userul vrea să lucreze cu **7 grupuri principale**, cu expand opțional pe subc
 
 **Nu mai e nevoie de confirmare — implementează direct.**
 
+**Regulă categorii (decizie actualizată):** Cele 7 sunt punctul de plecare, nu constrângeri. Userul poate adăuga, modifica sau șterge categorii și subcategorii cum dorește — fără limite de număr. AI decide doar categoria principală pentru o tranzacție; nu creează categorii sau subcategorii automat.
+
 ### Pasul 1 — Update `categories.json`
 
 Adaugă câmpul `"group"` la fiecare categorie din `backend/core/config/categories.json`.

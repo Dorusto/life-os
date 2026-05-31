@@ -317,8 +317,8 @@ export default function Chat({ messages, setMessages }: ChatProps) {
       {/* Header */}
       <header className="px-5 pt-[56px] pb-4 border-b border-border flex-shrink-0 flex items-end justify-between">
         <div>
-          <p className="text-muted text-sm">Your financial advisor</p>
-          <h1 className="text-white text-xl font-semibold mt-0.5">Majordom</h1>
+          <p className="text-xs tracking-widest uppercase text-muted">Your financial advisor</p>
+          <h1 className="font-display text-3xl font-bold text-white mt-0.5">Majordom</h1>
         </div>
         <button
           onClick={() => setShowHelp(true)}
@@ -333,7 +333,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
       {showHelp && (
         <div className="fixed inset-0 z-50 flex items-end" onClick={() => setShowHelp(false)}>
           <div
-            className="w-full bg-surface border-t border-border rounded-t-2xl px-6 pt-5 pb-10 space-y-5 max-h-[80vh] overflow-y-auto"
+            className="w-full bg-surface border-t border-border rounded-t-2xl px-6 pt-5 pb-24 space-y-5 max-h-[80vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">

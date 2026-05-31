@@ -23,6 +23,10 @@ export default {
       fontFamily: {
         // System font stack — no web font download, fast, looks native on iOS/Android
         sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        // Syne for display/headings
+        display: ['Syne', 'sans-serif'],
+        // DM Mono for numbers
+        mono: ['DM Mono', 'monospace'],
       },
       borderRadius: {
         'xl': '12px',

@@ -7,6 +7,8 @@ import { requestAndSubscribe } from '../lib/push'
 import BudgetDashboard from '../components/BudgetDashboard'
 import { useState, useEffect } from 'react'
 
+const GOAL_COLORS = ['#F59E0B', '#3B82F6', '#22C55E', '#8B5CF6', '#EC4899']
+
 export default function Home() {
   const navigate = useNavigate()
 
@@ -65,8 +67,8 @@ export default function Home() {
       {/* Header */}
       <header className="flex items-center justify-between px-5 pt-14 pb-2 flex-shrink-0">
         <div>
-          <p className="text-muted text-sm">{greeting}</p>
-          <h1 className="text-white text-xl font-semibold capitalize">{username}</h1>
+          <p className="text-xs tracking-widest uppercase text-muted">{greeting}</p>
+          <h1 className="font-display text-3xl font-bold text-white capitalize">{username}</h1>
         </div>
         <button
           onClick={handleLogout}
@@ -111,27 +113,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Goals */}
+      {/* Goals section — individual cards with colored borders */}
       {goals && goals.length > 0 && (
         <section className="px-5 pb-2">
-          <div className="bg-surface border border-border rounded-2xl px-4 py-4 space-y-4">
-            <h2 className="text-white text-sm font-semibold">Goals</h2>
-            {goals.map(goal => (
-              <div key={goal.id}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-white text-sm">{goal.name}</span>
-                  <span className="text-muted text-xs tabular-nums">
-                    €{goal.balance.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })} / €{goal.target.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-                  </span>
-                </div>
-                <div className="relative w-full h-2 bg-background rounded-full overflow-hidden">
-                  <div
-                    className="absolute left-0 top-0 h-full rounded-full bg-accent transition-all duration-500"
-                    style={{ width: `${Math.min(goal.percentage, 100)}%` }}
-                  />
-                </div>
-                <p className="text-muted text-xs mt-1 text-right">{goal.percentage.toFixed(0)}%</p>
-              </div>
+          <p className="text-xs tracking-[0.2em] uppercase text-muted mb-4">Financial Goals</p>
+          <div className="space-y-3">
+            {goals.map((goal, idx) => (
+              <GoalCard key={goal.id} goal={goal} color={GOAL_COLORS[idx % GOAL_COLORS.length]} />
             ))}
           </div>
         </section>
@@ -149,6 +137,71 @@ export default function Home() {
         </section>
       )}
 
+    </div>
+  )
+}
+
+function formatGoalAmount(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
+  if (value >= 1_000) return value.toLocaleString('nl-NL', { maximumFractionDigits: 0 })
+  return value.toFixed(0)
+}
+
+interface GoalCardProps {
+  goal: {
+    id: string
+    name: string
+    target: number
+    balance: number
+    percentage: number
+  }
+  color: string
+}
+
+function GoalCard({ goal, color }: GoalCardProps) {
+  return (
+    <div
+      className="bg-surface border border-border rounded-2xl overflow-hidden"
+      style={{ borderTopColor: color, borderTopWidth: '3px' }}
+    >
+      <div className="px-4 pt-4 pb-3">
+        {/* Row 1: name | target */}
+        <div className="flex items-start justify-between mb-1">
+          <p className="text-white font-semibold text-base">{goal.name}</p>
+          <div className="text-right">
+            <p className="font-display font-bold text-xl" style={{ color }}>
+              €{formatGoalAmount(goal.target)}
+            </p>
+            <p className="text-muted text-xs">
+              €{formatGoalAmount(goal.balance)} saved
+            </p>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        <div className="relative w-full h-1.5 bg-background rounded-full overflow-hidden mt-3">
+          <div
+            className="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
+            style={{
+              width: `${Math.min(goal.percentage, 100)}%`,
+              backgroundColor: color,
+            }}
+          />
+        </div>
+
+        {/* Bottom row: remaining */}
+        <div className="flex items-center justify-between mt-2">
+          <p className="text-muted text-xs">
+            Remaining{' '}
+            <span className="text-white font-mono tabular-nums">
+              €{formatGoalAmount(goal.target - goal.balance)}
+            </span>
+          </p>
+          <p className="text-xs font-mono tabular-nums" style={{ color }}>
+            {goal.percentage.toFixed(0)}%
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
@@ -175,7 +228,7 @@ function MetricCard({ label, sublabel, value, format, highlight }: MetricCardPro
 
   return (
     <div className="bg-surface border border-border rounded-2xl px-4 py-4">
-      <p className={`text-2xl font-bold tabular-nums ${valueClass}`}>{formatted}</p>
+      <p className={`font-display text-3xl font-bold tabular-nums ${valueClass}`}>{formatted}</p>
       <p className="text-white text-sm font-medium mt-1">{label}</p>
       <p className="text-muted text-xs">{sublabel}</p>
     </div>

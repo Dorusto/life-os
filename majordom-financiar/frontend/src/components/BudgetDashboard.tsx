@@ -2,7 +2,7 @@ import type { BudgetCategory } from '../lib/api'
 
 /**
  * Budget Dashboard — shows budgeted vs spent per category with color-coded
- * progress bars and visual states.
+ * indicators and visual states.
  *
  * Green:   spent < 80% of budgeted
  * Yellow:  spent 80–100% of budgeted
@@ -53,13 +53,16 @@ export default function BudgetDashboard({ categories, month, year, totalBalance 
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
         <div>
-          <p className="text-xs text-muted uppercase tracking-wide">
+          <p className="text-xs tracking-widest uppercase text-muted">
             {MONTH_NAMES[month - 1]} {year}
           </p>
-          <p className="text-white text-lg font-semibold mt-0.5">Budget</p>
-          <p className="text-muted text-xs mt-0.5">
+          <div className="flex items-baseline gap-3 mt-1">
+            <p className="font-display text-3xl font-bold text-white">Budget</p>
+          </div>
+          <p className="text-muted text-xs mt-1 font-mono tabular-nums">
             €{totalSpent.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            {' '}/ €{totalBudgeted.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} spent
+            {' / €'}
+            {totalBudgeted.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} spent
           </p>
         </div>
         <div className="text-right">
@@ -67,7 +70,7 @@ export default function BudgetDashboard({ categories, month, year, totalBalance 
             <>
               <p className="text-xs text-muted">{isOver ? 'over budget' : 'remaining'}</p>
               <p
-                className="text-lg font-semibold"
+                className="font-display text-3xl font-bold"
                 style={{ color: isOver ? '#FF2D2D' : '#22C55E' }}
               >
                 {isOver ? '−' : '+'}€{Math.abs(budgetBalance).toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -75,20 +78,20 @@ export default function BudgetDashboard({ categories, month, year, totalBalance 
             </>
           )}
           {totalBalance != null && (
-            <p className="text-muted text-xs mt-0.5">
+            <span className="inline-block text-xs text-muted border border-border rounded-full px-3 py-1 mt-2 font-mono tabular-nums">
               €{totalBalance.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} in accounts
-            </p>
+            </span>
           )}
         </div>
       </div>
 
-      {/* Budget rows */}
+      {/* Budget rows — no progress bars, just dot + name + spent/budgeted + percentage */}
       {allCats.length === 0 ? (
         <p className="text-muted text-sm text-center py-2">No budget data this month</p>
       ) : (
-        <div className="space-y-3">
-          {allCats.map(cat => (
-            <BudgetRow key={cat.category_id} category={cat} />
+        <div>
+          {allCats.map((cat, idx) => (
+            <BudgetRow key={cat.category_id} category={cat} isLast={idx === allCats.length - 1} />
           ))}
         </div>
       )}
@@ -96,49 +99,46 @@ export default function BudgetDashboard({ categories, month, year, totalBalance 
   )
 }
 
-function BudgetRow({ category }: { category: BudgetCategory }) {
+function BudgetRow({ category, isLast }: { category: BudgetCategory; isLast: boolean }) {
   const { category_name, budgeted, spent, percentage } = category
   const color = getColor(percentage, budgeted)
   const hasBudget = budgeted > 0
 
   return (
-    <div>
-      {/* Category name + spent/budgeted */}
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex items-center gap-1.5 min-w-0">
+    <div className={`py-3 ${isLast ? '' : 'border-b border-border/20'}`}>
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2 min-w-0">
           <span
             className="w-2 h-2 rounded-full flex-shrink-0"
             style={{ backgroundColor: color }}
           />
-          <span className="text-white text-xs truncate">{category_name}</span>
+          <span className="text-white text-sm truncate">{category_name}</span>
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-          <span className="text-muted text-xs">
-            €{spent.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            {hasBudget && (
-              <> / €{budgeted.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</>
-            )}
-          </span>
-          {hasBudget && (
-            <span
-              className="text-xs font-medium w-8 text-right"
-              style={{ color }}
-            >
-              {percentage.toFixed(0)}%
+        <div className="flex items-center gap-3 flex-shrink-0 ml-2">
+          {hasBudget ? (
+            <>
+              <span className="text-muted text-xs font-mono tabular-nums">
+                €{spent.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / €{budgeted.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </span>
+              <span
+                className="text-xs font-mono w-8 text-right tabular-nums"
+                style={{ color }}
+              >
+                {percentage.toFixed(0)}%
+              </span>
+            </>
+          ) : (
+            <span className="text-muted text-xs font-mono">
+              €{spent.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </span>
           )}
         </div>
       </div>
-
-      {/* Progress bar — only if budgeted > 0 */}
       {hasBudget && (
-        <div className="h-2 bg-background rounded-full overflow-hidden">
+        <div className="h-px bg-border/40 rounded-full overflow-hidden">
           <div
             className="h-full rounded-full transition-all duration-500"
-            style={{
-              width: `${Math.min(percentage, 100)}%`,
-              backgroundColor: color,
-            }}
+            style={{ width: `${Math.min(percentage, 100)}%`, backgroundColor: color }}
           />
         </div>
       )}
