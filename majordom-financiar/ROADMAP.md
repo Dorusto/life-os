@@ -303,6 +303,11 @@ The home page: budget overview for the current month, one row per category with 
 - **Account selection on receipt photo** — if multiple accounts exist, the user is asked before saving
 - **12 clean categories** — Food, Restaurants, Transport, Utilities, Health, Clothing, Home & Maintenance, Entertainment & Vacation, Children, Personal Money, Investments & Savings, Other
 - **Web UI (PWA) v2** — FastAPI backend + React frontend, JWT authentication, receipt photo flow in browser, monthly spending chart
+- **Category groups on Home** — budget bars grouped by top-level group (Housing, Daily Living etc.), tap to expand subcategories; `group_name` from AB via `cat.group.name` (issue #74, 2026-05-31)
+- **Category management from chat** — `create_category`, `rename_category`, `delete_category` tools, all with confirmation cards where user can edit before confirming (issues #66, 2026-05-31)
+- **Savings goals with deadline** — `TARGET: N DEADLINE: YYYY-MM` in AB account note; Home shows "by Mon YYYY" + "€X/mo needed"; `set_account_goal` has editable confirmation card (2026-05-31)
+- **Confirmation card rule** — all write tools go through proposal → card with editable fields → confirm → execute; no direct execution (2026-05-31)
+- **Visual alignment on Home** — colored top border on all cards (Cashflow green/red, Net Worth blue, Budget indigo, Goals per-color); smart emoji fallback for custom group names (2026-05-31)
 
 ---
 

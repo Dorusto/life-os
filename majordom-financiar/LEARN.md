@@ -1524,3 +1524,77 @@ setup.py: _ensure_default_categories() → creeaza 7 grupuri la prima configurar
 - **`cat.group.name` in actualpy** — grupul categoriei e disponibil direct pe obiectul `cat` returnat de `get_categories()`. Nu trebuie query suplimentar.
 - **Fals pozitiv in hook: `settings.` ca prefix safe** — orice valoare care incepe cu `settings.` e o referinta la configuratie, nu o credentiala. Adauga-o la lista de exceptii ori de cate ori extinzi hook-ul.
 - **Grupuri necunoscute la final, nu erori** — cand datele din AB nu respecta nomenclatorul standard (utilizatorul poate redenumi grupuri), nu bloca afisarea: arata grupurile cunoscute in ordine fixa, restul la final fara mesaj de eroare.
+
+## 2026-05-31 — Category management + goal deadline + confirmation card rule
+
+### Problema
+
+1. Nu existau tool-uri pentru rename/delete/create categorii — LLM-ul improviza (apela `propose_budget_rebalance` cu date gresite) sau returna erori ca "Category not found: Vacantion Scandinavia".
+2. `set_account_goal` executa direct fara confirmare — userul putea selecta contul gresit fara sa prinda.
+3. Goals pe Home nu aveau concept de deadline sau suma lunara necesara.
+4. Grupurile personalizate din AB (Savings, Personal, Food) afisau emoji-ul default 📦 in loc de ceva sugestiv.
+
+### Ce s-a intamplat
+
+**`_PROPOSAL_TOOLS` — locul care decide daca un tool e card sau executie directa:**
+```python
+_PROPOSAL_TOOLS = {"propose_transaction", ..., "rename_category", "delete_category", "set_account_goal", "create_category"}
+```
+Daca un tool nu e in aceasta multime, rezultatul lui merge ca mesaj de tool inapoi la LLM. Daca e in multime, JSON-ul e returnat direct la frontend. Greseala initiala: rename/delete/create nu erau in `_PROPOSAL_TOOLS` → LLM-ul primea JSON-ul, il interpreta ca text, si executa din nou improvizat.
+
+**Pattern complet confirm/cancel:**
+```
+LLM apeleaza tool (ex. rename_category)
+  → tool rezolva fuzzy numele → stocheaza in category_actions store cu UUID
+  → returneaza JSON { type: "category_action", id, action, ... }
+  → chat.py il vede in _PROPOSAL_TOOLS → yield JSON direct la frontend
+  → frontend parseaza type → randeaza card cu campuri editabile
+  → user confirma (cu valori modificate) → POST /api/category-actions/{id}/confirm
+  → endpoint executa cu valorile finale
+```
+
+**Deadline in note de cont — acelasi pattern ca TARGET::**
+```
+notes = "TARGET: 10000\nDEADLINE: 2031-05"
+```
+La `get_goals()`, parsam ambele cu regex. `monthly_needed = (target - balance) / months_remaining`. Daca userul modifica suma/data in card → confirm trimite override-urile in body → endpoint foloseste override daca exista.
+
+**Emoji fallback cu keyword matching:**
+`GROUP_EMOJI` mapeaza exact cele 7 grupuri standard. Grupuri personalizate cad pe functia `getGroupEmoji(name)` care face `name.toLowerCase().includes(keyword)`. "Savings" → 💰, "Personal" → 👤, "Food" → 🛒. Fara API call, fara configuratie.
+
+**Bug closure Python in chat.py:**
+```python
+# GRESIT — 'e' nu mai exista cand generator-ul ruleaza
+except HTTPException as e:
+    async def error_gen():
+        yield f"Error: {e.detail}"  # NameError!
+
+# CORECT — capteaza valoarea inainte
+except HTTPException as e:
+    detail = e.detail
+    async def error_gen():
+        yield f"Error: {detail}"
+```
+
+### Solutia
+
+```
+rename_category, delete_category, create_category, set_account_goal
+  → toate returneaza JSON proposal
+  → toate in _PROPOSAL_TOOLS
+  → frontend randeaza card cu campuri editabile pre-completate
+  → confirm cu override optional → backend executa
+
+Goals cu deadline:
+  → TARGET: N DEADLINE: YYYY-MM in nota contului
+  → Home afiseaza "by May 2031" + "€167/mo"
+  → Card editabil cu input type="month" (picker nativ Android)
+```
+
+### De retinut
+
+- **`_PROPOSAL_TOOLS` in chat.py** — orice tool nou care modifica date trebuie adaugat aici. Daca nu e, JSON-ul ajunge la LLM nu la frontend.
+- **Override in confirm endpoint** — pattern util: storeaza valorile LLM-ului, accepta override in body. Frontend trimite valorile editate de user, backend foloseste override daca exista, fallback la valoarea stocata.
+- **`input type="month"` pentru deadline** — format nativ `YYYY-MM`, picker calendar pe Android/Chrome fara librarie. Compatibil direct cu formatul de stocare.
+- **Keyword emoji fallback** — mai robust decat un map strict: prinde variante de naming ("Food", "Foods", "Eating") fara configuratie explicita.
+- **Corupere SQLite Actual Budget** — aparut de doua ori in sesiune: "database disk image is malformed". Fix: `docker compose restart actual-budget`. Cauza probabila: lock neterminat dupa operatii in paralel. Nu blocheaza date, containerul se recupereaza la restart.
