@@ -1,11 +1,11 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { LogOut, Bell } from 'lucide-react'
+import { LogOut, Bell, MoreVertical, Database, Wallet } from 'lucide-react'
 import { getBudgetStatus, getAccounts, getMonthlyStats, getGoals } from '../lib/api'
 import { getUsername, clearAuth } from '../lib/auth'
 import { requestAndSubscribe } from '../lib/push'
 import BudgetDashboard from '../components/BudgetDashboard'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 const GOAL_COLORS = ['#F59E0B', '#3B82F6', '#22C55E', '#8B5CF6', '#EC4899']
 
@@ -44,6 +44,21 @@ export default function Home() {
     navigate('/login', { replace: true })
   }
 
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const origin = `${window.location.protocol}//${window.location.hostname}`
+
   const username = getUsername()
   const greeting = getGreeting()
 
@@ -70,13 +85,47 @@ export default function Home() {
           <p className="text-xs tracking-widest uppercase text-muted">{greeting}</p>
           <h1 className="font-display text-3xl font-bold text-white capitalize">{username}</h1>
         </div>
-        <button
-          onClick={handleLogout}
-          className="p-2 rounded-xl text-muted hover:text-white hover:bg-surface transition-colors"
-          aria-label="Log out"
-        >
-          <LogOut size={20} />
-        </button>
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setMenuOpen(o => !o)}
+            className="p-2 rounded-xl text-muted hover:text-white hover:bg-surface transition-colors"
+            aria-label="Menu"
+          >
+            <MoreVertical size={20} />
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-full mt-1 w-48 rounded-xl bg-surface border border-border shadow-lg z-50 overflow-hidden">
+              <a
+                href={`${origin}:5006`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/5 transition-colors"
+              >
+                <Wallet size={16} className="text-muted flex-shrink-0" />
+                Actual Budget
+              </a>
+              <a
+                href={`${origin}:8888`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/5 transition-colors"
+              >
+                <Database size={16} className="text-muted flex-shrink-0" />
+                Database
+              </a>
+              <div className="border-t border-border" />
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-white/5 transition-colors"
+              >
+                <LogOut size={16} className="flex-shrink-0" />
+                Log out
+              </button>
+            </div>
+          )}
+        </div>
       </header>
 
       {/* Notification permission banner */}
