@@ -46,7 +46,9 @@ Supporting work also shipped: Chat AI with propose_transaction tool, receipt pho
 
 ### ✅ Validate: tool_choice=auto without intent routing (complete)
 
-Validated 2026-05-20. qwen3:8b was inconsistent — failed on complex sentences, wrote tool calls as text. Tested granite3.2:8b, hermes3:8b (same Ollama template bug). **qwen3:14b passes all 5 scenarios** (expense, income, rebalance, query, off-topic). `OLLAMA_CHAT_MODEL=qwen3:14b` set in production.
+Validated 2026-05-20. qwen3:8b was inconsistent — failed on complex sentences, wrote tool calls as text. Tested granite3.2:8b, hermes3:8b (same Ollama template bug). **qwen3:14b passes all 5 scenarios** (expense, income, rebalance, query, off-topic).
+
+**2026-05-31 update (LXC deployment):** Switched to **qwen3.5:9b** — multimodal (vision + tools + thinking), single model for both chat and receipt OCR. qwen3:8b rejected (passes month/year as strings instead of integers). qwen3:14b too slow on CPU-only LXC (~4 min). qwen3.5:9b: correct tool calling, ~4 min on CPU (acceptable compromise until GPU solution). `OLLAMA_CHAT_MODEL=qwen3.5:9b`, `OLLAMA_VISION_MODEL=qwen3.5:9b`. OCR quality under investigation (issue #86).
 
 Also shipped as part of this validation:
 - Pre-M2 query tools implemented: `get_accounts`, `get_monthly_stats`, `get_budget_status`, `get_transactions`, `get_spending_history` — LLM fetches data on demand, system prompt is now minimal.
@@ -190,7 +192,7 @@ Proactive notifications so Majordom finds problems before the user does.
 | 4.7 | Market correction alert | Daily: ETF price API → notify on dip beyond threshold → "Buy from opportunity fund?" |
 | 4.8 | Savings goals progress | Emergency fund, vacation, large purchases — progress bars in PWA |
 | 4.9 | FIRE / Crossover Point Report | Use AB's native experimental report; Chat AI explains conversationally |
-| 4.10 | Daily digest in chat | When user opens chat, today's digest appears as first assistant message. `GET /api/notifications/today` → frontend injects on mount. |
+| 4.10 | Persistent chat history + digest in chat | Chat history survives page refresh (stored in SQLite). Digest appears as first message on open. Issues #84 + #85. Discuss UX before implementing (see `scripts/prompts/claude/004_session-m4-digest-in-chat.md`). |
 
 ---
 

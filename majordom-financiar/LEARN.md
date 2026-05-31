@@ -5,6 +5,80 @@
 
 ---
 
+## 2026-05-31 — Mutare pe LXC: 5 bug-uri în lanț și lecția despre context window
+
+### Problema
+
+Majordom a fost mutat de pe laptopul de dev pe un LXC Proxmox (Ubuntu, 10 vCPU, 16 GB RAM). După mutare: Home page fără date, chat returna `NetworkError when attempting to fetch resource`, nimic nu funcționa.
+
+### Ce s-a întâmplat
+
+**Bug 1 — `actual-budget` în rețeaua greșită Docker**
+
+`docker compose ps` nu arăta containerul `actual-budget`. Fusese pornit separat (`docker run`) în afara stack-ului compose, deci nu era în rețeaua `majordom-net`. Hostname-ul `actual-budget:5006` nu rezolva din interiorul `majordom-api`. Fix: `docker compose up -d actual-budget`.
+
+**Bug 2 — Tailscale conflict pe port 5006**
+
+`docker compose up -d` eșua cu `address already in use` pe portul 5006. Cauza: Tailscale serve era configurat să expună AB pe portul 5006 (`tailscale serve status` arată `proxy http://localhost:5006`). Docker încerca să bindeze pe `0.0.0.0:5006`, Tailscale deja ținea acel port pe IP-ul Tailscale.
+
+Fix în `docker-compose.yml`:
+```yaml
+# înainte:
+ports:
+  - "5006:5006"
+# după:
+ports:
+  - "127.0.0.1:5006:5006"
+```
+Tailscale face proxy la `localhost:5006`, deci accesul extern funcționează în continuare.
+
+**Bug 3 — `httpx.ReadTimeout` neprins**
+
+Chat-ul returna `NetworkError` în loc de un mesaj clar. Cauza: `_call_ollama_non_streaming` prindea `httpx.ConnectError` dar nu și `httpx.ReadTimeout`. Când Ollama depășea 120s, excepția neprinsă propaga la FastAPI → 500 fără body → frontend-ul vedea NetworkError.
+
+Fix: adăugat `except httpx.ReadTimeout` + timeout mărit la 300s.
+
+**Bug 4 — Context window overflow (cauza reală a eșecului chat)**
+
+`ollama ps` arăta `CONTEXT: 4096`. Tool registry-ul are 20+ tool schemas = ~3500 tokeni. Plus system prompt (~600) + mesaj user = **>4096 tokeni total**. Contextul era plin, ultimele tool-uri se trunchiau, modelul nu "vedea" toate uneltele.
+
+Fix: `"num_ctx": 8192` în payload Ollama (ambele funcții: streaming și non-streaming).
+
+```python
+"options": {
+    "temperature": 0.3,
+    "num_predict": 512,
+    "num_ctx": 8192,   # ← critic când ai 20+ tool schemas
+},
+```
+
+**Bug 5 — Model greșit în Ollama**
+
+`.env` setat corect cu `OLLAMA_CHAT_MODEL=qwen3:14b` dar Ollama rula `qwen2.5:7b`. Cauza: containerul Ollama fusese creat cu 2 săptămâni în urmă cu `qwen2.5:7b` în config. `docker compose restart` NU re-citește `env_file` — repornește containerul cu config-ul salvat. Fix: `docker compose up -d --force-recreate ollama`.
+
+### Soluția
+
+```
+actual-budget pornit în compose → fix port conflict Tailscale → ReadTimeout prins →
+num_ctx 8192 → force-recreate Ollama → model corect încărcat → chat funcționează
+```
+
+Model final ales: **qwen3.5:9b** — multimodal (vision + tools + thinking), un singur model pentru chat și OCR bon. Pe CPU-only (fără GPU în LXC), răspuns în ~4 minute. Calitate tool calling corectă.
+
+Journey modele în această sesiune:
+- `qwen2.5:7b` — era setat greșit, incompatibil cu tool calling complex
+- `qwen3:8b` — tool calling defect: trimite `month="5"` (string) în loc de `month=5` (int)
+- `qwen3:14b` — calitate bună dar >300s pe CPU, timeout
+- `qwen3.5:9b` ✅ — corect la tool calling, ~4 min pe CPU, acceptabil
+
+### De reținut
+
+1. **`docker compose restart` ≠ `docker compose up -d`** — `restart` repornește cu config salvat, NU re-citește `.env`. Dacă ai schimbat env vars, folosești `docker compose up -d` (recreează containerul dacă config-ul s-a schimbat).
+
+2. **Calculează tokenii înainte de a seta `num_ctx`** — 20 tool schemas + system prompt + mesaj = ușor >4096. Regula: `num_ctx` trebuie să fie cel puțin dublu față de dimensiunea tool registry-ului. Cu 20+ tools, minimum 8192.
+
+---
+
 ## 2026-05-31 — M4.6: vehicle reminders + notification bundling
 
 ### Problema
