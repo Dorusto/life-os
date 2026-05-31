@@ -167,19 +167,25 @@ majordom-financiar/
 ├── backend/
 │   ├── main.py              ← FastAPI entry point
 │   ├── api/
-│   │   ├── auth.py          ← JWT authentication
-│   │   ├── chat.py          ← Chat endpoint + Ollama streaming
-│   │   ├── transactions.py  ← GET /transactions, /accounts, /stats
-│   │   ├── receipts.py      ← Receipt photo flow
-│   │   └── csv_import.py    ← CSV import flow
+│   │   ├── auth.py              ← JWT authentication
+│   │   ├── chat.py              ← Chat endpoint + Ollama streaming + _PROPOSAL_TOOLS
+│   │   ├── transactions.py      ← GET /transactions, /accounts, /stats
+│   │   ├── receipts.py          ← Receipt photo flow (grocery + fuel dual-write)
+│   │   ├── vehicle_proposals.py ← POST /vehicle/proposals/{id}/confirm (text refuel)
+│   │   └── csv_import.py        ← CSV import flow
+│   ├── tools/
+│   │   ├── registry.py          ← TOOLS list + execute_tool dispatcher
+│   │   ├── vehicle_proposals.py ← In-memory store for pending refuel proposals
+│   │   └── finance/
+│   │       ├── actual_budget.py ← AB client wrapper (add_transaction etc.)
+│   │       └── vehicle.py       ← log_refuel + get_vehicle_stats chat tools
 │   ├── services/
-│   │   ├── chat_service.py  ← ChatService (Ollama wrapper)
+│   │   ├── chat_service.py      ← ChatService (Ollama wrapper)
 │   │   └── receipt_service.py
 │   └── core/
-│       ├── actual_client/   ← ActualBudgetClient (to become tools/finance/)
 │       ├── ocr/             ← VisionEngine, parser
 │       ├── csv_importer/    ← profiles, normalizer, detector
-│       ├── memory/          ← SQLite (database.py, categorizer.py)
+│       ├── memory/          ← SQLite (database.py, categorizer.py) — vehicles + vehicle_log
 │       └── config/          ← settings.py
 │
 ├── scripts/
@@ -316,9 +322,40 @@ User sends message
   → LLM receives message + tool registry descriptions
   → LLM decides which tool(s) to call (if any)
   → backend executes tool calls
-  → LLM generates response based on tool results
+  → if tool in _PROPOSAL_TOOLS → yield JSON card to frontend (no LLM response)
+  → else → append tool result to messages, LLM generates text response
   → streamed back to frontend
 ```
+
+### Fuel receipt (photo)
+```
+User uploads photo
+  → POST /api/receipts (multipart)
+  → VisionEngine detects receipt_type="fuel"
+  → receipt_service overrides category to transport
+  → returns ReceiptDraft with liters, price_per_liter, vehicles list, suggested_vehicle_id
+  → frontend renders FuelReceiptCard (tabbed: Fuel / Grocery)
+  → user confirms → POST /api/receipts/{id}/confirm-fuel
+  → dual-write: AB transaction + vehicle_log INSERT
+  → returns FuelConfirmResponse with km_since_last, L/100km, €/km
+```
+
+### Fuel refuel (text — log_refuel tool)
+```
+User: "I refueled 40L at Shell for €90, odo 51500"
+  → LLM calls log_refuel(liters, total_eur, location, odo_km)
+  → tool resolves vehicle by name or ODO proximity
+  → fetches accounts + categories from AB
+  → creates pending proposal in vehicle_proposals (in-memory dict)
+  → returns ReceiptDraft-compatible JSON with type="fuel_log"
+  → chat.py: "log_refuel" in _PROPOSAL_TOOLS → yield JSON to frontend
+  → frontend renders FuelReceiptCard (no image, no Grocery tab swap)
+  → user confirms → POST /api/vehicle/proposals/{id}/confirm
+  → reads last_odo BEFORE insert → AB transaction → vehicle_log INSERT → stats
+  → returns FuelConfirmResponse identical to photo flow
+```
+
+**Key rule:** last ODO must be read BEFORE inserting the new entry, otherwise km_since_last = 0.
 
 ---
 
