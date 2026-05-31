@@ -188,7 +188,7 @@ function GoalCard({ goal, color }: GoalCardProps) {
         </div>
 
         {/* Progress bar */}
-        <div className="relative w-full h-1.5 bg-background rounded-full overflow-hidden mt-3">
+        <div className="relative w-full h-px bg-border/40 rounded-full overflow-hidden mt-3">
           <div
             className="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
             style={{
