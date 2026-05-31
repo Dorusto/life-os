@@ -244,6 +244,11 @@ async def chat_stream(
         for tc in tool_calls:
             name = tc.get("function", {}).get("name", "")
             args = tc.get("function", {}).get("arguments", {})
+            if isinstance(args, str):
+                try:
+                    args = json.loads(args)
+                except (json.JSONDecodeError, ValueError):
+                    args = {}
             try:
                 result = await execute_tool(name, args)
             except Exception as exc:
