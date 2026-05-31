@@ -134,6 +134,50 @@ class MemoryDB:
                     imported_at  TEXT NOT NULL DEFAULT (datetime('now')),
                     notified_at  TEXT DEFAULT NULL
                 );
+
+                CREATE TABLE IF NOT EXISTS vehicles (
+                    id INTEGER PRIMARY KEY,
+                    user_id INTEGER,
+                    name TEXT,
+                    make TEXT,
+                    model TEXT,
+                    year INTEGER,
+                    vin TEXT,
+                    plate TEXT,
+                    fuel_type TEXT,
+                    tank_capacity REAL,
+                    km_initial INTEGER,
+                    apk_due TEXT,
+                    insurance_due TEXT,
+                    active INTEGER DEFAULT 1,
+                    notes TEXT,
+                    created_at TEXT DEFAULT (datetime('now'))
+                );
+
+                CREATE TABLE IF NOT EXISTS vehicle_log (
+                    id INTEGER PRIMARY KEY,
+                    vehicle_id INTEGER REFERENCES vehicles(id),
+                    date TEXT,
+                    odo_km REAL,
+                    entry_type TEXT,
+                    fuel_liters REAL,
+                    fuel_price_per_liter REAL,
+                    fuel_full_tank INTEGER,
+                    fuel_missed INTEGER,
+                    cost_total REAL,
+                    cost_currency TEXT DEFAULT 'EUR',
+                    remind_odo REAL,
+                    remind_date TEXT,
+                    repeat_odo REAL,
+                    repeat_months INTEGER,
+                    location TEXT,
+                    notes TEXT,
+                    financial_id TEXT,
+                    source TEXT,
+                    fuelio_unique_id TEXT,
+                    created_at TEXT DEFAULT (datetime('now')),
+                    UNIQUE(vehicle_id, fuelio_unique_id, entry_type)
+                );
             """)
             conn.commit()
             # Migrate existing csv_profiles table — add columns added after initial schema
@@ -567,5 +611,71 @@ class MemoryDB:
                   AND notified_at <= datetime('now', ?)
             """, (f"-{older_than_days} days",))
             conn.commit()
+        finally:
+            conn.close()
+
+    # --- Vehicle Methods (Fuelio import) ---
+
+    def upsert_vehicle(self, data: dict) -> int:
+        """Upsert a vehicle by (name, plate). Returns vehicle ID."""
+        conn = self._get_conn()
+        try:
+            row = conn.execute(
+                "SELECT id FROM vehicles WHERE lower(name)=lower(?) AND lower(plate)=lower(?)",
+                (data.get("name", ""), data.get("plate", ""))
+            ).fetchone()
+            if row:
+                vid = row["id"]
+                conn.execute("""
+                    UPDATE vehicles SET make=?,model=?,year=?,tank_capacity=?,fuel_type=?,active=?
+                    WHERE id=?
+                """, (data.get("make"), data.get("model"), data.get("year"),
+                      data.get("tank_capacity"), data.get("fuel_type"), data.get("active", 1), vid))
+                conn.commit()
+                return vid
+            cursor = conn.execute("""
+                INSERT INTO vehicles (name,make,model,year,plate,tank_capacity,fuel_type,active)
+                VALUES (?,?,?,?,?,?,?,?)
+            """, (data.get("name"), data.get("make"), data.get("model"), data.get("year"),
+                  data.get("plate"), data.get("tank_capacity"), data.get("fuel_type"), data.get("active", 1)))
+            conn.commit()
+            return cursor.lastrowid
+        finally:
+            conn.close()
+
+    def insert_vehicle_log_entries(self, entries: list[dict]) -> tuple[int, int]:
+        """Batch INSERT OR IGNORE vehicle_log entries. Returns (inserted, skipped)."""
+        conn = self._get_conn()
+        try:
+            inserted = 0
+            for e in entries:
+                cursor = conn.execute("""
+                    INSERT OR IGNORE INTO vehicle_log
+                      (vehicle_id, date, odo_km, entry_type, fuel_liters, fuel_price_per_liter,
+                       fuel_full_tank, fuel_missed, cost_total, cost_currency, remind_odo,
+                       remind_date, repeat_odo, repeat_months, location, notes,
+                       source, fuelio_unique_id)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """, (
+                    e.get("vehicle_id"), e.get("date"), e.get("odo_km"), e.get("entry_type"),
+                    e.get("fuel_liters"), e.get("fuel_price_per_liter"), e.get("fuel_full_tank"),
+                    e.get("fuel_missed"), e.get("cost_total"), e.get("cost_currency", "EUR"),
+                    e.get("remind_odo"), e.get("remind_date"), e.get("repeat_odo"),
+                    e.get("repeat_months"), e.get("location"), e.get("notes"),
+                    e.get("source", "fuelio_import"), e.get("fuelio_unique_id"),
+                ))
+                inserted += cursor.rowcount
+            conn.commit()
+            skipped = len(entries) - inserted
+            return inserted, skipped
+        finally:
+            conn.close()
+
+    def get_vehicles(self) -> list[dict]:
+        """Return all vehicles ordered by active DESC, name."""
+        conn = self._get_conn()
+        try:
+            rows = conn.execute("SELECT * FROM vehicles ORDER BY active DESC, name").fetchall()
+            return [dict(r) for r in rows]
         finally:
             conn.close()

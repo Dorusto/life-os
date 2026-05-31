@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect, FormEvent } from 'react'
 import { Send, Plus, Camera, Image, FileText, HelpCircle, X } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, uploadReceipt, type SetupAccount, type BalanceAdjustmentData, type ImportPreview, type ReceiptDraft, type CategoryActionData } from '../lib/api'
+import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, type SetupAccount, type BalanceAdjustmentData, type ImportPreview, type ReceiptDraft, type CategoryActionData } from '../lib/api'
 import CsvImportCard from '../components/CsvImportCard'
+import FuelioImportCard, { FuelioImportData } from '../components/FuelioImportCard'
 import ProposalCard, { ProposalData } from '../components/ProposalCard'
 import BudgetRebalanceCard from '../components/BudgetRebalanceCard'
 import ClarificationCard from '../components/ClarificationCard'
@@ -18,7 +19,7 @@ import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from
 
 
 export interface Message {
-  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'income_source' | 'reconciliation' | 'receipt' | 'category_action' | 'goal_proposal'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'fuelio_import' | 'income_source' | 'reconciliation' | 'receipt' | 'category_action' | 'goal_proposal'
   content: string
   proposal?: ProposalData
   budgetRebalance?: BudgetRebalanceData
@@ -27,6 +28,7 @@ export interface Message {
   balanceAdjustment?: BalanceAdjustmentData
   setupAccounts?: SetupAccount[]
   csvImport?: { status: 'loading' | 'ready' | 'error'; preview?: ImportPreview; error?: string }
+  fuelioImport?: FuelioImportData
   incomeRow?: { payee: string; amount: number; date: string }
   reconciliation?: { accountName: string; balance: number; importedCount: number }
   receipt?: { status: 'loading' | 'reviewing' | 'error'; imageUrl: string; draft?: ReceiptDraft; error?: string }
@@ -143,7 +145,52 @@ export default function Chat({ messages, setMessages }: ChatProps) {
     reader.readAsDataURL(file)
   }
 
+  async function isFuelioFile(file: File): Promise<boolean> {
+    return new Promise(resolve => {
+      const reader = new FileReader()
+      reader.onload = e => {
+        const text = (e.target?.result as string) || ''
+        resolve(text.trimStart().startsWith('"## Vehicle"'))
+      }
+      reader.readAsText(file.slice(0, 50))
+    })
+  }
+
+  async function handleFuelioSelected(file: File) {
+    setMessages(prev => [...prev, {
+      role: 'fuelio_import' as const,
+      content: '',
+      fuelioImport: { status: 'loading' },
+    }])
+    try {
+      const result = await importFuelio(file)
+      setMessages(prev => {
+        const idx = [...prev].reverse().findIndex(m => m.role === 'fuelio_import' && m.fuelioImport?.status === 'loading')
+        if (idx === -1) return prev
+        const realIdx = prev.length - 1 - idx
+        const updated = [...prev]
+        updated[realIdx] = { role: 'fuelio_import' as const, content: '', fuelioImport: { status: 'done', result } }
+        return updated
+      })
+    } catch (err) {
+      setMessages(prev => {
+        const idx = [...prev].reverse().findIndex(m => m.role === 'fuelio_import' && m.fuelioImport?.status === 'loading')
+        if (idx === -1) return prev
+        const realIdx = prev.length - 1 - idx
+        const updated = [...prev]
+        updated[realIdx] = { role: 'fuelio_import' as const, content: '', fuelioImport: { status: 'error', error: err instanceof Error ? err.message : 'Import failed' } }
+        return updated
+      })
+    }
+  }
+
   async function handleCsvSelected(file: File) {
+    // Detect Fuelio files before calling the CSV endpoint
+    if (await isFuelioFile(file)) {
+      handleFuelioSelected(file)
+      return
+    }
+
     // Append a loading placeholder to chat
     setMessages(prev => [...prev, {
       role: 'csv_import' as const,
@@ -556,6 +603,8 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                   )
                 }}
               />
+            ) : msg.role === 'fuelio_import' && msg.fuelioImport ? (
+              <FuelioImportCard data={msg.fuelioImport} />
             ) : msg.role === 'csv_import' && msg.csvImport ? (
               <CsvImportCard
                 data={msg.csvImport}

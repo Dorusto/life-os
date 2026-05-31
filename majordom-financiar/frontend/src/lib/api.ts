@@ -191,6 +191,22 @@ export interface MonthlyStats {
   categories: CategoryStat[]
 }
 
+// --- Fuelio Import ---
+
+export interface FuelioImportResult {
+  vehicle_name: string
+  fuel_entries: number
+  fuel_skipped: number
+  cost_entries: number
+  cost_skipped: number
+}
+
+export async function importFuelio(file: File): Promise<FuelioImportResult> {
+  const form = new FormData()
+  form.append('file', file)
+  return request<FuelioImportResult>('/import/fuelio', { method: 'POST', body: form })
+}
+
 // --- CSV Import ---
 
 export interface ImportRow {

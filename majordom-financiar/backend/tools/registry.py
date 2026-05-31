@@ -360,6 +360,31 @@ TOOLS: list[dict] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_vehicle_stats",
+            "description": (
+                "Get vehicle operational statistics: fuel consumption, cost per km, total spending. "
+                "Use when the user asks about their car or motorcycle stats, average consumption, "
+                "how much they spent on fuel or maintenance, or wants a vehicle summary."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "vehicle_name": {
+                        "type": "string",
+                        "description": "Vehicle name or partial name, e.g. 'kia', 'suzuki'. Leave empty if user has one vehicle.",
+                    },
+                    "period": {
+                        "type": "string",
+                        "description": "Time period: 'YYYY-MM' for a specific month, 'YYYY' for a year, or empty for all time.",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
 ]
 
 
@@ -427,6 +452,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "set_notification_time":
         from backend.tools.settings.notifications import set_notification_time
         return await set_notification_time(**arguments)
+
+    if name == "get_vehicle_stats":
+        from backend.tools.finance.vehicle import get_vehicle_stats
+        return await get_vehicle_stats(**arguments)
 
     return f"Unknown tool: {name}"
 

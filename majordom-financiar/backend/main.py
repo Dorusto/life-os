@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
-from backend.api import auth, receipts, transactions, chat, csv_import, proposals, budget, accounts, setup, balance_adjustments, push, income_sources, category_actions
+from backend.api import auth, receipts, transactions, chat, csv_import, proposals, budget, accounts, setup, balance_adjustments, push, income_sources, category_actions, fuelio_import
 
 from backend.core.config import settings
 from backend.core.scheduler import scheduler
@@ -161,6 +161,7 @@ app.include_router(balance_adjustments.router, prefix="/api")
 app.include_router(push.router, prefix="/api")
 app.include_router(income_sources.router, prefix="/api")
 app.include_router(category_actions.router, prefix="/api")
+app.include_router(fuelio_import.router, prefix="/api")
 
 
 @app.get("/api/health")

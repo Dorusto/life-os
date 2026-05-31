@@ -143,15 +143,34 @@ Proactive financial insights: goal proposals, FIRE projection, charts in chat.
 
 ### 🔲 Milestone 3 — Vehicle Management
 
-Complete replacement for Fuelio. **Architecture:** AB holds all costs as transactions under Transport category (general budget). SQLite `vehicle_log` holds vehicle-specific operational data (odometer, liters, per-vehicle breakdown). When user logs a refuel, Majordom does two things: `propose_transaction` → AB (financial) + INSERT → `vehicle_log` (operational). Financial questions ("how much did I spend on transport?") → AB. Efficiency questions ("what's my average consumption?") → SQLite.
+Complete replacement for Fuelio. **Architecture:** AB holds financial costs (from today forward) under Transport subcategories. SQLite `vehicle_log` holds all operational history (odometer, liters, per-vehicle breakdown, historical Fuelio import). Financial questions ("how much did I spend on transport?") → AB. Efficiency questions ("what's my average consumption?") → SQLite.
+
+**Vehicles:** Toyota Corolla "Cora" (active), Honda NC750X DCT "Wabi Sabi" (active), KIA Ceed 2008 (sold, historical), Suzuki VZ 800 (sold, historical).
+
+**Key decisions (2026-05-31):**
+- Fuelio CSV import → `vehicle_log` ONLY. No AB transactions for historical data.
+- New refuels (from today) → AB (Car Costs / Motorbike Costs) + vehicle_log.
+- AB categories for Transport: "Car Costs", "Motorbike Costs" (user may split further later).
+- Photo receipt = primary flow; chat text = secondary; tabbed card with Fuel/Grocery tabs.
+- Vehicle detection: AI picks vehicle based on ODO proximity to last recorded ODO.
+- ODO validation: warn if difference > 1500 km from previous entry.
 
 | # | Feature | Notes |
 |---|---------|-------|
-| 3.1 | Vehicle profiles + log (SQLite schema) | `vehicles` + `vehicle_log` tables; car + motorcycle |
-| 3.2 | Fuelio CSV import | Parse the 4-section Fuelio CSV; map CostTypeID → entry_type; deduplicate via `fuelio_unique_id` |
-| 3.3 | Refuel recording from photos | Upload gas station receipt → extract liters/price/odometer; Majordom writes to both AB (cost) and vehicle_log (operational) |
-| 3.4 | Consumption + cost calculations | L/100km per fill-up, moving average (last 5), cost/km, monthly charts |
-| 3.5 | Reminders | APK/ITP + insurance renewal (30 days before); service by km or date |
+| 3.1 | Vehicle profiles + log (SQLite schema) | ✅ Done — `vehicles` + `vehicle_log` tables, `get_vehicle_stats` tool |
+| 3.2 | Fuelio CSV import | Historical → vehicle_log only; prompts 018 + 019 |
+| 3.3 | Refuel recording from photos | Tabbed card (Fuel/Grocery); dual-write AB + vehicle_log; post-confirm stats; prompt 020 |
+| 3.3b | log_refuel chat tool | Text input → same FuelReceiptCard; prompt 021 |
+| 3.4 | Consumption + cost calculations | L/100km per fill-up already in confirm-fuel endpoint; moving average + charts = backlog |
+| 3.5 | Reminders | APK/ITP + insurance (30 days before); service by km or date; Majordom proactively suggests if no reminders set |
+
+**Fuelio features backlog** (investigate before implementing — may need dedicated UI tab):
+- Mileage log view per vehicle (grouped by month, like Fuelio screenshot)
+- Moving average consumption (last 5 full-tank fill-ups)
+- Monthly cost comparison charts (fuel vs maintenance vs total)
+- Cross-vehicle comparisons (cost/km Cora vs Wabi Sabi)
+- Service history timeline
+- Fuel price trend over time
 
 ---
 
