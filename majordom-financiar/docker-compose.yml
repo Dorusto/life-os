@@ -29,8 +29,8 @@ services:
       - ./scripts/ollama-entrypoint.sh:/entrypoint.sh
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
     environment:
-      - OLLAMA_VISION_MODEL=${OLLAMA_VISION_MODEL:-qwen2.5vl:7b}
-      - OLLAMA_CHAT_MODEL=${OLLAMA_CHAT_MODEL:-qwen3:14b}
+      - OLLAMA_VISION_MODEL=${OLLAMA_VISION_MODEL:-qwen3.5:9b}
+      - OLLAMA_CHAT_MODEL=${OLLAMA_CHAT_MODEL:-qwen3.5:9b}
       - OLLAMA_FLASH_ATTENTION=1
     dns:
       - 8.8.8.8
