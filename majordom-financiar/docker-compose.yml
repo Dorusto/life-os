@@ -30,7 +30,7 @@ services:
     entrypoint: ["/bin/sh", "/entrypoint.sh"]
     environment:
       - OLLAMA_VISION_MODEL=${OLLAMA_VISION_MODEL:-qwen2.5vl:7b}
-      - OLLAMA_CHAT_MODEL=${OLLAMA_CHAT_MODEL:-qwen2.5:7b}
+      - OLLAMA_CHAT_MODEL=${OLLAMA_CHAT_MODEL:-qwen3:14b}
       - OLLAMA_FLASH_ATTENTION=1
     dns:
       - 8.8.8.8
@@ -38,7 +38,7 @@ services:
     networks:
       - majordom-net
     healthcheck:
-      test: ["CMD", "sh", "-c", "ollama list 2>/dev/null | grep -q qwen2.5"]
+      test: ["CMD", "sh", "-c", "ollama list 2>/dev/null | grep -qE 'qwen3|qwen2\\.5'"]
       interval: 30s
       timeout: 10s
       retries: 20
