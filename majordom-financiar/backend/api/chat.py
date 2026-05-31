@@ -124,7 +124,7 @@ async def _stream_ollama_response(messages: list[dict], ollama_url: str, model: 
         "options": {
             "temperature": 0.3,
             "num_predict": 512,
-            "num_ctx": 16384,
+            "num_ctx": 8192,
         },
     }
     
@@ -165,7 +165,7 @@ async def _call_ollama_non_streaming(messages: list[dict], ollama_url: str, mode
         "options": {
             "temperature": 0.3,
             "num_predict": 512,
-            "num_ctx": 16384,
+            "num_ctx": 8192,
         },
     }
     async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
