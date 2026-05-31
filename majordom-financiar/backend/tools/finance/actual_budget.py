@@ -514,3 +514,33 @@ async def create_category(name: str, group_name: str) -> str:
     action_id = uuid.uuid4().hex[:8]
     action_store.store(action_id, {"action": "create", "category_name": name, "group_name": resolved_group, "available_groups": groups})
     return json.dumps({"type": "category_action", "id": action_id, "action": "create", "category_name": name, "group_name": resolved_group, "available_groups": groups})
+
+
+async def setup_default_groups() -> str:
+    """Propose creating the 7 standard category groups (Housing, Daily Living, Transport, Health, Lifestyle, Finance, Unexpected) with their default subcategories. Only creates groups/categories that don't already exist."""
+    import uuid
+    from backend.tools import category_actions as action_store
+
+    _GROUPS = [
+        ("Housing",      ["Home & Maintenance", "Utilities"]),
+        ("Daily Living", ["Groceries & Drinks", "Clothing", "Children"]),
+        ("Transport",    ["Transport"]),
+        ("Health",       ["Health"]),
+        ("Lifestyle",    ["Restaurants & Cafes", "Entertainment & Vacation", "Personal"]),
+        ("Finance",      ["Investments & Savings"]),
+        ("Unexpected",   ["Other"]),
+    ]
+
+    client = _get_client()
+    existing_groups = await client.get_category_groups()
+    existing_lower = {g.lower() for g in existing_groups}
+
+    to_create = [(g, cats) for g, cats in _GROUPS if g.lower() not in existing_lower]
+
+    if not to_create:
+        return json.dumps({"type": "error", "message": "All 7 standard groups already exist."})
+
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {"action": "setup_groups", "groups": to_create})
+    preview = ", ".join(g for g, _ in to_create)
+    return json.dumps({"type": "category_action", "id": action_id, "action": "setup_groups", "preview": preview, "groups": to_create})

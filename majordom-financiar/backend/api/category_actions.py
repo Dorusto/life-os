@@ -50,6 +50,20 @@ async def confirm_category_action(
         elif action["action"] == "delete":
             await client.delete_category(action["category_name"])
             message = f"Category deleted: '{action['category_name']}'"
+        elif action["action"] == "setup_groups":
+            created = []
+            for group_name, sub_names in action["groups"]:
+                try:
+                    await client.create_category_group(group_name)
+                except Exception:
+                    pass
+                for sub_name in sub_names:
+                    try:
+                        await client.create_category(sub_name, group_name)
+                        created.append(f"{group_name} → {sub_name}")
+                    except Exception:
+                        pass
+            message = f"Created {len(action['groups'])} groups with subcategories: {', '.join(g for g, _ in action['groups'])}"
         elif action["action"] == "create":
             cat_name = override.category_name or action["category_name"]
             grp_name = override.group_name or action["group_name"]

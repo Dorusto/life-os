@@ -579,11 +579,13 @@ export async function cancelBalanceAdjustment(id: string): Promise<void> {
 
 export interface CategoryActionData {
   id: string
-  action: 'rename' | 'delete' | 'create'
+  action: 'rename' | 'delete' | 'create' | 'setup_groups'
   category_name: string
   new_name?: string
   group_name?: string
   available_groups?: string[]
+  preview?: string
+  groups?: [string, string[]][]
 }
 
 export async function confirmCategoryAction(

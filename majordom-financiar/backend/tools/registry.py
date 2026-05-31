@@ -257,6 +257,18 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "setup_default_groups",
+            "description": (
+                "Propose creating the 7 standard category groups (Housing, Daily Living, Transport, Health, Lifestyle, Finance, Unexpected) "
+                "with their default subcategories. Skips groups that already exist. "
+                "Use when the user asks to set up default categories or standard groups."
+            ),
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "create_category",
             "description": (
                 "Propose creating a new category inside an existing group. "
@@ -395,6 +407,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "set_account_goal":
         from backend.tools.finance.actual_budget import set_account_goal
         return await set_account_goal(**arguments)
+
+    if name == "setup_default_groups":
+        from backend.tools.finance.actual_budget import setup_default_groups
+        return await setup_default_groups()
 
     if name == "create_category":
         from backend.tools.finance.actual_budget import create_category
