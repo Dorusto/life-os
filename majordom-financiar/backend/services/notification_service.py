@@ -120,3 +120,48 @@ async def run_daily_summary():
     except Exception as e:
         logger.error("Daily summary job failed: %s", e, exc_info=True)
         # Job must never crash APScheduler
+
+
+async def run_import_nudge():
+    """Send a push nudge if no CSV import has happened in the last N days.
+
+    Only fires if there has been at least one previous import — never nudges
+    a brand new user who hasn't imported anything yet.
+    """
+    try:
+        from datetime import datetime, timedelta
+
+        db = MemoryDB(settings.memory.db_path)
+        rule = db.get_notification_rule("import_nudge")
+        if not rule or not rule["enabled"]:
+            return
+
+        days_threshold = rule["config"].get("days", 7)
+
+        last_import = db.get_last_notification("csv_import")
+        if not last_import:
+            return  # never imported — no nudge
+
+        last_import_dt = datetime.fromisoformat(last_import["sent_at"])
+        days_since = (datetime.now() - last_import_dt).days
+        if days_since < days_threshold:
+            return  # imported recently enough
+
+        # Anti-spam: don't nudge more than once per day
+        last_nudge = db.get_last_notification("import_nudge")
+        if last_nudge and last_nudge["sent_at"][:10] == date.today().isoformat():
+            return
+
+        push_svc = get_push_service()
+        await push_svc.send_to_all(
+            user_id="default",
+            title="Majordom",
+            body=f"It's been {days_since} days since your last import. Want to add recent transactions?",
+            url="/chat",
+        )
+
+        db.log_notification("import_nudge", {"days_since": days_since})
+        logger.info("Import nudge sent — %d days since last import", days_since)
+
+    except Exception as e:
+        logger.error("Import nudge job failed: %s", e, exc_info=True)

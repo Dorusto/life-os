@@ -635,6 +635,12 @@ async def confirm_csv(
                     date=row.date,
                 ))
 
+    if imported > 0:
+        db.log_notification("csv_import", {
+            "imported": imported,
+            "account": matched_account.name if matched_account else "",
+        })
+
     logger.info(
         "CSV confirmed [%s]: %d imported, %d skipped, %d merged, %d retroactively updated, %d unknown income rows",
         current_user, imported, skipped, merged, retroactively_updated, len(unknown_income_rows),
