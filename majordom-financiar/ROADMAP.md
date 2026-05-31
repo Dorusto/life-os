@@ -192,7 +192,7 @@ Proactive notifications so Majordom finds problems before the user does.
 | 4.7 | Market correction alert | Daily: ETF price API → notify on dip beyond threshold → "Buy from opportunity fund?" |
 | 4.8 | Savings goals progress | Emergency fund, vacation, large purchases — progress bars in PWA |
 | 4.9 | FIRE / Crossover Point Report | Use AB's native experimental report; Chat AI explains conversationally |
-| 4.10 | Persistent chat history + digest in chat | Chat history survives page refresh (stored in SQLite). Digest appears as first message on open. Issues #84 + #85. Discuss UX before implementing (see `scripts/prompts/claude/004_session-m4-digest-in-chat.md`). |
+| ✅ 4.10 | Persistent chat history + clear button | Chat history survives page refresh (SQLite, per user, max 500 msgs). LLM context limited to last 10. Trash icon clears history. Issues #84 + #85. |
 
 ---
 
