@@ -228,7 +228,7 @@ function MetricCard({ label, sublabel, value, format, highlight }: MetricCardPro
 
   return (
     <div className="bg-surface border border-border rounded-2xl px-4 py-4">
-      <p className={`font-display text-3xl font-bold tabular-nums ${valueClass}`}>{formatted}</p>
+      <p className={`font-display text-2xl font-bold tabular-nums ${valueClass}`}>{formatted}</p>
       <p className="text-white text-sm font-medium mt-1">{label}</p>
       <p className="text-muted text-xs">{sublabel}</p>
     </div>
