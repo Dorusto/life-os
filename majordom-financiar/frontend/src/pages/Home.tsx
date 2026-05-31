@@ -154,8 +154,17 @@ interface GoalCardProps {
     target: number
     balance: number
     percentage: number
+    deadline?: string | null
+    monthly_needed?: number | null
+    months_remaining?: number | null
   }
   color: string
+}
+
+function formatDeadline(deadline: string): string {
+  const [year, month] = deadline.split('-').map(Number)
+  const d = new Date(year, month - 1)
+  return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
 }
 
 function GoalCard({ goal, color }: GoalCardProps) {
@@ -189,7 +198,7 @@ function GoalCard({ goal, color }: GoalCardProps) {
           />
         </div>
 
-        {/* Bottom row: remaining */}
+        {/* Bottom row: remaining | deadline/monthly */}
         <div className="flex items-center justify-between mt-2">
           <p className="text-muted text-xs">
             Remaining{' '}
@@ -197,9 +206,23 @@ function GoalCard({ goal, color }: GoalCardProps) {
               €{formatGoalAmount(goal.target - goal.balance)}
             </span>
           </p>
-          <p className="text-xs font-mono tabular-nums" style={{ color }}>
-            {goal.percentage.toFixed(0)}%
-          </p>
+          <div className="text-right">
+            {goal.deadline && (
+              <p className="text-muted text-xs">
+                by <span className="text-white">{formatDeadline(goal.deadline)}</span>
+              </p>
+            )}
+            {goal.monthly_needed != null && goal.monthly_needed > 0 && (
+              <p className="text-xs font-mono tabular-nums" style={{ color }}>
+                €{formatGoalAmount(goal.monthly_needed)}/mo
+              </p>
+            )}
+            {(!goal.deadline) && (
+              <p className="text-xs font-mono tabular-nums" style={{ color }}>
+                {goal.percentage.toFixed(0)}%
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

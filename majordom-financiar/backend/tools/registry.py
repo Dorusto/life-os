@@ -231,7 +231,7 @@ TOOLS: list[dict] = [
             "description": (
                 "Set or update a savings goal for an account. "
                 "Use when the user says they want to save a target amount in an account, "
-                "e.g. 'set goal for ING Savings to €25,000' or 'I want to save €10k in Revolut'. "
+                "e.g. 'set goal for ING Savings to €25,000' or 'I want to save €10k in Revolut by 2030'. "
                 "Executes immediately — no confirmation needed."
             ),
             "parameters": {
@@ -244,6 +244,10 @@ TOOLS: list[dict] = [
                     "target": {
                         "type": "number",
                         "description": "Target amount in EUR, always positive, e.g. 25000.",
+                    },
+                    "deadline": {
+                        "type": "string",
+                        "description": "Optional deadline in YYYY-MM format, e.g. '2031-05'. Derive from user's stated timeframe.",
                     },
                 },
                 "required": ["account_name", "target"],

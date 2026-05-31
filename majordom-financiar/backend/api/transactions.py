@@ -201,6 +201,9 @@ class Goal(BaseModel):
     balance: float
     target: float
     percentage: float
+    deadline: str | None = None
+    monthly_needed: float | None = None
+    months_remaining: int | None = None
 
 
 @router.get("/accounts/goals", response_model=list[Goal])

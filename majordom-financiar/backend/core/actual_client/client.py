@@ -544,19 +544,37 @@ class ActualBudgetClient:
                         float(tx.amount or 0) for tx in txs if not tx.tombstone
                     ) / 100
                     percentage = round(balance / target * 100, 1) if target > 0 else 0.0
+
+                    # Parse optional DEADLINE: YYYY-MM
+                    deadline = None
+                    monthly_needed = None
+                    months_remaining = None
+                    dl_match = re.search(r'DEADLINE:\s*(\d{4}-\d{2})', note, re.IGNORECASE)
+                    if dl_match:
+                        from datetime import date as _date
+                        deadline = dl_match.group(1)
+                        dl_year, dl_month = map(int, deadline.split("-"))
+                        today = _date.today()
+                        months_remaining = (dl_year - today.year) * 12 + (dl_month - today.month)
+                        if months_remaining > 0:
+                            monthly_needed = round((target - balance) / months_remaining, 2)
+
                     result.append({
                         "id": str(acc.id),
                         "name": acc.name,
                         "balance": round(balance, 2),
                         "target": target,
                         "percentage": percentage,
+                        "deadline": deadline,
+                        "monthly_needed": monthly_needed,
+                        "months_remaining": months_remaining,
                     })
                 return result
         return await self._run(_get)
 
-    async def set_account_goal(self, account_name: str, target: float) -> str:
+    async def set_account_goal(self, account_name: str, target: float, deadline: str | None = None) -> str:
         """
-        Write or update TARGET: <amount> in the note field of the named account.
+        Write or update TARGET: <amount> (and optionally DEADLINE: YYYY-MM) in the account note.
         Returns the account name on success.
         """
         def _set():
@@ -572,11 +590,17 @@ class ActualBudgetClient:
                 if not acc:
                     raise ValueError(f"Account not found: {account_name}")
                 note = acc.notes or ""
-                new_tag = f"TARGET: {int(target) if target == int(target) else target}"
+                target_tag = f"TARGET: {int(target) if target == int(target) else target}"
                 if re.search(r'TARGET:\s*[\d]+(?:\.\d+)?', note, re.IGNORECASE):
-                    note = re.sub(r'TARGET:\s*[\d]+(?:\.\d+)?', new_tag, note, flags=re.IGNORECASE)
+                    note = re.sub(r'TARGET:\s*[\d]+(?:\.\d+)?', target_tag, note, flags=re.IGNORECASE)
                 else:
-                    note = (note.strip() + "\n" + new_tag).strip()
+                    note = (note.strip() + "\n" + target_tag).strip()
+                if deadline:
+                    dl_tag = f"DEADLINE: {deadline}"
+                    if re.search(r'DEADLINE:\s*\d{4}-\d{2}', note, re.IGNORECASE):
+                        note = re.sub(r'DEADLINE:\s*\d{4}-\d{2}', dl_tag, note, flags=re.IGNORECASE)
+                    else:
+                        note = (note.strip() + "\n" + dl_tag).strip()
                 acc.notes = note
                 actual.commit()
                 return acc.name

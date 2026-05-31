@@ -414,6 +414,9 @@ export interface Goal {
   balance: number
   target: number
   percentage: number
+  deadline?: string | null
+  monthly_needed?: number | null
+  months_remaining?: number | null
 }
 
 export async function getGoals(): Promise<Goal[]> {

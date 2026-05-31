@@ -451,11 +451,14 @@ async def complete_setup(balances: list[dict]) -> str:
     return "Setup complete. All balances already matched — no adjustments needed."
 
 
-async def set_account_goal(account_name: str, target: float) -> str:
-    """Set or update a savings goal for an account (stored in AB account note as TARGET: N)."""
+async def set_account_goal(account_name: str, target: float, deadline: str | None = None) -> str:
+    """Set or update a savings goal for an account (stored in AB account note as TARGET: N [DEADLINE: YYYY-MM])."""
     client = _get_client()
-    name = await client.set_account_goal(account_name=account_name, target=target)
-    return f"Goal set: {name} → target €{target:,.0f}"
+    name = await client.set_account_goal(account_name=account_name, target=target, deadline=deadline)
+    msg = f"Goal set: {name} → target €{target:,.0f}"
+    if deadline:
+        msg += f", deadline {deadline}"
+    return msg
 
 
 async def rename_category(old_name: str, new_name: str) -> str:
