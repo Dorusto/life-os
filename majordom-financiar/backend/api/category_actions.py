@@ -6,6 +6,7 @@ POST /api/category-actions/{id}/cancel
 """
 import logging
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
 from backend.tools import category_actions as action_store
@@ -24,9 +25,15 @@ def _get_client() -> ActualBudgetClient:
     )
 
 
+class GoalOverride(BaseModel):
+    target: float | None = None
+    deadline: str | None = None
+
+
 @router.post("/category-actions/{action_id}/confirm")
 async def confirm_category_action(
     action_id: str,
+    override: GoalOverride = GoalOverride(),
     current_user: str = Depends(get_current_user),
 ):
     action = action_store.get(action_id)
@@ -42,14 +49,16 @@ async def confirm_category_action(
             await client.delete_category(action["category_name"])
             message = f"Category deleted: '{action['category_name']}'"
         elif action["action"] == "set_goal":
+            target = override.target if override.target is not None else action["target"]
+            deadline = override.deadline if override.deadline is not None else action.get("deadline")
             await client.set_account_goal(
                 account_name=action["account_name"],
-                target=action["target"],
-                deadline=action.get("deadline"),
+                target=target,
+                deadline=deadline,
             )
-            message = f"Goal set: {action['account_name']} → €{action['target']:,.0f}"
-            if action.get("deadline"):
-                message += f" by {action['deadline']}"
+            message = f"Goal set: {action['account_name']} → €{target:,.0f}"
+            if deadline:
+                message += f" by {deadline}"
         else:
             raise HTTPException(status_code=400, detail=f"Unknown action: {action['action']}")
     except ValueError as e:

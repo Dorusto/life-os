@@ -584,8 +584,14 @@ export interface CategoryActionData {
   new_name?: string
 }
 
-export async function confirmCategoryAction(id: string): Promise<{ message: string }> {
-  return request(`/category-actions/${id}/confirm`, { method: 'POST' })
+export async function confirmCategoryAction(
+  id: string,
+  override?: { target?: number; deadline?: string | null }
+): Promise<{ message: string }> {
+  return request(`/category-actions/${id}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify(override ?? {}),
+  })
 }
 
 export async function cancelCategoryAction(id: string): Promise<void> {
