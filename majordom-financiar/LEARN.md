@@ -5,6 +5,76 @@
 
 ---
 
+## 2026-06-01 — Notificări în chat și bug-ul "default" user_id
+
+### Problema
+
+Notificările zilnice (push) nu apăreau în chat, chiar dacă M4.11 era implementat de DeepSeek. Utilizatorul primea push-ul pe telefon/browser, dar deschidea chatul și nu vedea nimic.
+
+### Ce s-a întâmplat
+
+**Bug 1 — `push_subscriptions` stoca `user_id="default"` hardcodat**
+
+Endpoint-ul `/api/push/subscribe` în `push.py` apela `db.save_push_subscription(user_id="default", ...)` chiar dacă primea `current_user` din auth. Deci toate subscripțiile din DB aveau `user_id="default"`.
+
+`_save_to_chat_history()` căuta user_id-urile din `push_subscriptions`, găsea `"default"`, și salva notificarea pentru `default`. Dar când utilizatorul deschidea chatul, endpoint-ul `/api/chat/history` returna mesajele pentru `doru` (username-ul real) — nu pentru `default`. Mesajul exista în DB, dar la userul greșit.
+
+Fix în `push.py`:
+```python
+# înainte:
+db.save_push_subscription(user_id="default", ...)
+# după:
+db.save_push_subscription(user_id=current_user, ...)
+```
+
+Și migrare manuală a subscripțiilor vechi:
+```sql
+UPDATE push_subscriptions SET user_id='doru' WHERE user_id='default'
+```
+
+**Bug 2 — `run_daily_digest` trimitea push tot cu `user_id="default"`**
+
+Chiar și după fix-ul subscripțiilor, `run_daily_digest` apela `push_svc.send_to_all(user_id="default", ...)`. `send_to_all` filtrează subscripțiile după `user_id` — deci nu mai găsea nimic.
+
+Fix: adăugat `broadcast()` în `PushService` care trimite la **toate** subscripțiile fără filtru. Daily digest e un broadcast, nu un mesaj per-user.
+
+```python
+async def broadcast(self, title, body, url="/chat"):
+    subscriptions = self.db.get_all_push_subscriptions()  # fără filtru user_id
+    for sub in subscriptions:
+        await self._send_one(sub, title, body, url)
+```
+
+**Bug 3 — chatul nu se actualiza când sosea notificarea**
+
+Frontend-ul încărca chat history o singură dată la mount. Dacă userul era deja pe pagina de chat când sosea notificarea, nu vedea mesajul nou decât după refresh manual.
+
+Fix în `App.tsx`: reîncarcă history la evenimentul `window focus` — adică de fiecare dată când userul revine în tab (ex: după ce a dat click pe notificare).
+
+```typescript
+useEffect(() => {
+  loadChatHistory()
+  window.addEventListener('focus', loadChatHistory)
+  return () => window.removeEventListener('focus', loadChatHistory)
+}, [])
+```
+
+### Soluția
+
+Flux complet funcțional după toate fix-urile:
+1. APScheduler declanșează `run_daily_digest` la ora configurată
+2. Backend generează mesajul, trimite push cu `broadcast()` la toți userii
+3. Backend salvează mesajul în `chat_history` pentru fiecare user activ
+4. Userul dă click pe notificare → tab-ul primește focus → frontend reîncarcă history → mesajul apare
+
+### De reținut
+
+- **Niciodată `user_id="default"` hardcodat** — folosește întotdeauna `current_user` din auth. "Default" e un placeholder care se strecura peste tot și rupea izolarea între useri.
+- **Broadcast vs per-user**: notificările de sistem (digest zilnic) trebuie să ajungă la toți — folosește `broadcast()`. Notificările per-user (alerte personale) folosesc `send_to_all(user_id=X)`.
+- **`window focus` pentru sync în timp real** — mai simplu decât polling sau WebSocket pentru cazuri unde datele se schimbă rar (notificări zilnice).
+
+---
+
 ## 2026-05-31 — Mutare pe LXC: 5 bug-uri în lanț și lecția despre context window
 
 ### Problema

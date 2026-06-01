@@ -193,6 +193,7 @@ Proactive notifications so Majordom finds problems before the user does.
 | 4.8 | Savings goals progress | Emergency fund, vacation, large purchases — progress bars in PWA |
 | 4.9 | FIRE / Crossover Point Report | Use AB's native experimental report; Chat AI explains conversationally |
 | ✅ 4.10 | Persistent chat history + clear button | Chat history survives page refresh (SQLite, per user, max 500 msgs). LLM context limited to last 10. Trash icon clears history. Issues #84 + #85. |
+| ✅ 4.11 | Notifications appear in chat | Daily digest saved to chat_history for all active users. Appears as assistant message when user opens chat. Chat reloads on window focus so message appears instantly after push tap. Fix: push subscriptions now store real user_id (not hardcoded "default"); added `broadcast()` for system-wide push. |
 
 ---
 
@@ -219,7 +220,7 @@ External services and advanced tracking.
 | Automatic bank sync | GoCardless/Nordigen — on hold; EU individual developer access restricted; monitor PSD2/PSD3 |
 | GPU inference for Ollama | Currently CPU (~60s/image); revisit with smaller quantized models |
 | Async receipt processing queue | Upload multiple receipts → they go into a queue (pending → processing → done). User comes back later, clicks each processed receipt to review and confirm. No more waiting in real-time for OCR. Essential for CPU-only setups where each receipt takes 1-2 minutes. Implementation: `receipt_queue` table in SQLite + FastAPI BackgroundTasks + polling on frontend. Medium complexity (~1-2 days). |
-| Cloud API support (Claude / Gemini / OpenAI) | Alternative to local Ollama for users without sufficient hardware. Hybrid mode: if `OLLAMA_URL` is absent, use configured cloud provider. Enables onboarding without any local server — relevant for non-homelab audience. |
+| ✅ Cloud API support (OpenRouter / any OpenAI-compatible provider) | Shipped 2026-06-01. `LLM_BASE_URL` + `LLM_API_KEY` + `LLM_CHAT_MODEL` + `LLM_VISION_MODEL` in `.env`. Supports OpenRouter, DeepSeek API, local Ollama. Real-time token streaming via `_stream_with_tools()` — tool call deltas accumulated in background, text yielded immediately. |
 | Caddy + custom domain for HTTPS | Alternative to Tailscale for users who want a memorable domain (e.g. majordom.home.ro). Caddy handles automatic HTTPS via Let's Encrypt. Requires a public domain pointed at the server. Better long-term than Tailscale for self-hosters with a domain. |
 | Actual Budget mobile access via HTTPS | AB requires HTTPS (SharedArrayBuffer). Currently only accessible via SSH tunnel from PC. When Majordom is mature enough, expose AB behind a proper reverse proxy with HTTPS so power users can access it directly from mobile when needed. Low priority — Majordom is the intended interface, not AB directly. |
 | Ollama model management from chat | User can type "install llava-phi3" or "what models do I have?" — Majordom queries and manages Ollama directly. Eliminates terminal access for model management. |
