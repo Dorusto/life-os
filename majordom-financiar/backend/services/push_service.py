@@ -72,6 +72,15 @@ class PushService:
         for sub in subscriptions:
             await self._send_one(sub, title, body, url)
 
+    async def broadcast(self, title: str, body: str, url: str = "/chat"):
+        """Send to all subscriptions regardless of user_id (daily digest, system alerts)."""
+        subscriptions = self.db.get_all_push_subscriptions()
+        if not subscriptions:
+            logger.debug("No push subscriptions found for broadcast")
+            return
+        for sub in subscriptions:
+            await self._send_one(sub, title, body, url)
+
     async def _send_one(self, sub: dict, title: str, body: str, url: str):
         from pywebpush import webpush, WebPushException
 

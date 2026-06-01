@@ -911,8 +911,8 @@ export default function Chat({ messages, setMessages }: ChatProps) {
           </div>
         ))}
 
-        {/* Loading indicator (typing dots) - only shown when loading and no assistant message is already streaming */}
-        {loading && (
+        {/* Loading indicator — hidden once text starts streaming in */}
+        {loading && messages[messages.length - 1]?.role !== 'assistant' && (
           <div className="flex items-end gap-2">
             <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3">
               <TypingDots />

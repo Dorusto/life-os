@@ -13,6 +13,7 @@ Architecture:
 import json
 import logging
 import sqlite3
+import time as time_module
 from datetime import date, datetime, timedelta
 
 import httpx
@@ -23,6 +24,39 @@ from backend.core.memory.database import MemoryDB
 from backend.services.push_service import get_push_service
 
 logger = logging.getLogger(__name__)
+
+
+async def _save_to_chat_history(body: str, db: MemoryDB) -> None:
+    """Save notification text to chat history for all active users.
+
+    Collects user_ids from both push_subscriptions and recently active
+    chat_history rows (covers legacy 'default' subscriptions and users
+    without push enabled). Skips 'default' placeholder IDs.
+    """
+    conn = sqlite3.connect(db.db_path)
+    try:
+        thirty_days_ago = int((time_module.time() - 30 * 86400) * 1000)
+        push_rows = conn.execute(
+            "SELECT DISTINCT user_id FROM push_subscriptions"
+        ).fetchall()
+        chat_rows = conn.execute(
+            "SELECT DISTINCT user_id FROM chat_history WHERE ts > ?",
+            (thirty_days_ago,),
+        ).fetchall()
+        user_ids = {r[0] for r in push_rows + chat_rows if r[0] and r[0] != "default"}
+        if not user_ids:
+            return
+        ts = int(time_module.time() * 1000)
+        conn.executemany(
+            "INSERT INTO chat_history (user_id, role, content, ts) VALUES (?, ?, ?, ?)",
+            [(uid, "assistant", body, ts) for uid in user_ids],
+        )
+        conn.commit()
+    except Exception as e:
+        logger.warning("Could not save notification to chat history: %s", e)
+    finally:
+        conn.close()
+
 
 _FINANCIAL_SYSTEM_PROMPT = (
     "You are Majordom, a personal finance assistant. "
@@ -336,15 +370,18 @@ async def run_daily_digest():
         body = " · ".join(parts)
 
         push_svc = get_push_service()
-        await push_svc.send_to_all(
-            user_id="default",
+        await push_svc.broadcast(
             title="Majordom",
             body=body,
             url="/chat",
         )
 
+        # Also save to chat history so it appears in the conversation
+        await _save_to_chat_history(body, db)
+
         # --- Log everything (anti-spam state) ---
         db.log_notification("daily_digest", {"parts_count": len(parts)})
+
 
         if financial_text:
             db.log_notification("daily_summary", {

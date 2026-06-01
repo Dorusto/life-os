@@ -122,75 +122,130 @@ def _build_headers() -> dict[str, str]:
     return headers
 
 
-async def _stream_llm_response(messages: list[dict], llm_url: str, model: str) -> AsyncGenerator[str, None]:
-    """Stream response from OpenAI-compatible LLM API."""
-    payload = {
-        "model": model,
-        "messages": messages,
-        "stream": True,
-        "options": {
-            "temperature": 0.3,
-            "num_predict": 512,
-            "num_ctx": 8192,
-        },
-    }
-    headers = _build_headers()
-    
-    async with httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as client:
-        try:
-            async with client.stream("POST", f"{llm_url}/v1/chat/completions", json=payload, headers=headers) as response:
-                if response.status_code != 200:
-                    error_text = await response.aread()
-                    raise HTTPException(status_code=503, detail=f"LLM error {response.status_code}: {error_text.decode()}")
-                
-                async for chunk in response.aiter_lines():
-                    if chunk.strip():
-                        if chunk.startswith("data: "):
-                            chunk = chunk[6:]
-                        if chunk == "[DONE]":
+_PROPOSAL_TOOLS = {"propose_transaction", "propose_budget_rebalance", "propose_account_transfer", "propose_clarification", "propose_balance_adjustment", "rename_category", "delete_category", "set_account_goal", "create_category", "setup_default_groups", "log_refuel", "delete_vehicle_log_entry", "set_vehicle_reminder", "set_service_interval"}
+
+
+async def _stream_with_tools(
+    messages: list[dict],
+    llm_url: str,
+    model: str,
+) -> AsyncGenerator[str, None]:
+    """
+    Stream LLM response while transparently handling tool calls.
+
+    Text chunks are yielded immediately as they arrive (real-time streaming).
+    Tool call deltas are accumulated in the background. When the stream ends:
+    - no tools → done (text was already streamed)
+    - query tools → execute, append results, loop up to 3 rounds
+    - proposal tools → yield the JSON card and return
+    """
+    current_messages = list(messages)
+
+    for _ in range(3):
+        accumulated_content = ""
+        tool_calls_partial: dict[int, dict] = {}
+
+        payload = {
+            "model": model,
+            "messages": current_messages,
+            "stream": True,
+            "tools": TOOLS,
+            "tool_choice": "auto",
+        }
+        headers = _build_headers()
+
+        async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
+            try:
+                async with client.stream(
+                    "POST", f"{llm_url}/v1/chat/completions",
+                    json=payload, headers=headers,
+                ) as response:
+                    if response.status_code != 200:
+                        err = await response.aread()
+                        raise HTTPException(
+                            status_code=503,
+                            detail=f"LLM error {response.status_code}: {err.decode()}",
+                        )
+
+                    async for line in response.aiter_lines():
+                        if not line.strip():
+                            continue
+                        if line.startswith("data: "):
+                            line = line[6:]
+                        if line == "[DONE]":
                             break
                         try:
-                            data = json.loads(chunk)
-                            content = data.get("choices", [{}])[0].get("delta", {}).get("content", "")
-                            if content:
-                                yield content
+                            data = json.loads(line)
                         except json.JSONDecodeError:
                             continue
-        except httpx.ConnectError:
-            raise HTTPException(status_code=503, detail="Cannot connect to LLM. Is the provider running?")
-        except Exception as e:
-            logger.error("Streaming error: %s", e)
-            raise HTTPException(status_code=500, detail="Failed to stream response from assistant")
 
+                        delta = data.get("choices", [{}])[0].get("delta", {})
 
-async def _call_llm(messages: list[dict], llm_url: str, model: str) -> dict:
-    """Call LLM without streaming. All tools available, tool_choice=auto."""
-    payload = {
-        "model": model,
-        "messages": messages,
-        "stream": False,
-        "tools": TOOLS,
-        "tool_choice": "auto",
-        "options": {
-            "temperature": 0.3,
-            "num_predict": 512,
-            "num_ctx": 8192,
-        },
-    }
-    headers = _build_headers()
-    async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
-        try:
-            response = await client.post(f"{llm_url}/v1/chat/completions", json=payload, headers=headers)
-        except httpx.ConnectError:
-            raise HTTPException(status_code=503, detail="Cannot connect to LLM. Is the provider running?")
-        except httpx.ReadTimeout:
-            raise HTTPException(status_code=503, detail="LLM timed out — model is too slow or overloaded. Try again.")
-        if response.status_code != 200:
-            raise HTTPException(status_code=503, detail=f"LLM error {response.status_code}")
-        return response.json()
+                        content = delta.get("content") or ""
+                        if content:
+                            accumulated_content += content
+                            yield content
 
+                        for tc_delta in delta.get("tool_calls") or []:
+                            idx = tc_delta.get("index", 0)
+                            if idx not in tool_calls_partial:
+                                tool_calls_partial[idx] = {
+                                    "id": "",
+                                    "type": "function",
+                                    "function": {"name": "", "arguments": ""},
+                                }
+                            tc = tool_calls_partial[idx]
+                            if tc_delta.get("id"):
+                                tc["id"] = tc_delta["id"]
+                            fn = tc_delta.get("function", {})
+                            if fn.get("name"):
+                                tc["function"]["name"] += fn["name"]
+                            if fn.get("arguments"):
+                                tc["function"]["arguments"] += fn["arguments"]
 
-_PROPOSAL_TOOLS = {"propose_transaction", "propose_budget_rebalance", "propose_account_transfer", "propose_clarification", "propose_balance_adjustment", "rename_category", "delete_category", "set_account_goal", "create_category", "setup_default_groups", "log_refuel", "delete_vehicle_log_entry", "set_vehicle_reminder", "set_service_interval"}
+            except HTTPException:
+                raise
+            except httpx.ConnectError:
+                raise HTTPException(status_code=503, detail="Cannot connect to LLM. Is the provider running?")
+            except Exception as e:
+                logger.error("Streaming error: %s", e)
+                raise HTTPException(status_code=500, detail="Failed to stream response from assistant")
+
+        if not tool_calls_partial:
+            return
+
+        tool_calls = [tool_calls_partial[i] for i in sorted(tool_calls_partial.keys())]
+        logger.info("LLM — tools=%s", [tc["function"]["name"] for tc in tool_calls])
+
+        current_messages.append({
+            "role": "assistant",
+            "content": accumulated_content or None,
+            "tool_calls": tool_calls,
+        })
+
+        for tc in tool_calls:
+            name = tc["function"]["name"]
+            args_raw = tc["function"]["arguments"]
+            try:
+                args = json.loads(args_raw) if isinstance(args_raw, str) else args_raw
+            except (json.JSONDecodeError, ValueError):
+                args = {}
+
+            try:
+                result = await execute_tool(name, args)
+            except Exception as exc:
+                logger.error("Tool execution failed: %s — %s", name, exc)
+                result = f"Tool error: {exc}"
+
+            if name in _PROPOSAL_TOOLS:
+                yield result
+                return
+
+            current_messages.append({
+                "role": "tool",
+                "content": result,
+                "tool_call_id": tc["id"],
+            })
 
 
 @router.post("/chat")
@@ -198,14 +253,6 @@ async def chat_stream(
     req: ChatRequest,
     current_user: str = Depends(get_current_user),
 ):
-    """
-    Flow:
-      1. LLM call (non-streaming) with all tools, tool_choice=auto
-      2a. proposal tool called → return JSON card to frontend immediately
-      2b. query tool(s) called → execute, append results, repeat up to 3 rounds
-      2c. no tool calls → stream text response
-    """
-    # Limit history sent to LLM to avoid context overflow
     MAX_CONTEXT = 10
     history = req.messages[-MAX_CONTEXT:] if len(req.messages) > MAX_CONTEXT else req.messages
 
@@ -221,64 +268,14 @@ async def chat_stream(
         "X-Accel-Buffering": "no",
     }
 
-    # Up to 3 rounds of query tool calls before streaming the final answer
-    for _ in range(3):
+    async def response_generator():
         try:
-            response = await _call_llm(messages, llm_url, model)
+            async for chunk in _stream_with_tools(messages, llm_url, model):
+                yield chunk
         except HTTPException as e:
-            detail = e.detail
-            async def error_gen():
-                yield f"Error: {detail}"
-            return StreamingResponse(error_gen(), media_type="text/plain", headers=streaming_headers)
+            yield f"Error: {e.detail}"
+        except Exception as e:
+            logger.error("Chat error: %s", e)
+            yield "Error: Internal server error"
 
-        # OpenAI format: choices[0].message
-        assistant_message = response.get("choices", [{}])[0].get("message", {})
-        tool_calls = assistant_message.get("tool_calls") or []
-        logger.info("LLM — tools=%s", [tc.get("function", {}).get("name") for tc in tool_calls])
-
-        if not tool_calls:
-            break
-
-        messages.append({
-            "role": "assistant",
-            "content": assistant_message.get("content", ""),
-            "tool_calls": tool_calls,
-        })
-
-        for tc in tool_calls:
-            name = tc.get("function", {}).get("name", "")
-            args = tc.get("function", {}).get("arguments", {})
-            if isinstance(args, str):
-                try:
-                    args = json.loads(args)
-                except (json.JSONDecodeError, ValueError):
-                    args = {}
-            try:
-                result = await execute_tool(name, args)
-            except Exception as exc:
-                logger.error("Tool execution failed: %s — %s", name, exc)
-                result = f"Tool error: {exc}"
-
-            if name in _PROPOSAL_TOOLS:
-                async def yield_proposal(r=result):
-                    yield r
-                return StreamingResponse(yield_proposal(), media_type="text/plain", headers=streaming_headers)
-
-            messages.append({"role": "tool", "content": result})
-
-    # Stream the final text response (either direct answer or after query tools)
-    async def stream_response():
-        text = assistant_message.get("content", "")
-        if text:
-            yield text
-        else:
-            try:
-                async for chunk in _stream_llm_response(messages, llm_url, model):
-                    yield chunk
-            except HTTPException as e:
-                yield f"Error: {e.detail}"
-            except Exception as e:
-                logger.error("Streaming error: %s", e)
-                yield "Error: Internal server error"
-
-    return StreamingResponse(stream_response(), media_type="text/plain", headers=streaming_headers)
+    return StreamingResponse(response_generator(), media_type="text/plain", headers=streaming_headers)

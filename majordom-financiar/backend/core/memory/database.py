@@ -565,6 +565,16 @@ class MemoryDB:
         finally:
             conn.close()
 
+    def get_all_push_subscriptions(self) -> list[dict]:
+        conn = self._get_conn()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM push_subscriptions ORDER BY created_at"
+            ).fetchall()
+            return [dict(row) for row in rows]
+        finally:
+            conn.close()
+
     def get_push_subscriptions(self, user_id: str = "default") -> list[dict]:
         conn = self._get_conn()
         try:

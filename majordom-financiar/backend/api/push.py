@@ -23,10 +23,10 @@ async def vapid_public_key():
 
 
 @router.post("/subscribe", status_code=204)
-async def subscribe(req: SubscribeRequest, _user=Depends(get_current_user)):
+async def subscribe(req: SubscribeRequest, current_user: str = Depends(get_current_user)):
     db = MemoryDB(settings.memory.db_path)
     db.save_push_subscription(
-        user_id="default",
+        user_id=current_user,
         endpoint=req.endpoint,
         p256dh=req.p256dh,
         auth=req.auth,
@@ -40,10 +40,10 @@ async def unsubscribe(endpoint: str, _user=Depends(get_current_user)):
 
 
 @router.post("/test", status_code=204)
-async def test_push(_user=Depends(get_current_user)):
-    """Sends a test push to all subscriptions for the default user. Used during setup verification."""
+async def test_push(current_user: str = Depends(get_current_user)):
+    """Sends a test push to all subscriptions for the current user."""
     await get_push_service().send_to_all(
-        user_id="default",
+        user_id=current_user,
         title="Majordom",
         body="Notificările funcționează corect.",
         url="/chat",

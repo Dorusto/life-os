@@ -39,14 +39,21 @@ function Layout() {
     }
   }, [])
 
-  // Load chat history from server on mount
-  useEffect(() => {
+  // Load chat history from server on mount and when window regains focus
+  // (covers the case where a push notification arrives while chat is open)
+  function loadChatHistory() {
     if (!isAuthenticated()) return
     getChatHistory().then(msgs => {
       if (msgs.length > 0) {
         setChatMessages(msgs.map(m => ({ role: m.role as Message['role'], content: m.content })))
       }
     }).catch(() => {})
+  }
+
+  useEffect(() => {
+    loadChatHistory()
+    window.addEventListener('focus', loadChatHistory)
+    return () => window.removeEventListener('focus', loadChatHistory)
   }, [])
 
   return (
