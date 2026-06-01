@@ -44,7 +44,7 @@ export default function FireWidget({ data }: { data: FireData | null }) {
       </div>
 
       {/* Progress bar */}
-      <div className="relative w-full h-1 bg-border/40 rounded-full overflow-hidden mt-3 mb-2">
+      <div className="relative w-full h-px bg-border/40 rounded-full overflow-hidden mt-3 mb-2">
         <div
           className="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
           style={{
