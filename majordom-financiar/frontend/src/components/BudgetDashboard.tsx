@@ -39,7 +39,6 @@ interface Props {
   categories: BudgetCategory[]
   month: number
   year: number
-  totalBalance?: number | null
 }
 
 function getColor(percentage: number, budgeted: number): string {
@@ -53,7 +52,7 @@ function fmt(n: number): string {
   return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-export default function BudgetDashboard({ categories, month, year, totalBalance }: Props) {
+export default function BudgetDashboard({ categories, month, year }: Props) {
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
 
   const totalSpent = categories.reduce((sum, c) => sum + c.spent, 0)
@@ -119,11 +118,6 @@ export default function BudgetDashboard({ categories, month, year, totalBalance 
                 {isOver ? '−' : '+'}€{fmt(Math.abs(budgetBalance))}
               </p>
             </>
-          )}
-          {totalBalance != null && (
-            <span className="inline-block text-xs text-muted border border-border rounded-full px-3 py-1 mt-2 font-mono tabular-nums">
-              €{fmt(totalBalance)} in accounts
-            </span>
           )}
         </div>
       </div>

@@ -43,7 +43,6 @@ export default function Home() {
     staleTime: 300_000,
   })
 
-  const netWorth = accounts?.reduce((sum, acc) => sum + acc.balance, 0) ?? null
   const cashflow = stats ? stats.income - stats.total : null
 
   function handleLogout() {
@@ -182,7 +181,6 @@ export default function Home() {
             categories={budgetStatus}
             month={now.getMonth() + 1}
             year={now.getFullYear()}
-            totalBalance={netWorth}
           />
         </section>
       )}
