@@ -1,10 +1,11 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { LogOut, Bell, MoreVertical, Database, Wallet } from 'lucide-react'
-import { getBudgetStatus, getAccounts, getMonthlyStats, getGoals } from '../lib/api'
+import { getBudgetStatus, getAccounts, getMonthlyStats, getGoals, getFire } from '../lib/api'
 import { getUsername, clearAuth } from '../lib/auth'
 import { requestAndSubscribe } from '../lib/push'
 import BudgetDashboard from '../components/BudgetDashboard'
+import FireWidget from '../components/FireWidget'
 import { useState, useEffect, useRef } from 'react'
 
 const GOAL_COLORS = ['#F59E0B', '#3B82F6', '#22C55E', '#8B5CF6', '#EC4899']
@@ -34,6 +35,12 @@ export default function Home() {
     queryKey: ['goals'],
     queryFn: () => getGoals(),
     staleTime: 120_000,
+  })
+
+  const { data: fireData } = useQuery({
+    queryKey: ['fire'],
+    queryFn: () => getFire(),
+    staleTime: 300_000,
   })
 
   const netWorth = accounts?.reduce((sum, acc) => sum + acc.balance, 0) ?? null
@@ -152,13 +159,7 @@ export default function Home() {
             format="currency"
             highlight={cashflow !== null ? (cashflow >= 0 ? 'positive' : 'negative') : 'neutral'}
           />
-          <MetricCard
-            label="Net Worth"
-            sublabel="total"
-            value={netWorth}
-            format="currency"
-            highlight="neutral"
-          />
+          <FireWidget data={fireData ?? null} />
         </div>
       </section>
 

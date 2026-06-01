@@ -59,8 +59,10 @@ function Layout() {
 
   useEffect(() => {
     loadChatHistory()
-    window.addEventListener('focus', loadChatHistory)
-    return () => window.removeEventListener('focus', loadChatHistory)
+    // visibilitychange fires when user switches apps — NOT on keyboard dismiss (unlike focus)
+    const onVisible = () => { if (document.visibilityState === 'visible') loadChatHistory() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [])
 
   return (

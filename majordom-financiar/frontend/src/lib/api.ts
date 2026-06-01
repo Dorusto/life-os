@@ -225,6 +225,22 @@ export async function getAccountList(): Promise<AccountListItem[]> {
   return request<AccountListItem[]>('/accounts')
 }
 
+// --- FIRE ---
+
+export interface FireData {
+  fire_portfolio: number
+  fire_target: number
+  fire_pct: number
+  months_remaining: number
+  projected_2035: number
+  on_track: boolean
+  monthly_contribution: number
+}
+
+export async function getFire(): Promise<FireData> {
+  return request<FireData>('/stats/fire')
+}
+
 // --- Stats ---
 
 export interface CategoryStat {
