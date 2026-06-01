@@ -6,7 +6,8 @@
 html, body, #root {
   background-color: #0F0F0F;
   color: #FAFAFA;
-  min-height: 100dvh; /* dvh = dynamic viewport height, correct on mobile with browser chrome */
+  height: 100dvh;
+  overflow: hidden; /* prevent body scroll — each page manages its own scroll */
 }
 
 /* Remove tap highlight on mobile — looks more native */
