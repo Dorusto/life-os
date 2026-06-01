@@ -272,16 +272,15 @@ export default function Chat({ messages, setMessages }: ChatProps) {
       },
       () => {
         setLoading(false)
-        // Save complete exchange to server history
+        // Save complete exchange to server history — only if assistant replied with text after the user message
         setMessages(prev => {
           const msgs = prev.filter(m => m.role === 'user' || m.role === 'assistant')
-          // Extract user message and last assistant reply from the exchange
-          const lastUser = msgs.filter(m => m.role === 'user').slice(-1)[0]
-          const lastAssistant = msgs.filter(m => m.role === 'assistant').slice(-1)[0]
-          if (lastUser && lastAssistant) {
+          const lastUserIdx = msgs.map(m => m.role).lastIndexOf('user')
+          const lastAssistantIdx = msgs.map(m => m.role).lastIndexOf('assistant')
+          if (lastUserIdx >= 0 && lastAssistantIdx > lastUserIdx) {
             saveChatHistory([
-              { role: 'user', content: lastUser.content },
-              { role: 'assistant', content: lastAssistant.content },
+              { role: 'user', content: msgs[lastUserIdx].content },
+              { role: 'assistant', content: msgs[lastAssistantIdx].content },
             ])
           }
           return prev

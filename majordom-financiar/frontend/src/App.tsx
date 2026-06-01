@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { isAuthenticated } from './lib/auth'
 import { requestAndSubscribe } from './lib/push'
@@ -32,6 +32,8 @@ function Layout() {
   const location = useLocation()
   const showNav = !HIDE_NAV_ON.some(p => location.pathname.startsWith(p))
   const [chatMessages, setChatMessages] = useState<Message[]>(INITIAL_MESSAGES)
+  const chatMessagesRef = useRef(chatMessages)
+  useEffect(() => { chatMessagesRef.current = chatMessages }, [chatMessages])
 
   useEffect(() => {
     if (isAuthenticated()) {
@@ -43,6 +45,11 @@ function Layout() {
   // (covers the case where a push notification arrives while chat is open)
   function loadChatHistory() {
     if (!isAuthenticated()) return
+    // Skip if there are active cards — replacing state would discard them
+    const hasActiveCards = chatMessagesRef.current.some(
+      m => m.role !== 'user' && m.role !== 'assistant' && m.role !== 'status'
+    )
+    if (hasActiveCards) return
     getChatHistory().then(msgs => {
       if (msgs.length > 0) {
         setChatMessages(msgs.map(m => ({ role: m.role as Message['role'], content: m.content })))
