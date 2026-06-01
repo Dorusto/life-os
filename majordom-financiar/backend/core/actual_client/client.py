@@ -159,6 +159,8 @@ class ActualBudgetClient:
                         continue
                     if tx.transferred_id:
                         continue  # skip transfer legs — not spending/income
+                    if tx.notes and '[Balance Adjustment]' in tx.notes:
+                        continue  # skip reconciliation adjustments — not real income/expense
                     amount = float(tx.amount or 0) / 100
                     if amount > 0:
                         income += amount
@@ -865,6 +867,8 @@ class ActualBudgetClient:
 
                 for tx in txs:
                     if tx.tombstone or tx.starting_balance_flag:
+                        continue
+                    if tx.notes and '[Balance Adjustment]' in tx.notes:
                         continue
                     amount = float(tx.amount or 0) / 100
                     if amount >= 0:
