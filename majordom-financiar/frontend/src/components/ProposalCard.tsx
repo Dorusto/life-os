@@ -78,8 +78,19 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
         {categories.length === 0 ? (
           <option value={proposal.category_name}>{proposal.category_name}</option>
         ) : (
-          categories.map(cat => (
-            <option key={cat.id} value={cat.name}>{cat.name}</option>
+          Object.entries(
+            categories.reduce((groups, cat) => {
+              const g = cat.group_name || 'Other'
+              if (!groups[g]) groups[g] = []
+              groups[g].push(cat)
+              return groups
+            }, {} as Record<string, typeof categories>)
+          ).map(([group, cats]) => (
+            <optgroup key={group} label={group}>
+              {cats.map(cat => (
+                <option key={cat.id} value={cat.name}>{cat.name}</option>
+              ))}
+            </optgroup>
           ))
         )}
       </select>

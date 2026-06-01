@@ -548,6 +548,7 @@ export async function getBudgetStatus(month?: number, year?: number): Promise<Bu
 export interface CategoryItem {
   id: string
   name: string
+  group_name: string
 }
 
 export async function getCategories(): Promise<CategoryItem[]> {

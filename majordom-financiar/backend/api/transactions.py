@@ -117,6 +117,7 @@ async def list_accounts(current_user: str = Depends(get_current_user)):
 class CategoryItem(BaseModel):
     id: str
     name: str
+    group_name: str = ""
 
 
 @router.get("/categories", response_model=list[CategoryItem])
@@ -131,7 +132,7 @@ async def list_categories(current_user: str = Depends(get_current_user)):
     except Exception as e:
         logger.error("Failed to fetch categories: %s", e)
         raise HTTPException(status_code=500, detail="Could not fetch categories")
-    return [CategoryItem(id=cat.id, name=cat.name) for cat in cats]
+    return [CategoryItem(id=cat.id, name=cat.name, group_name=cat.group_name) for cat in cats]
 
 
 @router.get("/category-groups", response_model=list[str])
