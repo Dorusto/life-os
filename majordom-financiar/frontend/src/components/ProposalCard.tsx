@@ -27,8 +27,12 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
   useEffect(() => {
     getCategories().then(cats => {
       setCategories(cats)
-      const match = cats.find(c => c.name.toLowerCase() === proposal.category_name.toLowerCase())
-      if (!match && cats.length > 0) setSelectedCategory(cats[0].name)
+      const proposed = proposal.category_name.toLowerCase()
+      const exactMatch = cats.find(c => c.name.toLowerCase() === proposed)
+      const fuzzyMatch = !exactMatch && cats.find(c => c.name.toLowerCase().includes(proposed) || proposed.includes(c.name.toLowerCase()))
+      const best = exactMatch || fuzzyMatch
+      if (best) setSelectedCategory(best.name)
+      // no match → keep proposal.category_name (user can pick manually)
     }).catch(() => {})
     getAccounts().then(setAccounts).catch(() => {})
   }, [])
