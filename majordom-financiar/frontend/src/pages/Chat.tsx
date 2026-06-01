@@ -418,25 +418,25 @@ export default function Chat({ messages, setMessages }: ChatProps) {
   return (
     <div className="h-dvh pb-16 bg-background flex flex-col">
       {/* Header */}
-      <header className="px-5 pt-[56px] pb-4 border-b border-border flex-shrink-0 flex items-end justify-between">
+      <header className="px-5 pt-[56px] pb-5 border-b border-border flex-shrink-0 flex items-end justify-between">
         <div>
           <p className="text-xs tracking-widest uppercase text-muted">Your financial advisor</p>
-          <h1 className="font-display text-3xl font-bold text-white mt-0.5">Majordom</h1>
+          <h1 className="font-display text-3xl font-bold text-white mt-0.5 pb-1">Majordom</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <button
             onClick={handleClearHistory}
-            className="mb-0.5 text-muted hover:text-red-400 transition-colors"
+            className="text-muted hover:text-red-400 transition-colors p-1"
             title="Clear chat history"
           >
-            <Trash2 size={18} />
+            <Trash2 size={22} />
           </button>
           <button
             onClick={() => setShowHelp(true)}
-            className="mb-0.5 text-muted hover:text-white transition-colors"
+            className="text-muted hover:text-white transition-colors p-1"
             title="How to use Majordom"
           >
-            <HelpCircle size={20} />
+            <HelpCircle size={22} />
           </button>
         </div>
       </header>
