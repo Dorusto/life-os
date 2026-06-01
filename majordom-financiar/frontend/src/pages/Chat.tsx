@@ -73,6 +73,10 @@ export default function Chat({ messages, setMessages }: ChatProps) {
   const [savedInput, setSavedInput] = useState('')
   const [showMediaMenu, setShowMediaMenu] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+  useEffect(() => {
+    document.body.style.overflow = showHelp ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [showHelp])
   const csvInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)
@@ -418,7 +422,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
   return (
     <div className="h-dvh pb-16 bg-background flex flex-col">
       {/* Header */}
-      <header className="px-5 pt-[56px] pb-5 border-b border-border flex-shrink-0 flex items-end justify-between">
+      <header className="px-5 pt-[56px] pb-3 border-b border-border flex-shrink-0 flex items-end justify-between">
         <div>
           <p className="text-xs tracking-widest uppercase text-muted">Your financial advisor</p>
           <h1 className="font-display text-3xl font-bold text-white mt-0.5 pb-1">Majordom</h1>
@@ -443,9 +447,9 @@ export default function Chat({ messages, setMessages }: ChatProps) {
 
       {/* Help modal */}
       {showHelp && (
-        <div className="fixed inset-0 z-50 flex items-end" onClick={() => setShowHelp(false)}>
+        <div className="fixed inset-0 z-50 flex items-end" style={{ touchAction: 'none' }} onClick={() => setShowHelp(false)}>
           <div
-            className="w-full bg-surface border-t border-border rounded-t-2xl px-6 pt-5 pb-24 space-y-5 max-h-[80vh] overflow-y-auto"
+            className="w-full bg-surface border-t border-border rounded-t-2xl px-6 pt-5 pb-24 space-y-5 max-h-[80vh] overflow-y-auto overscroll-contain"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">

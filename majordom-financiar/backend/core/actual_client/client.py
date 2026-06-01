@@ -44,6 +44,7 @@ class Category:
     id: str
     name: str
     group_name: str = ""
+    is_income: bool = False
 
 
 class ActualBudgetClient:
@@ -124,6 +125,7 @@ class ActualBudgetClient:
                         id=str(cat.id),
                         name=cat.name,
                         group_name=cat.group.name if cat.group else "",
+                        is_income=bool(cat.group and getattr(cat.group, 'is_income', False)),
                     )
                     for cat in cats
                     if not cat.hidden

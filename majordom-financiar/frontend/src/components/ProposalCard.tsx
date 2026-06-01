@@ -25,14 +25,20 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
   const [accounts, setAccounts] = useState<Account[]>([])
 
   useEffect(() => {
-    getCategories().then(cats => {
-      setCategories(cats)
+    getCategories().then(allCats => {
+      const expenseCats = allCats.filter(c => !c.is_income)
+      setCategories(expenseCats)
       const proposed = proposal.category_name.toLowerCase()
-      const exactMatch = cats.find(c => c.name.toLowerCase() === proposed)
-      const fuzzyMatch = !exactMatch && cats.find(c => c.name.toLowerCase().includes(proposed) || proposed.includes(c.name.toLowerCase()))
-      const best = exactMatch || fuzzyMatch
+      const exactMatch = expenseCats.find(c => c.name.toLowerCase() === proposed)
+      const nameMatch = !exactMatch && expenseCats.find(c =>
+        c.name.toLowerCase().includes(proposed) || proposed.includes(c.name.toLowerCase())
+      )
+      const groupMatch = !exactMatch && !nameMatch && expenseCats.find(c =>
+        c.group_name.toLowerCase() === proposed || c.group_name.toLowerCase().includes(proposed)
+      )
+      const best = exactMatch || nameMatch || groupMatch
       if (best) setSelectedCategory(best.name)
-      // no match → keep proposal.category_name (user can pick manually)
+      // no match → keep proposal.category_name (user picks manually)
     }).catch(() => {})
     getAccounts().then(setAccounts).catch(() => {})
   }, [])

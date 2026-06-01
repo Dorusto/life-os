@@ -549,6 +549,7 @@ export interface CategoryItem {
   id: string
   name: string
   group_name: string
+  is_income: boolean
 }
 
 export async function getCategories(): Promise<CategoryItem[]> {
