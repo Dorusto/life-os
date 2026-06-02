@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { LogOut, Bell, MoreVertical, Database, Wallet } from 'lucide-react'
-import { getBudgetStatus, getAccounts, getMonthlyStats, getGoals, getFire } from '../lib/api'
+import { getBudgetStatus, getMonthlyStats, getGoals, getFire } from '../lib/api'
 import { getUsername, clearAuth } from '../lib/auth'
 import { requestAndSubscribe } from '../lib/push'
 import BudgetDashboard from '../components/BudgetDashboard'
@@ -16,12 +16,6 @@ export default function Home() {
   const { data: budgetStatus } = useQuery({
     queryKey: ['budget'],
     queryFn: () => getBudgetStatus(),
-    staleTime: 120_000,
-  })
-
-  const { data: accounts } = useQuery({
-    queryKey: ['accounts'],
-    queryFn: () => getAccounts(),
     staleTime: 120_000,
   })
 
