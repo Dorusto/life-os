@@ -96,7 +96,7 @@ export default function Home() {
           {menuOpen && (
             <div className="absolute right-0 top-full mt-1 w-48 rounded-xl bg-surface border border-border shadow-lg z-50 overflow-hidden">
               <a
-                href={`${origin}:5006`}
+                href="https://ab.dorulian.eu"
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setMenuOpen(false)}
