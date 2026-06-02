@@ -524,6 +524,23 @@ export async function getGoals(): Promise<Goal[]> {
   return request<Goal[]>('/accounts/goals')
 }
 
+// --- Home (unified endpoint) ---
+
+export interface HomeData {
+  stats: MonthlyStats
+  budget: BudgetCategory[]
+  goals: Goal[]
+  fire: FireData
+}
+
+export async function getHomeData(month?: number, year?: number): Promise<HomeData> {
+  const params = new URLSearchParams()
+  if (month) params.set('month', String(month))
+  if (year) params.set('year', String(year))
+  const qs = params.toString()
+  return request<HomeData>(`/home${qs ? `?${qs}` : ''}`)
+}
+
 // --- Budget ---
 
 export interface BudgetCategory {

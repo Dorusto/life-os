@@ -576,6 +576,278 @@ class ActualBudgetClient:
                 return result
         return await self._run(_get)
 
+    async def get_home_data(
+        self,
+        month: int | None = None,
+        year: int | None = None,
+    ) -> dict:
+        """Fetch all Home screen data in a single AB session — one download_budget()."""
+
+        def _get():
+            import calendar
+            import re
+            from collections import defaultdict
+            from datetime import date as _date
+            from actual.queries import get_accounts, get_transactions, get_categories
+
+            target_month = month or _date.today().month
+            target_year = year or _date.today().year
+
+            with self._get_actual() as actual:
+                actual.download_budget()  # once only
+
+                # 1. Accounts (needed for net worth + FIRE)
+                accounts_data = get_accounts(actual.session)
+                accounts_result = []
+                for acc in accounts_data:
+                    if acc.closed:
+                        continue
+                    txs = get_transactions(actual.session, account=acc)
+                    balance = sum(
+                        float(tx.amount or 0)
+                        for tx in txs
+                        if not tx.tombstone
+                    ) / 100
+                    accounts_result.append({
+                        "id": str(acc.id),
+                        "name": acc.name,
+                        "balance": balance,
+                        "off_budget": bool(acc.offbudget),
+                    })
+
+                # 2. Monthly stats (cashflow)
+                start = _date(target_year, target_month, 1)
+                last_day = calendar.monthrange(target_year, target_month)[1]
+                end = _date(target_year, target_month, last_day)
+
+                txs = get_transactions(actual.session, start_date=start, end_date=end)
+
+                total = 0.0
+                income = 0.0
+                count = 0
+                by_category: dict[str, dict] = defaultdict(lambda: {"total": 0.0, "count": 0, "name": ""})
+
+                for tx in txs:
+                    if tx.tombstone or tx.starting_balance_flag:
+                        continue
+                    if tx.transferred_id:
+                        continue
+                    if tx.notes and '[Balance Adjustment]' in tx.notes:
+                        continue
+                    amount = float(tx.amount or 0) / 100
+                    if amount > 0:
+                        income += amount
+                        continue
+                    if tx.category and getattr(tx.category, 'is_income', False):
+                        continue
+                    amount = abs(amount)
+                    total += amount
+                    count += 1
+
+                    cat_name = "Uncategorized"
+                    cat_key = "uncategorized"
+                    if tx.category_id:
+                        if tx.category:
+                            cat_name = tx.category.name or "Uncategorized"
+                            cat_key = str(tx.category_id)
+                        else:
+                            cat_key = str(tx.category_id)
+                            cat_name = f"Deleted:{cat_key[:8]}"
+
+                    by_category[cat_key]["total"] += amount
+                    by_category[cat_key]["count"] += 1
+                    by_category[cat_key]["name"] = cat_name
+
+                # Remap tombstoned categories via fuzzy match
+                try:
+                    from sqlmodel import select as _select
+                    from actual.database import Categories as _CatTable
+                    from difflib import get_close_matches
+                    all_raw = actual.session.exec(_select(_CatTable)).all()
+                    all_cats = get_categories(actual.session)
+                    living_map = {str(c.id): (c.name or "Uncategorized") for c in all_cats if c.id}
+                    living_lower = {(c.name or "").lower(): str(c.id) for c in all_cats if c.id and c.name}
+                    dead_names = {str(c.id): (c.name or "") for c in all_raw if c.tombstone and c.id}
+                    for dead_id, dead_name in dead_names.items():
+                        if dead_id not in by_category:
+                            continue
+                        matches = get_close_matches(dead_name.lower(), list(living_lower.keys()), n=1, cutoff=0.4)
+                        if matches:
+                            live_id = living_lower[matches[0]]
+                            if live_id in by_category:
+                                by_category[live_id]["total"] += by_category[dead_id]["total"]
+                                by_category[live_id]["count"] += by_category[dead_id]["count"]
+                            else:
+                                by_category[live_id] = by_category[dead_id].copy()
+                                by_category[live_id]["name"] = living_map[live_id]
+                            del by_category[dead_id]
+                        else:
+                            by_category[dead_id]["name"] = dead_name or "Other"
+                except Exception:
+                    pass
+
+                stats_result = {
+                    "month": target_month,
+                    "year": target_year,
+                    "total": round(total, 2),
+                    "income": round(income, 2),
+                    "count": count,
+                    "categories": dict(by_category),
+                }
+
+                # 3. Budget status
+                yyyymm = target_year * 100 + target_month
+                budget_by_category: dict[str, float] = defaultdict(float)
+
+                try:
+                    from sqlalchemy import text as _text
+                    rows = actual.session.execute(
+                        _text("SELECT category, amount FROM zero_budgets WHERE id LIKE :prefix"),
+                        {"prefix": f"{yyyymm}%"},
+                    ).fetchall()
+                    for row in rows:
+                        cat_id = str(row[0]) if row[0] else ""
+                        amount_cents = float(row[1] or 0)
+                        budget_by_category[cat_id] += amount_cents / 100
+                except Exception:
+                    try:
+                        from sqlalchemy import text as _text
+                        rows = actual.session.execute(
+                            _text("SELECT category, amount FROM reflect_budgets WHERE id LIKE :prefix"),
+                            {"prefix": f"{yyyymm}%"},
+                        ).fetchall()
+                        for row in rows:
+                            cat_id = str(row[0]) if row[0] else ""
+                            amount_cents = float(row[1] or 0)
+                            budget_by_category[cat_id] += amount_cents / 100
+                    except Exception:
+                        pass
+
+                spent_by_category: dict[str, float] = defaultdict(float)
+                for tx in txs:
+                    if tx.tombstone or tx.starting_balance_flag:
+                        continue
+                    if tx.transferred_id:
+                        continue
+                    if tx.category and getattr(tx.category, 'is_income', False):
+                        continue
+                    amount = float(tx.amount or 0) / 100
+                    if amount >= 0:
+                        continue
+                    amount = abs(amount)
+                    cat_id = str(tx.category_id) if tx.category_id else "uncategorized"
+                    spent_by_category[cat_id] += amount
+
+                all_cats = get_categories(actual.session)
+                cat_name_map: dict[str, str] = {}
+                cat_group_map: dict[str, str] = {}
+                for cat in all_cats:
+                    if cat.id:
+                        cat_name_map[str(cat.id)] = cat.name or "Uncategorized"
+                        cat_group_map[str(cat.id)] = cat.group.name if cat.group else "Unexpected"
+
+                # Remap tombstoned spending for budget
+                try:
+                    from sqlmodel import select as _select
+                    from actual.database import Categories as _CatTable
+                    from difflib import get_close_matches
+                    all_raw = actual.session.exec(_select(_CatTable)).all()
+                    dead_names = {
+                        str(c.id): (c.name or "")
+                        for c in all_raw if c.tombstone and c.id
+                    }
+                    living_lower = {
+                        (c.name or "").lower(): str(c.id)
+                        for c in all_cats if c.id and c.name
+                    }
+                    for dead_id, dead_name in dead_names.items():
+                        if dead_id not in spent_by_category:
+                            continue
+                        matches = get_close_matches(
+                            dead_name.lower(), list(living_lower.keys()), n=1, cutoff=0.4
+                        )
+                        if matches:
+                            live_id = living_lower[matches[0]]
+                            spent_by_category[live_id] += spent_by_category.pop(dead_id)
+                except Exception:
+                    pass
+
+                all_category_ids = (
+                    set(budget_by_category.keys())
+                    | set(spent_by_category.keys())
+                    | {str(c.id) for c in all_cats if c.id and not c.hidden}
+                )
+
+                budget_result = []
+                for cat_id in all_category_ids:
+                    if cat_id == "uncategorized":
+                        continue
+                    if cat_id not in cat_name_map:
+                        continue
+                    budgeted = round(budget_by_category.get(cat_id, 0.0), 2)
+                    spent = round(spent_by_category.get(cat_id, 0.0), 2)
+                    if budgeted == 0 and spent == 0:
+                        continue
+                    percentage = round(spent / budgeted * 100, 1) if budgeted > 0 else 0.0
+                    budget_result.append({
+                        "category_id": cat_id,
+                        "category_name": cat_name_map.get(cat_id, "Unknown"),
+                        "group_name": cat_group_map.get(cat_id, "Unexpected"),
+                        "budgeted": budgeted,
+                        "spent": spent,
+                        "percentage": percentage,
+                    })
+
+                budget_result.sort(key=lambda r: (-1 if r["percentage"] > 100 else 0, -r["percentage"], r["category_name"]))
+
+                # 4. Goals
+                goals_result = []
+                for acc in accounts_data:
+                    if acc.closed or acc.tombstone:
+                        continue
+                    note = acc.notes or ""
+                    match = re.search(r'TARGET:\s*([\d]+(?:\.\d+)?)', note, re.IGNORECASE)
+                    if not match:
+                        continue
+                    target = float(match.group(1))
+                    txs_acc = get_transactions(actual.session, account=acc)
+                    balance = sum(
+                        float(tx.amount or 0) for tx in txs_acc if not tx.tombstone
+                    ) / 100
+                    percentage = round(balance / target * 100, 1) if target > 0 else 0.0
+
+                    deadline = None
+                    monthly_needed = None
+                    months_remaining = None
+                    dl_match = re.search(r'DEADLINE:\s*(\d{4}-\d{2})', note, re.IGNORECASE)
+                    if dl_match:
+                        deadline = dl_match.group(1)
+                        dl_year, dl_month = map(int, deadline.split("-"))
+                        today = _date.today()
+                        months_remaining = (dl_year - today.year) * 12 + (dl_month - today.month)
+                        if months_remaining > 0:
+                            monthly_needed = round((target - balance) / months_remaining, 2)
+
+                    goals_result.append({
+                        "id": str(acc.id),
+                        "name": acc.name,
+                        "balance": round(balance, 2),
+                        "target": target,
+                        "percentage": percentage,
+                        "deadline": deadline,
+                        "monthly_needed": monthly_needed,
+                        "months_remaining": months_remaining,
+                    })
+
+            return {
+                "accounts": accounts_result,
+                "stats": stats_result,
+                "budget": budget_result,
+                "goals": goals_result,
+            }
+
+        return await self._run(_get)
+
     async def set_account_goal(self, account_name: str, target: float, deadline: str | None = None) -> str:
         """
         Write or update TARGET: <amount> (and optionally DEADLINE: YYYY-MM) in the account note.

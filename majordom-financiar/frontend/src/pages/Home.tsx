@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { LogOut, Bell, MoreVertical, Database, Wallet } from 'lucide-react'
-import { getBudgetStatus, getMonthlyStats, getGoals, getFire } from '../lib/api'
+import { LogOut, Bell, MoreVertical, Wallet, Database } from 'lucide-react'
+import { getHomeData } from '../lib/api'
 import { getUsername, clearAuth } from '../lib/auth'
 import { requestAndSubscribe } from '../lib/push'
 import BudgetDashboard from '../components/BudgetDashboard'
@@ -13,30 +13,16 @@ const GOAL_COLORS = ['#F59E0B', '#3B82F6', '#22C55E', '#8B5CF6', '#EC4899']
 export default function Home() {
   const navigate = useNavigate()
 
-  const { data: budgetStatus } = useQuery({
-    queryKey: ['budget'],
-    queryFn: () => getBudgetStatus(),
+  const { data: homeData } = useQuery({
+    queryKey: ['home'],
+    queryFn: () => getHomeData(),
     staleTime: 120_000,
   })
 
-  const { data: stats } = useQuery({
-    queryKey: ['stats'],
-    queryFn: () => getMonthlyStats(),
-    staleTime: 120_000,
-  })
-
-  const { data: goals } = useQuery({
-    queryKey: ['goals'],
-    queryFn: () => getGoals(),
-    staleTime: 120_000,
-  })
-
-  const { data: fireData } = useQuery({
-    queryKey: ['fire'],
-    queryFn: () => getFire(),
-    staleTime: 300_000,
-  })
-
+  const budgetStatus = homeData?.budget
+  const stats = homeData?.stats
+  const goals = homeData?.goals
+  const fireData = homeData?.fire
   const cashflow = stats ? stats.income - stats.total : null
 
   function handleLogout() {
