@@ -14,8 +14,8 @@ jobs:
     steps:
       - name: Pull latest changes
         run: |
-          git -C "$MAJORDOM_PATH" stash
-          git -C "$MAJORDOM_PATH" pull
+          git -C "$MAJORDOM_PATH" fetch origin
+          git -C "$MAJORDOM_PATH" reset --hard origin/main
 
       - name: Rebuild and restart services
         run: |
