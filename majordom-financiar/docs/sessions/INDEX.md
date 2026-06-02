@@ -29,3 +29,4 @@
 | [W22](2026-W22.md) | 2026-05-31 | M3.3 FuelReceiptCard unified + log_refuel | api/receipts.py, api/vehicle_proposals.py, frontend/FuelReceiptCard.tsx |
 | [W23](2026-W23.md) | 2026-06-01 | Notifications in chat + bug user_id="default" | api/push.py, services/notifications.py, frontend/App.tsx |
 | [W23](2026-W23.md) | 2026-06-01 | Migration to OpenAI-compatible API + OpenRouter | services/chat_service.py, api/chat.py |
+| [W23](2026-W23.md) | 2026-06-02 | Unified /api/home — 4× download_budget → 1× (~800ms) | api/home.py, actual_client/client.py, frontend/Home.tsx |
