@@ -44,3 +44,6 @@
 - **What did we fix last week** → `docs/sessions/INDEX.md`
 - **Critical rules (never break)** → `docs/architecture.md#critical-technical-rules`
 - **Project file structure** → `docs/architecture.md#project-structure`
+- **Dev workflow gaps + ops priorities** → `docs/dev-workflow.md`
+- **Disaster recovery (LXC rebuild)** → `docs/recovery.md`
+- **Backup script** → `scripts/backup.sh`

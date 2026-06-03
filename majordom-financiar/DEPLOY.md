@@ -205,44 +205,30 @@ docker compose up -d --build
 
 ---
 
-## Backup
+## Backup & Recovery
 
-Majordom's persistent data:
+See **[`scripts/backup.sh`](scripts/backup.sh)** for the automated backup script and **[`docs/recovery.md`](docs/recovery.md)** for the full disaster recovery runbook.
 
-| What | Where | How to back up |
-|------|-------|----------------|
-| Actual Budget files | Docker volume `majordom-actual-data` | See below |
-| Merchant memory / CSV profiles | `./data/memory.db` (bind mount) | Copy the file |
-
-### Back up Actual Budget
+### Quick start
 
 ```bash
-docker run --rm \
-  -v majordom-actual-data:/data \
-  -v $(pwd):/backup \
-  alpine tar czf /backup/actual-backup-$(date +%Y%m%d).tar.gz -C /data .
+# Run a manual backup
+./scripts/backup.sh
+
+# Schedule daily at 03:00 (crontab -e):
+0 3 * * * /home/majordom/life-os/majordom-financiar/scripts/backup.sh >> /var/log/majordom-backup.log 2>&1
 ```
 
-### Restore
+The script archives `.env` + `data/` (SQLite, VAPID keys) + Actual Budget Docker volume into a single `.tar.gz` in `./backups/`. Remote upload options (Google Drive, Nextcloud, rsync, Hetzner) are in the script — uncomment one.
 
-```bash
-docker run --rm \
-  -v majordom-actual-data:/data \
-  -v $(pwd):/backup \
-  alpine tar xzf /backup/actual-backup-20260510.tar.gz -C /data
-```
+What is backed up:
 
-### Automate with cron
-
-```bash
-# crontab -e
-0 3 * * * cd /path/to/majordom-financiar && \
-  docker run --rm -v majordom-actual-data:/data -v $(pwd)/backups:/backup \
-  alpine tar czf /backup/actual-$(date +\%Y\%m\%d).tar.gz -C /data . && \
-  cp ./data/memory.db ./backups/memory-$(date +\%Y\%m\%d).db && \
-  find ./backups -name "*.tar.gz" -mtime +30 -delete && \
-  find ./backups -name "*.db" -mtime +30 -delete
-```
+| What | Content |
+|------|---------|
+| `.env` | All secrets and configuration |
+| `data/memory.db` | Merchant mappings, vehicle log, chat history, push subscriptions |
+| `data/vapid_private.pem` | Web Push keys — if lost, users must re-subscribe |
+| Actual Budget volume | All transactions, budgets, accounts |
 
 ---
 

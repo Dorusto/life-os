@@ -12,9 +12,10 @@ The user speaks to Majordom in natural language. Majordom calls the right tool, 
 
 **Fundamental principles:**
 - Zero financial data in the cloud — everything runs on your own server
-- Majordom does not reinvent what specialist tools do — if Actual Budget handles it, Majordom calls it
+- Majordom does not reinvent what specialist tools do — it calls them via REST API
 - SQLite is only for conversational context, preferences, and domain memory — never financial data
 - When in doubt, solve it in chat before building a new screen
+- Majordom is an MCP server for external agents, not an MCP client — it calls services via REST
 
 ---
 
@@ -306,4 +307,68 @@ Majordom will expose its tool registry through MCP standard. Any MCP-compatible 
 
 ---
 
-*Last updated: 2026-06-02*
+---
+
+## Target Architecture (incremental migration — June 2026+)
+
+> This is the direction, not the current state. Each service is extracted when work happens on it anyway. No big-bang rewrites.
+
+### Life-OS structure (target)
+
+```
+life-os/
+├── majordom/              ← orchestrator + conversational UI + daily digest + MCP server
+│
+├── finance/
+│   ├── sure/              ← budget + investments + bank sync (target platform)
+│   ├── actual-budget/     ← current platform, stays until Sure reaches parity
+│   └── portfolio-bridge/  ← Bitvavo/XTB → Sure (first M5 task)
+│
+├── tools/
+│   ├── receipt-scanner/   ← OCR receipt → transaction (extracted from Majordom)
+│   ├── csv-importer/      ← smart bank CSV import (extracted from Majordom)
+│   └── vehicle-manager/   ← Fuelio replacement (extracted from Majordom)
+│
+├── home/
+│   ├── home-assistant/
+│   ├── immich/
+│   └── nextcloud/
+│
+└── docker-compose.yml     ← single stack
+```
+
+### Majordom roles (target)
+- Conversational UI with cards and charts
+- Proactive daily digest
+- MCP server — external agents (OpenClaw, Claude API, Hermes) call Majordom's tools
+- REST client — Majordom calls each service via its REST API (no MCP client internally)
+
+### FinanceProvider abstraction
+
+Majordom's tool registry calls a `FinanceProvider` protocol, not AB/Sure directly:
+
+```python
+class FinanceProvider(Protocol):
+    async def get_accounts(self) -> list[Account]: ...
+    async def get_transactions(self, ...) -> list[Transaction]: ...
+    async def create_transaction(self, ...) -> str: ...
+    async def get_budget_status(self) -> BudgetStatus: ...
+
+class ActualBudgetProvider:   # current — wraps actualpy
+    ...
+
+class SureProvider:           # future — Sure REST API
+    ...
+```
+
+Config: `FINANCE_BACKEND=actual_budget` (default) or `sure`. Switching backends requires no code changes.
+
+### Incremental migration strategy
+
+- **Never stop current development** for structural migration
+- **Extract a service** when working on that feature anyway (e.g., extract `vehicle-manager/` during next vehicle feature sprint)
+- **Each extracted service** gets its own repo, Docker image, REST API, and README
+- **Audit after each migration step** — verify existing functionality before moving on
+- `majordom-financiar/` → `majordom/` rename happens when folder restructure is triggered by other work
+
+*Last updated: 2026-06-03*

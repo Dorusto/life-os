@@ -116,3 +116,25 @@ Pending refuel proposals live in process memory (dict in `vehicle_proposals.py`)
 - Daily digest → `PushService.broadcast()` — sends to all subscriptions without user_id filter
 - Per-user alerts → `PushService.send_to_all(user_id=X)` — filters by user
 - Never hardcode `user_id="default"` — always use `current_user` from auth
+
+---
+
+## Architecture decisions — June 2026
+
+### Sure adoption + AB coexistence strategy
+**Date:** 2026-06-03
+**Decision:** Sure (`github.com/we-promise/sure`) replaces Ghostfolio immediately (on hold). Sure will eventually replace Actual Budget as the single financial platform (budgeting + investments + bank sync). AB remains operational until Sure stabilizes Enable Banking NL (active token-expiry bug, May 2026) and reaches budget allocation parity. Migration is incremental — triggered when working on related features, not as a big-bang effort.
+**Why:** Sure covers budgeting + investments + bank sync in one platform with a native MCP server. Ghostfolio has no broker sync and no native integration path. AB remains the source of truth for daily budgeting until Sure proves feature parity.
+**Rejected:** Big-bang migration — too risky while Majordom is in active daily use (June 2026 = first month with clean AB data).
+
+### FinanceProvider abstraction — REST API, not direct library calls
+**Date:** 2026-06-03
+**Decision:** Majordom's tool registry (`registry.py`) calls a `FinanceProvider` abstract interface, not AB or Sure clients directly. Two concrete implementations: `ActualBudgetProvider` (wraps actualpy) and `SureProvider` (calls Sure REST API). Switching backends = one env var change (`FINANCE_BACKEND=actual_budget|sure`).
+**Why:** Avoids building M4/M2.5 tools twice. All features built against the interface work with both AB and Sure. REST API chosen over MCP client for internal service calls — simpler, fully debuggable, complete control over retries and error handling.
+**Rejected:** Direct MCP client calls from Majordom to Sure's `/mcp` endpoint — protocol overhead for operations that are simple HTTP calls. MCP belongs on the inbound side (agents calling Majordom), not the outbound side (Majordom calling services).
+
+### Majordom as MCP server — not MCP client
+**Date:** 2026-06-03
+**Decision:** Majordom exposes its tool registry as an MCP server (issue #58). External agents (OpenClaw, Claude API, Hermes) call Majordom via MCP standard. Majordom communicates with all downstream services (Sure, AB, Home Assistant, Immich, Nextcloud) via their REST APIs.
+**Why:** Clean separation — one standard interface inward (MCP for agents), pragmatic direct calls outward (REST per service). Majordom becomes the single integration point: agents don't need to know about Sure or AB at all.
+**Rejected:** Per-agent direct integration with each service — defeats the orchestrator purpose and creates N×M integrations instead of N+M.

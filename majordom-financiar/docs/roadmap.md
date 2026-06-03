@@ -94,14 +94,30 @@ Backlog (needs dedicated UI tab): mileage log view, moving average consumption, 
 
 → [Session log W22](sessions/2026-W22.md) · [W23](sessions/2026-W23.md)
 
-### 🔲 M5 — Integrations
-| Feature | Notes |
-|---------|-------|
-| Ghostfolio | Self-hosted ETF portfolio tracking; sync with AB off-budget accounts |
-| Crypto tracker with sell alert | Average acquisition cost; alert on return threshold; configurable sell strategy |
-| Child portfolio dashboard | Off-budget AB account per child; conversational queries |
-| Freelance / ZZP dashboard | Deductible tracking via `#deductible` tag; year-end tax filter |
-| Joint / couple budget | Shared AB file (Strategy A) or joint account in personal budget (Strategy B) |
+### 🔲 M5 — Integrations (Sure + Portfolio)
+
+**Platform decision (2026-06-03):** Sure replaces Ghostfolio. Sure will eventually replace AB. See `docs/decisions.md#sure-adoption`.
+
+Sure test checklist (before any integration work):
+- [ ] Deploy Sure on LXC via Docker (same pattern as AB)
+- [ ] Test Enable Banking NL — verify token-expiry bug status
+- [ ] Test budget allocation — verify parity with AB categories
+- [ ] Evaluate MCP server (`github.com/we-promise/sure-mcp-server`) — functionality scope
+
+| # | Feature | Notes |
+|---|---------|-------|
+| 5.1 | portfolio-bridge: Bitvavo → Sure | Independent service in `finance/portfolio-bridge/`; Bitvavo official API |
+| 5.2 | FinanceProvider abstraction in Majordom | `ActualBudgetProvider` + `SureProvider` behind one interface; `FINANCE_BACKEND` env var |
+| 5.3 | Switch Majordom → Sure backend | Only after Sure passes test checklist above |
+| 5.4 | Crypto tracker with sell alert | Average acquisition cost; alert on return threshold; via Sure |
+| 5.5 | Trading 212 sync | Native in Sure via SnapTrade |
+| 5.6 | XTB sync | CSV export → Sure (API dead since 2025-03-14) |
+| 5.7 | MCP server endpoint for Majordom | Expose `registry.py` tools via MCP — issue #58 |
+| 5.8 | Child portfolio dashboard | Per-child account in Sure; conversational queries |
+| 5.9 | Freelance / ZZP dashboard | Deductible tracking via `#deductible` tag; year-end tax filter |
+| 5.10 | Joint / couple budget | Shared Sure file or joint account strategy |
+
+~~Ghostfolio~~ — on hold, replaced by Sure. Removed from active roadmap.
 
 ---
 
