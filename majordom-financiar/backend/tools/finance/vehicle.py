@@ -506,3 +506,18 @@ async def get_vehicle_stats(vehicle_name: str = "", period: str = "") -> str:
         lines.append(f"- **Total vehicle cost: €{total_cost:.2f}**")
 
     return "\n".join(lines)
+
+
+async def set_vehicle_type(vehicle_name: str, vehicle_type: str) -> str:
+    """
+    Set the type of a vehicle ('car', 'motorcycle', 'other').
+    Used to show the correct emoji in notifications.
+    """
+    from backend.core.memory.database import MemoryDB
+    db = MemoryDB(settings.memory.db_path)
+    found = db.set_vehicle_type(vehicle_name, vehicle_type)
+    if not found:
+        return f"Vehicle '{vehicle_name}' not found."
+    icons = {"car": "🚗", "motorcycle": "🏍️", "other": "🚙"}
+    icon = icons.get(vehicle_type, "🚗")
+    return f"{icon} {vehicle_name} is now set as a {vehicle_type}."

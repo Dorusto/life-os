@@ -61,7 +61,7 @@ async def _save_to_chat_history(body: str, db: MemoryDB) -> None:
 _FINANCIAL_SYSTEM_PROMPT = (
     "You are Majordom, a personal finance assistant. "
     "Write a short daily financial summary — max 2 sentences, friendly tone.\n"
-    "- If no transactions today: ask if everything is ok or if the user bought something.\n"
+    "- If no transactions today: congratulate the user for a spend-free day and note that all categories are on track.\n"
     "- If transactions exist: summarize the day and add a useful budget observation.\n"
     "- Do not repeat raw numbers — interpret and provide context.\n"
     "- If a category exceeds 80% of its budget: mention it.\n"
@@ -237,12 +237,13 @@ def _check_vehicle_reminders(db: MemoryDB) -> list[tuple[str, str, dict]]:
                 continue
 
             label = "APK/ITP" if reminder_type == "apk" else "insurance"
+            icon = "🏍️" if v.get("vehicle_type") == "motorcycle" else "🚗"
             if days < 0:
                 text = f"⚠️ {v['name']} {label} expired {abs(days)} days ago — renew now."
             elif days == 0:
                 text = f"⚠️ {v['name']} {label} expires today."
             else:
-                text = f"🚗 {v['name']} {label} expires in {days} days ({due_str})."
+                text = f"{icon} {v['name']} {label} expires in {days} days ({due_str})."
 
             alerts.append((text, spam_key, {"vehicle": v["name"], "type": reminder_type, "days": days}))
 
@@ -316,8 +317,9 @@ def _check_vehicle_reminders(db: MemoryDB) -> list[tuple[str, str, dict]]:
             continue
 
         missing_str = " and ".join(missing)
+        icon = "🏍️" if v.get("vehicle_type") == "motorcycle" else "🚗"
         text = (
-            f"🚗 {v['name']} has no {missing_str} date set — "
+            f"{icon} {v['name']} has no {missing_str} date set — "
             f"tell me the expiry date{'s' if len(missing) > 1 else ''} so I can remind you."
         )
         alerts.append((text, nudge_key, {"vehicle": v["name"], "missing": missing}))
@@ -367,7 +369,7 @@ async def run_daily_digest():
         # --- Build push body ---
         # Financial summary (if present) is the first sentence.
         # Alerts follow, separated by " · "
-        body = " · ".join(parts)
+        body = "\n".join(parts)
 
         push_svc = get_push_service()
         await push_svc.broadcast(

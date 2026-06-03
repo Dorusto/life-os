@@ -160,6 +160,7 @@ class MemoryDB:
                     insurance_due TEXT,
                     active INTEGER DEFAULT 1,
                     notes TEXT,
+                    vehicle_type TEXT DEFAULT 'car',
                     created_at TEXT DEFAULT (datetime('now'))
                 );
 
@@ -211,6 +212,7 @@ class MemoryDB:
                 ("service_interval_months", "INTEGER DEFAULT NULL"),
                 ("last_service_km", "REAL DEFAULT NULL"),
                 ("last_service_date", "TEXT DEFAULT NULL"),
+                ("vehicle_type", "TEXT DEFAULT 'car'"),
             ]:
                 try:
                     conn.execute(f"ALTER TABLE vehicles ADD COLUMN {col} {defn}")
@@ -664,19 +666,34 @@ class MemoryDB:
             if row:
                 vid = row["id"]
                 conn.execute("""
-                    UPDATE vehicles SET make=?,model=?,year=?,tank_capacity=?,fuel_type=?,active=?
+                    UPDATE vehicles SET make=?,model=?,year=?,tank_capacity=?,fuel_type=?,active=?,vehicle_type=?
                     WHERE id=?
                 """, (data.get("make"), data.get("model"), data.get("year"),
-                      data.get("tank_capacity"), data.get("fuel_type"), data.get("active", 1), vid))
+                      data.get("tank_capacity"), data.get("fuel_type"), data.get("active", 1),
+                      data.get("vehicle_type", "car"), vid))
                 conn.commit()
                 return vid
             cursor = conn.execute("""
-                INSERT INTO vehicles (name,make,model,year,plate,tank_capacity,fuel_type,active)
-                VALUES (?,?,?,?,?,?,?,?)
+                INSERT INTO vehicles (name,make,model,year,plate,tank_capacity,fuel_type,active,vehicle_type)
+                VALUES (?,?,?,?,?,?,?,?,?)
             """, (data.get("name"), data.get("make"), data.get("model"), data.get("year"),
-                  data.get("plate"), data.get("tank_capacity"), data.get("fuel_type"), data.get("active", 1)))
+                  data.get("plate"), data.get("tank_capacity"), data.get("fuel_type"), data.get("active", 1),
+                  data.get("vehicle_type", "car")))
             conn.commit()
             return cursor.lastrowid
+        finally:
+            conn.close()
+
+    def set_vehicle_type(self, vehicle_name: str, vehicle_type: str) -> bool:
+        """Set vehicle_type ('car', 'motorcycle', 'other') by name. Returns True if found."""
+        conn = self._get_conn()
+        try:
+            cursor = conn.execute(
+                "UPDATE vehicles SET vehicle_type=? WHERE lower(name)=lower(?)",
+                (vehicle_type, vehicle_name)
+            )
+            conn.commit()
+            return cursor.rowcount > 0
         finally:
             conn.close()
 

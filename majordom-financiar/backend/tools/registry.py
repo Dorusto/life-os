@@ -524,6 +524,31 @@ TOOLS: list[dict] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "set_vehicle_type",
+            "description": (
+                "Set the type of a vehicle: 'car', 'motorcycle', or 'other'. "
+                "Use when the user says a vehicle is a motorcycle or corrects the vehicle type."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "vehicle_name": {
+                        "type": "string",
+                        "description": "Exact vehicle name, e.g. 'Wabi Sabi'.",
+                    },
+                    "vehicle_type": {
+                        "type": "string",
+                        "enum": ["car", "motorcycle", "other"],
+                        "description": "Type of vehicle.",
+                    },
+                },
+                "required": ["vehicle_name", "vehicle_type"],
+            },
+        },
+    },
 ]
 
 async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
@@ -614,6 +639,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "delete_vehicle_log_entry":
         from backend.tools.finance.vehicle import delete_vehicle_log_entry
         return await delete_vehicle_log_entry(**arguments)
+
+    if name == "set_vehicle_type":
+        from backend.tools.finance.vehicle import set_vehicle_type
+        return await set_vehicle_type(**arguments)
 
     return f"Unknown tool: {name}"
 
