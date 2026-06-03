@@ -30,3 +30,4 @@
 | [W23](2026-W23.md) | 2026-06-01 | Notifications in chat + bug user_id="default" | api/push.py, services/notifications.py, frontend/App.tsx |
 | [W23](2026-W23.md) | 2026-06-01 | Migration to OpenAI-compatible API + OpenRouter | services/chat_service.py, api/chat.py |
 | [W23](2026-W23.md) | 2026-06-02 | Unified /api/home — 4× download_budget → 1× (~800ms) | api/home.py, actual_client/client.py, frontend/Home.tsx |
+| [W23](2026-W23.md) | 2026-06-03 | Issue audit (11 closed) + vehicle type + digest UX + modal fix | database.py, notification_service.py, Chat.tsx, BudgetDashboard.tsx |
