@@ -73,9 +73,18 @@ export default function Chat({ messages, setMessages }: ChatProps) {
   const [savedInput, setSavedInput] = useState('')
   const [showMediaMenu, setShowMediaMenu] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+  const messagesContainerRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
     document.body.style.overflow = showHelp ? 'hidden' : ''
-    return () => { document.body.style.overflow = '' }
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.style.overflow = showHelp ? 'hidden' : ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+      if (messagesContainerRef.current) {
+        messagesContainerRef.current.style.overflow = ''
+      }
+    }
   }, [showHelp])
   const csvInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
@@ -499,7 +508,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
       )}
 
       {/* Message list */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {messages.map((msg, idx) => (
           <div
             key={idx}
