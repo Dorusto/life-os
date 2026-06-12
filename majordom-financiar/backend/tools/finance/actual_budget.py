@@ -516,6 +516,73 @@ async def create_category(name: str, group_name: str) -> str:
     return json.dumps({"type": "category_action", "id": action_id, "action": "create", "category_name": name, "group_name": resolved_group, "available_groups": groups})
 
 
+async def propose_set_category_budget(
+    category_name: str,
+    amount: float,
+    month: str = "",
+) -> str:
+    """
+    Propose setting a category's budget to a specific amount for a month.
+    Returns JSON with type='category_action', action='set_budget' for the frontend card.
+    Does NOT write to Actual Budget yet.
+    """
+    import json
+    import uuid
+    from difflib import get_close_matches
+    from datetime import date as _date
+    from backend.tools import category_actions as action_store
+
+    today = _date.today()
+    if month:
+        try:
+            year, m = int(month[:4]), int(month[5:7])
+            target_month = _date(year, m, 1)
+        except (ValueError, IndexError):
+            target_month = today.replace(day=1)
+    else:
+        target_month = today.replace(day=1)
+
+    client = _get_client()
+    budget_status = await client.get_budget_status(
+        month=target_month.month,
+        year=target_month.year,
+    )
+
+    all_names = [item["category_name"] for item in budget_status]
+    exact = next((n for n in all_names if n.lower() == category_name.lower()), None)
+    resolved = exact or (get_close_matches(category_name, all_names, n=1, cutoff=0.6) or [None])[0]
+
+    if not resolved:
+        return json.dumps({
+            "type": "error",
+            "message": f"Category not found: {category_name!r}. Available: {', '.join(all_names)}",
+        })
+
+    current_amount = next(
+        (item["budgeted"] for item in budget_status if item["category_name"] == resolved),
+        0.0,
+    )
+
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {
+        "action": "set_budget",
+        "category_name": resolved,
+        "new_amount": amount,
+        "current_amount": current_amount,
+        "month": target_month.isoformat(),
+    })
+
+    return json.dumps({
+        "type": "category_action",
+        "action": "set_budget",
+        "id": action_id,
+        "category_name": resolved,
+        "current_amount": current_amount,
+        "new_amount": amount,
+        "month": target_month.strftime("%Y-%m"),
+    })
+
+
 async def setup_default_groups() -> str:
     """Propose creating the 7 standard category groups (Housing, Daily Living, Transport, Health, Lifestyle, Finance, Unexpected) with their default subcategories. Only creates groups/categories that don't already exist."""
     import uuid

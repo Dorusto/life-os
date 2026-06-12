@@ -30,6 +30,7 @@ class GoalOverride(BaseModel):
     deadline: str | None = None
     category_name: str | None = None
     group_name: str | None = None
+    amount: float | None = None
 
 
 @router.post("/category-actions/{action_id}/confirm")
@@ -80,6 +81,20 @@ async def confirm_category_action(
             message = f"Goal set: {action['account_name']} → €{target:,.0f}"
             if deadline:
                 message += f" by {deadline}"
+        elif action["action"] == "set_budget":
+            from datetime import date as _date
+            new_amount = override.amount if override.amount is not None else action["new_amount"]
+            month_str = action.get("month")
+            month = _date.fromisoformat(month_str).replace(day=1) if month_str else None
+            result = await client.set_budget_amount(
+                category_name=action["category_name"],
+                new_amount=new_amount,
+                month=month,
+            )
+            message = (
+                f"Budget updated: {result['category_name']} "
+                f"€{result['old_amount']:.2f} → €{result['new_amount']:.2f}"
+            )
         else:
             raise HTTPException(status_code=400, detail=f"Unknown action: {action['action']}")
     except ValueError as e:

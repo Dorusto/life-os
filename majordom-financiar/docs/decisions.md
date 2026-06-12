@@ -29,8 +29,6 @@
 
 **Rejected:** Direct execution tools — they are bugs, not features.
 
-**Exception:** `set_account_goal` — preference setting, not a financial transaction. No money moves, no irreversible change. (confirmed 2026-05-31)
-
 ---
 
 ### bank2ynab for CSV format detection
@@ -67,7 +65,7 @@
 
 **Rejected:** Keeping Telegram as a secondary interface — double maintenance, charts impossible.
 
-**Note:** `--profile telegram` kept in docker-compose for backward compat, no active development.
+**Note:** Telegram profile removed from docker-compose. No code remains.
 
 ---
 
@@ -137,6 +135,25 @@
 
 ---
 
+### Tool domain routing — prefixed flat tools, structured system prompt
+
+**Date:** 2026-06-12
+
+**Decision:** Tools are prefixed by domain (`finance__*`, `vehicle__*`, `home__*`, `media__*`). The system prompt is structured in domain sections, each with explicit trigger rules. A single LLM sees all tools and routes based on prefixes + system prompt guidance (Option A). Designed so Option B (hierarchical router LLM → domain sub-agent) can be added later without changing tool definitions.
+
+**Why:** Flat unnamespaced tools don't scale past ~15 tools — LLM picks wrong tool when descriptions overlap (confirmed bug: `propose_set_category_budget` vs `rename_category`). Domain prefixes give the LLM a structural signal before reading the description. Option B (hierarchical) adds latency and complexity not justified while cloud LLM is primary. Prefixes make Option B a non-destructive add-on when local hardware (AMD iGPU mini PC) becomes primary.
+
+**Domains:** `finance` (AB + Sure — budget, transactions, investments, bank sync), `vehicle` (vehicle log, reminders), `home` (Home Assistant), `media` (Immich, Nextcloud).
+
+**Rejected:**
+- Flat tools without prefix — already causing disambiguation bugs, doesn't scale
+- Immediate hierarchical routing (Option B) — premature, adds 2× LLM calls, current hardware doesn't justify it
+- Per-domain separate system prompts — unnecessary complexity while single LLM handles all
+
+**Migration to Option B:** Add a router LLM layer on top of `chat_service.py`. Tool definitions unchanged. Triggered when local inference becomes primary and tool count exceeds ~30 per domain.
+
+---
+
 ## Product decisions
 
 ### UI — 2 tabs only (Home + Majordom)
@@ -189,9 +206,7 @@
 
 ### FIRE % on Home
 
-**Question:** v1 proxy via AB off-budget accounts, or wait for Sure investment data?
-
-**Blocker:** Waiting for Sure integration (M5) to have real portfolio data.
+**Decision (implemented):** v1 via AB off-budget accounts — sum of off-budget accounts excluding real estate/mortgage. Hardcoded target and contribution for now. Revisit when Sure investment data is available (M5).
 
 ---
 

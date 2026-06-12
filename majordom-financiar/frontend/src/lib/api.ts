@@ -699,18 +699,22 @@ export async function cancelBalanceAdjustment(id: string): Promise<void> {
 
 export interface CategoryActionData {
   id: string
-  action: 'rename' | 'delete' | 'create' | 'setup_groups'
+  action: 'rename' | 'delete' | 'create' | 'setup_groups' | 'set_budget'
   category_name: string
   new_name?: string
   group_name?: string
   available_groups?: string[]
   preview?: string
   groups?: [string, string[]][]
+  // set_budget fields:
+  current_amount?: number
+  new_amount?: number
+  month?: string
 }
 
 export async function confirmCategoryAction(
   id: string,
-  override?: { target?: number; deadline?: string | null; category_name?: string; group_name?: string }
+  override?: { target?: number; deadline?: string | null; category_name?: string; group_name?: string; amount?: number }
 ): Promise<{ message: string }> {
   return request(`/category-actions/${id}/confirm`, {
     method: 'POST',

@@ -317,6 +317,22 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "propose_set_category_budget",
+            "description": "Set the budgeted amount for a specific category in a given month. Use this when the user wants to assign a specific euro amount to a category budget (e.g. 'set Groceries to €300', 'put €50 in Transport for June'). Different from propose_budget_rebalance which moves money between two categories.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "category_name": {"type": "string", "description": "The budget category name to set the amount for."},
+                    "amount": {"type": "number", "description": "The new budget amount in EUR (e.g. 300.0 for €300)."},
+                    "month": {"type": "string", "description": "Month in YYYY-MM format. Omit for current month."},
+                },
+                "required": ["category_name", "amount"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "rename_category",
             "description": (
                 "Rename an existing budget category. "
@@ -607,6 +623,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "delete_category":
         from backend.tools.finance.actual_budget import delete_category
         return await delete_category(**arguments)
+
+    if name == "propose_set_category_budget":
+        from backend.tools.finance.actual_budget import propose_set_category_budget
+        return await propose_set_category_budget(**arguments)
 
     if name == "rename_category":
         from backend.tools.finance.actual_budget import rename_category

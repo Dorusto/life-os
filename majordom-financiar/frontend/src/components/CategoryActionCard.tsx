@@ -11,14 +11,20 @@ interface Props {
 export default function CategoryActionCard({ data, onConfirmed, onCancelled }: Props) {
   const [categoryName, setCategoryName] = useState(data.action === 'create' ? data.category_name : '')
   const [groupName, setGroupName] = useState(data.group_name ?? '')
+  const [budgetAmount, setBudgetAmount] = useState<string>(
+    data.action === 'set_budget' ? String(data.new_amount ?? '') : ''
+  )
   const [loading, setLoading] = useState(false)
 
   async function handleConfirm() {
     setLoading(true)
     try {
-      const overrides = data.action === 'create'
-        ? { category_name: categoryName || data.category_name, group_name: groupName || data.group_name }
-        : undefined
+      const overrides =
+        data.action === 'create'
+          ? { category_name: categoryName || data.category_name, group_name: groupName || data.group_name }
+          : data.action === 'set_budget'
+          ? { amount: parseFloat(budgetAmount) || data.new_amount }
+          : undefined
       const result = await confirmCategoryAction(data.id, overrides)
       onConfirmed(result.message)
     } catch (err) {
@@ -37,12 +43,13 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const isDelete = data.action === 'delete'
   const isCreate = data.action === 'create'
   const isSetupGroups = data.action === 'setup_groups'
+  const isSetBudget = data.action === 'set_budget'
 
   return (
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
       <div>
         <p className="text-white font-medium">
-          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetupGroups ? 'Create standard groups?' : 'Rename category?'}
+          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetupGroups ? 'Create standard groups?' : isSetBudget ? 'Set budget amount?' : 'Rename category?'}
         </p>
         {isSetupGroups && (
           <p className="text-muted text-xs mt-1">{data.preview}</p>
@@ -53,7 +60,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
             {' '}will be removed. Existing transactions won't be lost.
           </p>
         )}
-        {!isDelete && !isCreate && (
+        {!isDelete && !isCreate && !isSetBudget && (
           <p className="text-muted text-sm mt-0.5">
             <span className="text-white">{data.category_name}</span>
             {' → '}
@@ -61,6 +68,28 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
           </p>
         )}
       </div>
+
+      {isSetBudget && (
+        <div className="space-y-2">
+          <p className="text-muted text-sm">
+            <span className="text-white">{data.category_name}</span>
+            {data.month && <span className="text-muted"> · {data.month}</span>}
+          </p>
+          <div className="space-y-1">
+            <p className="text-muted text-xs">
+              Current: €{(data.current_amount ?? 0).toFixed(2)} → New amount (€)
+            </p>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={budgetAmount}
+              onChange={e => setBudgetAmount(e.target.value)}
+              className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+            />
+          </div>
+        </div>
+      )}
 
       {isCreate && (
         <div className="space-y-2">
@@ -100,13 +129,13 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
       <div className="flex gap-2">
         <button
           onClick={handleConfirm}
-          disabled={loading || (isCreate && !categoryName)}
+          disabled={loading || (isCreate && !categoryName) || (isSetBudget && !budgetAmount)}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-50 ${
             isDelete ? 'bg-red-600 hover:bg-red-700' : 'bg-accent hover:bg-accent-hover'
           }`}
         >
           <Check size={14} />
-          {isDelete ? 'Delete' : isCreate ? 'Create' : isSetupGroups ? 'Create all' : 'Rename'}
+          {isDelete ? 'Delete' : isCreate ? 'Create' : isSetupGroups ? 'Create all' : isSetBudget ? 'Set budget' : 'Rename'}
         </button>
         <button
           onClick={handleCancel}

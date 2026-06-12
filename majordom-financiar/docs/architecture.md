@@ -363,6 +363,37 @@ class SureProvider:           # future — Sure REST API
 
 Config: `FINANCE_BACKEND=actual_budget` (default) or `sure`. Switching backends requires no code changes.
 
+### Tool domain routing
+
+Tools are prefixed by domain. A single LLM sees all tools and routes based on prefix + structured system prompt.
+
+**Domains:**
+
+| Prefix | Domain | Services |
+|--------|--------|----------|
+| `finance__` | Budget, transactions, investments, bank sync | Actual Budget, Sure |
+| `vehicle__` | Vehicle log, fuel, reminders | SQLite vehicle_log |
+| `home__` | Lights, climate, automations | Home Assistant |
+| `media__` | Photos, documents, files | Immich, Nextcloud |
+
+**Tool naming:** `{domain}__{action}` — e.g. `finance__propose_transaction`, `vehicle__log_refuel`
+
+**System prompt structure:**
+```
+## Finance tools
+Use finance__ tools when the user mentions money, budget, transactions, accounts, investments.
+  - finance__propose_transaction: spending or receiving money
+  - finance__propose_set_category_budget: set a budget amount for a category
+  ...
+
+## Vehicle tools
+Use vehicle__ tools when the user mentions car, fuel, APK, insurance, mileage.
+  ...
+```
+
+**Migration to Option B (hierarchical routing):**
+When local inference becomes primary and tool count grows, add a router LLM layer on top of `chat_service.py`. Tool definitions stay unchanged — the router just picks the domain and delegates. Triggered by hardware upgrade (AMD iGPU mini PC) or >30 tools per domain.
+
 ### Incremental migration strategy
 
 - **Never stop current development** for structural migration
@@ -371,4 +402,4 @@ Config: `FINANCE_BACKEND=actual_budget` (default) or `sure`. Switching backends 
 - **Audit after each migration step** — verify existing functionality before moving on
 - `majordom-financiar/` → `majordom/` rename happens when folder restructure is triggered by other work
 
-*Last updated: 2026-06-03*
+*Last updated: 2026-06-12*

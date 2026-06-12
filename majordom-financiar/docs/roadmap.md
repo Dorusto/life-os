@@ -94,6 +94,19 @@ Backlog (needs dedicated UI tab): mileage log view, moving average consumption, 
 
 → [Session log W22](sessions/2026-W22.md) · [W23](sessions/2026-W23.md)
 
+### 🔲 M5.0 — Tool domain routing (prerequisite for M5.7 MCP server)
+
+| # | Feature | Notes |
+|---|---------|-------|
+| 5.0.1 | Rename all tools with domain prefix (`finance__*`, `vehicle__*`) | `registry.py` + `_PROPOSAL_TOOLS` + all confirm endpoints |
+| 5.0.2 | Restructure system prompt into domain sections | `_build_system_prompt()` in `chat.py` — fixes tool disambiguation bugs |
+| 5.0.3 | Update frontend tool name references if any | `Chat.tsx`, proposal card routing |
+
+Fixes active bug: LLM picks wrong tool when names overlap (e.g. `rename_category` vs `propose_set_category_budget`).
+See `docs/decisions.md#tool-domain-routing` for full rationale and Option B migration path.
+
+---
+
 ### 🔲 M5 — Integrations (Sure + Portfolio)
 
 **Platform decision (2026-06-03):** Sure replaces Ghostfolio. Sure will eventually replace AB. See `docs/decisions.md#sure-adoption`.
