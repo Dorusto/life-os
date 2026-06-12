@@ -97,14 +97,13 @@ Backlog (needs dedicated UI tab): mileage log view, moving average consumption, 
 
 ### 🔲 M5.0 — Tool domain routing (prerequisite for M5.7 MCP server)
 
-| # | Feature | Notes |
-|---|---------|-------|
-| 5.0.1 | Rename all tools with domain prefix (`finance__*`, `vehicle__*`) | `registry.py` + `_PROPOSAL_TOOLS` + all confirm endpoints |
-| 5.0.2 | Restructure system prompt into domain sections | `_build_system_prompt()` in `chat.py` — fixes tool disambiguation bugs |
-| 5.0.3 | Update frontend tool name references if any | `Chat.tsx`, proposal card routing |
+| # | Feature | Status |
+|---|---------|--------|
+| 5.0.1 | Rename all tools with domain prefix (`finance__*`, `vehicle__*`) | 🔲 |
+| 5.0.2 | Restructure system prompt into domain sections | 🔲 |
+| 5.0.3 | Update frontend tool name references if any | 🔲 |
 
-Fixes active bug: LLM picks wrong tool when names overlap (e.g. `rename_category` vs `propose_set_category_budget`).
-See `docs/decisions.md#tool-domain-routing` for full rationale and Option B migration path.
+→ Issue [#98](https://github.com/Dorusto/life-os/issues/98) · See `docs/decisions.md#tool-domain-routing`
 
 ---
 
@@ -113,23 +112,23 @@ See `docs/decisions.md#tool-domain-routing` for full rationale and Option B migr
 **Platform decision (2026-06-03):** Sure replaces Ghostfolio. Sure will eventually replace AB. See `docs/decisions.md#sure-adoption`.
 
 Sure test checklist (before any integration work):
-- [x] Deploy Sure on LXC via Docker (same pattern as AB) — deployed on Majordom LXC 10.10.1.40:3001, exposed via `sure.dorulian.eu`
-- [x] Test Enable Banking NL — working, ING NL syncing live transactions
+- [x] Deploy Sure on LXC via Docker — Majordom LXC 10.10.1.40:3001, `sure.dorulian.eu`
+- [x] Test Enable Banking NL — ING NL syncing live transactions
 - [ ] Test budget allocation — verify parity with AB categories
-- [ ] Evaluate MCP server (`github.com/we-promise/sure-mcp-server`) — functionality scope
+- [ ] Evaluate MCP server (`github.com/we-promise/sure-mcp-server`)
 
-| # | Feature | Notes |
-|---|---------|-------|
-| 5.1 | portfolio-bridge: Bitvavo → Sure | Independent service in `finance/portfolio-bridge/`; Bitvavo official API |
-| 5.2 | FinanceProvider abstraction in Majordom | `ActualBudgetProvider` + `SureProvider` behind one interface; `FINANCE_BACKEND` env var |
-| 5.3 | Switch Majordom → Sure backend | Only after Sure passes test checklist above |
-| 5.4 | Crypto tracker with sell alert | Average acquisition cost; alert on return threshold; via Sure |
-| 5.5 | Trading 212 sync | Native in Sure via SnapTrade |
-| 5.6 | XTB sync | CSV export → Sure (API dead since 2025-03-14) |
-| 5.7 | MCP server endpoint for Majordom | Expose `registry.py` tools via MCP — issue #58 |
-| 5.8 | Child portfolio dashboard | Per-child account in Sure; conversational queries |
-| 5.9 | Freelance / ZZP dashboard | Deductible tracking via `#deductible` tag; year-end tax filter |
-| 5.10 | Joint / couple budget | Shared Sure file or joint account strategy |
+| # | Feature | Status |
+|---|---------|--------|
+| 5.1 | portfolio-bridge: Bitvavo → Sure | 🔲 |
+| 5.2 | FinanceProvider abstraction in Majordom | 🔲 |
+| 5.3 | Switch Majordom → Sure backend | 🔲 |
+| 5.4 | Crypto tracker with sell alert | 🔲 |
+| 5.5 | Trading 212 sync | 🔲 |
+| 5.6 | XTB sync | 🔲 |
+| 5.7 | MCP server endpoint for Majordom | 🔲 |
+| 5.8 | Child portfolio dashboard | 🔲 |
+| 5.9 | Freelance / ZZP dashboard | 🔲 |
+| 5.10 | Joint / couple budget | 🔲 |
 
 ~~Ghostfolio~~ — on hold, replaced by Sure. Removed from active roadmap.
 
