@@ -91,8 +91,9 @@ Backlog (needs dedicated UI tab): mileage log view, moving average consumption, 
 | 4.9 | FIRE / Crossover Point Report in chat | 🔲 |
 | 4.10 | Persistent chat history + clear button | ✅ |
 | 4.11 | Daily digest saved to chat history | ✅ |
+| 4.12 | Set category budget amount via chat (`propose_set_category_budget`) | ✅ |
 
-→ [Session log W22](sessions/2026-W22.md) · [W23](sessions/2026-W23.md)
+→ [Session log W22](sessions/2026-W22.md) · [W23](sessions/2026-W23.md) · [W24](sessions/2026-W24.md)
 
 ### 🔲 M5.0 — Tool domain routing (prerequisite for M5.7 MCP server)
 
