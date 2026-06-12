@@ -54,11 +54,11 @@ For Actual Budget integration details (split transactions, multi-currency, credi
 
 → [Session log W22](sessions/2026-W22.md)
 
-### 🔲 M2.5 — Insights & Analytics
+### 🔄 M2.5 — Insights & Analytics
 | # | Feature | Status |
 |---|---------|--------|
 | 2.5 | First goal proposal after 2 months of data (conversational) | 🔲 |
-| 2.6 | FIRE calculation — via AB Crossover Point Report; discuss with user before implementing | 🔲 |
+| 2.6 | FIRE widget on Home screen (off-budget accounts vs target) | ✅ |
 | 2.7 | Charts inline in chat | 🔲 |
 
 Home screen pending (after M2.5): FIRE % as 3rd metric card, Obligations section (needs decision first — see [docs/decisions.md](decisions.md)).
@@ -77,7 +77,7 @@ Backlog (needs dedicated UI tab): mileage log view, moving average consumption, 
 
 → [Session log W22](sessions/2026-W22.md)
 
-### 🔲 M4 — Smart Alerts
+### 🔄 M4 — Smart Alerts
 | # | Feature | Status |
 |---|---------|--------|
 | 4.1 | Extensible notification system (APScheduler + Web Push + anti-spam) | ✅ |
