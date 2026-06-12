@@ -99,8 +99,8 @@ Backlog (needs dedicated UI tab): mileage log view, moving average consumption, 
 **Platform decision (2026-06-03):** Sure replaces Ghostfolio. Sure will eventually replace AB. See `docs/decisions.md#sure-adoption`.
 
 Sure test checklist (before any integration work):
-- [ ] Deploy Sure on LXC via Docker (same pattern as AB)
-- [ ] Test Enable Banking NL — verify token-expiry bug status
+- [x] Deploy Sure on LXC via Docker (same pattern as AB) — deployed on Majordom LXC 10.10.1.40:3001, exposed via `sure.dorulian.eu`
+- [x] Test Enable Banking NL — working, ING NL syncing live transactions
 - [ ] Test budget allocation — verify parity with AB categories
 - [ ] Evaluate MCP server (`github.com/we-promise/sure-mcp-server`) — functionality scope
 

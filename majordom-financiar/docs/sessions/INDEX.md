@@ -32,3 +32,4 @@
 | [W23](2026-W23.md) | 2026-06-02 | Unified /api/home — 4× download_budget → 1× (~800ms) | api/home.py, actual_client/client.py, frontend/Home.tsx |
 | [W23](2026-W23.md) | 2026-06-03 | Issue audit (11 closed) + vehicle type + digest UX + modal fix | database.py, notification_service.py, Chat.tsx, BudgetDashboard.tsx |
 | [W23](2026-W23.md) | 2026-06-03 | Architecture strategy: Sure adoption + MCP server + FinanceProvider abstraction | docs/decisions.md, docs/architecture.md, docs/roadmap.md |
+| [W23](2026-W23.md) | 2026-06-03 | Sure install + Enable Banking NL + XTB CSV converter + migrate to Majordom LXC | Obsidian guide, xtb_to_sure.py, docker-compose.yml |
