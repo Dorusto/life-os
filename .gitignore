@@ -1,6 +1,7 @@
 # Credențiale și configurare locală
 .env
 CLAUDE.md
+!majordom-financiar/CLAUDE.md
 *.db
 *.sqlite
 
