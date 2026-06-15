@@ -34,3 +34,4 @@
 | [W23](2026-W23.md) | 2026-06-03 | Architecture strategy: Sure adoption + MCP server + FinanceProvider abstraction | docs/decisions.md, docs/architecture.md, docs/roadmap.md |
 | [W23](2026-W23.md) | 2026-06-03 | Sure install + Enable Banking NL + XTB CSV converter + migrate to Majordom LXC | Obsidian guide, xtb_to_sure.py, docker-compose.yml |
 | [W24](2026-W24.md) | 2026-06-12 | propose_set_category_budget tool + domain routing architecture decision | actual_budget.py, CategoryActionCard.tsx, decisions.md, architecture.md |
+| [W25](2026-W25.md) | 2026-06-15 | propose_categorize_by_payee — bulk categorization via chat + editable card | actual_budget.py, client.py, CategoryActionCard.tsx, category_actions.py |
