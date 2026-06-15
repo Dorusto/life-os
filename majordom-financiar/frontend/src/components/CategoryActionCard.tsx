@@ -14,6 +14,8 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const [budgetAmount, setBudgetAmount] = useState<string>(
     data.action === 'set_budget' ? String(data.new_amount ?? '') : ''
   )
+  const [payee, setPayee] = useState(data.payee ?? '')
+  const [selectedCategory, setSelectedCategory] = useState(data.category_name ?? '')
   const [loading, setLoading] = useState(false)
 
   async function handleConfirm() {
@@ -24,6 +26,8 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
           ? { category_name: categoryName || data.category_name, group_name: groupName || data.group_name }
           : data.action === 'set_budget'
           ? { amount: parseFloat(budgetAmount) || data.new_amount }
+          : data.action === 'categorize_by_payee'
+          ? { payee: payee || data.payee, category_name: selectedCategory || data.category_name }
           : undefined
       const result = await confirmCategoryAction(data.id, overrides)
       onConfirmed(result.message)
@@ -63,9 +67,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         )}
         {isCategorizeByPayee && (
           <p className="text-muted text-sm mt-0.5">
-            <span className="text-white">{data.count}</span> uncategorized transaction{data.count !== 1 ? 's' : ''} from{' '}
-            <span className="text-white">{data.payee}</span> will be tagged as{' '}
-            <span className="text-white">{data.category_name}</span>.
+            <span className="text-white">{data.count}</span> uncategorized transaction{data.count !== 1 ? 's' : ''} will be tagged.
           </p>
         )}
         {!isDelete && !isCreate && !isSetBudget && !isCategorizeByPayee && (
@@ -134,10 +136,45 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         </div>
       )}
 
+      {isCategorizeByPayee && (
+        <div className="space-y-2">
+          <div className="space-y-1">
+            <p className="text-muted text-xs">Payee</p>
+            <input
+              type="text"
+              value={payee}
+              onChange={e => setPayee(e.target.value)}
+              className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+            />
+          </div>
+          <div className="space-y-1">
+            <p className="text-muted text-xs">Category</p>
+            {data.available_categories && data.available_categories.length > 0 ? (
+              <select
+                value={selectedCategory}
+                onChange={e => setSelectedCategory(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              >
+                {data.available_categories.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={selectedCategory}
+                onChange={e => setSelectedCategory(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              />
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-2">
         <button
           onClick={handleConfirm}
-          disabled={loading || (isCreate && !categoryName) || (isSetBudget && !budgetAmount)}
+          disabled={loading || (isCreate && !categoryName) || (isSetBudget && !budgetAmount) || (isCategorizeByPayee && (!payee || !selectedCategory))}
           className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-50 ${
             isDelete ? 'bg-red-600 hover:bg-red-700' : 'bg-accent hover:bg-accent-hover'
           }`}

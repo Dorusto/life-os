@@ -713,6 +713,7 @@ export interface CategoryActionData {
   // categorize_by_payee fields:
   payee?: string
   count?: number
+  available_categories?: string[]
 }
 
 export async function confirmCategoryAction(

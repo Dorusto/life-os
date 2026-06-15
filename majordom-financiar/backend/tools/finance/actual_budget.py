@@ -644,6 +644,10 @@ async def propose_categorize_by_payee(payee: str, category_name: str) -> str:
             "message": f"No uncategorized transactions found for payee matching '{payee}'.",
         })
 
+    # Build id→name map for override resolution at confirm time
+    categories_map = {c.id: c.name for c in cats}
+    available_categories = [c.name for c in cats]
+
     action_id = uuid.uuid4().hex[:8]
     action_store.store(action_id, {
         "action": "categorize_by_payee",
@@ -651,6 +655,7 @@ async def propose_categorize_by_payee(payee: str, category_name: str) -> str:
         "category_id": exact.id,
         "category_name": exact.name,
         "count": count,
+        "categories_map": categories_map,
     })
     return json.dumps({
         "type": "category_action",
@@ -659,4 +664,5 @@ async def propose_categorize_by_payee(payee: str, category_name: str) -> str:
         "payee": payee,
         "category_name": exact.name,
         "count": count,
+        "available_categories": available_categories,
     })

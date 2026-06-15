@@ -31,6 +31,7 @@ class GoalOverride(BaseModel):
     category_name: str | None = None
     group_name: str | None = None
     amount: float | None = None
+    payee: str | None = None
 
 
 @router.post("/category-actions/{action_id}/confirm")
@@ -96,13 +97,20 @@ async def confirm_category_action(
                 f"€{result['old_amount']:.2f} → €{result['new_amount']:.2f}"
             )
         elif action["action"] == "categorize_by_payee":
+            payee = override.payee or action["payee"]
+            # Resolve category_id from override name if user changed it
+            cat_id = action["category_id"]
+            cat_name = action["category_name"]
+            if override.category_name and override.category_name != action["category_name"]:
+                id_by_name = {v: k for k, v in action.get("categories_map", {}).items()}
+                cat_id = id_by_name.get(override.category_name, cat_id)
+                cat_name = override.category_name
             count = await client.update_uncategorized_by_payee(
-                payee=action["payee"],
-                category_id=action["category_id"],
+                payee=payee,
+                category_id=cat_id,
             )
             message = (
-                f"Categorized {count} transaction(s) for '{action['payee']}' "
-                f"→ '{action['category_name']}'"
+                f"Categorized {count} transaction(s) for '{payee}' → '{cat_name}'"
             )
         else:
             raise HTTPException(status_code=400, detail=f"Unknown action: {action['action']}")
