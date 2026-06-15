@@ -1375,20 +1375,41 @@ class ActualBudgetClient:
 
         return await self._run(_batch)
 
-    async def update_uncategorized_by_payee(self, payee: str, category_name: str) -> int:
-        """
-        Find all uncategorized transactions whose payee name matches `payee`
-        (case-insensitive substring). Set their category to `category_name`.
-        Returns count of updated transactions.
-        """
-        def _update():
-            from actual.queries import get_or_create_category
+    async def count_uncategorized_by_payee(self, payee: str) -> int:
+        """Count uncategorized transactions whose payee matches `payee` (case-insensitive substring)."""
+        def _count():
             from actual.database import Transactions, Payees
             with self._get_actual() as actual:
                 actual.download_budget()
-                cat = get_or_create_category(
-                    actual.session, category_name, group_name="Income"
+                return (
+                    actual.session.query(Transactions)
+                    .join(Payees, Transactions.payee_id == Payees.id, isouter=True)
+                    .filter(
+                        Payees.name.ilike(f"%{payee}%"),
+                        Transactions.category_id == None,
+                        Transactions.tombstone == 0,
+                        Transactions.is_parent == 0,
+                    )
+                    .count()
                 )
+        return await self._run(_count)
+
+    async def update_uncategorized_by_payee(self, payee: str, category_id: str) -> int:
+        """
+        Find all uncategorized transactions whose payee name matches `payee`
+        (case-insensitive substring). Set their category to `category_id`.
+        Returns count of updated transactions.
+        """
+        def _update():
+            from actual.database import Transactions, Payees, Categories
+            with self._get_actual() as actual:
+                actual.download_budget()
+                cat = actual.session.query(Categories).filter(
+                    Categories.id == category_id,
+                    Categories.tombstone == 0,
+                ).first()
+                if not cat:
+                    raise ValueError(f"Category ID not found: {category_id}")
                 txs = (
                     actual.session.query(Transactions)
                     .join(Payees, Transactions.payee_id == Payees.id, isouter=True)
@@ -1407,8 +1428,8 @@ class ActualBudgetClient:
                 if count:
                     actual.commit()
                 logger.info(
-                    "Retroactively categorized %d transaction(s) for payee '%s' → '%s'",
-                    count, payee, category_name,
+                    "Retroactively categorized %d transaction(s) for payee '%s' → category_id '%s'",
+                    count, payee, category_id,
                 )
                 return count
         return await self._run(_update)

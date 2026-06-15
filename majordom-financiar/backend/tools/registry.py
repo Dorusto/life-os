@@ -565,6 +565,33 @@ TOOLS: list[dict] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "propose_categorize_by_payee",
+            "description": (
+                "Propose bulk-categorizing all uncategorized transactions for a specific payee. "
+                "Use when the user wants to set the category for all past transactions from a merchant "
+                "(e.g. 'categorize all TLS BV as Public transport'). "
+                "A confirmation card appears showing how many transactions will be affected — "
+                "nothing is written until the user confirms."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "payee": {
+                        "type": "string",
+                        "description": "Payee name or partial name to match (case-insensitive), e.g. 'TLS BV'.",
+                    },
+                    "category_name": {
+                        "type": "string",
+                        "description": "Target category name, e.g. 'Public transport'.",
+                    },
+                },
+                "required": ["payee", "category_name"],
+            },
+        },
+    },
 ]
 
 async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
@@ -663,6 +690,8 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "set_vehicle_type":
         from backend.tools.finance.vehicle import set_vehicle_type
         return await set_vehicle_type(**arguments)
-
+    if name == "propose_categorize_by_payee":
+        from backend.tools.finance.actual_budget import propose_categorize_by_payee
+        return await propose_categorize_by_payee(**arguments)
     return f"Unknown tool: {name}"
 

@@ -95,6 +95,15 @@ async def confirm_category_action(
                 f"Budget updated: {result['category_name']} "
                 f"€{result['old_amount']:.2f} → €{result['new_amount']:.2f}"
             )
+        elif action["action"] == "categorize_by_payee":
+            count = await client.update_uncategorized_by_payee(
+                payee=action["payee"],
+                category_id=action["category_id"],
+            )
+            message = (
+                f"Categorized {count} transaction(s) for '{action['payee']}' "
+                f"→ '{action['category_name']}'"
+            )
         else:
             raise HTTPException(status_code=400, detail=f"Unknown action: {action['action']}")
     except ValueError as e:

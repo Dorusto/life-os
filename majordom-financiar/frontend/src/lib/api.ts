@@ -699,7 +699,7 @@ export async function cancelBalanceAdjustment(id: string): Promise<void> {
 
 export interface CategoryActionData {
   id: string
-  action: 'rename' | 'delete' | 'create' | 'setup_groups' | 'set_budget'
+  action: 'rename' | 'delete' | 'create' | 'setup_groups' | 'set_budget' | 'categorize_by_payee'
   category_name: string
   new_name?: string
   group_name?: string
@@ -710,6 +710,9 @@ export interface CategoryActionData {
   current_amount?: number
   new_amount?: number
   month?: string
+  // categorize_by_payee fields:
+  payee?: string
+  count?: number
 }
 
 export async function confirmCategoryAction(
