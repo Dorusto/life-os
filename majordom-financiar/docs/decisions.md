@@ -291,3 +291,28 @@ Sure checklist (budget allocation parity, MCP server) is deferred until the eval
 **Why:** Digest is system-wide; personal alerts must be isolated per user.
 
 **Rule:** Never hardcode `user_id="default"` — always use `current_user` from auth.
+
+---
+
+### Vehicle manager — future independent service
+
+**Date:** 2026-06-03 (external conversation) · **Documented:** 2026-06-21
+
+**Decision:** `vehicle-manager` will eventually become an independent HTTP service with its own database, separate from Majordom's `memory.db`. Majordom calls it via HTTP like any other external service. Extraction happens **incrementally** — when working on a vehicle feature anyway, not as a standalone refactor exercise.
+
+**Current state:** vehicle logic lives in `tools/finance/vehicle.py` + `vehicles`/`vehicle_log` tables in `memory.db`. This is acceptable now.
+
+**Target state:**
+```
+life-os/
+├── majordom/          ← orchestrator; vehicle tools become HTTP calls
+└── tools/
+    └── vehicle-manager/   ← FastAPI + own SQLite (or other storage)
+                               own documented API
+```
+
+**Why:** Follows the life-os modular monorepo vision — each service independent and potentially open-source. Vehicle data has no business living in Majordom's memory.db alongside push subscriptions and CSV profiles.
+
+**Trigger for extraction:** next time a significant vehicle feature is added (new schema, new endpoint). Not worth extracting as a standalone task with no new functionality.
+
+**Why NOT now:** No active vehicle feature in progress. Extracting without adding value = pure overhead.

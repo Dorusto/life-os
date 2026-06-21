@@ -148,6 +148,21 @@ Sure test checklist (before any integration work):
 
 ---
 
+### 🔲 M6 — life-os modular monorepo (future vision)
+
+Extract each service from Majordom into an independent HTTP service with its own database. Majordom becomes a pure orchestrator calling HTTP endpoints.
+
+| # | Service | Status | Trigger |
+|---|---------|--------|---------|
+| 6.1 | `vehicle-manager/` — FastAPI + own DB, extracted from memory.db | 🔲 | Next significant vehicle feature |
+| 6.2 | `finance/` — FinanceProvider as HTTP service | 🔲 | After M5 evaluation |
+| 6.3 | `receipt-scanner/` — OCR extracted | 🔲 | When adding async receipt queue |
+| 6.4 | `csv-importer/` — import logic extracted | 🔲 | When adding multi-bank profiles |
+
+**Principle:** Extract incrementally when working on a service anyway — not as a standalone refactor. See `decisions.md#vehicle-manager`.
+
+---
+
 ## Backlog
 
 | Feature | Notes |
