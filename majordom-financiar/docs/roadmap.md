@@ -87,7 +87,7 @@ Backlog (needs dedicated UI tab): mileage log view, moving average consumption, 
 | 4.5 | Recurring expense audit (monthly) — push on 1st of month: "You have 8 recurring charges: Netflix €15, Ziggo €45… Want to review?" | 🔲 |
 | 4.6 | Vehicle reminders bundled in daily digest | ✅ |
 | 4.7 | Market correction alert (ETF dip) | 🔲 |
-| 4.8 | Savings goals progress bars | 🔲 |
+| 4.8 | Savings goals progress bars | ✅ |
 | 4.9 | FIRE / Crossover Point Report in chat | 🔲 |
 | 4.10 | Persistent chat history + clear button | ✅ |
 | 4.11 | Daily digest saved to chat history | ✅ |
@@ -206,7 +206,7 @@ Extract each service from Majordom into an independent HTTP service with its own
 | Annual summary | Jan 1st digest: "Last year: €X spent, €Y saved, net worth +Z%. Top category: Transport." |
 | Calendar integration | Export APK/insurance/loan deadlines to Nextcloud Calendar as iCal. Data already in AB + vehicle_log. |
 | Split bill in chat | "Dinner with 4 people, €120, I paid — how much does each owe?" + log the expense. |
-| Net worth trend | Monthly chart 12 months — evolution not just today's snapshot. Needs M2.7 (charts in chat). |
+| Net worth trend | Monthly chart 12 months — evolution not just today's snapshot. M2.7 charts infra ready. |
 
 ---
 
