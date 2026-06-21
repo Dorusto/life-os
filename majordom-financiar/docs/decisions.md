@@ -101,13 +101,25 @@
 
 ### Sure adoption + AB coexistence strategy
 
-**Date:** 2026-06-03
+**Date:** 2026-06-03 · **Updated:** 2026-06-21
 
-**Decision:** Sure (`github.com/we-promise/sure`) replaces Ghostfolio immediately (on hold). Sure will eventually replace Actual Budget as the single financial platform (budgeting + investments + bank sync). AB remains operational until Sure stabilizes Enable Banking NL (active token-expiry bug, May 2026) and reaches budget allocation parity. Migration is incremental — triggered when working on related features, not as a big-bang effort.
+**Decision:** AB remains the source of truth indefinitely — no active Sure migration until the Ghostfolio vs Sure evaluation. The evaluation happens naturally when portfolio tracking becomes a real need. At that point:
+- If Sure wins (unifies AB + Ghostfolio in one platform) → migrate Majordom to Sure
+- If Ghostfolio proves superior → Sure stays as test platform; document the gap and revisit when closed
 
-**Why:** Sure covers budgeting + investments + bank sync in one platform with a native MCP server. Ghostfolio has no broker sync and no native integration path. AB remains the source of truth for daily budgeting until Sure proves feature parity.
+Sure checklist (budget allocation parity, MCP server) is deferred until the evaluation moment.
 
-**Rejected:** Big-bang migration — too risky while Majordom is in active daily use (June 2026 = first month with clean AB data).
+**Why:** Premature migration adds risk with no current benefit. AB is stable and working. M5.2 FinanceProvider abstraction makes future migration cheap — do that first, then migrate when there's a real reason to.
+
+**Migration trigger conditions (for future reference):**
+- Portfolio tracking becomes an active need
+- Sure closes the Enable Banking token-expiry bug
+- Sure reaches budget allocation parity with AB
+- Sure MCP server is production-ready
+
+**Rejected:** Proactive migration on a schedule — migrating a working system before the value is clear.
+
+**Previously decided (2026-06-03):** Sure replaces Ghostfolio immediately (Ghostfolio now off roadmap). Sure will eventually replace AB. This still holds — the update above clarifies the trigger and defers the active work.
 
 ---
 
