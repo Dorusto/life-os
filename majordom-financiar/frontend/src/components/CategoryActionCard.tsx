@@ -16,20 +16,23 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   )
   const [payee, setPayee] = useState(data.payee ?? '')
   const [selectedCategory, setSelectedCategory] = useState(data.category_name ?? '')
+  const [createRule, setCreateRule] = useState(data.is_consistent ?? true)
   const [loading, setLoading] = useState(false)
 
   async function handleConfirm() {
     setLoading(true)
     try {
-      const overrides =
-        data.action === 'create'
-          ? { category_name: categoryName || data.category_name, group_name: groupName || data.group_name }
-          : data.action === 'set_budget'
-          ? { amount: parseFloat(budgetAmount) || data.new_amount }
-          : data.action === 'categorize_by_payee'
-          ? { payee: payee || data.payee, category_name: selectedCategory || data.category_name }
-          : undefined
-      const result = await confirmCategoryAction(data.id, overrides)
+      let overrides: Record<string, unknown> | undefined
+      if (data.action === 'create') {
+        overrides = { category_name: categoryName || data.category_name, group_name: groupName || data.group_name }
+      } else if (data.action === 'set_budget') {
+        overrides = { amount: parseFloat(budgetAmount) || data.new_amount }
+      } else if (data.action === 'categorize_by_payee') {
+        overrides = { payee: payee || data.payee, category_name: selectedCategory || data.category_name }
+      } else if (data.action === 'categorize_with_rule') {
+        overrides = { category_name: selectedCategory || data.category_name, create_rule: createRule }
+      }
+      const result = await confirmCategoryAction(data.id, overrides as any)
       onConfirmed(result.message)
     } catch (err) {
       onConfirmed(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
@@ -49,12 +52,13 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const isSetupGroups = data.action === 'setup_groups'
   const isSetBudget = data.action === 'set_budget'
   const isCategorizeByPayee = data.action === 'categorize_by_payee'
+  const isCategorizeWithRule = data.action === 'categorize_with_rule'
 
   return (
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
       <div>
         <p className="text-white font-medium">
-          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetupGroups ? 'Create standard groups?' : isSetBudget ? 'Set budget amount?' : isCategorizeByPayee ? 'Categorize transactions?' : 'Rename category?'}
+          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetupGroups ? 'Create standard groups?' : isSetBudget ? 'Set budget amount?' : isCategorizeByPayee ? 'Categorize transactions?' : isCategorizeWithRule ? 'Categorize & create rule?' : 'Rename category?'}
         </p>
         {isSetupGroups && (
           <p className="text-muted text-xs mt-1">{data.preview}</p>
@@ -65,12 +69,17 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
             {' '}will be removed. Existing transactions won't be lost.
           </p>
         )}
-        {isCategorizeByPayee && (
+        {(isCategorizeByPayee || isCategorizeWithRule) && (
           <p className="text-muted text-sm mt-0.5">
             <span className="text-white">{data.count}</span> uncategorized transaction{data.count !== 1 ? 's' : ''} will be tagged.
           </p>
         )}
-        {!isDelete && !isCreate && !isSetBudget && !isCategorizeByPayee && (
+        {isCategorizeWithRule && (
+          <p className="text-muted text-xs mt-1">
+            Payee: <span className="text-white">{data.payee}</span>
+          </p>
+        )}
+        {!isDelete && !isCreate && !isSetBudget && !isCategorizeByPayee && !isCategorizeWithRule && (
           <p className="text-muted text-sm mt-0.5">
             <span className="text-white">{data.category_name}</span>
             {' → '}
@@ -171,6 +180,53 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         </div>
       )}
 
+      {isCategorizeWithRule && (
+        <div className="space-y-2">
+          <div className="space-y-1">
+            <p className="text-muted text-xs">Category</p>
+            {data.available_categories && data.available_categories.length > 0 ? (
+              <select
+                value={selectedCategory}
+                onChange={e => setSelectedCategory(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              >
+                {data.available_categories.map(c => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={selectedCategory}
+                onChange={e => setSelectedCategory(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              />
+            )}
+          </div>
+          <div className="space-y-1">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={createRule}
+                onChange={e => setCreateRule(e.target.checked)}
+                disabled={!data.is_consistent}
+                className="mt-1 accent-accent"
+              />
+              <div>
+                <span className="text-white text-sm">
+                  Create AB rule for future '{data.rule_prefix}' transactions
+                </span>
+                {!data.is_consistent && (
+                  <p className="text-muted text-xs mt-0.5">
+                    Disabled — this payee was categorized inconsistently in the past, so auto-categorization may not be reliable.
+                  </p>
+                )}
+              </div>
+            </label>
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-2">
         <button
           onClick={handleConfirm}
@@ -180,7 +236,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
           }`}
         >
           <Check size={14} />
-          {isDelete ? 'Delete' : isCreate ? 'Create' : isSetupGroups ? 'Create all' : isSetBudget ? 'Set budget' : isCategorizeByPayee ? 'Categorize' : 'Rename'}
+          {isDelete ? 'Delete' : isCreate ? 'Create' : isSetupGroups ? 'Create all' : isSetBudget ? 'Set budget' : isCategorizeByPayee ? 'Categorize' : isCategorizeWithRule ? 'Confirm' : 'Rename'}
         </button>
         <button
           onClick={handleCancel}

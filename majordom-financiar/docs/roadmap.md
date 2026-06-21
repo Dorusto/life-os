@@ -95,15 +95,15 @@ Backlog (needs dedicated UI tab): mileage log view, moving average consumption, 
 
 → [Session log W22](sessions/2026-W22.md) · [W23](sessions/2026-W23.md) · [W24](sessions/2026-W24.md)
 
-### 🔲 M4.5 — Smart Categorization
+### ✅ M4.5 — Smart Categorization
 
 Proactive uncategorized transaction review: digest nudge → pattern-based grouping → category proposal → AB rule creation. User confirms every action via cards.
 
 | # | Feature | Status |
 |---|---------|--------|
 | 4.5.1 | Digest nudge — mention uncategorized count + prompt hint in evening digest | ✅ |
-| 4.5.2 | Review flow — group uncategorized by payee prefix, suggest category per group via chat | 🔲 |
-| 4.5.3 | AB rule creation at confirm — create payee rule in AB so future transactions are auto-categorized | 🔲 |
+| 4.5.2 | Review flow — group uncategorized by payee prefix, suggest category per group via chat | ✅ |
+| 4.5.3 | AB rule creation at confirm — create payee rule in AB so future transactions are auto-categorized | ✅ |
 
 Replaces backlog items: *"Rules sync with AB"* and *"Bulk recategorization via chat"*.
 

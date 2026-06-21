@@ -666,3 +666,97 @@ async def propose_categorize_by_payee(payee: str, category_name: str) -> str:
         "count": count,
         "available_categories": available_categories,
     })
+
+
+async def get_uncategorized_groups() -> str:
+    """
+    Fetch all uncategorized transaction groups by payee with suggested categories.
+    Read-only — returns JSON for the LLM to present conversationally.
+    """
+    client = _get_client()
+    groups = await client.get_uncategorized_groups()
+    if not groups:
+        return json.dumps({
+            "type": "info",
+            "message": "No uncategorized transactions found. Everything is already categorized.",
+        })
+    return json.dumps({
+        "type": "uncategorized_groups",
+        "groups": groups,
+        "total": sum(g["count"] for g in groups),
+    })
+
+
+async def propose_categorize_with_rule(payee: str, category_name: str) -> str:
+    """
+    Propose categorizing a payee group AND creating an AB rule for future auto-categorization.
+    Returns a confirmation card — does NOT write to Actual Budget yet.
+    """
+    import uuid
+    from difflib import get_close_matches
+    from backend.tools import category_actions as action_store
+
+    client = _get_client()
+
+    cats = await client.get_categories()
+    cat_names = [c.name for c in cats]
+    exact = next((c for c in cats if c.name.lower() == category_name.lower()), None)
+    if not exact:
+        close = get_close_matches(category_name, cat_names, n=1, cutoff=0.6)
+        if close:
+            exact = next((c for c in cats if c.name == close[0]), None)
+    if not exact:
+        return json.dumps({
+            "type": "error",
+            "message": f"Category not found: {category_name!r}. Available: {', '.join(cat_names)}",
+        })
+
+    count = await client.count_uncategorized_by_payee(payee)
+    if count == 0:
+        return json.dumps({
+            "type": "error",
+            "message": f"No uncategorized transactions found for payee matching '{payee}'.",
+        })
+
+    # Compute rule_prefix (same logic as get_uncategorized_groups in client.py)
+    first_word = payee.split()[0] if payee else ""
+    rule_prefix = (
+        first_word
+        if len(first_word) >= 4 and first_word.isalnum()
+        else payee
+    )
+
+    # Check consistency: look up the payee in AB history
+    is_consistent = True
+    groups = await client.get_uncategorized_groups()
+    for g in groups:
+        if g["payee_name"].lower() == payee.lower() or payee.lower() in g["payee_name"].lower():
+            is_consistent = g["is_consistent"]
+            break
+
+    # Build id→name map for override resolution at confirm time
+    categories_map = {c.id: c.name for c in cats}
+    available_categories = [c.name for c in cats]
+
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {
+        "action": "categorize_with_rule",
+        "payee": payee,
+        "category_id": exact.id,
+        "category_name": exact.name,
+        "count": count,
+        "rule_prefix": rule_prefix,
+        "is_consistent": is_consistent,
+        "categories_map": categories_map,
+    })
+    return json.dumps({
+        "type": "category_action",
+        "id": action_id,
+        "action": "categorize_with_rule",
+        "payee": payee,
+        "count": count,
+        "category_name": exact.name,
+        "rule_prefix": rule_prefix,
+        "is_consistent": is_consistent,
+        "available_categories": available_categories,
+    })

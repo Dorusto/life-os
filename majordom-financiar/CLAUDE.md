@@ -43,6 +43,16 @@ Full details in `docs/architecture.md`. Summary:
 
 ---
 
+## Second Brain sync
+
+La finalizarea oricărui milestone (M complet sau feature major), actualizează **ambele** locații:
+1. `docs/roadmap.md` — statusul featurei (✅ / 🔄 / 🔲)
+2. `/home/doru/Sync/Obsidian/Second_Brain/10_PROJECTS/10_Life_OS/CLAUDE.md` — secțiunea "Status Majordom"
+
+Fără acest pas, Second Brain rămâne out of sync și sesiunile de strategie YouTube/Business lucrează pe date false.
+
+---
+
 ## Collaboration rules
 
 **Claude = senior/architect:** reads code, designs solution, writes spec and DeepSeek prompt.
@@ -68,6 +78,7 @@ Full details in `docs/architecture.md`. Summary:
 
 6. Include found rules EXPLICITLY in the prompt under `## Critical Rules` — DeepSeek does not read other files
 7. If no rules apply, write: `No specific rules identified for this task.` (proves the step was done, not skipped)
+8. **Spec, not code.** Before writing any code block in the prompt, ask: "Can DeepSeek figure this out from a prose spec?" If yes → write prose. Code only for non-obvious quirks (library syntax, wrong field names, operation order). If you find yourself writing a full function → stop and replace with a sentence.
 
 ### DeepSeek prompt template
 

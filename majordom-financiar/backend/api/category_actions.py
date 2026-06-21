@@ -32,6 +32,7 @@ class GoalOverride(BaseModel):
     group_name: str | None = None
     amount: float | None = None
     payee: str | None = None
+    create_rule: bool | None = None
 
 
 @router.post("/category-actions/{action_id}/confirm")
@@ -111,6 +112,44 @@ async def confirm_category_action(
             )
             message = (
                 f"Categorized {count} transaction(s) for '{payee}' → '{cat_name}'"
+            )
+        elif action["action"] == "categorize_with_rule":
+            payee = override.payee or action["payee"]
+            # Resolve category_id from override name if user changed it
+            cat_id = action["category_id"]
+            cat_name = action["category_name"]
+            if override.category_name and override.category_name != action["category_name"]:
+                id_by_name = {v: k for k, v in action.get("categories_map", {}).items()}
+                cat_id = id_by_name.get(override.category_name, cat_id)
+                cat_name = override.category_name
+            count = await client.update_uncategorized_by_payee(
+                payee=payee,
+                category_id=cat_id,
+            )
+            # Decide whether to create rule
+            should_create_rule = override.create_rule
+            if should_create_rule is None:
+                # Default: create rule if consistent
+                should_create_rule = action.get("is_consistent", False)
+            rule_created = False
+            if should_create_rule:
+                rule_prefix = action.get("rule_prefix", payee)
+                await client.create_payee_rule(
+                    payee_name_prefix=rule_prefix,
+                    category_id=cat_id,
+                )
+                rule_created = True
+                logger.info(
+                    "AB rule created: '%s' → category '%s'",
+                    rule_prefix, cat_name,
+                )
+            message = (
+                f"Categorized {count} transaction(s) for '{payee}' → '{cat_name}'."
+                + (
+                    f" AB rule created: future '{action.get('rule_prefix', payee)}' transactions will auto-categorize."
+                    if rule_created
+                    else " No rule created — payee history is inconsistent (same payee was categorized differently before)."
+                )
             )
         else:
             raise HTTPException(status_code=400, detail=f"Unknown action: {action['action']}")

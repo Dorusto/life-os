@@ -1412,6 +1412,106 @@ class ActualBudgetClient:
                 )
         return await self._run(_count)
 
+
+    async def get_uncategorized_groups(self) -> list[dict]:
+        """
+        Group uncategorized transactions by payee. For each group:
+        - payee_name: str
+        - payee_id: str (AB UUID)
+        - count: int
+        - rule_prefix: str  — first word of payee name if >=4 alphanum chars, else full payee name
+        - suggested_category: str | None  — from AB history
+        - is_consistent: bool  — False if same payee was categorized differently before
+        """
+        def _fetch():
+            from actual.database import Transactions, Payees, Categories
+            from sqlalchemy import func
+            with self._get_actual() as actual:
+                actual.download_budget()
+                rows = (
+                    actual.session.query(
+                        Payees.id.label("payee_id"),
+                        Payees.name.label("payee_name"),
+                        func.count(Transactions.id).label("count"),
+                    )
+                    .join(Transactions, Transactions.payee_id == Payees.id)
+                    .filter(
+                        Transactions.category_id == None,
+                        Transactions.tombstone == 0,
+                        Transactions.is_parent == 0,
+                        Transactions.transferred_id == None,
+                    )
+                    .group_by(Payees.id, Payees.name)
+                    .order_by(func.count(Transactions.id).desc())
+                    .all()
+                )
+
+                groups = []
+                for row in rows:
+                    first_word = row.payee_name.split()[0] if row.payee_name else ""
+                    rule_prefix = (
+                        first_word
+                        if len(first_word) >= 4 and first_word.isalnum()
+                        else row.payee_name
+                    )
+                    history = (
+                        actual.session.query(Transactions.category_id)
+                        .filter(
+                            Transactions.payee_id == row.payee_id,
+                            Transactions.category_id != None,
+                            Transactions.tombstone == 0,
+                        )
+                        .all()
+                    )
+                    cat_ids = [h.category_id for h in history]
+                    unique_cats = set(cat_ids)
+                    suggested_category = None
+                    is_consistent = True
+                    if unique_cats:
+                        is_consistent = len(unique_cats) == 1
+                        most_common_id = max(set(cat_ids), key=cat_ids.count)
+                        cat = actual.session.query(Categories).filter(
+                            Categories.id == most_common_id,
+                            Categories.tombstone == 0,
+                        ).first()
+                        if cat:
+                            suggested_category = cat.name
+                    groups.append({
+                        "payee_id": str(row.payee_id),
+                        "payee_name": row.payee_name or "Unknown",
+                        "count": row.count,
+                        "rule_prefix": rule_prefix,
+                        "suggested_category": suggested_category,
+                        "is_consistent": is_consistent,
+                    })
+                return groups
+        return await self._run(_fetch)
+
+    async def create_payee_rule(self, payee_name_prefix: str, category_id: str) -> None:
+        """Create an AB rule: imported_description contains prefix → set category."""
+        def _create():
+            from actual.rules import Rule, Condition, Action
+            from actual.queries import create_rule
+            with self._get_actual() as actual:
+                actual.download_budget()
+                rule = Rule(
+                    conditions=[
+                        Condition(
+                            field="imported_description",
+                            op="contains",
+                            value=payee_name_prefix,
+                        )
+                    ],
+                    operation="and",
+                    actions=[
+                        Action(op="set", field="category", value=category_id)
+                    ],
+                )
+                create_rule(actual.session, rule)
+                actual.commit()
+        await self._run(_create)
+
+
     async def update_uncategorized_by_payee(self, payee: str, category_id: str) -> int:
         """
         Find all uncategorized transactions whose payee name matches `payee`

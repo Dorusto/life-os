@@ -592,6 +592,45 @@ TOOLS: list[dict] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_uncategorized_groups",
+            "description": (
+                "Get all uncategorized transactions grouped by payee with suggested categories. "
+                "Use when the user wants to review or categorize uncategorized transactions. "
+                "Each group shows payee name, count, suggested category, and consistency info."
+            ),
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "propose_categorize_with_rule",
+            "description": (
+                "Propose categorizing a payee group and creating an AB rule for future auto-categorization. "
+                "Use when the user wants to categorize transactions for a merchant and ensure future "
+                "imports from the same payee are automatically categorized. "
+                "A confirmation card appears showing payee, count, category, and rule options — "
+                "nothing is written until the user confirms."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "payee": {
+                        "type": "string",
+                        "description": "Payee name or partial name to match (case-insensitive), e.g. 'TLS BV'.",
+                    },
+                    "category_name": {
+                        "type": "string",
+                        "description": "Target category name, e.g. 'Public transport'.",
+                    },
+                },
+                "required": ["payee", "category_name"],
+            },
+        },
+    },
 ]
 
 async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
@@ -693,5 +732,11 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "propose_categorize_by_payee":
         from backend.tools.finance.actual_budget import propose_categorize_by_payee
         return await propose_categorize_by_payee(**arguments)
+    if name == "get_uncategorized_groups":
+        from backend.tools.finance.actual_budget import get_uncategorized_groups
+        return await get_uncategorized_groups()
+    if name == "propose_categorize_with_rule":
+        from backend.tools.finance.actual_budget import propose_categorize_with_rule
+        return await propose_categorize_with_rule(**arguments)
     return f"Unknown tool: {name}"
 
