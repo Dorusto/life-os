@@ -142,6 +142,22 @@ with self._get_actual() as actual:
 - `create_transaction()` expects **EUR** (float), not cents. It converts internally via `decimal_to_cents()`.
 - Queries pattern: `from actual.queries import get_transactions; get_transactions(actual.session, ...)` — there is no `actual.get_transactions()` method.
 
+### 3b. actualpy — create_rule syntax (non-obvious, will fail silently with wrong values)
+```python
+from actual.rules import Rule, Condition, Action
+from actual.queries import create_rule
+
+rule = Rule(
+    conditions=[Condition(field='imported_description', op='contains', value='PREFIX')],
+    operation='and',
+    actions=[Action(op='set', field='category', value=category_uuid)],
+)
+create_rule(actual.session, rule)  # takes session, NOT actual
+actual.commit()
+```
+- `field='imported_description'` — matches the raw bank string. `field='description'` is the payee UUID (a different type — will reject string values).
+- `Action(op='set', field='category', value=uuid)` — NOT `op='set-category'` (raises ValidationError).
+
 ### 4. Config — always from settings singleton
 ```python
 # CORRECT:
