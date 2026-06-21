@@ -81,9 +81,9 @@ Backlog (needs dedicated UI tab): mileage log view, moving average consumption, 
 | # | Feature | Status |
 |---|---------|--------|
 | 4.1 | Extensible notification system (APScheduler + Web Push + anti-spam) | ✅ |
-| 4.2 | Budget alert (after each transaction) | 🔲 |
-| 4.3 | Income variance alert | 🔲 |
-| 4.4 | Goal risk alert (weekly) | 🔲 |
+| 4.2 | Budget alert (after each transaction) | ✅ |
+| 4.3 | Income variance alert | ✅ |
+| 4.4 | Goal risk alert (weekly) | ✅ |
 | 4.5 | Recurring expense audit (monthly) — push on 1st of month: "You have 8 recurring charges: Netflix €15, Ziggo €45… Want to review?" | 🔲 |
 | 4.6 | Vehicle reminders bundled in daily digest | ✅ |
 | 4.7 | Market correction alert (ETF dip) | 🔲 |

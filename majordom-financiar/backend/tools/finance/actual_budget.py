@@ -4,6 +4,7 @@ Finance tools — Actual Budget read and write operations.
 These functions are called by execute_tool() in registry.py
 after the LLM decides to use them.
 """
+import asyncio
 import json
 from datetime import date as _date
 
@@ -46,6 +47,12 @@ async def add_transaction(
     )
 
     if tx_id:
+        # Fire budget alert check in background (must not block chat response)
+        from backend.services.notification_service import check_budget_alert
+        from backend.core.memory.database import MemoryDB
+        asyncio.ensure_future(
+            check_budget_alert(category_name, MemoryDB(settings.memory.db_path))
+        )
         return (
             f"Transaction added successfully: {payee} €{amount:.2f} "
             f"on {tx_date.isoformat()} (category: {category_name})"

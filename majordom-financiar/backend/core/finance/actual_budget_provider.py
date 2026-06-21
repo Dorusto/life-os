@@ -133,6 +133,9 @@ class ActualBudgetProvider:
             payee, category_id
         )
 
+    async def get_goals(self) -> list[dict]:
+        return await self._client().get_goals()
+
     async def create_payee_rule(
         self, payee_name_prefix: str, category_id: str
     ) -> None:

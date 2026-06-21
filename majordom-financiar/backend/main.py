@@ -74,6 +74,27 @@ async def lifespan(app: FastAPI):
                 config={},
             )
             logger.info("Default notification rule seeded: uncategorized_alert")
+        if not db.get_notification_rule("budget_alert"):
+            db.upsert_notification_rule(
+                rule_type="budget_alert",
+                enabled=True,
+                config={},
+            )
+            logger.info("Default notification rule seeded: budget_alert")
+        if not db.get_notification_rule("income_variance"):
+            db.upsert_notification_rule(
+                rule_type="income_variance",
+                enabled=True,
+                config={"threshold": 0.8},
+            )
+            logger.info("Default notification rule seeded: income_variance")
+        if not db.get_notification_rule("goal_risk"):
+            db.upsert_notification_rule(
+                rule_type="goal_risk",
+                enabled=True,
+                config={},
+            )
+            logger.info("Default notification rule seeded: goal_risk")
     except Exception as _e:
         logger.warning("Could not seed built-in CSV profiles: %s", _e)
     try:

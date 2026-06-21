@@ -350,8 +350,188 @@ def _check_vehicle_reminders(db: MemoryDB) -> list[tuple[str, str, dict]]:
 
 
 # ---------------------------------------------------------------------------
+# check_budget_alert — M4.2 immediate post-transaction alert (standalone,
+# not a _check_* function — sends its own push and logs itself)
+# ---------------------------------------------------------------------------
+
+async def check_budget_alert(category_name: str, db: MemoryDB) -> None:
+    """Check if a category is over budget after adding a transaction.
+    
+    This is called from the tool layer (fire-and-forget). It sends its own
+    push notification and logs itself — it does NOT participate in the digest.
+    Never raises (errors are logged and swallowed).
+    """
+    try:
+        rule = db.get_notification_rule("budget_alert")
+        if not rule or not rule["enabled"]:
+            return
+
+        # Anti-spam: max one alert per category per day
+        spam_key = f"budget_alert_{category_name}"
+        last = db.get_last_notification(spam_key)
+        if last and last["sent_at"][:10] == date.today().isoformat():
+            return
+
+        client = get_provider()
+        budget_status = await client.get_budget_status()
+
+        # Find matching category (case-insensitive)
+        entry = None
+        for b in budget_status:
+            if b["category_name"].lower() == category_name.lower():
+                entry = b
+                break
+        if not entry or entry["budgeted"] == 0:
+            return
+
+        spent = entry["spent"]
+        budgeted = entry["budgeted"]
+        percentage = round(spent / budgeted * 100, 1) if budgeted > 0 else 0.0
+
+        if spent < budgeted:
+            return  # not over budget
+
+        # Build text with escalating severity
+        if percentage >= 110:
+            prefix = "⚠️⚠️"
+        else:
+            prefix = "⚠️"
+
+        text = (
+            f"{prefix} Budget alert: {category_name} is at "
+            f"{percentage:.0f}% ({spent:.2f} / {budgeted:.2f} €). "
+            f"Budget exceeded."
+        )
+
+        push_svc = get_push_service()
+        await push_svc.broadcast(title="Majordom", body=text, url="/chat")
+        db.log_notification(spam_key, {"category": category_name, "percentage": percentage})
+
+    except Exception as e:
+        logger.error("Budget alert check failed: %s", e)
+
+
+# ---------------------------------------------------------------------------
+# _check_income_variance — M4.3 daily digest checker
+# ---------------------------------------------------------------------------
+
+async def _check_income_variance(db: MemoryDB) -> str | None:
+    """Warn if current month income is significantly lower than 3-month avg."""
+    rule = db.get_notification_rule("income_variance")
+    if not rule or not rule["enabled"]:
+        return None
+
+    last = db.get_last_notification("income_variance")
+    if last and last["sent_at"][:10] == date.today().isoformat():
+        return None
+
+    today = date.today()
+
+    # Build historical list: last 3 calendar months (excluding current)
+    historical_incomes = []
+    for i in range(1, 4):
+        m = today.month - i
+        y = today.year
+        if m <= 0:
+            m += 12
+            y -= 1
+        try:
+            stats = await get_provider().get_monthly_stats(month=m, year=y)
+            historical_incomes.append(stats["income"])
+        except Exception as e:
+            logger.warning("Could not fetch monthly stats for %d-%02d: %s", y, m, e)
+            continue
+
+    # Need at least 2 months with income > 0
+    valid = [inc for inc in historical_incomes if inc > 0]
+    if len(valid) < 2:
+        return None
+
+    # Get current month stats
+    try:
+        current_stats = await get_provider().get_monthly_stats()
+    except Exception as e:
+        logger.warning("Could not fetch current monthly stats: %s", e)
+        return None
+
+    current_income = current_stats["income"]
+
+    # Too early in the month to judge
+    if today.day < 10:
+        return None
+
+    historical_avg = sum(valid) / len(valid)
+    threshold = rule["config"].get("threshold", 0.8)
+
+    if current_income < historical_avg * threshold:
+        return (
+            f"⚠️ Income alert: only €{current_income:.2f} recorded this month "
+            f"vs average €{historical_avg:.2f}. Is this expected?"
+        )
+
+    return None
+
+
+# ---------------------------------------------------------------------------
+# _check_goal_risk — M4.4 daily digest checker
+# ---------------------------------------------------------------------------
+
+async def _check_goal_risk(db: MemoryDB) -> str | None:
+    """Warn if a savings goal is at risk of missing its deadline (max weekly per goal)."""
+    rule = db.get_notification_rule("goal_risk")
+    if not rule or not rule["enabled"]:
+        return None
+
+    try:
+        goals = await get_provider().get_goals()
+    except Exception as e:
+        logger.warning("Could not fetch goals: %s", e)
+        return None
+
+    # Filter: only goals with deadline, months_remaining > 0
+    at_risk: list[str] = []
+
+    # Anti-spam: entire goal_risk block, max once per 7 days
+    last_global = db.get_last_notification("goal_risk")
+    if last_global:
+        days_since_global = (datetime.now() - datetime.fromisoformat(last_global["sent_at"])).days
+        if days_since_global < 7:
+            return None
+
+    for goal in goals:
+        deadline = goal.get("deadline")
+        months_remaining = goal.get("months_remaining")
+        if not deadline or months_remaining is None or months_remaining <= 0:
+            continue
+
+        percentage = goal.get("percentage", 0) or 0
+
+        # Determine risk
+        is_urgent = months_remaining <= 3 and percentage < 90
+        is_at_risk = months_remaining <= 6 and percentage < 60
+
+        if not is_urgent and not is_at_risk:
+            continue
+
+        monthly_needed = goal.get("monthly_needed") or 0
+        prefix = "⚠️ " if months_remaining <= 3 else ""
+        text = (
+            f"🎯 Goal '{goal['name']}': {percentage:.0f}% done, "
+            f"deadline {deadline} ({months_remaining} months left). "
+            f"Need €{monthly_needed:.0f}/month."
+        )
+        at_risk.append(prefix + text)
+
+    if not at_risk:
+        return None
+
+    return "\n".join(at_risk)
+
+
+# ---------------------------------------------------------------------------
 # Main orchestrator — one push per day with everything bundled
 # ---------------------------------------------------------------------------
+
 
 async def run_daily_digest():
     """Single daily job: collect all alerts, send one bundled Web Push."""
@@ -387,6 +567,14 @@ async def run_daily_digest():
         vehicle_alerts = _check_vehicle_reminders(db)
         for text, _, _ in vehicle_alerts:
             parts.append(text)
+
+        income_variance_text = await _check_income_variance(db)
+        if income_variance_text:
+            parts.append(income_variance_text)
+
+        goal_risk_text = await _check_goal_risk(db)
+        if goal_risk_text:
+            parts.append(goal_risk_text)
 
         if not parts:
             logger.debug("No content for daily digest today")
@@ -430,6 +618,12 @@ async def run_daily_digest():
 
         for _, log_key, log_payload in vehicle_alerts:
             db.log_notification(log_key, log_payload)
+
+        if income_variance_text:
+            db.log_notification("income_variance", {})
+
+        if goal_risk_text:
+            db.log_notification("goal_risk", {})
 
         logger.info("Daily digest sent — %d part(s): %s", len(parts), " | ".join(p[:40] for p in parts))
 
