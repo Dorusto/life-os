@@ -121,6 +121,12 @@ Replaces backlog items: *"Rules sync with AB"* and *"Bulk recategorization via c
 
 ---
 
+### ✅ M5.2 — FinanceProvider abstraction
+
+Tool layer decoupled from ActualBudgetClient via Protocol. `FINANCE_BACKEND=sure` switches provider with no tool code changes. Scope: `actual_budget.py`, `category_actions.py`, `notification_service.py`. API layer (transactions, accounts, etc.) deferred to M6 extraction.
+
+---
+
 ### 🔲 M5 — Integrations (Sure + Portfolio)
 
 **Platform decision (2026-06-03):** Sure replaces Ghostfolio. Sure will eventually replace AB. See `docs/decisions.md#sure-adoption`.

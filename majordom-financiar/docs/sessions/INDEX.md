@@ -36,3 +36,4 @@
 | [W24](2026-W24.md) | 2026-06-12 | propose_set_category_budget tool + domain routing architecture decision | actual_budget.py, CategoryActionCard.tsx, decisions.md, architecture.md |
 | [W25](2026-W25.md) | 2026-06-15 | propose_categorize_by_payee — bulk categorization via chat + editable card | actual_budget.py, client.py, CategoryActionCard.tsx, category_actions.py |
 | [W25](2026-W25.md) | 2026-06-21 | M4.5.2+3: uncategorized review flow + AB rule creation (is_consistent flag) | client.py, actual_budget.py, registry.py, chat.py, category_actions.py, CategoryActionCard.tsx |
+| [W25](2026-W25.md) | 2026-06-21 | M5.2: FinanceProvider Protocol — tool layer decoupled from ActualBudgetClient | core/finance/provider.py, actual_budget_provider.py, actual_budget.py |
