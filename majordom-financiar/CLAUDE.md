@@ -64,6 +64,8 @@ Fără acest pas, Second Brain rămâne out of sync și sesiunile de strategie Y
 - Involve the user — explain what you found, ask for confirmation before implementing.
 - New feature session: present plan in 3-5 lines, ask if ok, implement only after explicit confirmation.
 - **One feature at a time.**
+- **Architecture trade-offs before implementation:** when a feature has meaningful variants (1 generic tool vs N specific tools, library vs pure code, single endpoint vs multiple), present the trade-offs in 2-3 lines and get confirmation BEFORE writing the DeepSeek prompt or any code. Never discover the simpler approach existed after the fact.
+- **No auto-memory:** do not save notes to `~/.claude/projects/.../memory/`. Save feedback and decisions in this file or in `docs/decisions.md`.
 
 ### Before any implementation (mandatory — Claude or DeepSeek)
 
