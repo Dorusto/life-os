@@ -250,11 +250,17 @@ Sure checklist (budget allocation parity, MCP server) is deferred until the eval
 
 **Question:** Library choice, render strategy (SVG/Canvas), mobile constraints.
 
-**Decision (2026-06-21):** Recharts (React, SVG). New tool `get_chart_data(type, months)` returns structured JSON. Frontend renders a `ChartCard` component. LLM decides when to show charts based on user questions about spending history, trends, category breakdown.
+**Decision (2026-06-21):** Pure SVG/div — no external chart library. One tool per chart type, each added to `_PROPOSAL_TOOLS`; result goes directly to frontend as a JSON card. One component per chart type.
 
-**Why Recharts:** Declarative React API, TypeScript support, SVG (scalable on mobile PWA), ~50KB, no canvas complexity. Chart.js rejected (canvas, harder React integration). D3 rejected (overkill for 2-3 chart types).
+**Why no library:** Recharts considered but rejected — adds ~50KB bundle for 4 simple chart types; pure div/SVG achieves the same result with zero dependency. Chart.js rejected (canvas, harder React integration). D3 rejected (overkill).
 
-**Chart types in scope:** bar (monthly spending), line (trend over time), pie/donut (category breakdown for a month). All rendered inline in chat as ChartCard.
+**Tools + components implemented:**
+- `get_spending_chart` → `SpendingChart.tsx` (donut SVG, category breakdown)
+- `get_budget_chart` → `BudgetChart.tsx` (horizontal bars, budget vs actual, red for over-budget)
+- `get_spending_trend` → `TrendChart.tsx` (grouped vertical bars, spending + income per month)
+- `get_goals_chart` → `GoalsChart.tsx` (progress bars, deadline, monthly needed)
+
+**Pattern:** Each tool returns `{"type": "chart_name", ...data}` → must be in `_PROPOSAL_TOOLS` → frontend parser matches `type` → renders component.
 
 ---
 
