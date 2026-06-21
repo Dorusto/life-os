@@ -49,10 +49,69 @@ Full details in `docs/architecture.md`. Summary:
 **DeepSeek = engineer:** receives prompt, implements. Saves prompts in `scripts/prompts/deepseek/NNN_desc.md`.
 
 - Delegate to DeepSeek only when you save tokens overall (implementation + verification). Simple tasks with expensive verification → implement directly. Complex but well-defined tasks with fast verification → DeepSeek.
+- If a task touches >2 tightly coupled frontend files or depends on non-obvious conventions (auth pattern, card structure, Pydantic field names) → implement directly. Verification cost exceeds the gain.
 - When unsure about a bug cause — ask, don't assume and don't implement.
 - Involve the user — explain what you found, ask for confirmation before implementing.
 - New feature session: present plan in 3-5 lines, ask if ok, implement only after explicit confirmation.
 - **One feature at a time.**
+
+### Before any implementation (mandatory — Claude or DeepSeek)
+
+1. Identify all files the task will touch
+2. Consult the "Task type → what to read" table above and read the relevant `docs/learn/` file
+3. Grep `docs/sessions/` for recent work on the same files — catches gotchas not yet in architecture.md:
+   `grep -rl "filename" docs/sessions/`
+4. Check `docs/architecture.md#critical-technical-rules` for rules relevant to those files
+5. Check `docs/decisions.md` for relevant decisions
+
+### Additionally, if delegating to DeepSeek
+
+6. Include found rules EXPLICITLY in the prompt under `## Critical Rules` — DeepSeek does not read other files
+7. If no rules apply, write: `No specific rules identified for this task.` (proves the step was done, not skipped)
+
+### DeepSeek prompt template
+
+```markdown
+# Task: <short title>
+
+## Context
+<1-2 sentences: what problem, why now>
+
+## Goal
+<what the user can do after this — user perspective>
+
+## Relevant files
+| File | What it contains |
+|------|-----------------|
+| path/to/file.py | brief description |
+
+## Changes required
+### 1. `path/to/file.py`
+<bullet points per file; inline code ONLY for gotchas and non-obvious snippets>
+
+## Critical Rules
+<!-- Extracted from architecture.md + decisions.md for the files above -->
+- <rule> (source: architecture.md#section)
+- <rule> (source: decisions.md#section)
+<!-- If none apply: "No specific rules identified for this task." -->
+
+## Gotchas
+<!-- Code conventions DeepSeek cannot deduce from reading the files -->
+1. <quirk with inline example if needed>
+
+## Do NOT touch
+- <file or logic that must remain unchanged>
+
+## Done when
+- <verifiable acceptance criterion>
+```
+
+**Known gotchas (check relevance before each prompt):**
+- `_PROPOSAL_TOOLS` in `backend/api/chat.py` — every write tool must be listed here or the card never renders in frontend
+- actualpy in executor: `download_budget()` first → operations → `commit()` last, all inside `def _get(): with self._get_actual() as actual:`
+- Frontend auth: use `authFetch()` from `../lib/auth` or `getToken()` — never `localStorage.getItem('auth_token')`, the real key is `'majordom_token'`
+- Tool call args: `json.loads(args)` before `**args` — OpenAI format returns args as string, not dict
+- `LLM_BASE_URL` must NOT end with `/v1` — code appends `/v1/chat/completions` automatically
 
 ---
 
@@ -60,10 +119,6 @@ Full details in `docs/architecture.md`. Summary:
 
 - **Commit only after user verifies and confirms it works**
 - **Push to GitHub only when user explicitly asks**
-- **Commit timestamp** — weekday: between 18:00-23:00; weekend: real time
-  ```bash
-  GIT_AUTHOR_DATE="YYYY-MM-DD HH:MM:SS +0200" GIT_COMMITTER_DATE="..." git commit -m "..."
-  ```
 - All code, comments, commit messages, GitHub issues = **English**
 - Discussions with Claude = Romanian
 
@@ -72,12 +127,29 @@ Full details in `docs/architecture.md`. Summary:
 ## End-of-task protocol
 
 When user confirms something works:
+
+**If task was implemented by Claude directly — self-check before commit:**
+1. Re-read the rules found in the pre-implementation steps (architecture.md + decisions.md + sessions/)
+2. Verify each rule was applied in the written code — check explicitly, not by assumption
+3. If a rule was missed: fix before proceeding
+
+**If task was implemented by DeepSeek — audit diff first (before commit):**
+1. Re-read `## Critical Rules` from the DeepSeek prompt
+2. Verify each rule was respected in the diff — check explicitly, not by assumption
+3. If a rule was violated: fix directly or send back to DeepSeek with the specific observation
+4. Only after audit passes → proceed to commit
+
+**Always:**
 1. Commit with correct timestamp
 2. Close GitHub issue: `gh issue close NNN -c "message"`
 3. Update `docs/roadmap.md` — mark ✅ done if milestone item; if feature has a spec in `docs/specs/`, update it too
 4. Add entry to `docs/sessions/YYYY-WNN.md` (current week's file)
 5. Update `docs/sessions/INDEX.md` — add row for the session
-6. Fix any outdated notes in this file
+6. Check if docs need updating:
+   - New technical pattern or unexpected quirk found → add to `docs/architecture.md#critical-technical-rules`
+   - Design decision made during session → add to `docs/decisions.md`
+   - Rule already documented → no action
+7. Fix any outdated notes in this file (CLAUDE.md)
 
 **Sessions log format** (`docs/sessions/YYYY-WNN.md`):
 ```markdown
