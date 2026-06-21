@@ -19,12 +19,16 @@ import GoalProposalCard, { GoalProposalData } from '../components/GoalProposalCa
 import VehicleLogActionCard from '../components/VehicleLogActionCard'
 import VehicleReminderCard from '../components/VehicleReminderCard'
 import SpendingChart from '../components/SpendingChart'
+import BudgetChart from '../components/BudgetChart'
+import TrendChart from '../components/TrendChart'
+import GoalsChart from '../components/GoalsChart'
 import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from '../lib/api'
 import type { MonthlyStats } from '../lib/api'
 
 
 export interface Message {
-  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'fuelio_import' | 'income_source' | 'reconciliation' | 'receipt' | 'category_action' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder' | 'spending_chart'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'fuelio_import' | 'income_source' | 'reconciliation' | 'receipt' | 'category_action' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder' | 'spending_chart' | 'budget_chart' | 'spending_trend' | 'goals_chart'
+
   content: string
   chartData?: MonthlyStats
   proposal?: ProposalData
@@ -50,7 +54,11 @@ export interface Message {
   fuelLog?: { draft: ReceiptDraft; fuelStats?: FuelConfirmResponse }
   vehicleLogAction?: VehicleLogActionData
   vehicleReminder?: VehicleReminderData
+  budgetChartData?: { categories: {name: string, budgeted: number, spent: number, percentage: number}[], month: number, year: number }
+  trendData?: { months: {month: number, year: number, label: string, total: number, income: number}[] }
+  goalsChartData?: { goals: any[] }
 }
+
 
 
 export const INITIAL_MESSAGES: Message[] = [
@@ -364,8 +372,21 @@ export default function Chat({ messages, setMessages }: ChatProps) {
           setMessages(prev => [...prev, { role: 'spending_chart' as const, content: '', chartData: parsed as MonthlyStats }])
           return
         }
+        if (parsed.type === 'budget_chart') {
+          setMessages(prev => [...prev, { role: 'budget_chart' as const, content: '', budgetChartData: parsed }])
+          return
+        }
+        if (parsed.type === 'spending_trend') {
+          setMessages(prev => [...prev, { role: 'spending_trend' as const, content: '', trendData: parsed }])
+          return
+        }
+        if (parsed.type === 'goals_chart') {
+          setMessages(prev => [...prev, { role: 'goals_chart' as const, content: '', goalsChartData: parsed }])
+          return
+        }
 
       } catch {
+
         // Chunk may contain multiple JSON objects separated by newlines
         if (trimmed.includes('\n')) {
           for (const line of trimmed.split('\n')) {
@@ -714,7 +735,14 @@ export default function Chat({ messages, setMessages }: ChatProps) {
               />
             ) : msg.role === 'spending_chart' && msg.chartData ? (
               <SpendingChart stats={msg.chartData} />
+            ) : msg.role === 'budget_chart' && msg.budgetChartData ? (
+              <BudgetChart {...msg.budgetChartData} />
+            ) : msg.role === 'spending_trend' && msg.trendData ? (
+              <TrendChart months={msg.trendData.months} />
+            ) : msg.role === 'goals_chart' && msg.goalsChartData ? (
+              <GoalsChart goals={msg.goalsChartData.goals} />
             ) : msg.role === 'fuelio_import' && msg.fuelioImport ? (
+
               <FuelioImportCard data={msg.fuelioImport} />
             ) : msg.role === 'csv_import' && msg.csvImport ? (
               <CsvImportCard

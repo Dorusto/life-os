@@ -96,7 +96,38 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "get_budget_chart",
+            "description": "Show a visual chart comparing budget vs actual spending per category. Call when user asks to see budget performance, how they're tracking against budget, or wants a budget overview chart.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_spending_trend",
+            "description": "Show a multi-month spending and income trend chart. Call when user asks about spending trends, how their spending changed over months, or wants to see income vs expenses over time.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "months": {"type": "integer", "description": "Number of months to show (default 6, max 12)"},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_goals_chart",
+            "description": "Show a visual progress chart for all savings goals. Call when user asks about savings goals, goal progress, or how close they are to their financial targets.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "set_notification_time",
+
             "description": (
                 "Change the time of the daily financial summary notification. "
                 "Use when the user asks to change, update, or set the notification time, "
@@ -673,7 +704,20 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
         from backend.tools.finance.actual_budget import get_spending_chart
         return await get_spending_chart(**arguments)
 
+    if name == "get_budget_chart":
+        from backend.tools.finance.actual_budget import get_budget_chart
+        return await get_budget_chart()
+
+    if name == "get_spending_trend":
+        from backend.tools.finance.actual_budget import get_spending_trend
+        return await get_spending_trend(**arguments)
+
+    if name == "get_goals_chart":
+        from backend.tools.finance.actual_budget import get_goals_chart
+        return await get_goals_chart()
+
     if name == "propose_transaction":
+
         from backend.tools.finance.actual_budget import propose_transaction
         return await propose_transaction(**arguments)
 

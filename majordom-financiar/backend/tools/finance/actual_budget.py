@@ -319,7 +319,73 @@ async def get_spending_chart(month: int | None = None, year: int | None = None) 
     })
 
 
+async def get_budget_chart() -> str:
+    """Return budget vs actual data as JSON for the frontend to render as a horizontal bar chart."""
+    client = get_provider()
+    today = _date.today()
+    items = await client.get_budget_status()
+    # Filter: keep only entries where budgeted > 0 OR spent > 0
+    filtered = [item for item in items if item["budgeted"] > 0 or item["spent"] > 0]
+    # Sort by spent descending
+    filtered.sort(key=lambda x: x["spent"], reverse=True)
+    categories = []
+    for item in filtered:
+        budgeted = item["budgeted"]
+        spent = item["spent"]
+        pct = round(spent / budgeted * 100, 1) if budgeted > 0 else 0
+        categories.append({
+            "name": item["category_name"],
+            "budgeted": budgeted,
+            "spent": spent,
+            "percentage": pct,
+        })
+    return json.dumps({
+        "type": "budget_chart",
+        "month": today.month,
+        "year": today.year,
+        "categories": categories,
+    })
+
+
+async def get_spending_trend(months: int = 6) -> str:
+    """Return multi-month spending and income data as JSON for the frontend trend chart."""
+    client = get_provider()
+    today = _date.today()
+    month_abbrs = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    result = []
+    # Loop from months-1 down to 0 to build chronological list (oldest first)
+    for i in range(months - 1, -1, -1):
+        m = today.month - i
+        y = today.year
+        if m <= 0:
+            m += 12
+            y -= 1
+        stats = await client.get_monthly_stats(month=m, year=y)
+        label = f"{month_abbrs[m - 1]}-{str(y)[-2:]}"
+        result.append({
+            "month": stats["month"],
+            "year": stats["year"],
+            "label": label,
+            "total": stats["total"],
+            "income": stats.get("income", 0.0),
+        })
+    return json.dumps({
+        "type": "spending_trend",
+        "months": result,
+    })
+
+
+async def get_goals_chart() -> str:
+    """Return savings goals progress data as JSON for the frontend."""
+    client = get_provider()
+    goals = await client.get_goals()
+    if not goals:
+        return json.dumps({"type": "goals_chart", "goals": []})
+    return json.dumps({"type": "goals_chart", "goals": goals})
+
+
 async def propose_clarification(question: str, options: list[str]) -> str:
+
     """
     Ask the user a clarifying question with predefined answer options.
     No Actual Budget call needed — just returns JSON for the frontend.
