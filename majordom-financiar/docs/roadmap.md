@@ -101,7 +101,7 @@ Proactive uncategorized transaction review: digest nudge → pattern-based group
 
 | # | Feature | Status |
 |---|---------|--------|
-| 4.5.1 | Digest nudge — mention uncategorized count + prompt hint in evening digest | 🔲 |
+| 4.5.1 | Digest nudge — mention uncategorized count + prompt hint in evening digest | ✅ |
 | 4.5.2 | Review flow — group uncategorized by payee prefix, suggest category per group via chat | 🔲 |
 | 4.5.3 | AB rule creation at confirm — create payee rule in AB so future transactions are auto-categorized | 🔲 |
 
