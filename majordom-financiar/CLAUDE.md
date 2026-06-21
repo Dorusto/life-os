@@ -161,6 +161,7 @@ When user confirms something works:
    - Design decision made during session → add to `docs/decisions.md`
    - Rule already documented → no action
 7. Fix any outdated notes in this file (CLAUDE.md)
+8. **YouTube / learning check** — ask: "Is this concept interesting enough for a YouTube video or worth understanding deeper?" If yes, suggest the user open a Second Brain session to document it as a potential video topic. Criteria: new architecture pattern, non-obvious technical decision, visible user-facing feature, or something the user asked "how does this work?" about during the session.
 
 **Sessions log format** (`docs/sessions/YYYY-WNN.md`):
 ```markdown
