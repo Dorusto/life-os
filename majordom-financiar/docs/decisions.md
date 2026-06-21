@@ -248,11 +248,19 @@ Sure checklist (budget allocation parity, MCP server) is deferred until the eval
 
 ### Charts inline in chat (issue #30)
 
-**Question:** Library choice, render strategy (SVG/Canvas), mobile constraints.
+**Question:** Library choice (SVG/div vs Recharts), tool architecture (one tool per type vs generic dispatcher).
 
-**Decision (2026-06-21):** Pure SVG/div — no external chart library. One tool per chart type, each added to `_PROPOSAL_TOOLS`; result goes directly to frontend as a JSON card. One component per chart type.
+**Decision (2026-06-21):** Pure SVG/div for current chart types. One tool per chart type. No external library.
 
-**Why no library:** Recharts considered but rejected — adds ~50KB bundle for 4 simple chart types; pure div/SVG achieves the same result with zero dependency. Chart.js rejected (canvas, harder React integration). D3 rejected (overkill).
+**Library trade-off:**
+- `GoalsChart` (progress bars) and `BudgetChart` (horizontal bars + text) → pure div forever; a library adds nothing here.
+- `TrendChart` (grouped vertical bars) → pure div works but is limited: no Y-axis labels, no hover tooltips.
+- **Threshold:** when the first chart with a continuous axis is needed (net worth trend 12 months, vehicle consumption line chart) → add Recharts for that component only. Not a global migration.
+
+**Tool architecture trade-off:**
+- Separate tools (`get_spending_chart`, `get_budget_chart`, etc.) are better up to ~6 types: LLM has explicit per-tool descriptions, registry is clear.
+- Beyond 6 chart types → refactor to a single `get_chart_data(type, params)` dispatcher to avoid bloating the tool list in LLM context.
+- Alternative considered: generic `get_chart_data(type, months?)` from the start — rejected because at 4 types the LLM benefits more from explicit tool descriptions than from a smaller tool list.
 
 **Tools + components implemented:**
 - `get_spending_chart` → `SpendingChart.tsx` (donut SVG, category breakdown)
