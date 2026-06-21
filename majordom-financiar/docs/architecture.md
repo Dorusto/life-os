@@ -359,7 +359,19 @@ life-os/
 - MCP server — external agents (OpenClaw, Claude API, Hermes) call Majordom's tools
 - REST client — Majordom calls each service via its REST API (no MCP client internally)
 
-### FinanceProvider abstraction
+### Abstractization vs extraction — two different mechanisms
+
+The codebase has two layers that couple to Actual Budget, resolved differently:
+
+**Tool layer** — what the LLM calls conversationally (`tools/finance/actual_budget.py`, `api/category_actions.py`, `services/notification_service.py`):
+→ **M5.2 FinanceProvider Protocol** — stays in Majordom, calls an abstract interface. Switch provider = one env var.
+
+**API layer** — PWA-specific endpoints (`api/transactions.py`, `api/accounts.py`, `api/csv_import.py`, `api/receipts.py`, etc.):
+→ **M6 physical extraction** — these files disappear from Majordom. Logic moves to independent services (`csv-importer/`, `receipt-scanner/`, `finance/`). Majordom makes HTTP calls instead.
+
+Do NOT try to wrap the API layer with FinanceProvider — it will be extracted entirely in M6, not abstracted in place.
+
+### FinanceProvider abstraction (M5.2 — tool layer only)
 
 Majordom's tool registry calls a `FinanceProvider` protocol, not AB/Sure directly:
 
@@ -369,6 +381,7 @@ class FinanceProvider(Protocol):
     async def get_transactions(self, ...) -> list[Transaction]: ...
     async def create_transaction(self, ...) -> str: ...
     async def get_budget_status(self) -> BudgetStatus: ...
+    # ~15 methods total — exactly what tools/finance/actual_budget.py calls
 
 class ActualBudgetProvider:   # current — wraps actualpy
     ...
@@ -377,7 +390,7 @@ class SureProvider:           # future — Sure REST API
     ...
 ```
 
-Config: `FINANCE_BACKEND=actual_budget` (default) or `sure`. Switching backends requires no code changes.
+Config: `FINANCE_BACKEND=actual_budget` (default) or `sure`. Switching backends requires no code changes in the tool layer.
 
 ### Tool domain routing
 
