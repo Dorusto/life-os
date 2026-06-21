@@ -140,7 +140,7 @@ Sure test checklist (before any integration work):
 | # | Feature | Status |
 |---|---------|--------|
 | 5.1 | portfolio-bridge: Bitvavo → Sure | 🔲 |
-| 5.2 | FinanceProvider abstraction in Majordom | 🔲 |
+| 5.2 | FinanceProvider abstraction in Majordom | ✅ |
 | 5.3 | Switch Majordom → Sure backend | 🔲 |
 | 5.4 | Crypto tracker with sell alert | 🔲 |
 | 5.5 | Trading 212 sync | 🔲 |
