@@ -3,6 +3,15 @@ import sqlite3
 from backend.core.config import settings
 
 
+def _get_client():
+    from backend.core.actual_client import ActualBudgetClient
+    return ActualBudgetClient(
+        url=settings.actual.url,
+        password=settings.actual.password,
+        sync_id=settings.actual.sync_id,
+    )
+
+
 async def log_refuel(
     liters: float,
     total_eur: float,
@@ -20,7 +29,6 @@ async def log_refuel(
     from backend.tools import vehicle_proposals
     from backend.core.memory.database import MemoryDB
     from backend.core.config import settings as _settings
-    from backend.tools.finance.actual_budget import _get_client
 
     today = _date.today().isoformat()
     db = MemoryDB(db_path=_settings.memory.db_path)

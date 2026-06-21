@@ -7,21 +7,13 @@ after the LLM decides to use them.
 import json
 from datetime import date as _date
 
-from backend.core.actual_client import ActualBudgetClient
 from backend.core.config import settings
+from backend.core.finance.provider import get_provider
 
 
 def _looks_like_uuid(s: str) -> bool:
     import re
     return bool(re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', s, re.IGNORECASE))
-
-
-def _get_client() -> ActualBudgetClient:
-    return ActualBudgetClient(
-        url=settings.actual.url,
-        password=settings.actual.password,
-        sync_id=settings.actual.sync_id,
-    )
 
 
 async def add_transaction(
@@ -37,7 +29,7 @@ async def add_transaction(
     Add a transaction to Actual Budget.
     Returns a human-readable result string (success or duplicate).
     """
-    client = _get_client()
+    client = get_provider()
     try:
         tx_date = _date.fromisoformat(date)
     except ValueError:
@@ -97,7 +89,7 @@ async def propose_transaction(
 
     if not account_id or not _looks_like_uuid(account_id):
         try:
-            accounts = await _get_client().get_accounts()
+            accounts = await get_provider().get_accounts()
             # Try to match by name first (LLM may pass account name instead of ID)
             name_hint = account_id or account_name or ""
             matched = next((a for a in accounts if a.name.lower() == name_hint.lower()), None)
@@ -158,7 +150,7 @@ async def propose_budget_rebalance(
     else:
         target_month = today.replace(day=1)
 
-    client = _get_client()
+    client = get_provider()
 
     # Fetch current budget allocations to compute new amounts
     budget_status = await client.get_budget_status(
@@ -223,7 +215,7 @@ async def propose_budget_rebalance(
 
 async def get_accounts() -> str:
     """Return all accounts with their current balances."""
-    client = _get_client()
+    client = get_provider()
     accounts = await client.get_accounts()
     lines = ["Accounts:"]
     for a in accounts:
@@ -233,7 +225,7 @@ async def get_accounts() -> str:
 
 async def get_monthly_stats(month: int | None = None, year: int | None = None) -> str:
     """Return spending totals for a given month, broken down by category."""
-    client = _get_client()
+    client = get_provider()
     stats = await client.get_monthly_stats(month=month, year=year)
     m, y = stats["month"], stats["year"]
     lines = [f"Spending {y}-{m:02d}: €{stats['total']:.2f} total, {stats['count']} transactions"]
@@ -244,7 +236,7 @@ async def get_monthly_stats(month: int | None = None, year: int | None = None) -
 
 async def get_budget_status(month: int | None = None, year: int | None = None) -> str:
     """Return budget vs actual spending per category for a given month."""
-    client = _get_client()
+    client = get_provider()
     today = _date.today()
     m = month or today.month
     y = year or today.year
@@ -261,7 +253,7 @@ async def get_budget_status(month: int | None = None, year: int | None = None) -
 
 async def get_transactions(category: str | None = None, account: str | None = None, limit: int = 20) -> str:
     """Return recent transactions, optionally filtered by category or account name."""
-    client = _get_client()
+    client = get_provider()
     all_txs = await client.get_recent_transactions(limit=limit * 4)
     result = []
     for tx in all_txs:
@@ -281,7 +273,7 @@ async def get_transactions(category: str | None = None, account: str | None = No
 
 async def get_spending_history(months: int = 3) -> str:
     """Return monthly spending totals for the last N months."""
-    client = _get_client()
+    client = get_provider()
     today = _date.today()
     lines = [f"Spending history (last {months} months):"]
     for i in range(months - 1, -1, -1):
@@ -323,7 +315,7 @@ async def propose_account_transfer(
     import json
     from difflib import get_close_matches
 
-    client = _get_client()
+    client = get_provider()
     accounts = await client.get_accounts()
 
     accounts_list = [{"id": a.id, "name": a.name, "balance": a.balance} for a in accounts]
@@ -386,7 +378,7 @@ async def propose_balance_adjustment(account_name: str, real_balance: float) -> 
     import uuid
     from backend.tools import balance_adjustments as adj_store
 
-    client = _get_client()
+    client = get_provider()
     accounts = await client.get_accounts()
 
     # match by exact name first, then partial (case-insensitive)
@@ -423,7 +415,7 @@ async def complete_setup(balances: list[dict]) -> str:
     """
     from backend.core.memory.database import MemoryDB
 
-    client = _get_client()
+    client = get_provider()
 
     # Fetch account names for the summary
     accounts = await client.get_accounts()
@@ -456,7 +448,7 @@ async def set_account_goal(account_name: str, target: float, deadline: str | Non
     import uuid
     from difflib import get_close_matches
     from backend.tools import category_actions as action_store
-    client = _get_client()
+    client = get_provider()
     accounts = await client.get_accounts()
     all_names = [a.name for a in accounts]
     exact = next((n for n in all_names if n.lower() == account_name.lower()), None)
@@ -473,7 +465,7 @@ async def rename_category(old_name: str, new_name: str) -> str:
     import uuid
     from difflib import get_close_matches
     from backend.tools import category_actions as action_store
-    client = _get_client()
+    client = get_provider()
     cats = await client.get_categories()
     all_names = [c.name for c in cats]
     exact = next((n for n in all_names if n.lower() == old_name.lower()), None)
@@ -490,7 +482,7 @@ async def delete_category(name: str) -> str:
     import uuid
     from difflib import get_close_matches
     from backend.tools import category_actions as action_store
-    client = _get_client()
+    client = get_provider()
     cats = await client.get_categories()
     all_names = [c.name for c in cats]
     exact = next((n for n in all_names if n.lower() == name.lower()), None)
@@ -507,7 +499,7 @@ async def create_category(name: str, group_name: str) -> str:
     import uuid
     from difflib import get_close_matches
     from backend.tools import category_actions as action_store
-    client = _get_client()
+    client = get_provider()
     groups = await client.get_category_groups()
     exact = next((g for g in groups if g.lower() == group_name.lower()), None)
     resolved_group = exact or (get_close_matches(group_name, groups, n=1, cutoff=0.5) or [group_name])[0]
@@ -542,7 +534,7 @@ async def propose_set_category_budget(
     else:
         target_month = today.replace(day=1)
 
-    client = _get_client()
+    client = get_provider()
     budget_status = await client.get_budget_status(
         month=target_month.month,
         year=target_month.year,
@@ -598,7 +590,7 @@ async def setup_default_groups() -> str:
         ("Unexpected",   ["Other"]),
     ]
 
-    client = _get_client()
+    client = get_provider()
     existing_groups = await client.get_category_groups()
     existing_lower = {g.lower() for g in existing_groups}
 
@@ -622,7 +614,7 @@ async def propose_categorize_by_payee(payee: str, category_name: str) -> str:
     from difflib import get_close_matches
     from backend.tools import category_actions as action_store
 
-    client = _get_client()
+    client = get_provider()
 
     cats = await client.get_categories()
     cat_names = [c.name for c in cats]
@@ -673,7 +665,7 @@ async def get_uncategorized_groups() -> str:
     Fetch all uncategorized transaction groups by payee with suggested categories.
     Read-only — returns JSON for the LLM to present conversationally.
     """
-    client = _get_client()
+    client = get_provider()
     groups = await client.get_uncategorized_groups()
     if not groups:
         return json.dumps({
@@ -696,7 +688,7 @@ async def propose_categorize_with_rule(payee: str, category_name: str) -> str:
     from difflib import get_close_matches
     from backend.tools import category_actions as action_store
 
-    client = _get_client()
+    client = get_provider()
 
     cats = await client.get_categories()
     cat_names = [c.name for c in cats]

@@ -10,19 +10,10 @@ from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
 from backend.tools import category_actions as action_store
-from backend.core.actual_client import ActualBudgetClient
-from backend.core.config import settings
+from backend.core.finance.provider import get_provider
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-
-def _get_client() -> ActualBudgetClient:
-    return ActualBudgetClient(
-        url=settings.actual.url,
-        password=settings.actual.password,
-        sync_id=settings.actual.sync_id,
-    )
 
 
 class GoalOverride(BaseModel):
@@ -45,7 +36,7 @@ async def confirm_category_action(
     if not action:
         raise HTTPException(status_code=404, detail="Action not found or already completed")
 
-    client = _get_client()
+    client = get_provider()
     try:
         if action["action"] == "rename":
             await client.rename_category(action["category_name"], action["new_name"])

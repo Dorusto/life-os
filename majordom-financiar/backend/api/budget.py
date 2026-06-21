@@ -25,6 +25,14 @@ class RebalanceRequest(BaseModel):
     new_destination_budget: float
 
 
+def _get_client() -> ActualBudgetClient:
+    return ActualBudgetClient(
+        url=settings.actual.url,
+        password=settings.actual.password,
+        sync_id=settings.actual.sync_id,
+    )
+
+
 @router.post("/budget/rebalance")
 async def apply_rebalance(
     req: RebalanceRequest,
@@ -42,8 +50,6 @@ async def apply_rebalance(
     else:
         target_month = date.today().replace(day=1)
 
-    # Use the shared client factory — same pattern as tools/finance/actual_budget.py
-    from backend.tools.finance.actual_budget import _get_client
     client = _get_client()
 
     try:

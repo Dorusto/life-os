@@ -18,8 +18,8 @@ from datetime import date, datetime, timedelta
 
 import httpx
 
-from backend.core.actual_client import ActualBudgetClient
 from backend.core.config import settings
+from backend.core.finance.provider import get_provider
 from backend.core.memory.database import MemoryDB
 from backend.services.push_service import get_push_service
 
@@ -92,11 +92,7 @@ async def _check_financial_summary(db: MemoryDB) -> str | None:
         return None
 
     try:
-        client = ActualBudgetClient(
-            url=settings.actual.url,
-            password=settings.actual.password,
-            sync_id=settings.actual.sync_id,
-        )
+        client = get_provider()
         accounts = await client.get_accounts()
         today_transactions = await client.get_today_transactions()
         budget_status = await client.get_budget_status()
@@ -197,11 +193,7 @@ async def _check_uncategorized_transactions(db: MemoryDB) -> str | None:
         return None
 
     try:
-        client = ActualBudgetClient(
-            url=settings.actual.url,
-            password=settings.actual.password,
-            sync_id=settings.actual.sync_id,
-        )
+        client = get_provider()
         count = await client.count_uncategorized()
     except Exception as e:
         logger.error("Uncategorized transactions check failed: %s", e)
