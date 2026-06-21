@@ -18,12 +18,15 @@ import CategoryActionCard from '../components/CategoryActionCard'
 import GoalProposalCard, { GoalProposalData } from '../components/GoalProposalCard'
 import VehicleLogActionCard from '../components/VehicleLogActionCard'
 import VehicleReminderCard from '../components/VehicleReminderCard'
+import SpendingChart from '../components/SpendingChart'
 import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from '../lib/api'
+import type { MonthlyStats } from '../lib/api'
 
 
 export interface Message {
-  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'fuelio_import' | 'income_source' | 'reconciliation' | 'receipt' | 'category_action' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'fuelio_import' | 'income_source' | 'reconciliation' | 'receipt' | 'category_action' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder' | 'spending_chart'
   content: string
+  chartData?: MonthlyStats
   proposal?: ProposalData
   budgetRebalance?: BudgetRebalanceData
   clarification?: ClarificationData
@@ -355,6 +358,10 @@ export default function Chat({ messages, setMessages }: ChatProps) {
         }
         if (parsed.type === 'vehicle_reminder') {
           setMessages(prev => [...prev, { role: 'vehicle_reminder' as const, content: '', vehicleReminder: parsed as VehicleReminderData }])
+          return
+        }
+        if (parsed.type === 'spending_chart') {
+          setMessages(prev => [...prev, { role: 'spending_chart' as const, content: '', chartData: parsed as MonthlyStats }])
           return
         }
 
@@ -705,6 +712,8 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                   )
                 }}
               />
+            ) : msg.role === 'spending_chart' && msg.chartData ? (
+              <SpendingChart stats={msg.chartData} />
             ) : msg.role === 'fuelio_import' && msg.fuelioImport ? (
               <FuelioImportCard data={msg.fuelioImport} />
             ) : msg.role === 'csv_import' && msg.csvImport ? (

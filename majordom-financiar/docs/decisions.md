@@ -232,11 +232,29 @@ Sure checklist (budget allocation parity, MCP server) is deferred until the eval
 
 ---
 
+### M2.5 goal proposal — reframed as budget calibration
+
+**Date:** 2026-06-21
+
+**Decision:** M2.5 "first goal proposal" is reframed. Original idea (propose savings goals after 2 months of data) is superseded by a more useful flow: Majordom shows real spending per category vs current budget allocations and proposes corrections. Includes creating sinking fund categories (e.g. "Vacations" at €417/month = €5000/year). This is more valuable than abstract goal proposals because AB budgets were set by estimation, not calibrated to real spending.
+
+**Why:** After 2 months of AB data, it's clear budgets don't reflect reality (Transport budgeted €50, spent €282; Groceries budgeted €600, spent €80; no Vacations category exists). Showing "you could save X" is meaningless when monthly allocations are wrong.
+
+**Implementation:** Conversational tool — `propose_budget_calibration` — compares last 3 months' real spending vs current budget per category, returns a proposal card with suggested corrections. User confirms per category.
+
+**Rejected:** Abstract ML-style goal proposal based on surplus detection — too early, data too sparse.
+
+---
+
 ### Charts inline in chat (issue #30)
 
 **Question:** Library choice, render strategy (SVG/Canvas), mobile constraints.
 
-**Status:** Not a priority before M2.5. Confirm approach before implementing.
+**Decision (2026-06-21):** Recharts (React, SVG). New tool `get_chart_data(type, months)` returns structured JSON. Frontend renders a `ChartCard` component. LLM decides when to show charts based on user questions about spending history, trends, category breakdown.
+
+**Why Recharts:** Declarative React API, TypeScript support, SVG (scalable on mobile PWA), ~50KB, no canvas complexity. Chart.js rejected (canvas, harder React integration). D3 rejected (overkill for 2-3 chart types).
+
+**Chart types in scope:** bar (monthly spending), line (trend over time), pie/donut (category breakdown for a month). All rendered inline in chat as ChartCard.
 
 ---
 

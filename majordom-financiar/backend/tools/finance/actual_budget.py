@@ -294,6 +294,31 @@ async def get_spending_history(months: int = 3) -> str:
     return "\n".join(lines)
 
 
+async def get_spending_chart(month: int | None = None, year: int | None = None) -> str:
+    """Return spending data as JSON for the frontend to render as a donut chart."""
+    client = get_provider()
+    data = await client.get_monthly_stats(month=month, year=year)
+    total = data["total"]
+    cats = sorted([
+        {
+            "name": v["name"],
+            "total": round(v["total"], 2),
+            "count": v["count"],
+            "percentage": round(v["total"] / total * 100, 1) if total > 0 else 0,
+        }
+        for v in data["categories"].values()
+    ], key=lambda x: x["total"], reverse=True)
+    return json.dumps({
+        "type": "spending_chart",
+        "month": data["month"],
+        "year": data["year"],
+        "total": round(total, 2),
+        "income": round(data.get("income", 0.0), 2),
+        "count": data["count"],
+        "categories": cats,
+    })
+
+
 async def propose_clarification(question: str, options: list[str]) -> str:
     """
     Ask the user a clarifying question with predefined answer options.

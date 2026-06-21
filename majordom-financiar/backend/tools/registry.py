@@ -81,6 +81,21 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "get_spending_chart",
+            "description": "Show a visual spending chart for a month broken down by category. Call this when the user asks to see a chart, graph, or visual breakdown of their spending.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "month": {"type": "integer", "description": "Month number 1-12. Omit for current month."},
+                    "year": {"type": "integer", "description": "Year e.g. 2026. Omit for current year."},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "set_notification_time",
             "description": (
                 "Change the time of the daily financial summary notification. "
@@ -653,6 +668,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "get_spending_history":
         from backend.tools.finance.actual_budget import get_spending_history
         return await get_spending_history(**arguments)
+
+    if name == "get_spending_chart":
+        from backend.tools.finance.actual_budget import get_spending_chart
+        return await get_spending_chart(**arguments)
 
     if name == "propose_transaction":
         from backend.tools.finance.actual_budget import propose_transaction

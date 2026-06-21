@@ -59,7 +59,7 @@ For Actual Budget integration details (split transactions, multi-currency, credi
 |---|---------|--------|
 | 2.5 | First goal proposal after 2 months of data (conversational) | 🔲 |
 | 2.6 | FIRE widget on Home screen (off-budget accounts vs target) | ✅ |
-| 2.7 | Charts inline in chat | 🔲 |
+| 2.7 | Charts inline in chat | ✅ |
 
 Home screen pending (after M2.5): FIRE % as 3rd metric card, Obligations section (needs decision first — see [docs/decisions.md](decisions.md)).
 

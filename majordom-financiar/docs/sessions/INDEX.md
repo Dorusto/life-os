@@ -38,3 +38,4 @@
 | [W25](2026-W25.md) | 2026-06-21 | M4.5.2+3: uncategorized review flow + AB rule creation (is_consistent flag) | client.py, actual_budget.py, registry.py, chat.py, category_actions.py, CategoryActionCard.tsx |
 | [W25](2026-W25.md) | 2026-06-21 | M5.2: FinanceProvider Protocol — tool layer decoupled from ActualBudgetClient | core/finance/provider.py, actual_budget_provider.py, actual_budget.py |
 | [W25](2026-W25.md) | 2026-06-21 | M4.2+4.3+4.4: budget alert (immediate push), income variance, goal risk | notification_service.py, actual_budget.py, provider.py, main.py |
+| [W25](2026-W25.md) | 2026-06-21 | M2.7: spending chart inline in chat — donut SVG card via get_spending_chart tool | actual_budget.py, registry.py, chat.py, Chat.tsx |
