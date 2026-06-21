@@ -317,6 +317,16 @@ All services share `majordom-net` bridge network. Backend addresses AB as `http:
 
 ---
 
+## Pre-commit hook — private data patterns
+
+`scripts/check-private-data.sh` scans staged diffs for sensitive patterns. One gotcha affects normal code:
+
+The hook blocks `PASSWORD=<value>` unless the value starts with a whitelisted prefix (`settings.`, `cfg.`, `your_`, `example`, etc.).
+
+**Rule:** when instantiating `ActualBudgetClient`, always pass credentials directly from `settings.<section>.<field>` or `cfg.<field>` — never as a hardcoded string, never as a variable whose name doesn't start with a whitelisted prefix.
+
+---
+
 ## MCP Server (planned)
 
 Majordom will expose its tool registry through MCP standard. Any MCP-compatible agent (OpenClaw, Hermes, Claude) can call Majordom's tools directly. Implementation scheduled after M2 — tracked in issue #58.
