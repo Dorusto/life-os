@@ -95,6 +95,20 @@ Backlog (needs dedicated UI tab): mileage log view, moving average consumption, 
 
 → [Session log W22](sessions/2026-W22.md) · [W23](sessions/2026-W23.md) · [W24](sessions/2026-W24.md)
 
+### 🔲 M4.5 — Smart Categorization
+
+Proactive uncategorized transaction review: digest nudge → pattern-based grouping → category proposal → AB rule creation. User confirms every action via cards.
+
+| # | Feature | Status |
+|---|---------|--------|
+| 4.5.1 | Digest nudge — mention uncategorized count + prompt hint in evening digest | 🔲 |
+| 4.5.2 | Review flow — group uncategorized by payee prefix, suggest category per group via chat | 🔲 |
+| 4.5.3 | AB rule creation at confirm — create payee rule in AB so future transactions are auto-categorized | 🔲 |
+
+Replaces backlog items: *"Rules sync with AB"* and *"Bulk recategorization via chat"*.
+
+---
+
 ### 🔲 M5.0 — Tool domain routing (prerequisite for M5.7 MCP server)
 
 | # | Feature | Status |
@@ -153,10 +167,8 @@ Sure test checklist (before any integration work):
 | [Split transactions](specs/ab-integration.md#split-transactions) | One receipt across multiple categories |
 | [Returns / reimbursements](specs/ab-integration.md#returns-and-reimbursements) | Returns go back to spending category, not income |
 | [Credit card strategies](specs/ab-integration.md#credit-card-accounts) | Paying in full vs. carrying debt |
-| [Rules sync with AB](specs/ab-integration.md#rules-and-auto-categorization-sync) | merchant_mappings → AB rules |
 | [OFX/QFX import](specs/ab-integration.md#ofxqfx-import) | Better deduplication than CSV |
 | [Historical transfer migration](specs/ab-integration.md#migrate-historical-transfers) | Link unlinked transfer pairs after bulk import |
-| [Bulk recategorization via chat](specs/ab-integration.md#bulk-recategorization-via-chat) | "Move all Netflix → Entertainment" |
 | [End of Month Cleanup](specs/ab-integration.md#end-of-month-cleanup) | Auto surplus redistribution via `#cleanup` notes |
 | [Transaction tags](specs/ab-integration.md#transaction-tags) | `#deductible`, `#vacation-2025`, etc. |
 | [ActualQL for chat](specs/ab-integration.md#actualql-for-chat-ai-queries) | Arbitrary financial queries beyond the 5 pre-built tools — foundation for M2.5 Insights |
