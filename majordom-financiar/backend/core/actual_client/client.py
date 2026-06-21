@@ -1375,6 +1375,24 @@ class ActualBudgetClient:
 
         return await self._run(_batch)
 
+    async def count_uncategorized(self) -> int:
+        """Count all transactions without a category (expenses and income, excludes transfers)."""
+        def _count():
+            from actual.database import Transactions
+            with self._get_actual() as actual:
+                actual.download_budget()
+                return (
+                    actual.session.query(Transactions)
+                    .filter(
+                        Transactions.category_id == None,
+                        Transactions.tombstone == 0,
+                        Transactions.is_parent == 0,
+                        Transactions.transferred_id == None,
+                    )
+                    .count()
+                )
+        return await self._run(_count)
+
     async def count_uncategorized_by_payee(self, payee: str) -> int:
         """Count uncategorized transactions whose payee matches `payee` (case-insensitive substring)."""
         def _count():

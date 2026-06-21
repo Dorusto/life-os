@@ -186,6 +186,36 @@ def _check_pending_review(db: MemoryDB) -> tuple[str | None, list]:
     return text, financial_ids
 
 
+async def _check_uncategorized_transactions(db: MemoryDB) -> str | None:
+    """Return nudge text if there are uncategorized transactions in AB. None if disabled or zero."""
+    rule = db.get_notification_rule("uncategorized_alert")
+    if not rule or not rule["enabled"]:
+        return None
+
+    last = db.get_last_notification("uncategorized_alert")
+    if last and last["sent_at"][:10] == date.today().isoformat():
+        return None
+
+    try:
+        client = ActualBudgetClient(
+            url=settings.actual.url,
+            password=settings.actual.password,
+            sync_id=settings.actual.sync_id,
+        )
+        count = await client.count_uncategorized()
+    except Exception as e:
+        logger.error("Uncategorized transactions check failed: %s", e)
+        return None
+
+    if count == 0:
+        return None
+
+    return (
+        f"You have {count} uncategorized transaction{'s' if count > 1 else ''}. "
+        f"Say 'review uncategorized transactions' to categorize them."
+    )
+
+
 def _check_vehicle_reminders(db: MemoryDB) -> list[tuple[str, str, dict]]:
     """Return list of (alert_text, log_key, log_payload) for vehicle alerts due today.
 
@@ -358,6 +388,10 @@ async def run_daily_digest():
         if review_text:
             parts.append(review_text)
 
+        uncategorized_text = await _check_uncategorized_transactions(db)
+        if uncategorized_text:
+            parts.append(uncategorized_text)
+
         vehicle_alerts = _check_vehicle_reminders(db)
         for text, _, _ in vehicle_alerts:
             parts.append(text)
@@ -398,6 +432,9 @@ async def run_daily_digest():
             db.mark_pending_reviews_notified(pending_ids)
             db.cleanup_old_pending_reviews()
             db.log_notification("pending_review", {"count": len(pending_ids)})
+
+        if uncategorized_text:
+            db.log_notification("uncategorized_alert", {})
 
         for _, log_key, log_payload in vehicle_alerts:
             db.log_notification(log_key, log_payload)

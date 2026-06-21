@@ -67,6 +67,13 @@ async def lifespan(app: FastAPI):
                 config={"warn_days": 30},
             )
             logger.info("Default notification rule seeded: vehicle_reminders at 30 days")
+        if not db.get_notification_rule("uncategorized_alert"):
+            db.upsert_notification_rule(
+                rule_type="uncategorized_alert",
+                enabled=True,
+                config={},
+            )
+            logger.info("Default notification rule seeded: uncategorized_alert")
     except Exception as _e:
         logger.warning("Could not seed built-in CSV profiles: %s", _e)
     try:
