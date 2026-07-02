@@ -41,3 +41,5 @@
 | [W25](2026-W25.md) | 2026-06-21 | M2.7: spending chart inline in chat — donut SVG card via get_spending_chart tool | actual_budget.py, registry.py, chat.py, Chat.tsx |
 | [W25](2026-W25.md) | 2026-06-21 | M2.7b: 3 additional chart types — budget vs actual, spending trend, goals progress | BudgetChart.tsx, TrendChart.tsx, GoalsChart.tsx, actual_budget.py |
 | [W27](2026-W27.md) | 2026-07-02 | Vault findings → issues #101-#131 + CSV import cleared/imported_id fix (#101, #102) | api/csv_import.py, docs/architecture.md, docs/roadmap.md |
+| [W27](2026-W27.md) | 2026-07-02 | CSV import currency conversion (#103) + account auto-suggestion (#118) + near-duplicate detection | detector.py, csv_import.py, ImportPage.tsx, CsvImportCard.tsx |
+| [W27](2026-W27.md) | 2026-07-03 | Categorization bug batch: unify tools (#104), fix inconsistent card (#107), setup Skip option (#108) | registry.py, actual_budget.py, chat.py, category_actions.py, CategoryActionCard.tsx, SetupBalancesCard.tsx |
