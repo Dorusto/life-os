@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { LogOut, Bell, MoreVertical, Wallet, Database } from 'lucide-react'
+import { LogOut, Bell, MoreVertical, Wallet, Database, AlertCircle, ChevronRight } from 'lucide-react'
 import { getHomeData } from '../lib/api'
 import { getUsername, clearAuth } from '../lib/auth'
 import { requestAndSubscribe } from '../lib/push'
@@ -24,6 +24,8 @@ export default function Home() {
   const goals = homeData?.goals
   const fireData = homeData?.fire
   const cashflow = stats ? stats.income - stats.total : null
+  const uncategorizedCount = homeData?.uncategorized_count ?? 0
+  const unreconciledCount = homeData?.unreconciled_count ?? 0
 
   function handleLogout() {
     clearAuth()
@@ -125,6 +127,25 @@ export default function Home() {
             <p className="text-white text-sm font-medium">Enable daily notifications</p>
             <p className="text-muted text-xs">Get a daily summary from Majordom at 20:00</p>
           </div>
+        </button>
+      )}
+
+      {/* Needs resolving — surfaced directly instead of buried in chat/digest (#130) */}
+      {(uncategorizedCount > 0 || unreconciledCount > 0) && (
+        <button
+          onClick={() => navigate('/chat')}
+          className="mx-5 mt-3 flex items-center gap-3 px-4 py-3 rounded-xl bg-surface border border-yellow-500/30 hover:border-yellow-500/60 transition-colors text-left"
+        >
+          <AlertCircle size={18} className="text-yellow-500 flex-shrink-0" />
+          <div className="flex-1">
+            <p className="text-white text-sm font-medium">Needs resolving</p>
+            <p className="text-muted text-xs">
+              {uncategorizedCount > 0 && `${uncategorizedCount} uncategorized`}
+              {uncategorizedCount > 0 && unreconciledCount > 0 && ' · '}
+              {unreconciledCount > 0 && `${unreconciledCount} unreconciled`}
+            </p>
+          </div>
+          <ChevronRight size={16} className="text-muted flex-shrink-0" />
         </button>
       )}
 

@@ -110,6 +110,7 @@ A text response claiming an action was done WITHOUT calling a tool = wrong behav
 - To transfer money between accounts: call propose_account_transfer. Never describe it as text. Pass account names EXACTLY as the user stated them — do NOT substitute with known accounts. If an account is not in Actual Budget, the backend will ask for clarification.
 - To answer questions about spending, balances, or budget: call the appropriate get_* tool first, then answer based on the result.
 - Never invent financial data — always fetch it with a tool.
+- When presenting get_uncategorized_groups results: state the command format the user should type FIRST (e.g. "Say 'categorize all X as Y' for any group below"), THEN list the groups. With long lists the instruction gets missed if it's only at the end.
 
 Today's date: {date.today().isoformat()}
 """

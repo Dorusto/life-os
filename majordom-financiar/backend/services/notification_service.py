@@ -546,6 +546,10 @@ async def run_daily_digest():
             return
 
         # --- Collect all alert texts ---
+        # Each part is prefixed with a type-specific emoji and blank-line
+        # separated so distinct alert types are visually scannable instead of
+        # blending into one text block (issue #129) — important nudges like
+        # categorization were getting lost among budget/goal alerts.
         parts: list[str] = []
 
         financial_text = await _check_financial_summary(db)
@@ -554,36 +558,37 @@ async def run_daily_digest():
 
         import_text = _check_import_nudge(db)
         if import_text:
-            parts.append(import_text)
+            parts.append(f"📥 {import_text}")
 
         review_text, pending_ids = _check_pending_review(db)
         if review_text:
-            parts.append(review_text)
+            parts.append(f"🏷️ {review_text}")
 
         uncategorized_text = await _check_uncategorized_transactions(db)
         if uncategorized_text:
-            parts.append(uncategorized_text)
+            parts.append(f"🏷️ {uncategorized_text}")
 
         vehicle_alerts = _check_vehicle_reminders(db)
         for text, _, _ in vehicle_alerts:
-            parts.append(text)
+            parts.append(f"🚗 {text}")
 
         income_variance_text = await _check_income_variance(db)
         if income_variance_text:
-            parts.append(income_variance_text)
+            parts.append(f"💰 {income_variance_text}")
 
         goal_risk_text = await _check_goal_risk(db)
         if goal_risk_text:
-            parts.append(goal_risk_text)
+            parts.append(f"🎯 {goal_risk_text}")
 
         if not parts:
             logger.debug("No content for daily digest today")
             return
 
         # --- Build push body ---
-        # Financial summary (if present) is the first sentence.
-        # Alerts follow, separated by " · "
-        body = "\n".join(parts)
+        # Financial summary (if present) is the first sentence, unprefixed.
+        # Alerts follow, each on its own paragraph so the type-emoji prefix
+        # and text stay visually grouped and distinct from neighboring alerts.
+        body = "\n\n".join(parts)
 
         push_svc = get_push_service()
         await push_svc.broadcast(

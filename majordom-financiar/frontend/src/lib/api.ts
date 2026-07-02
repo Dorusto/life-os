@@ -533,6 +533,8 @@ export interface HomeData {
   budget: BudgetCategory[]
   goals: Goal[]
   fire: FireData
+  uncategorized_count: number
+  unreconciled_count: number
 }
 
 export async function getHomeData(month?: number, year?: number): Promise<HomeData> {

@@ -30,6 +30,7 @@ export interface Message {
   role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'fuelio_import' | 'income_source' | 'reconciliation' | 'receipt' | 'category_action' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder' | 'spending_chart' | 'budget_chart' | 'spending_trend' | 'goals_chart'
 
   content: string
+  ts?: number
   chartData?: MonthlyStats
   proposal?: ProposalData
   budgetRebalance?: BudgetRebalanceData
@@ -270,7 +271,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
   function handleSendText(text: string) {
     if (!text || loading) return
 
-    const userMessage: Message = { role: 'user', content: text }
+    const userMessage: Message = { role: 'user', content: text, ts: Date.now() }
     setMessages(prev => [...prev, userMessage])
     setLoading(true)
 
@@ -314,7 +315,8 @@ export default function Chat({ messages, setMessages }: ChatProps) {
         console.error('Chat error:', error)
         setMessages(prev => [...prev, {
           role: 'assistant',
-          content: `Error: ${error}`
+          content: `Error: ${error}`,
+          ts: Date.now(),
         }])
         setLoading(false)
       }
@@ -335,6 +337,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
           setMessages(prev => [...prev, {
             role: 'assistant',
             content: parsed.message || 'Something went wrong.',
+            ts: Date.now(),
           }])
           return
         }
@@ -342,6 +345,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
           setMessages(prev => [...prev, {
             role: 'assistant',
             content: parsed.message || '',
+            ts: Date.now(),
           }])
           return
         }
@@ -420,7 +424,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
       if (lastIndex >= 0 && newMessages[lastIndex].role === 'assistant') {
         newMessages[lastIndex] = { ...newMessages[lastIndex], content: newMessages[lastIndex].content + chunk }
       } else {
-        newMessages.push({ role: 'assistant', content: chunk })
+        newMessages.push({ role: 'assistant', content: chunk, ts: Date.now() })
       }
       return newMessages
     })
@@ -956,21 +960,28 @@ export default function Chat({ messages, setMessages }: ChatProps) {
               />
             ) : (
 
-              <div
-                className={`
-                  max-w-[80%] px-4 py-3 text-sm leading-relaxed rounded-2xl
-                  ${msg.role === 'user'
-                    ? 'bg-accent text-white rounded-br-sm'
-                    : 'bg-surface border border-border text-white rounded-bl-sm'
-                  }
-                `}
-              >
-                {msg.role === 'assistant' ? (
-                  <div className="prose prose-invert prose-sm max-w-none prose-p:my-0 prose-ul:my-1 prose-li:my-0">
-                    <ReactMarkdown>{msg.content}</ReactMarkdown>
-                  </div>
-                ) : (
-                  msg.content
+              <div className={`flex flex-col max-w-[80%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                <div
+                  className={`
+                    px-4 py-3 text-sm leading-relaxed rounded-2xl
+                    ${msg.role === 'user'
+                      ? 'bg-accent text-white rounded-br-sm'
+                      : 'bg-surface border border-border text-white rounded-bl-sm'
+                    }
+                  `}
+                >
+                  {msg.role === 'assistant' ? (
+                    <div className="[&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_ul]:my-1 [&_li]:my-0 [&_a]:text-accent [&_a]:underline">
+                      <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    msg.content
+                  )}
+                </div>
+                {msg.ts && (
+                  <span className="text-[10px] text-muted mt-1 px-1">
+                    {new Date(msg.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
                 )}
               </div>
             )}

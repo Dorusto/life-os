@@ -589,6 +589,7 @@ class ActualBudgetClient:
             from collections import defaultdict
             from datetime import date as _date
             from actual.queries import get_accounts, get_transactions, get_categories
+            from actual.database import Transactions
 
             target_month = month or _date.today().month
             target_year = year or _date.today().year
@@ -839,11 +840,37 @@ class ActualBudgetClient:
                         "months_remaining": months_remaining,
                     })
 
+                # 5. "Needs resolving" counts — surfaced on Home so the user
+                # sees them without digging into chat (issue #130). Global
+                # counts, not scoped to target_month, same session, no extra
+                # download_budget() call.
+                uncategorized_count = (
+                    actual.session.query(Transactions)
+                    .filter(
+                        Transactions.category_id == None,
+                        Transactions.tombstone == 0,
+                        Transactions.is_parent == 0,
+                        Transactions.transferred_id == None,
+                    )
+                    .count()
+                )
+                unreconciled_count = (
+                    actual.session.query(Transactions)
+                    .filter(
+                        Transactions.cleared == False,
+                        Transactions.tombstone == 0,
+                        Transactions.is_parent == 0,
+                    )
+                    .count()
+                )
+
             return {
                 "accounts": accounts_result,
                 "stats": stats_result,
                 "budget": budget_result,
                 "goals": goals_result,
+                "uncategorized_count": uncategorized_count,
+                "unreconciled_count": unreconciled_count,
             }
 
         return await self._run(_get)
