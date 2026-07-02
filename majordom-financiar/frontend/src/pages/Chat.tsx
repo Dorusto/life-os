@@ -328,6 +328,23 @@ export default function Chat({ messages, setMessages }: ChatProps) {
       try {
         const parsed = JSON.parse(trimmed)
 
+        if (parsed.type === 'error') {
+          // Tool-level errors (e.g. "no uncategorized transactions found for
+          // payee X") skip the LLM and land here as raw JSON — never show
+          // that to the user, render the human-readable message instead.
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: parsed.message || 'Something went wrong.',
+          }])
+          return
+        }
+        if (parsed.type === 'info') {
+          setMessages(prev => [...prev, {
+            role: 'assistant',
+            content: parsed.message || '',
+          }])
+          return
+        }
         if (parsed.type === 'proposal') {
           setMessages(prev => [...prev, { role: 'proposal' as const, content: '', proposal: parsed as ProposalData }])
           return

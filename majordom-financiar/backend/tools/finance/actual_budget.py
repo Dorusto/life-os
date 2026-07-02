@@ -746,12 +746,22 @@ async def propose_categorize_with_rule(payee: str, category_name: str) -> str:
             "message": f"Category not found: {category_name!r}. Available: {', '.join(cat_names)}",
         })
 
+    groups = await client.get_uncategorized_groups()
+
     count = await client.count_uncategorized_by_payee(payee)
     if count == 0:
-        return json.dumps({
-            "type": "error",
-            "message": f"No uncategorized transactions found for payee matching '{payee}'.",
-        })
+        # Suggest real close-matching payee names from actual uncategorized
+        # data — never let the LLM invent plausible-looking names that don't
+        # exist, that just relabels the same problem in a more confusing way.
+        # Case-insensitive: get_close_matches is case-sensitive by default,
+        # and a bare case mismatch (e.g. "gemente" vs "Gemeente Amsterdam")
+        # is enough to push an otherwise-good match below the cutoff.
+        name_lower_map = {g["payee_name"].lower(): g["payee_name"] for g in groups}
+        close = get_close_matches(payee.lower(), list(name_lower_map.keys()), n=3, cutoff=0.5)
+        message = f"No uncategorized transactions found for payee matching '{payee}'."
+        if close:
+            message += f" Did you mean: {', '.join(name_lower_map[c] for c in close)}?"
+        return json.dumps({"type": "error", "message": message})
 
     # Compute rule_prefix (same logic as get_uncategorized_groups in client.py)
     first_word = payee.split()[0] if payee else ""
@@ -763,7 +773,6 @@ async def propose_categorize_with_rule(payee: str, category_name: str) -> str:
 
     # Check consistency: look up the payee in AB history
     is_consistent = True
-    groups = await client.get_uncategorized_groups()
     for g in groups:
         if g["payee_name"].lower() == payee.lower() or payee.lower() in g["payee_name"].lower():
             is_consistent = g["is_consistent"]
