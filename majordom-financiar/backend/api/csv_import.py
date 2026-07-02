@@ -251,7 +251,7 @@ def _do_import(
                 tx_notes = f"[import CSV] {row.notes}".strip() if row.notes else "[import CSV]"
                 src = account_id if row.is_expense else row.transfer_to_account_id
                 dst = row.transfer_to_account_id if row.is_expense else account_id
-                ab_create_transfer(
+                src_tx, dst_tx = ab_create_transfer(
                     actual.session,
                     date=tx_date,
                     source_account=src,
@@ -259,6 +259,13 @@ def _do_import(
                     amount=Decimal(str(row.amount)),
                     notes=tx_notes,
                 )
+                # create_transfer() takes no imported_id/cleared params — set them
+                # directly on both legs so dedup (existing_tx_map) and reconciliation
+                # see this transfer on future imports. See issue #102.
+                src_tx.financial_id = fid
+                src_tx.cleared = True
+                dst_tx.financial_id = _financial_id(tx_date.isoformat(), row.merchant, -row.amount)
+                dst_tx.cleared = True
                 existing_ids.add(fid)
                 imported += 1
                 continue
@@ -282,6 +289,7 @@ def _do_import(
                 amount=actual_amount,
                 category=cat_obj,
                 imported_id=fid,
+                cleared=True,
             )
             existing_ids.add(fid)
             imported += 1
