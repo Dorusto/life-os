@@ -22,6 +22,8 @@ interface ImportRow {
   categoryName: string       // actual AB category name, or "" = uncategorized
   categoryConfirmed: boolean // true = from confirmed merchant history
   duplicate: boolean
+  possibleDuplicate: boolean  // same date+merchant already in AB, different amount
+  existingAmount: number | null
   notes: string
   isTransferCandidate: boolean
   excluded: boolean   // true = user chose to exclude from import
@@ -122,6 +124,8 @@ export default function ImportPage({ initialFile, onDone }: ImportPageProps) {
         categoryName: r.category_name,
         categoryConfirmed: r.category_confirmed,
         duplicate: r.duplicate,
+        possibleDuplicate: r.possible_duplicate,
+        existingAmount: r.existing_amount,
         notes: '',
         isTransferCandidate: r.is_transfer_candidate ?? false,
         excluded: r.is_transfer_candidate ?? false,  // excluded by default if transfer candidate
@@ -425,6 +429,13 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
                         <AlertCircle size={10} className="text-muted flex-shrink-0" />
                       </span>
                     )}
+                    {row.possibleDuplicate && (
+                      <span
+                        title={`Possible duplicate — €${row.existingAmount?.toFixed(2)} already recorded for this merchant on this date`}
+                      >
+                        <AlertCircle size={10} className="text-yellow-500 flex-shrink-0" />
+                      </span>
+                    )}
                     {row.merchant}
                     {row.isTransferCandidate && (
                       <span
@@ -454,6 +465,11 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
                     <span className="text-muted italic">Excluded</span>
                   ) : (
                     <div className="flex flex-col gap-1">
+                      {row.possibleDuplicate && (
+                        <span className="text-yellow-500 text-[10px]">
+                          possible duplicate — €{row.existingAmount?.toFixed(2)} already recorded
+                        </span>
+                      )}
                       <div className="relative">
                         <select
                           value={row.categoryName}

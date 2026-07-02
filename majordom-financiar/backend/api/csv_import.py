@@ -70,6 +70,8 @@ class ImportRowPreview(BaseModel):
     category_confirmed: bool  # True = from confirmed merchant history
     duplicate: bool
     is_transfer_candidate: bool = False
+    possible_duplicate: bool = False  # same date+merchant already in AB, different amount — needs verification
+    existing_amount: float | None = None  # the amount already in AB, if possible_duplicate
 
 
 class ImportPreview(BaseModel):
@@ -117,11 +119,17 @@ class ImportResult(BaseModel):
 # Sync helpers — run in thread executor via ActualBudgetClient._run()
 # ---------------------------------------------------------------------------
 
-def _fetch_preview_data(actual_client: ActualBudgetClient) -> tuple[set[str], list[str]]:
+def _fetch_preview_data(
+    actual_client: ActualBudgetClient,
+) -> tuple[set[str], list[str], dict[tuple[str, str], list[float]]]:
     """
     Single AB session that returns:
-      - set of financial_ids already in AB (for duplicate detection)
+      - set of financial_ids already in AB (for exact duplicate detection)
       - list of non-hidden AB category names (for the frontend dropdown)
+      - (date, payee name lower) -> list of existing amounts, for near-duplicate
+        detection (same date+merchant already in AB, but a different amount —
+        e.g. a transaction imported once with a wrong amount, later corrected
+        in the CSV source; catches it instead of silently creating a second one)
     """
     from actual.queries import get_categories, get_transactions
     with actual_client._get_actual() as actual:
@@ -135,7 +143,13 @@ def _fetch_preview_data(actual_client: ActualBudgetClient) -> tuple[set[str], li
             c.name for c in get_categories(actual.session)
             if c.name and not c.hidden and not c.tombstone
         ]
-        return existing_ids, ab_categories
+        near_dup_index: dict[tuple[str, str], list[float]] = {}
+        for tx in get_transactions(actual.session):
+            if tx.tombstone or not tx.payee or not tx.payee.name:
+                continue
+            key = (tx.get_date().isoformat(), tx.payee.name.strip().lower())
+            near_dup_index.setdefault(key, []).append(abs(float(tx.amount or 0)) / 100)
+        return existing_ids, ab_categories, near_dup_index
 
 
 def _map_to_ab_category(cat_id: str, ab_categories: list[str]) -> str | None:
@@ -517,8 +531,8 @@ async def preview_csv(
         sync_id=settings.actual.sync_id,
     )
 
-    # One AB session: existing IDs + real category list
-    existing_ids, ab_categories = await actual._run(lambda: _fetch_preview_data(actual))
+    # One AB session: existing IDs + real category list + near-duplicate index
+    existing_ids, ab_categories, near_dup_index = await actual._run(lambda: _fetch_preview_data(actual))
     accounts = await actual.get_accounts()
 
     categorizer = SmartCategorizer(db=db)
@@ -526,6 +540,20 @@ async def preview_csv(
     preview_rows: list[ImportRowPreview] = []
     for tx in transactions:
         fid = _financial_id(tx.date.isoformat(), tx.merchant, tx.amount)
+        duplicate = fid in existing_ids
+
+        # Near-duplicate check: same date+merchant already in AB, but no amount
+        # matches — likely the same real-world transaction with a different
+        # amount (e.g. imported once with a wrong/unconverted amount, now fixed
+        # in the CSV). Flag instead of silently treating as a brand new row.
+        possible_duplicate = False
+        existing_amount: float | None = None
+        if not duplicate:
+            near_dup_key = (tx.date.isoformat(), tx.merchant.strip().lower())
+            candidates = near_dup_index.get(near_dup_key, [])
+            if candidates and not any(abs(a - tx.amount) < 0.01 for a in candidates):
+                possible_duplicate = True
+                existing_amount = candidates[0]
 
         # For refunds, strip common prefixes so "Refund: Vpn*..." matches "Vpn*..." in history
         lookup_merchant = tx.merchant
@@ -561,8 +589,10 @@ async def preview_csv(
                 and ab_name != "Other"
                 and tx.amount <= 50
             ),
-            duplicate=(fid in existing_ids),
+            duplicate=duplicate,
             is_transfer_candidate=tx.is_transfer_candidate,
+            possible_duplicate=possible_duplicate,
+            existing_amount=existing_amount,
         ))
 
     # LLM category suggestions for rows with no confirmed category

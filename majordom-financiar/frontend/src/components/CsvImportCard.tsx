@@ -22,6 +22,8 @@ interface LocalRow {
   categoryName: string
   categoryConfirmed: boolean
   duplicate: boolean
+  possibleDuplicate: boolean  // same date+merchant already in AB, different amount
+  existingAmount: number | null
   isTransferCandidate: boolean
   excluded: boolean
   notes: string
@@ -104,6 +106,8 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
       categoryName: r.category_name,
       categoryConfirmed: r.category_confirmed,
       duplicate: r.duplicate,
+      possibleDuplicate: r.possible_duplicate,
+      existingAmount: r.existing_amount,
       isTransferCandidate: r.is_transfer_candidate ?? false,
       excluded: r.is_transfer_candidate ?? false,
       notes: '',
@@ -262,6 +266,13 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
                       {row.duplicate && (
                         <span title="Already imported">
                           <AlertCircle size={10} className="text-muted flex-shrink-0" />
+                        </span>
+                      )}
+                      {row.possibleDuplicate && (
+                        <span
+                          title={`Possible duplicate — €${row.existingAmount?.toFixed(2)} already recorded for this merchant on this date`}
+                        >
+                          <AlertCircle size={10} className="text-yellow-500 flex-shrink-0" />
                         </span>
                       )}
                       {row.merchant}

@@ -288,6 +288,8 @@ export interface ImportRow {
   category_confirmed: boolean
   duplicate: boolean
   is_transfer_candidate: boolean
+  possible_duplicate: boolean  // same date+merchant already in AB, different amount
+  existing_amount: number | null  // the amount already in AB, if possible_duplicate
 }
 
 export interface ImportPreview {
