@@ -1489,7 +1489,8 @@ class ActualBudgetClient:
         - payee_id: str (AB UUID)
         - count: int
         - rule_prefix: str  — first word of payee name if >=4 alphanum chars, else full payee name
-        - suggested_category: str | None  — from AB history
+        - suggested_category: str | None  — from AB history, or from notes if no history exists
+        - suggested_category_source: "history" | "notes" | None
         - is_consistent: bool  — False if same payee was categorized differently before
         """
         def _fetch():
@@ -1518,6 +1519,14 @@ class ActualBudgetClient:
                     .all()
                 )
 
+                # Fetched once, reused for the notes-based fallback below —
+                # avoids a per-group category query.
+                all_cat_names = [
+                    c.name for c in actual.session.query(Categories)
+                    .filter(Categories.tombstone == 0, Categories.name != None)
+                    .all()
+                ]
+
                 groups = []
                 for row in rows:
                     first_word = row.payee_name.split()[0] if row.payee_name else ""
@@ -1538,6 +1547,7 @@ class ActualBudgetClient:
                     cat_ids = [h.category_id for h in history]
                     unique_cats = set(cat_ids)
                     suggested_category = None
+                    suggested_category_source = None
                     is_consistent = True
                     if unique_cats:
                         is_consistent = len(unique_cats) == 1
@@ -1548,12 +1558,54 @@ class ActualBudgetClient:
                         ).first()
                         if cat:
                             suggested_category = cat.name
+                            suggested_category_source = "history"
+
+                    # No usable payee history (e.g. a person's name paid for
+                    # varying purposes — groceries vs. gift vs. allowance) —
+                    # fall back to matching the uncategorized transactions'
+                    # own notes against real category names, same logic as
+                    # propose_transaction (#122). Only applied as a fallback,
+                    # never overriding an existing history-based suggestion.
+                    if suggested_category is None:
+                        notes_rows = (
+                            actual.session.query(Transactions.notes)
+                            .filter(
+                                Transactions.payee_id == row.payee_id,
+                                Transactions.category_id == None,
+                                Transactions.tombstone == 0,
+                                Transactions.is_parent == 0,
+                                Transactions.transferred_id == None,
+                                Transactions.notes != None,
+                            )
+                            .all()
+                        )
+                        notes_matches = set()
+                        for (notes_text,) in notes_rows:
+                            notes_lower = (notes_text or "").lower()
+                            if not notes_lower:
+                                continue
+                            match = next(
+                                (c for c in all_cat_names if c.lower() in notes_lower),
+                                None,
+                            )
+                            if match:
+                                notes_matches.add(match)
+                        # Only suggest if every transaction with usable notes
+                        # agrees on the same category — a mixed group (some
+                        # "groceries", some "gift") stays unsuggested, letting
+                        # the user disambiguate via notes_contains (#105)
+                        # instead of guessing wrong for half of them.
+                        if len(notes_matches) == 1:
+                            suggested_category = next(iter(notes_matches))
+                            suggested_category_source = "notes"
+
                     groups.append({
                         "payee_id": str(row.payee_id),
                         "payee_name": row.payee_name or "Unknown",
                         "count": row.count,
                         "rule_prefix": rule_prefix,
                         "suggested_category": suggested_category,
+                        "suggested_category_source": suggested_category_source,
                         "is_consistent": is_consistent,
                     })
                 return groups
