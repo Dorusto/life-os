@@ -584,10 +584,10 @@ export interface ConfirmResult {
   message: string
 }
 
-export async function confirmProposal(id: string, categoryName?: string, accountId?: string): Promise<ConfirmResult> {
+export async function confirmProposal(id: string, categoryName?: string, accountId?: string, createRule?: boolean): Promise<ConfirmResult> {
   return request<ConfirmResult>(`/proposals/${id}/confirm`, {
     method: 'POST',
-    body: JSON.stringify({ category_name: categoryName ?? null, account_id: accountId ?? null }),
+    body: JSON.stringify({ category_name: categoryName ?? null, account_id: accountId ?? null, create_rule: createRule ?? false }),
   })
 }
 

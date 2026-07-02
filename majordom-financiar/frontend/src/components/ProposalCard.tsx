@@ -10,6 +10,8 @@ export interface ProposalData {
   category_name: string
   account_id: string
   account_name: string
+  notes?: string
+  notes_category_match?: boolean
 }
 
 interface Props {
@@ -23,6 +25,7 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
   const [categories, setCategories] = useState<CategoryItem[]>([])
   const [selectedAccountId, setSelectedAccountId] = useState(proposal.account_id)
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [createRule, setCreateRule] = useState(false)
 
   useEffect(() => {
     getCategories().then(allCats => {
@@ -45,7 +48,7 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
 
   async function handleConfirm() {
     try {
-      const result = await confirmProposal(proposal.id, selectedCategory, selectedAccountId)
+      const result = await confirmProposal(proposal.id, selectedCategory, selectedAccountId, createRule)
       if (result.message.toLowerCase().includes('duplicate') || result.message.toLowerCase().includes('already exists')) {
         onConfirmed(`Duplicate: ${proposal.payee} €${proposal.amount.toFixed(2)} already exists in Actual Budget for this date.`)
       } else {
@@ -100,6 +103,21 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
           ))
         )}
       </select>
+
+      {/* Notes-based category match — offer an AB rule, unchecked by default */}
+      {proposal.notes_category_match && (
+        <label className="flex items-start gap-2 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={createRule}
+            onChange={e => setCreateRule(e.target.checked)}
+            className="mt-1 accent-accent"
+          />
+          <span className="text-white text-xs">
+            Create AB rule: if payee is "{proposal.payee}" and notes contain "{selectedCategory}", always set category to "{selectedCategory}"
+          </span>
+        </label>
+      )}
 
       {/* Account selector — only shown if there are multiple accounts */}
       {accounts.length > 1 && (

@@ -1583,6 +1583,45 @@ class ActualBudgetClient:
                 actual.commit()
         await self._run(_create)
 
+    async def create_payee_notes_rule(
+        self, payee_name_prefix: str, notes_contains: str, category_id: str,
+    ) -> None:
+        """
+        Create an AB rule: imported_description contains prefix AND notes
+        contains notes_contains → set category. Scoped to both payee and
+        notes (not notes alone) so it doesn't over-match transactions from
+        other payees that happen to share the same description text — e.g.
+        a payee whose category varies by transaction (family member: gift
+        vs. groceries vs. allowance) only gets auto-categorized for the
+        specific notes pattern the user confirmed, not every transaction.
+        """
+        def _create():
+            from actual.rules import Rule, Condition, Action
+            from actual.queries import create_rule
+            with self._get_actual() as actual:
+                actual.download_budget()
+                rule = Rule(
+                    conditions=[
+                        Condition(
+                            field="imported_description",
+                            op="contains",
+                            value=payee_name_prefix,
+                        ),
+                        Condition(
+                            field="notes",
+                            op="contains",
+                            value=notes_contains,
+                        ),
+                    ],
+                    operation="and",
+                    actions=[
+                        Action(op="set", field="category", value=category_id)
+                    ],
+                )
+                create_rule(actual.session, rule)
+                actual.commit()
+        await self._run(_create)
+
 
     async def update_uncategorized_by_payee(
         self, payee: str, category_id: str, notes_contains: str = "",

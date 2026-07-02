@@ -91,6 +91,10 @@ class FinanceProvider(Protocol):
         self, payee_name_prefix: str, category_id: str
     ) -> None: ...
 
+    async def create_payee_notes_rule(
+        self, payee_name_prefix: str, notes_contains: str, category_id: str
+    ) -> None: ...
+
 
 def get_provider() -> FinanceProvider:
     """Return a FinanceProvider instance based on the FINANCE_BACKEND env var."""

@@ -14,6 +14,7 @@ def create(
     account_name: str,
     notes: str = "",
     is_expense: bool = True,
+    notes_category_match: bool = False,
 ) -> str:
     proposal_id = uuid.uuid4().hex[:8]
     _proposals[proposal_id] = {
@@ -25,6 +26,7 @@ def create(
         "account_name": account_name,
         "notes": notes,
         "is_expense": is_expense,
+        "notes_category_match": notes_category_match,
     }
     return proposal_id
 

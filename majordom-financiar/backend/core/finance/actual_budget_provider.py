@@ -147,3 +147,10 @@ class ActualBudgetProvider:
         return await self._client().create_payee_rule(
             payee_name_prefix, category_id
         )
+
+    async def create_payee_notes_rule(
+        self, payee_name_prefix: str, notes_contains: str, category_id: str
+    ) -> None:
+        return await self._client().create_payee_notes_rule(
+            payee_name_prefix, notes_contains, category_id
+        )

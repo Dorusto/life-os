@@ -9,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
+from backend.core.finance.provider import get_provider
 from backend.tools import proposals as proposal_store
 from backend.tools.finance.actual_budget import add_transaction as _add_transaction
 
@@ -19,6 +20,7 @@ router = APIRouter()
 class ConfirmRequest(BaseModel):
     category_name: str | None = None
     account_id: str | None = None
+    create_rule: bool = False
 
 
 class ConfirmResult(BaseModel):
@@ -49,6 +51,30 @@ async def confirm_proposal(
             notes=proposal.get("notes", ""),
             is_expense=proposal.get("is_expense", True),
         )
+
+        # Optional AB rule: payee + the notes text that matched a category
+        # this time -> same category in future. Never automatic — only when
+        # the user explicitly checked the box on the confirmation card.
+        if body.create_rule and proposal.get("notes_category_match"):
+            try:
+                client = get_provider()
+                cats = await client.get_categories()
+                cat = next((c for c in cats if c.name.lower() == category_name.lower()), None)
+                if cat:
+                    payee_name = proposal["payee"]
+                    first_word = payee_name.split()[0] if payee_name else ""
+                    rule_prefix = (
+                        first_word
+                        if len(first_word) >= 4 and first_word.isalnum()
+                        else payee_name
+                    )
+                    await client.create_payee_notes_rule(
+                        payee_name_prefix=rule_prefix,
+                        notes_contains=proposal["category_name"],
+                        category_id=cat.id,
+                    )
+            except Exception as e:
+                logger.warning("Failed to create notes-based AB rule for proposal %s: %s", proposal_id, e)
     except Exception as e:
         logger.error("Failed to confirm proposal %s: %s", proposal_id, e)
         raise HTTPException(status_code=500, detail="Failed to add transaction")

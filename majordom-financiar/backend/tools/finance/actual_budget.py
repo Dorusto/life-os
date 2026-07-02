@@ -85,6 +85,27 @@ async def propose_transaction(
         from datetime import date as _date
         date = _date.today().isoformat()
 
+    # Notes-based category match takes priority over payee history — a payee
+    # like a family member's name can mean a different category every time
+    # (groceries vs. gift vs. personal allowance), so the description the
+    # user actually typed for THIS transaction is more reliable than what
+    # that payee was categorized as before. Still just a suggestion — the
+    # card is editable, nothing is set without confirmation.
+    notes_category_match = False
+    if not category_name and notes:
+        try:
+            cats = await get_provider().get_categories()
+            notes_lower = notes.lower()
+            match = next(
+                (c for c in cats if c.name.lower() in notes_lower or notes_lower in c.name.lower()),
+                None,
+            )
+            if match:
+                category_name = match.name
+                notes_category_match = True
+        except Exception:
+            pass
+
     if not category_name:
         try:
             from backend.core.memory.categorizer import SmartCategorizer
@@ -116,6 +137,7 @@ async def propose_transaction(
         account_name=account_name,
         notes=notes,
         is_expense=is_expense,
+        notes_category_match=notes_category_match,
     )
 
     return json.dumps({
@@ -129,6 +151,7 @@ async def propose_transaction(
         "account_name": account_name,
         "notes": notes,
         "is_expense": is_expense,
+        "notes_category_match": notes_category_match,
     })
 
 
