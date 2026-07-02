@@ -100,6 +100,7 @@ async def confirm_category_action(
             count = await client.update_uncategorized_by_payee(
                 payee=payee,
                 category_id=cat_id,
+                notes_contains=action.get("notes_contains", ""),
             )
             # Decide whether to create rule
             should_create_rule = override.create_rule

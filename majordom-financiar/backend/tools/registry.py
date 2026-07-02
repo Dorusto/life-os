@@ -633,8 +633,14 @@ TOOLS: list[dict] = [
                 "tool — always use it whenever the user wants to set the category for past "
                 "transactions from a merchant (e.g. 'categorize all TLS BV as Public transport'), "
                 "whether or not they mention wanting a rule for future imports. "
-                "A confirmation card appears showing payee, count, category, and a rule checkbox "
-                "the user can toggle — nothing is written until the user confirms."
+                "If the user's request is conditional on the transaction's notes/description "
+                "(e.g. 'if the notes contain code X, it's Car Costs'), pass that "
+                "condition text as notes_contains — otherwise ALL uncategorized transactions for "
+                "the payee get categorized, ignoring the condition, which can silently miscategorize "
+                "transactions that don't match. "
+                "A confirmation card appears showing payee, count, category, a preview of the "
+                "actual affected transactions, and a rule checkbox the user can toggle — nothing "
+                "is written until the user confirms."
             ),
             "parameters": {
                 "type": "object",
@@ -646,6 +652,15 @@ TOOLS: list[dict] = [
                     "category_name": {
                         "type": "string",
                         "description": "Target category name, e.g. 'Public transport'.",
+                    },
+                    "notes_contains": {
+                        "type": "string",
+                        "description": (
+                            "Optional: only categorize transactions whose notes/description "
+                            "contain this text (case-insensitive), e.g. a bank description code. "
+                            "Use whenever the user's instruction is conditional on notes content, "
+                            "not just payee."
+                        ),
                     },
                 },
                 "required": ["payee", "category_name"],

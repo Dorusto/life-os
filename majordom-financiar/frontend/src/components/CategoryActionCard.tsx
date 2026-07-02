@@ -69,7 +69,21 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         {isCategorizeWithRule && (
           <p className="text-muted text-sm mt-0.5">
             <span className="text-white">{data.count}</span> uncategorized transaction{data.count !== 1 ? 's' : ''} will be tagged.
+            {data.notes_contains && (
+              <span> Filtered to notes containing "<span className="text-white">{data.notes_contains}</span>".</span>
+            )}
           </p>
+        )}
+        {isCategorizeWithRule && data.transactions && data.transactions.length > 0 && (
+          <div className="bg-background border border-border rounded-xl px-2.5 py-2 max-h-32 overflow-y-auto space-y-1">
+            {data.transactions.map((tx, i) => (
+              <div key={i} className="flex items-center justify-between gap-2 text-xs">
+                <span className="text-muted whitespace-nowrap">{tx.date.slice(5)}</span>
+                {tx.notes && <span className="text-muted truncate flex-1">{tx.notes}</span>}
+                <span className="text-white whitespace-nowrap">€{tx.amount.toFixed(2)}</span>
+              </div>
+            ))}
+          </div>
         )}
         {!isDelete && !isCreate && !isSetBudget && !isCategorizeWithRule && (
           <p className="text-muted text-sm mt-0.5">

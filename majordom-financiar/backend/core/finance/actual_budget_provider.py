@@ -120,17 +120,22 @@ class ActualBudgetProvider:
     async def count_uncategorized(self) -> int:
         return await self._client().count_uncategorized()
 
-    async def count_uncategorized_by_payee(self, payee: str) -> int:
-        return await self._client().count_uncategorized_by_payee(payee)
+    async def count_uncategorized_by_payee(self, payee: str, notes_contains: str = "") -> int:
+        return await self._client().count_uncategorized_by_payee(payee, notes_contains)
+
+    async def list_uncategorized_by_payee(
+        self, payee: str, notes_contains: str = "", limit: int = 20
+    ) -> list[dict]:
+        return await self._client().list_uncategorized_by_payee(payee, notes_contains, limit)
 
     async def get_uncategorized_groups(self) -> list[dict]:
         return await self._client().get_uncategorized_groups()
 
     async def update_uncategorized_by_payee(
-        self, payee: str, category_id: str
+        self, payee: str, category_id: str, notes_contains: str = ""
     ) -> int:
         return await self._client().update_uncategorized_by_payee(
-            payee, category_id
+            payee, category_id, notes_contains
         )
 
     async def get_goals(self) -> list[dict]:

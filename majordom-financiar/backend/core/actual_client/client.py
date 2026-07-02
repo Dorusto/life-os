@@ -1393,13 +1393,18 @@ class ActualBudgetClient:
                 )
         return await self._run(_count)
 
-    async def count_uncategorized_by_payee(self, payee: str) -> int:
-        """Count uncategorized transactions whose payee matches `payee` (case-insensitive substring)."""
+    async def count_uncategorized_by_payee(self, payee: str, notes_contains: str = "") -> int:
+        """
+        Count uncategorized transactions whose payee matches `payee` (case-insensitive
+        substring). If `notes_contains` is set, also requires notes to contain it
+        (case-insensitive) — for payees that cover multiple real-world categories
+        distinguished only by the bank's description/Omschrijving text.
+        """
         def _count():
             from actual.database import Transactions, Payees
             with self._get_actual() as actual:
                 actual.download_budget()
-                return (
+                q = (
                     actual.session.query(Transactions)
                     .join(Payees, Transactions.payee_id == Payees.id, isouter=True)
                     .filter(
@@ -1408,9 +1413,46 @@ class ActualBudgetClient:
                         Transactions.tombstone == 0,
                         Transactions.is_parent == 0,
                     )
-                    .count()
                 )
+                if notes_contains:
+                    q = q.filter(Transactions.notes.ilike(f"%{notes_contains}%"))
+                return q.count()
         return await self._run(_count)
+
+    async def list_uncategorized_by_payee(
+        self, payee: str, notes_contains: str = "", limit: int = 20,
+    ) -> list[dict]:
+        """
+        Return the actual uncategorized transactions matching `payee` (and
+        `notes_contains` if set), for confirmation-card preview — so the user
+        can see exactly what will be affected instead of just a count.
+        """
+        def _list():
+            from actual.database import Transactions, Payees
+            with self._get_actual() as actual:
+                actual.download_budget()
+                q = (
+                    actual.session.query(Transactions)
+                    .join(Payees, Transactions.payee_id == Payees.id, isouter=True)
+                    .filter(
+                        Payees.name.ilike(f"%{payee}%"),
+                        Transactions.category_id == None,
+                        Transactions.tombstone == 0,
+                        Transactions.is_parent == 0,
+                    )
+                )
+                if notes_contains:
+                    q = q.filter(Transactions.notes.ilike(f"%{notes_contains}%"))
+                txs = q.order_by(Transactions.date.desc()).limit(limit).all()
+                return [
+                    {
+                        "date": tx.get_date().isoformat(),
+                        "amount": abs(float(tx.amount or 0)) / 100,
+                        "notes": tx.notes or "",
+                    }
+                    for tx in txs
+                ]
+        return await self._run(_list)
 
 
     async def get_uncategorized_groups(self) -> list[dict]:
@@ -1512,10 +1554,13 @@ class ActualBudgetClient:
         await self._run(_create)
 
 
-    async def update_uncategorized_by_payee(self, payee: str, category_id: str) -> int:
+    async def update_uncategorized_by_payee(
+        self, payee: str, category_id: str, notes_contains: str = "",
+    ) -> int:
         """
         Find all uncategorized transactions whose payee name matches `payee`
-        (case-insensitive substring). Set their category to `category_id`.
+        (case-insensitive substring), optionally also requiring notes to
+        contain `notes_contains`. Set their category to `category_id`.
         Returns count of updated transactions.
         """
         def _update():
@@ -1528,7 +1573,7 @@ class ActualBudgetClient:
                 ).first()
                 if not cat:
                     raise ValueError(f"Category ID not found: {category_id}")
-                txs = (
+                q = (
                     actual.session.query(Transactions)
                     .join(Payees, Transactions.payee_id == Payees.id, isouter=True)
                     .filter(
@@ -1537,8 +1582,10 @@ class ActualBudgetClient:
                         Transactions.tombstone == 0,
                         Transactions.is_parent == 0,
                     )
-                    .all()
                 )
+                if notes_contains:
+                    q = q.filter(Transactions.notes.ilike(f"%{notes_contains}%"))
+                txs = q.all()
                 count = 0
                 for tx in txs:
                     tx.category_id = cat.id

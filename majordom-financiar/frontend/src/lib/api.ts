@@ -716,6 +716,8 @@ export interface CategoryActionData {
   payee?: string
   count?: number
   available_categories?: string[]
+  notes_contains?: string
+  transactions?: { date: string; amount: number; notes: string }[]
   rule_prefix?: string
   is_consistent?: boolean
 }

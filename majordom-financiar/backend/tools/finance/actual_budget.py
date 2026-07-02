@@ -722,10 +722,17 @@ async def get_uncategorized_groups() -> str:
     })
 
 
-async def propose_categorize_with_rule(payee: str, category_name: str) -> str:
+async def propose_categorize_with_rule(payee: str, category_name: str, notes_contains: str = "") -> str:
     """
     Propose categorizing a payee group AND creating an AB rule for future auto-categorization.
     Returns a confirmation card — does NOT write to Actual Budget yet.
+
+    notes_contains: optional substring the transaction's notes/description must
+    contain (case-insensitive). Use when the same payee covers multiple
+    real-world categories distinguished only by the bank's description text
+    (e.g. "Belastingdienst" for both car and motorcycle tax, told apart only
+    by an Omschrijving code in notes) — without it, ALL uncategorized
+    transactions for the payee get bulk-categorized regardless of notes.
     """
     import uuid
     from difflib import get_close_matches
@@ -748,7 +755,7 @@ async def propose_categorize_with_rule(payee: str, category_name: str) -> str:
 
     groups = await client.get_uncategorized_groups()
 
-    count = await client.count_uncategorized_by_payee(payee)
+    count = await client.count_uncategorized_by_payee(payee, notes_contains)
     if count == 0:
         # Suggest real close-matching payee names from actual uncategorized
         # data — never let the LLM invent plausible-looking names that don't
@@ -778,6 +785,10 @@ async def propose_categorize_with_rule(payee: str, category_name: str) -> str:
             is_consistent = g["is_consistent"]
             break
 
+    # Preview the actual affected transactions so the user can verify before
+    # confirming, instead of trusting an aggregate count blindly (issue #132).
+    preview_transactions = await client.list_uncategorized_by_payee(payee, notes_contains, limit=20)
+
     # Build id→name map for override resolution at confirm time
     categories_map = {c.id: c.name for c in cats}
     available_categories = [c.name for c in cats]
@@ -792,6 +803,7 @@ async def propose_categorize_with_rule(payee: str, category_name: str) -> str:
         "rule_prefix": rule_prefix,
         "is_consistent": is_consistent,
         "categories_map": categories_map,
+        "notes_contains": notes_contains,
     })
     return json.dumps({
         "type": "category_action",
@@ -802,5 +814,7 @@ async def propose_categorize_with_rule(payee: str, category_name: str) -> str:
         "category_name": exact.name,
         "rule_prefix": rule_prefix,
         "is_consistent": is_consistent,
+        "notes_contains": notes_contains,
+        "transactions": preview_transactions,
         "available_categories": available_categories,
     })
