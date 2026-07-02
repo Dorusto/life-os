@@ -396,12 +396,13 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
         {duplicateCount > 0 && <span>| {duplicateCount} duplicates skipped</span>}
       </div>
 
-      {/* Warning for uncategorized */}
+      {/* Info for uncategorized — not a blocker, they import as uncategorized and
+          surface later via the digest nudge (M4.5) */}
       {needsActionCount > 0 && (
         <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/30">
           <AlertCircle size={14} className="text-yellow-500 flex-shrink-0 mt-0.5" />
           <p className="text-yellow-500 text-xs">
-            <span className="font-medium">{needsActionCount}</span> transaction{needsActionCount > 1 ? 's' : ''} need{needsActionCount === 1 ? 's' : ''} a category
+            <span className="font-medium">{needsActionCount}</span> transaction{needsActionCount > 1 ? 's' : ''} will import uncategorized — pick a category now or review later
           </p>
         </div>
       )}
@@ -417,7 +418,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
         </button>
         <button
           onClick={handleImport}
-          disabled={!accountId || needsActionCount > 0 || importing}
+          disabled={!accountId || importing}
           className="flex-1 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
         >
           {importing ? (

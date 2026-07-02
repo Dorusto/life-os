@@ -1475,6 +1475,7 @@ class ActualBudgetClient:
                         Payees.id.label("payee_id"),
                         Payees.name.label("payee_name"),
                         func.count(Transactions.id).label("count"),
+                        func.max(Transactions.date).label("latest_date"),
                     )
                     .join(Transactions, Transactions.payee_id == Payees.id)
                     .filter(
@@ -1484,7 +1485,9 @@ class ActualBudgetClient:
                         Transactions.transferred_id == None,
                     )
                     .group_by(Payees.id, Payees.name)
-                    .order_by(func.count(Transactions.id).desc())
+                    # Most recent transaction first — the user works backward in
+                    # time through AB, not by which payee has the most duplicates.
+                    .order_by(func.max(Transactions.date).desc())
                     .all()
                 )
 
