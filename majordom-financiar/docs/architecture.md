@@ -187,6 +187,10 @@ If a tool is missing from `_PROPOSAL_TOOLS` in `backend/api/chat.py`, the JSON g
 ### 7. Transaction deduplication
 Majordom generates `SHA256(date + merchant + amount)[:16]` and passes it to Actual Budget as `imported_id`. Actual Budget owns deduplication — Majordom does not query duplicates itself.
 
+`imported_id` must be passed on **every** creation path, including both legs of a transfer (`ab_create_transfer`) — a path that skips it becomes invisible to dedup and duplicates on any future overlapping import. See issue #102.
+
+Every transaction creation path must also set `cleared` explicitly (see `client.py:1075` for the reference pattern) — a path that omits it leaves transactions permanently unreconciled regardless of what the user does afterward. See issue #101.
+
 ### 8. Transfers
 A transfer between two on-budget accounts = two linked transactions in Actual Budget, never two separate expense/income transactions. Use `actualpy.create_transfer()` or `set_transaction_payee()` with a payee that has `transfer_acct` set.
 
@@ -202,6 +206,16 @@ if isinstance(args, str):
 
 ### 11. `think: false` for qwen3 models
 qwen3 and qwen3.5 have thinking mode enabled by default. Always send `"think": false` in the Ollama payload, otherwise the response is blocked for tens of seconds with no visible output.
+
+### 12. AB goal template syntax (fails silently with wrong syntax)
+`"up to X"` and `"by DATE"` are mutually exclusive template types — `#template up to 2000 by 2026-07` is invalid and fails **silently** (0.00 everywhere on the category, no visible error in the UI). Correct: `#template 2000 by 2026-07` (no "up to"). Date format: `YYYY-MM`. If the target month is the current month and balance is 0, the whole amount is calculated at once.
+
+AB also has a newer **"Budget Automations"** system (structured UI, not free text) that removes this risk entirely — if `actualpy`/the AB API exposes it, prefer it over writing raw `#template` text into category notes. See issue #124.
+
+Separately: if a category's target month has already passed (goal reached), "Overwrite with budget template" errors on that category and halts the whole batch. Any tool driving this must process categories independently, not as one call that can fail globally.
+
+### 13. AB "Total Income (YTD)" and Net Worth reports include Starting Balances
+Account opening balances are counted as "income" at import time in AB's native reports (Total Income YTD, Net Worth graph — visible as a vertical jump when large accounts are added). Any income/net-worth calculation Majordom does must explicitly exclude "Starting Balances" transactions, or projections/alerts will be based on inflated numbers. See issue #112.
 
 ---
 

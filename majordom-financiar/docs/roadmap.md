@@ -185,7 +185,7 @@ Extract each service from Majordom into an independent HTTP service with its own
 | Security: AI not exposing UUIDs | UUID resolution server-side only; model should never echo AB UUIDs |
 | CSV multi-currency columns | Revolut/N26 two-column amounts (original + EUR converted) |
 | [RON / multi-currency](specs/ab-integration.md#multi-currency-support-ron-workaround) | Via Rule Action Templating |
-| [Split transactions](specs/ab-integration.md#split-transactions) | One receipt across multiple categories |
+| [Split transactions](specs/ab-integration.md#split-transactions) | One receipt across multiple categories — [issue #115](https://github.com/Dorusto/life-os/issues/115) |
 | [Returns / reimbursements](specs/ab-integration.md#returns-and-reimbursements) | Returns go back to spending category, not income |
 | [Credit card strategies](specs/ab-integration.md#credit-card-accounts) | Paying in full vs. carrying debt |
 | [OFX/QFX import](specs/ab-integration.md#ofxqfx-import) | Better deduplication than CSV |
@@ -193,8 +193,8 @@ Extract each service from Majordom into an independent HTTP service with its own
 | [End of Month Cleanup](specs/ab-integration.md#end-of-month-cleanup) | Auto surplus redistribution via `#cleanup` notes |
 | [Transaction tags](specs/ab-integration.md#transaction-tags) | `#deductible`, `#vacation-2025`, etc. |
 | [ActualQL for chat](specs/ab-integration.md#actualql-for-chat-ai-queries) | Arbitrary financial queries beyond the 5 pre-built tools — foundation for M2.5 Insights |
-| Copy last month's budget | Conversational at start of month: "Copy last month's allocations?" |
-| [Reconciliation prompt after import](specs/ab-integration.md#reconciliation-after-csv-import) | Single message after each import: "Want to reconcile the account?" |
+| Copy last month's budget | Conversational at start of month: "Copy last month's allocations?" — must exclude goal-template categories, see [bug #125](https://github.com/Dorusto/life-os/issues/125) |
+| [Reconciliation prompt after import](specs/ab-integration.md#reconciliation-after-csv-import) | Single message after each import: "Want to reconcile the account?" — see [assisted reconciliation #117](https://github.com/Dorusto/life-os/issues/117) |
 | [Hold budget for next month](specs/ab-integration.md#hold-budget-for-next-month) | Reserve current "To Budget" for next month — "live on last month's income" strategy |
 | Automatic monthly report | Summary push on 1st of month |
 | GPU inference for Ollama | Revisit with smaller quantized models or AMD iGPU |
@@ -207,6 +207,42 @@ Extract each service from Majordom into an independent HTTP service with its own
 | Calendar integration | Export APK/insurance/loan deadlines to Nextcloud Calendar as iCal. Data already in AB + vehicle_log. |
 | Split bill in chat | "Dinner with 4 people, €120, I paid — how much does each owe?" + log the expense. |
 | Net worth trend | Monthly chart 12 months — evolution not just today's snapshot. M2.7 charts infra ready. |
+
+### Proactive budget intelligence (2026-07-02 session)
+
+Shared goal: financial control with minimal effort — realistic per-category budgets, annual pacing, and structured sinking funds, so the user never has to audit AB manually. See `docs/architecture.md#critical-technical-rules` (rule 12) for the goal template syntax gotcha.
+
+| Feature | Notes |
+|---------|-------|
+| [Budget realism check per category](https://github.com/Dorusto/life-os/issues/110) | Detect a one-off purchase inflating a category's average vs. its real recurring spend |
+| [Proactive sinking fund detection](https://github.com/Dorusto/life-os/issues/111) | Suggest "For a Rainy Day" categories for large predictable expenses before they surprise the user |
+| [Annual budget pacing](https://github.com/Dorusto/life-os/issues/112) | Cumulative spend vs. 1/12 of annual discretionary pool — must exclude the Starting Balances artifact |
+| [End-to-end goal budgeting via chat](https://github.com/Dorusto/life-os/issues/113) | Compound tool: create categories + distribute amount + goal template + rollover, one confirmation card |
+| [Cross-check budget estimates vs. vault plan file](https://github.com/Dorusto/life-os/issues/114) | Read line-item trip/project plans from the vault, propose the category split from them |
+| [Budget configuration via chat](https://github.com/Dorusto/life-os/issues/124) | Rollover toggle, Budget Automations, goal templates — no AB UI needed |
+
+### Import & reconciliation robustness (2026-07-02 session)
+
+| Feature | Notes |
+|---------|-------|
+| [Month-end uncategorized + unreconciled report](https://github.com/Dorusto/life-os/issues/116) | Blocked by [#101](https://github.com/Dorusto/life-os/issues/101) (cleared flag on CSV import) |
+| [CSV import — auto-select destination account](https://github.com/Dorusto/life-os/issues/118) | Preselect the AB account from the already-detected CSV source |
+| [Skip categorization at account setup](https://github.com/Dorusto/life-os/issues/119) | Defer to the existing M4.5 categorization flow instead of forcing it at import |
+| [Own-account transfer detection](https://github.com/Dorusto/life-os/issues/120) | Propose linking matching-amount pairs between the user's own accounts |
+| [Receipt scan — merge with bank-sync transaction](https://github.com/Dorusto/life-os/issues/121) | Attach OCR details to the existing bank transaction instead of creating a duplicate |
+| [Proactive payee auto-rename rule](https://github.com/Dorusto/life-os/issues/122) | Propose an AB auto-rename rule after ≥2-3 identical manual links |
+
+### Other findings (2026-07-01/02 session)
+
+| Feature | Notes |
+|---------|-------|
+| [Pass-through/custodial money guidance](https://github.com/Dorusto/life-os/issues/123) | Ask before categorizing money managed on someone else's behalf as Income |
+| [Freelance/ZZP income dashboard via AB tags](https://github.com/Dorusto/life-os/issues/126) | `get_transactions_by_tag()` — reuses the existing `#tag` convention |
+| [Uncategorized groups — sort by date, not frequency](https://github.com/Dorusto/life-os/issues/127) | |
+| [Categorization flow — CTA at top of message](https://github.com/Dorusto/life-os/issues/128) | |
+| [Digest — separate notification types visually](https://github.com/Dorusto/life-os/issues/129) | |
+| [Home — surface items needing resolution](https://github.com/Dorusto/life-os/issues/130) | Uncategorized/unreconciled widget, not buried in chat |
+| [Timestamp on chat messages](https://github.com/Dorusto/life-os/issues/131) | |
 
 ---
 
