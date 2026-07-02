@@ -473,6 +473,93 @@ class ActualBudgetClient:
                 return True
         return await self._run(_update)
 
+    async def find_near_duplicate_transaction(
+        self,
+        account_id: str,
+        amount: float,
+        date: date,
+        date_window_days: int = 1,
+        tolerance_pct: float = 0.02,
+    ) -> dict | None:
+        """
+        Look for an existing UNCATEGORIZED transaction in `account_id` within
+        `date_window_days` of `date`, whose amount is within `tolerance_pct` of
+        `amount`. For matching a receipt scan against a bank-sync transaction
+        that already exists for the same real-world purchase (issue #121) —
+        amounts rarely match exactly (OCR total vs. card authorization amount),
+        so this is a tolerance match, not exact-hash dedup.
+        Returns the closest match (smallest amount delta) as a dict, or None.
+        """
+        def _find():
+            from datetime import timedelta
+            from actual.database import Transactions, Payees
+            with self._get_actual() as actual:
+                actual.download_budget()
+                window_start = date - timedelta(days=date_window_days)
+                window_end = date + timedelta(days=date_window_days)
+                candidates = (
+                    actual.session.query(Transactions)
+                    .join(Payees, Transactions.payee_id == Payees.id, isouter=True)
+                    .filter(
+                        Transactions.acct == account_id,
+                        Transactions.category_id == None,
+                        Transactions.tombstone == 0,
+                        Transactions.is_parent == 0,
+                        Transactions.date >= int(window_start.strftime("%Y%m%d")),
+                        Transactions.date <= int(window_end.strftime("%Y%m%d")),
+                    )
+                    .all()
+                )
+                best = None
+                best_delta = None
+                for tx in candidates:
+                    tx_amount = abs(float(tx.amount or 0)) / 100
+                    if tx_amount == 0:
+                        continue
+                    delta_pct = abs(tx_amount - amount) / tx_amount
+                    if delta_pct <= tolerance_pct:
+                        if best_delta is None or delta_pct < best_delta:
+                            best = tx
+                            best_delta = delta_pct
+                if not best:
+                    return None
+                return {
+                    "financial_id": best.financial_id,
+                    "date": best.get_date().isoformat(),
+                    "amount": abs(float(best.amount or 0)) / 100,
+                    "payee": best.payee.name if best.payee else "",
+                    "notes": best.notes or "",
+                }
+        return await self._run(_find)
+
+    async def attach_receipt_to_transaction(
+        self, financial_id: str, category_name: str, notes: str,
+    ) -> bool:
+        """
+        Attach OCR receipt details (category + notes) to an existing
+        transaction instead of creating a new one — used when #121's
+        near-duplicate match is confirmed by the user. Appends to any
+        existing notes rather than overwriting them.
+        """
+        def _update():
+            from actual.queries import get_or_create_category
+            from actual.database import Transactions
+            with self._get_actual() as actual:
+                actual.download_budget()
+                tx = actual.session.query(Transactions).filter(
+                    Transactions.financial_id == financial_id,
+                    Transactions.tombstone == 0,
+                ).first()
+                if not tx:
+                    return False
+                cat = get_or_create_category(actual.session, category_name, group_name="Majordom")
+                tx.category_id = cat.id
+                existing_notes = (tx.notes or "").strip()
+                tx.notes = f"{existing_notes} {notes}".strip() if existing_notes else notes
+                actual.commit()
+                return True
+        return await self._run(_update)
+
     async def adjust_account_balance(self, account_id: str, target_balance: float) -> float:
         """
         Create a balance adjustment transaction so the account's balance matches

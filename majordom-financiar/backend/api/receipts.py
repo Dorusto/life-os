@@ -90,12 +90,22 @@ class ConfirmRequest(BaseModel):
     category_id: str       # e.g. "groceries"
     account_id: str
     notes: Optional[str] = None
+    force_new: bool = False        # skip the near-duplicate check, always create
+    attach_to: Optional[str] = None  # financial_id of an existing tx to attach to instead
+
+
+class NearDuplicateMatch(BaseModel):
+    financial_id: str
+    date: str
+    amount: float
+    payee: str
 
 
 class ConfirmResponse(BaseModel):
     success: bool
     duplicate: bool
     transaction_id: Optional[str]
+    possible_match: Optional[NearDuplicateMatch] = None  # set only when awaiting user decision — nothing saved yet
 
 
 class FuelConfirmRequest(BaseModel):
@@ -115,6 +125,8 @@ class FuelConfirmRequest(BaseModel):
     missed_fill: bool = False
     fuel_grade: Optional[str] = None
     notes: Optional[str] = None
+    force_new: bool = False
+    attach_to: Optional[str] = None
 
 
 class FuelConfirmResponse(BaseModel):
@@ -131,6 +143,7 @@ class FuelConfirmResponse(BaseModel):
     liters: Optional[float] = None
     price_per_liter: Optional[float] = None
     fuel_grade: Optional[str] = None
+    possible_match: Optional[NearDuplicateMatch] = None
 
 
 # --- Routes ---
@@ -233,6 +246,34 @@ async def confirm_receipt(
 
     service = ReceiptService()
     try:
+        # User already decided to attach to a specific existing transaction
+        # (from a previous possible_match response) — do that, don't create.
+        if request.attach_to:
+            ok = await service.attach_to_existing(
+                financial_id=request.attach_to,
+                category_id=request.category_id,
+                notes=request.notes or "[receipt photo]",
+            )
+            if not ok:
+                raise HTTPException(status_code=404, detail="Transaction to attach to was not found")
+            return ConfirmResponse(success=True, duplicate=False, transaction_id=request.attach_to)
+
+        # First pass (not forcing a new transaction): check for a likely
+        # bank-sync match before creating anything (issue #121).
+        if not request.force_new:
+            match = await service.check_near_duplicate(
+                account_id=request.account_id,
+                amount=request.amount,
+                date=request.date,
+            )
+            if match:
+                return ConfirmResponse(
+                    success=True,
+                    duplicate=False,
+                    transaction_id=None,
+                    possible_match=NearDuplicateMatch(**match),
+                )
+
         result = await service.confirm(
             merchant=request.merchant,
             amount=request.amount,
@@ -242,6 +283,8 @@ async def confirm_receipt(
             notes=request.notes or "[receipt photo]",
             confirmed_by=current_user,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Failed to confirm receipt %s: %s", receipt_id, e)
         raise HTTPException(
@@ -293,20 +336,46 @@ async def confirm_fuel_receipt(
     last_entry = db.get_last_fuel_entry(request.vehicle_id)
     last_odo = last_entry["odo_km"] if last_entry else None
 
+    fuel_notes = request.notes or _build_fuel_notes(request.liters, request.vehicle_id, db)
+
     # Step 2: Save AB transaction using category_name (AB name like "Car Costs")
     # service.confirm() uses category_id which is an internal slug.
     # We pass the category_name directly since ActualBudgetClient.get_or_create_category
     # looks up by name. We'll call _actual.add_transaction directly via service.
     try:
-        tx_result = await service.confirm(
-            merchant=request.station,
-            amount=request.total_eur,
-            date=request.date,
-            category_id=request.category_name,  # category_name is the AB display name
-            account_id=request.account_id,
-            notes=request.notes or _build_fuel_notes(request.liters, request.vehicle_id, db),
-            confirmed_by=current_user,
-        )
+        if request.attach_to:
+            ok = await service.attach_to_existing(
+                financial_id=request.attach_to,
+                category_id=request.category_name,
+                notes=fuel_notes,
+            )
+            if not ok:
+                raise HTTPException(status_code=404, detail="Transaction to attach to was not found")
+            tx_result = {"duplicate": False, "transaction_id": request.attach_to}
+        else:
+            if not request.force_new:
+                match = await service.check_near_duplicate(
+                    account_id=request.account_id,
+                    amount=request.total_eur,
+                    date=request.date,
+                )
+                if match:
+                    return FuelConfirmResponse(
+                        success=True,
+                        duplicate=False,
+                        possible_match=NearDuplicateMatch(**match),
+                    )
+            tx_result = await service.confirm(
+                merchant=request.station,
+                amount=request.total_eur,
+                date=request.date,
+                category_id=request.category_name,  # category_name is the AB display name
+                account_id=request.account_id,
+                notes=fuel_notes,
+                confirmed_by=current_user,
+            )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Failed to save fuel transaction %s: %s", receipt_id, e)
         raise HTTPException(

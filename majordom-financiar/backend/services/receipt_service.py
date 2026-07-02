@@ -244,3 +244,30 @@ class ReceiptService:
         )
 
         return {"duplicate": False, "transaction_id": tx_id}
+
+    async def check_near_duplicate(self, account_id: str, amount: float, date: str) -> dict | None:
+        """
+        Look for an existing uncategorized bank-sync transaction that's
+        probably the same real-world purchase as this receipt (issue #121) —
+        same account, date within 1 day, amount within 2%. OCR totals and
+        card authorization amounts rarely match exactly.
+        """
+        try:
+            tx_date = datetime.strptime(date, "%Y-%m-%d").date()
+        except ValueError:
+            tx_date = datetime.now().date()
+        return await self._actual.find_near_duplicate_transaction(
+            account_id=account_id,
+            amount=amount,
+            date=tx_date,
+        )
+
+    async def attach_to_existing(self, financial_id: str, category_id: str, notes: str) -> bool:
+        """Attach OCR details to an existing transaction instead of creating a new one."""
+        category_info = _CATEGORY_BY_ID.get(category_id, {})
+        category_name = category_info.get("name", category_id)
+        return await self._actual.attach_receipt_to_transaction(
+            financial_id=financial_id,
+            category_name=category_name,
+            notes=notes,
+        )

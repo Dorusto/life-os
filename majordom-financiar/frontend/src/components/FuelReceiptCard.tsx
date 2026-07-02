@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Loader2, Check } from 'lucide-react'
-import { confirmFuelReceipt, type ReceiptDraft, type FuelConfirmResponse, type VehicleOption, type AccountOption, type Category } from '../lib/api'
+import { confirmFuelReceipt, type ReceiptDraft, type FuelConfirmResponse, type VehicleOption, type AccountOption, type Category, type NearDuplicateMatch } from '../lib/api'
 import { getToken } from '../lib/auth'
 
 // Helper: get base URL for API calls
@@ -41,6 +41,7 @@ export default function FuelReceiptCard({
   const [accountId, setAccountId] = useState(draft.accounts[0]?.id ?? '')
   const [category, setCategory] = useState(draft.suggested_category_id ?? 'Car Costs')
   const [saving, setSaving] = useState(false)
+  const [possibleMatch, setPossibleMatch] = useState<NearDuplicateMatch | null>(null)
 
   // Derive accounts + categories list
   const accounts: AccountOption[] = draft.accounts ?? []
@@ -87,7 +88,7 @@ export default function FuelReceiptCard({
     }
   }
 
-  async function handleConfirm() {
+  async function handleConfirm(opts?: { forceNew?: boolean; attachTo?: string }) {
     if (!litersNum || !totalNum || !vehicle) return
     setSaving(true)
     try {
@@ -107,7 +108,8 @@ export default function FuelReceiptCard({
       }
 
       if (confirmEndpoint) {
-        // Text mode — POST directly to custom endpoint
+        // Text mode — POST directly to custom endpoint. Notes are typed
+        // manually here (no OCR uncertainty), so no near-duplicate check.
         const token = getToken()
         const res = await fetch(`${BASE}${confirmEndpoint}`, {
           method: 'POST',
@@ -130,7 +132,14 @@ export default function FuelReceiptCard({
           ...body,
           fuel_grade: draft.fuel_grade ?? null,
           notes: null,
+          force_new: opts?.forceNew,
+          attach_to: opts?.attachTo,
         })
+        if (response.possible_match) {
+          // Likely bank-sync match found — hold off, let the user decide (#121)
+          setPossibleMatch(response.possible_match)
+          return
+        }
         onConfirmed(response)
       }
     } catch (err) {
@@ -373,27 +382,55 @@ export default function FuelReceiptCard({
           )}
         </div>
 
+        {/* Possible bank-sync match found — hold off, let the user decide (#121) */}
+        {possibleMatch && (
+          <div className="px-3 py-2.5 rounded-xl bg-yellow-500/10 border border-yellow-500/30 space-y-2">
+            <p className="text-yellow-500 text-xs">
+              Found a similar bank transaction: <span className="text-white">{possibleMatch.payee || 'Unknown'}</span>{' '}
+              €{possibleMatch.amount.toFixed(2)} on {possibleMatch.date}. Attach these details to it instead of creating a new transaction?
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => handleConfirm({ forceNew: true })}
+                disabled={saving}
+                className="flex-1 py-1.5 rounded-lg border border-border text-muted hover:text-white text-xs transition-colors disabled:opacity-40"
+              >
+                Create new anyway
+              </button>
+              <button
+                onClick={() => handleConfirm({ attachTo: possibleMatch.financial_id })}
+                disabled={saving}
+                className="flex-1 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-medium transition-colors disabled:opacity-40"
+              >
+                Attach to this
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Buttons */}
-        <div className="flex gap-2 pt-1">
-          <button
-            onClick={onCancelled}
-            disabled={saving}
-            className="flex-1 py-2 rounded-xl border border-border text-muted hover:text-white hover:bg-surface-hover text-sm transition-colors disabled:opacity-40"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={saving || !liters || !total || !vehicle}
-            className="flex-1 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-          >
-            {saving ? (
-              <><Loader2 size={14} className="animate-spin" /> Saving…</>
-            ) : (
-              <><Check size={14} /> Confirm & Save</>
-            )}
-          </button>
-        </div>
+        {!possibleMatch && (
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={onCancelled}
+              disabled={saving}
+              className="flex-1 py-2 rounded-xl border border-border text-muted hover:text-white hover:bg-surface-hover text-sm transition-colors disabled:opacity-40"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => handleConfirm()}
+              disabled={saving || !liters || !total || !vehicle}
+              className="flex-1 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+            >
+              {saving ? (
+                <><Loader2 size={14} className="animate-spin" /> Saving…</>
+              ) : (
+                <><Check size={14} /> Confirm & Save</>
+              )}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Loader2, Check, AlertCircle } from 'lucide-react'
-import { confirmReceipt, type ReceiptDraft } from '../lib/api'
+import { confirmReceipt, type ReceiptDraft, type NearDuplicateMatch } from '../lib/api'
 
 interface ReceiptCardProps {
   imageUrl?: string
@@ -29,6 +29,7 @@ export default function ReceiptCard({
   )
   const [accountId, setAccountId] = useState(draft?.accounts[0]?.id ?? '')
   const [saving, setSaving] = useState(false)
+  const [possibleMatch, setPossibleMatch] = useState<NearDuplicateMatch | null>(null)
 
   // Sync form state when draft arrives (loading → reviewing transition)
   useEffect(() => {
@@ -40,21 +41,32 @@ export default function ReceiptCard({
     setAccountId(draft.accounts[0]?.id ?? '')
   }, [draft])
 
-  async function handleConfirm() {
+  async function handleConfirm(opts?: { forceNew?: boolean; attachTo?: string }) {
     if (!draft) return
     const parsed = parseFloat(amount)
     if (isNaN(parsed) || parsed <= 0) return
     setSaving(true)
     try {
-      await confirmReceipt({
+      const result = await confirmReceipt({
         receipt_id: draft.receipt_id,
         merchant,
         amount: parsed,
         date,
         category_id: categoryId,
         account_id: accountId,
+        force_new: opts?.forceNew,
+        attach_to: opts?.attachTo,
       })
-      onConfirmed(`Receipt saved — ${merchant} €${parsed.toFixed(2)}`)
+      if (result.possible_match) {
+        // Found a likely bank-sync match — hold off, let the user decide
+        // instead of silently creating a duplicate (#121).
+        setPossibleMatch(result.possible_match)
+        return
+      }
+      const message = opts?.attachTo
+        ? `Attached to existing transaction — ${merchant} €${parsed.toFixed(2)}`
+        : `Receipt saved — ${merchant} €${parsed.toFixed(2)}`
+      onConfirmed(message)
     } catch (err) {
       onConfirmed(`Failed to save receipt: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {
@@ -195,27 +207,55 @@ export default function ReceiptCard({
             </div>
           )}
 
+          {/* Possible bank-sync match found — hold off, let the user decide (#121) */}
+          {possibleMatch && (
+            <div className="px-3 py-2.5 rounded-xl bg-yellow-500/10 border border-yellow-500/30 space-y-2">
+              <p className="text-yellow-500 text-xs">
+                Found a similar bank transaction: <span className="text-white">{possibleMatch.payee || 'Unknown'}</span>{' '}
+                €{possibleMatch.amount.toFixed(2)} on {possibleMatch.date}. Attach these details to it instead of creating a new transaction?
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleConfirm({ forceNew: true })}
+                  disabled={saving}
+                  className="flex-1 py-1.5 rounded-lg border border-border text-muted hover:text-white text-xs transition-colors disabled:opacity-40"
+                >
+                  Create new anyway
+                </button>
+                <button
+                  onClick={() => handleConfirm({ attachTo: possibleMatch.financial_id })}
+                  disabled={saving}
+                  className="flex-1 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-medium transition-colors disabled:opacity-40"
+                >
+                  Attach to this
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Buttons */}
-          <div className="flex gap-2 pt-1">
-            <button
-              onClick={onCancelled}
-              disabled={saving}
-              className="flex-1 py-2 rounded-xl border border-border text-muted hover:text-white hover:bg-surface-hover text-sm transition-colors disabled:opacity-40"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleConfirm}
-              disabled={saving || !merchant || !amount || !categoryId || !accountId}
-              className="flex-1 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
-            >
-              {saving ? (
-                <><Loader2 size={14} className="animate-spin" /> Saving…</>
-              ) : (
-                <><Check size={14} /> Confirm</>
-              )}
-            </button>
-          </div>
+          {!possibleMatch && (
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={onCancelled}
+                disabled={saving}
+                className="flex-1 py-2 rounded-xl border border-border text-muted hover:text-white hover:bg-surface-hover text-sm transition-colors disabled:opacity-40"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleConfirm()}
+                disabled={saving || !merchant || !amount || !categoryId || !accountId}
+                className="flex-1 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+              >
+                {saving ? (
+                  <><Loader2 size={14} className="animate-spin" /> Saving…</>
+                ) : (
+                  <><Check size={14} /> Confirm</>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>

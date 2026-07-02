@@ -102,10 +102,18 @@ export interface VehicleOption {
   last_odo: number | null
 }
 
+export interface NearDuplicateMatch {
+  financial_id: string
+  date: string
+  amount: number
+  payee: string
+}
+
 export interface ConfirmResponse {
   success: boolean
   duplicate: boolean
   transaction_id: string | null
+  possible_match?: NearDuplicateMatch | null
 }
 
 export interface FuelConfirmRequest {
@@ -123,6 +131,8 @@ export interface FuelConfirmRequest {
   missed_fill: boolean
   fuel_grade: string | null
   notes: string | null
+  force_new?: boolean
+  attach_to?: string
 }
 
 export interface FuelConfirmResponse {
@@ -137,6 +147,7 @@ export interface FuelConfirmResponse {
   liters: number | null
   price_per_liter: number | null
   fuel_grade: string | null
+  possible_match?: NearDuplicateMatch | null
 }
 
 export interface Transaction {
@@ -197,6 +208,8 @@ export async function confirmReceipt(data: {
   category_id: string
   account_id: string
   notes?: string
+  force_new?: boolean
+  attach_to?: string
 }): Promise<ConfirmResponse> {
   return request<ConfirmResponse>(`/receipts/${data.receipt_id}/confirm`, {
     method: 'POST',
