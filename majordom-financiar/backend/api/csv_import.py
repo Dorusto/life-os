@@ -542,16 +542,20 @@ async def preview_csv(
         fid = _financial_id(tx.date.isoformat(), tx.merchant, tx.amount)
         duplicate = fid in existing_ids
 
-        # Near-duplicate check: same date+merchant already in AB, but no amount
-        # matches — likely the same real-world transaction with a different
-        # amount (e.g. imported once with a wrong/unconverted amount, now fixed
-        # in the CSV). Flag instead of silently treating as a brand new row.
+        # Near-duplicate check: same date+merchant already in AB, but the exact
+        # hash doesn't match — likely the same real-world transaction. Flag
+        # regardless of whether the existing amount matches: financial_id is
+        # fixed at creation time and never recomputed, so a transaction that
+        # was originally imported with a wrong amount and later hand-corrected
+        # in Actual Budget keeps its old (mismatching) financial_id even
+        # though the displayed amount now equals the CSV's. Relying on "amount
+        # differs" alone would miss exactly that case.
         possible_duplicate = False
         existing_amount: float | None = None
         if not duplicate:
             near_dup_key = (tx.date.isoformat(), tx.merchant.strip().lower())
             candidates = near_dup_index.get(near_dup_key, [])
-            if candidates and not any(abs(a - tx.amount) < 0.01 for a in candidates):
+            if candidates:
                 possible_duplicate = True
                 existing_amount = candidates[0]
 
