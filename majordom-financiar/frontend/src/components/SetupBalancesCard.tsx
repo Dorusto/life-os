@@ -14,6 +14,24 @@ export default function SetupBalancesCard({ accounts, onComplete }: Props) {
   const [extras, setExtras] = useState<{ name: string; balance: string }[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Skipped accounts are sent with their current AB balance unchanged (a safe
+  // no-op — adjust_account_balance() creates no transaction when the target
+  // matches within 1 cent), but marked explicitly so the intent is visible
+  // instead of relying on the user noticing the field was pre-filled.
+  const [skipped, setSkipped] = useState<Set<string>>(new Set())
+
+  function toggleSkip(accountId: string, currentBalance: number) {
+    setSkipped(prev => {
+      const next = new Set(prev)
+      if (next.has(accountId)) {
+        next.delete(accountId)
+      } else {
+        next.add(accountId)
+        setBalances(b => ({ ...b, [accountId]: currentBalance.toFixed(2) }))
+      }
+      return next
+    })
+  }
 
   function addExtra() {
     setExtras(prev => [...prev, { name: '', balance: '' }])
@@ -33,7 +51,9 @@ export default function SetupBalancesCard({ accounts, onComplete }: Props) {
     try {
       const entries = accounts.map(a => ({
         account_id: a.id,
-        real_balance: parseFloat(balances[a.id] || '0'),
+        // Skipped accounts always send the account's current balance,
+        // regardless of what's in the input — guarantees a no-op adjustment.
+        real_balance: skipped.has(a.id) ? a.balance : parseFloat(balances[a.id] || '0'),
       }))
       const newAccounts = extras
         .filter(e => e.name.trim())
@@ -60,25 +80,42 @@ export default function SetupBalancesCard({ accounts, onComplete }: Props) {
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
       <div>
         <p className="text-white text-sm font-medium">Enter your real account balances</p>
-        <p className="text-muted text-xs mt-0.5">Check your banking app and correct where needed</p>
+        <p className="text-muted text-xs mt-0.5">Check your banking app and correct where needed — not sure about one? Skip it, no changes until you investigate</p>
       </div>
 
       <div className="space-y-2">
-        {accounts.map(acc => (
+        {accounts.map(acc => {
+          const isSkipped = skipped.has(acc.id)
+          return (
           <div key={acc.id} className="flex items-center gap-3">
-            <span className="text-white text-sm flex-1 truncate">{acc.name}</span>
+            <span className={`text-sm flex-1 truncate ${isSkipped ? 'text-muted' : 'text-white'}`}>{acc.name}</span>
+            <button
+              type="button"
+              onClick={() => toggleSkip(acc.id, acc.balance)}
+              className={`text-[11px] px-1.5 py-0.5 rounded-md border transition-colors ${
+                isSkipped
+                  ? 'border-yellow-500/40 text-yellow-500 bg-yellow-500/10'
+                  : 'border-border text-muted hover:text-white'
+              }`}
+            >
+              {isSkipped ? 'Skipped' : 'Skip'}
+            </button>
             <div className="flex items-center gap-1.5">
               <span className="text-muted text-sm">€</span>
               <input
                 type="number"
                 step="0.01"
-                value={balances[acc.id] ?? ''}
+                disabled={isSkipped}
+                value={isSkipped ? acc.balance.toFixed(2) : (balances[acc.id] ?? '')}
                 onChange={e => setBalances(prev => ({ ...prev, [acc.id]: e.target.value }))}
-                className="w-24 bg-background border border-border rounded-lg px-2 py-1 text-white text-sm text-right focus:outline-none focus:border-accent transition-colors"
+                className={`bg-background border border-border rounded-lg px-2 py-1 w-24 text-sm text-right focus:outline-none focus:border-accent transition-colors ${
+                  isSkipped ? 'text-muted opacity-50' : 'text-white'
+                }`}
               />
             </div>
           </div>
-        ))}
+          )
+        })}
 
         {extras.map((extra, idx) => (
           <div key={idx} className="flex items-center gap-2">
