@@ -8,6 +8,7 @@ import {
   type AccountOption,
   type ImportResult,
 } from '../lib/api'
+import { matchAccountBySource } from '../lib/csvImportUtils'
 
 // --- Types ---
 
@@ -128,10 +129,7 @@ export default function ImportPage({ initialFile, onDone }: ImportPageProps) {
       setAccounts(preview.accounts)
       setAbCategories(preview.ab_categories)
       setSourceName(preview.source_name)
-      const src = preview.source_name.toLowerCase()
-      const matched = preview.accounts.find(acc =>
-        acc.name.toLowerCase().includes(src) || src.includes(acc.name.toLowerCase())
-      )
+      const matched = matchAccountBySource(preview.source_name, preview.accounts)
       setAccountId(matched ? matched.id : '')
       setStep(2)
     } catch (e) {

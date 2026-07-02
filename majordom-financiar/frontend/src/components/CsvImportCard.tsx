@@ -6,6 +6,7 @@ import {
   type ImportResult,
   type AccountOption,
 } from '../lib/api'
+import { matchAccountBySource } from '../lib/csvImportUtils'
 
 // --- Local types (mirrors ImportRow from api.ts with local UI additions) ---
 
@@ -113,10 +114,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
   const [importing, setImporting] = useState(false)
 
   // Auto-select account if name matches source
-  const src = preview.source_name.toLowerCase()
-  const matched = preview.accounts.find(acc =>
-    acc.name.toLowerCase().includes(src) || src.includes(acc.name.toLowerCase())
-  )
+  const matched = matchAccountBySource(preview.source_name, preview.accounts)
   if (!accountId && matched) {
     // Use setTimeout to avoid setState during render
     setTimeout(() => setAccountId(matched.id), 0)
