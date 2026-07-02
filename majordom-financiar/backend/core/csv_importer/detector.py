@@ -41,6 +41,16 @@ Required fields:
   "confidence": 0.9
 }}
 
+IMPORTANT — col_amount selection when multiple amount columns exist:
+Some exports (e.g. crypto/multi-currency cards) provide TWO amount columns: one in the
+original/foreign transaction currency (e.g. "Amount" + "Currency"), and one already
+converted to the account's home currency (e.g. "Native Amount" + "Native Currency",
+or "Amount (EUR)"). ALWAYS prefer the already-converted/native/home-currency amount
+column for "col_amount" — it requires no further conversion. Only fall back to the
+foreign-currency amount column if no converted equivalent exists. If you pick an
+already-converted column that is always in a single fixed currency, leave
+"col_currency" as an empty string.
+
 HEADERS: {headers}
 
 FIRST 3 ROWS:
