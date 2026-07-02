@@ -703,61 +703,6 @@ async def setup_default_groups() -> str:
     return json.dumps({"type": "category_action", "id": action_id, "action": "setup_groups", "preview": preview, "groups": to_create})
 
 
-async def propose_categorize_by_payee(payee: str, category_name: str) -> str:
-    """
-    Propose bulk-categorizing all uncategorized transactions for a given payee.
-    Returns a confirmation card — does NOT write to Actual Budget yet.
-    """
-    import uuid
-    from difflib import get_close_matches
-    from backend.tools import category_actions as action_store
-
-    client = get_provider()
-
-    cats = await client.get_categories()
-    cat_names = [c.name for c in cats]
-    exact = next((c for c in cats if c.name.lower() == category_name.lower()), None)
-    if not exact:
-        close = get_close_matches(category_name, cat_names, n=1, cutoff=0.6)
-        if close:
-            exact = next((c for c in cats if c.name == close[0]), None)
-    if not exact:
-        return json.dumps({
-            "type": "error",
-            "message": f"Category not found: {category_name!r}. Available: {', '.join(cat_names)}",
-        })
-
-    count = await client.count_uncategorized_by_payee(payee)
-    if count == 0:
-        return json.dumps({
-            "type": "error",
-            "message": f"No uncategorized transactions found for payee matching '{payee}'.",
-        })
-
-    # Build id→name map for override resolution at confirm time
-    categories_map = {c.id: c.name for c in cats}
-    available_categories = [c.name for c in cats]
-
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {
-        "action": "categorize_by_payee",
-        "payee": payee,
-        "category_id": exact.id,
-        "category_name": exact.name,
-        "count": count,
-        "categories_map": categories_map,
-    })
-    return json.dumps({
-        "type": "category_action",
-        "id": action_id,
-        "action": "categorize_by_payee",
-        "payee": payee,
-        "category_name": exact.name,
-        "count": count,
-        "available_categories": available_categories,
-    })
-
-
 async def get_uncategorized_groups() -> str:
     """
     Fetch all uncategorized transaction groups by payee with suggested categories.

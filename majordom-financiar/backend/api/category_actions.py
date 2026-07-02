@@ -88,22 +88,6 @@ async def confirm_category_action(
                 f"Budget updated: {result['category_name']} "
                 f"€{result['old_amount']:.2f} → €{result['new_amount']:.2f}"
             )
-        elif action["action"] == "categorize_by_payee":
-            payee = override.payee or action["payee"]
-            # Resolve category_id from override name if user changed it
-            cat_id = action["category_id"]
-            cat_name = action["category_name"]
-            if override.category_name and override.category_name != action["category_name"]:
-                id_by_name = {v: k for k, v in action.get("categories_map", {}).items()}
-                cat_id = id_by_name.get(override.category_name, cat_id)
-                cat_name = override.category_name
-            count = await client.update_uncategorized_by_payee(
-                payee=payee,
-                category_id=cat_id,
-            )
-            message = (
-                f"Categorized {count} transaction(s) for '{payee}' → '{cat_name}'"
-            )
         elif action["action"] == "categorize_with_rule":
             payee = override.payee or action["payee"]
             # Resolve category_id from override name if user changed it

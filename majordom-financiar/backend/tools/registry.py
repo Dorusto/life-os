@@ -614,33 +614,6 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "propose_categorize_by_payee",
-            "description": (
-                "Propose bulk-categorizing all uncategorized transactions for a specific payee. "
-                "Use when the user wants to set the category for all past transactions from a merchant "
-                "(e.g. 'categorize all TLS BV as Public transport'). "
-                "A confirmation card appears showing how many transactions will be affected — "
-                "nothing is written until the user confirms."
-            ),
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "payee": {
-                        "type": "string",
-                        "description": "Payee name or partial name to match (case-insensitive), e.g. 'TLS BV'.",
-                    },
-                    "category_name": {
-                        "type": "string",
-                        "description": "Target category name, e.g. 'Public transport'.",
-                    },
-                },
-                "required": ["payee", "category_name"],
-            },
-        },
-    },
-    {
-        "type": "function",
-        "function": {
             "name": "get_uncategorized_groups",
             "description": (
                 "Get all uncategorized transactions grouped by payee with suggested categories. "
@@ -655,11 +628,13 @@ TOOLS: list[dict] = [
         "function": {
             "name": "propose_categorize_with_rule",
             "description": (
-                "Propose categorizing a payee group and creating an AB rule for future auto-categorization. "
-                "Use when the user wants to categorize transactions for a merchant and ensure future "
-                "imports from the same payee are automatically categorized. "
-                "A confirmation card appears showing payee, count, category, and rule options — "
-                "nothing is written until the user confirms."
+                "Propose bulk-categorizing all uncategorized transactions for a payee, with an "
+                "optional AB rule for future auto-categorization. This is the only categorization "
+                "tool — always use it whenever the user wants to set the category for past "
+                "transactions from a merchant (e.g. 'categorize all TLS BV as Public transport'), "
+                "whether or not they mention wanting a rule for future imports. "
+                "A confirmation card appears showing payee, count, category, and a rule checkbox "
+                "the user can toggle — nothing is written until the user confirms."
             ),
             "parameters": {
                 "type": "object",
@@ -792,9 +767,6 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "set_vehicle_type":
         from backend.tools.finance.vehicle import set_vehicle_type
         return await set_vehicle_type(**arguments)
-    if name == "propose_categorize_by_payee":
-        from backend.tools.finance.actual_budget import propose_categorize_by_payee
-        return await propose_categorize_by_payee(**arguments)
     if name == "get_uncategorized_groups":
         from backend.tools.finance.actual_budget import get_uncategorized_groups
         return await get_uncategorized_groups()
