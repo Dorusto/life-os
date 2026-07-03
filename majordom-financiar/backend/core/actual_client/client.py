@@ -896,6 +896,7 @@ class ActualBudgetClient:
                     | set(spent_by_category.keys())
                     | {str(c.id) for c in all_cats if c.id and not c.hidden}
                 )
+                cat_obj_map = {str(c.id): c for c in all_cats if c.id}
 
                 budget_result = []
                 for cat_id in all_category_ids:
@@ -905,6 +906,28 @@ class ActualBudgetClient:
                         continue
                     budgeted = round(budget_by_category.get(cat_id, 0.0), 2)
                     spent = round(spent_by_category.get(cat_id, 0.0), 2)
+                    # A category with rollover enabled that got no fresh
+                    # allocation this month (relying entirely on last month's
+                    # carried-over balance) shows budgeted=0 here, even
+                    # though real money is still available — e.g. a
+                    # "Holidays" category funded in June, spent in July.
+                    # get_accumulated_budgeted_balance() is what AB's own UI
+                    # shows as the category Balance (rollover-aware); use it
+                    # as the effective budgeted amount so the category still
+                    # appears while there's a balance, and naturally stops
+                    # appearing once it's fully spent (balance reaches 0).
+                    # Must run BEFORE the budgeted==0-and-spent==0 skip below,
+                    # otherwise a rollover category with no July spending yet
+                    # gets filtered out before ever checking its balance.
+                    if budgeted == 0 and cat_id in cat_obj_map:
+                        try:
+                            from actual.queries import get_accumulated_budgeted_balance
+                            accumulated = get_accumulated_budgeted_balance(
+                                actual.session, _date(target_year, target_month, 1), cat_obj_map[cat_id],
+                            )
+                            budgeted = round(float(accumulated), 2)
+                        except Exception:
+                            pass
                     if budgeted == 0 and spent == 0:
                         continue
                     percentage = round(spent / budgeted * 100, 1) if budgeted > 0 else 0.0
