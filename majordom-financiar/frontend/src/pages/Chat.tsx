@@ -33,6 +33,8 @@ export interface Message {
 
   content: string
   ts?: number
+  /** True for messages loaded from server history — skip re-persisting them. */
+  _synced?: boolean
   chartData?: MonthlyStats
   proposal?: ProposalData
   budgetRebalance?: BudgetRebalanceData
@@ -123,6 +125,30 @@ export default function Chat({ messages, setMessages }: ChatProps) {
   // Scroll to bottom whenever messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
+
+  // Persist card resolutions (confirm/cancel) to server history.
+  // Card flows (bank resync, category actions, transfers, ...) end by turning
+  // the card message into a 'status' message — but unlike plain text replies,
+  // nothing else saves that exchange server-side. Without this, the whole
+  // exchange (including the user's own message) vanishes from chat history
+  // the next time it reloads from the server (e.g. navigating away and back).
+  // A WeakSet + the `_synced` flag (set on messages loaded from the server)
+  // together ensure each locally-resolved status message is persisted exactly
+  // once, and messages we just loaded from the server are never re-saved.
+  const persistedStatusRef = useRef<WeakSet<Message>>(new WeakSet())
+  useEffect(() => {
+    messages.forEach((m, i) => {
+      if (m.role !== 'status' || m._synced || persistedStatusRef.current.has(m)) return
+      persistedStatusRef.current.add(m)
+      const userMsg = [...messages.slice(0, i)].reverse().find(mm => mm.role === 'user')
+      if (userMsg) {
+        saveChatHistory([
+          { role: 'user', content: userMsg.content },
+          { role: 'status', content: m.content },
+        ]).catch(() => {})
+      }
+    })
   }, [messages])
 
   // Auto-focus input on mount

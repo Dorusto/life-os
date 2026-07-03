@@ -52,7 +52,7 @@ function Layout() {
     if (hasActiveCards) return
     getChatHistory().then(msgs => {
       if (msgs.length > 0) {
-        setChatMessages(msgs.map(m => ({ role: m.role as Message['role'], content: m.content, ts: m.ts })))
+        setChatMessages(msgs.map(m => ({ role: m.role as Message['role'], content: m.content, ts: m.ts, _synced: true })))
       }
     }).catch(() => {})
   }
