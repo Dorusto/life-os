@@ -5,7 +5,6 @@ POST /api/vehicle-log-actions/{id}/confirm
 POST /api/vehicle-log-actions/{id}/cancel
 """
 import logging
-import sqlite3
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -13,6 +12,7 @@ from backend.api.auth import get_current_user
 from backend.tools import vehicle_log_actions as action_store
 from backend.core.config import settings
 from backend.core.actual_client import ActualBudgetClient
+from backend.core.vehicle_client import VehicleClient, VehicleClientError
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -29,33 +29,37 @@ async def confirm_vehicle_log_action(
 
     entry_id = action["entry_id"]
     financial_id = action.get("financial_id")
-    conn = sqlite3.connect(settings.memory.db_path)
+    client = VehicleClient(base_url=settings.vehicle_manager.url)
+
     try:
-        row = conn.execute("SELECT id FROM vehicle_log WHERE id = ?", (entry_id,)).fetchone()
-        if not row:
+        # Verify the entry exists via vehicle-manager
+        entry = await client.get_log_entry(entry_id)
+        if not entry:
             raise HTTPException(status_code=404, detail=f"Entry #{entry_id} not found")
-        conn.execute("DELETE FROM vehicle_log WHERE id = ?", (entry_id,))
-        conn.commit()
+
+        # Delete via vehicle-manager
+        ok = await client.delete_log_entry(entry_id)
+        if not ok:
+            raise HTTPException(status_code=404, detail=f"Entry #{entry_id} not found")
     except HTTPException:
         raise
     except Exception as e:
         logger.error("Failed to delete vehicle log entry %s: %s", entry_id, e)
         raise HTTPException(status_code=500, detail="Failed to delete vehicle log entry")
     finally:
-        conn.close()
         action_store.delete(action_id)
 
     # Fuelio historical imports have no financial_id — only refuels logged
     # from photo/text (today onward) are linked to an AB transaction (#83).
     ab_deleted = False
     if financial_id:
-        client = ActualBudgetClient(
+        client_ab = ActualBudgetClient(
             url=settings.actual.url,
             password=settings.actual.password,
             sync_id=settings.actual.sync_id,
         )
         try:
-            ab_deleted = await client.delete_transaction(financial_id)
+            ab_deleted = await client_ab.delete_transaction(financial_id)
         except Exception as e:
             logger.error("Failed to delete AB transaction %s for vehicle log entry %s: %s", financial_id, entry_id, e)
 

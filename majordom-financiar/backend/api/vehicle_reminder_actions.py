@@ -11,8 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from backend.api.auth import get_current_user
 from backend.tools import vehicle_reminder_actions as action_store
-from backend.core.memory.database import MemoryDB
 from backend.core.config import settings
+from backend.core.vehicle_client import VehicleClient
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -38,25 +38,44 @@ async def confirm_vehicle_reminder(
         raise HTTPException(status_code=404, detail="Action not found or already completed")
 
     vehicle_id = override.vehicle_id if override.vehicle_id is not None else action["vehicle_id"]
+    client = VehicleClient(base_url=settings.vehicle_manager.url)
 
     try:
-        db = MemoryDB(settings.memory.db_path)
-        vehicles = db.get_vehicles()
-        vehicle_name = next((v["name"] for v in vehicles if v["id"] == vehicle_id), f"vehicle #{vehicle_id}")
+        # Look up vehicle name
+        vehicle = await client.get_vehicle(vehicle_id)
+        vehicle_name = vehicle["name"] if vehicle else f"vehicle #{vehicle_id}"
 
         if action.get("action") == "set_service":
-            db.update_vehicle_service(
-                vehicle_id,
-                override.interval_km if override.interval_km is not None else action.get("interval_km"),
-                override.interval_months if override.interval_months is not None else action.get("interval_months"),
-                override.last_service_km if override.last_service_km is not None else action.get("last_service_km"),
-                override.last_service_date if override.last_service_date is not None else action.get("last_service_date"),
-            )
+            # Patch service fields via vehicle-manager
+            patch_fields = {}
+            if override.interval_km is not None:
+                patch_fields["service_interval_km"] = override.interval_km
+            elif action.get("interval_km") is not None:
+                patch_fields["service_interval_km"] = action["interval_km"]
+
+            if override.interval_months is not None:
+                patch_fields["service_interval_months"] = override.interval_months
+            elif action.get("interval_months") is not None:
+                patch_fields["service_interval_months"] = action["interval_months"]
+
+            if override.last_service_km is not None:
+                patch_fields["last_service_km"] = override.last_service_km
+            elif action.get("last_service_km") is not None:
+                patch_fields["last_service_km"] = action["last_service_km"]
+
+            if override.last_service_date is not None:
+                patch_fields["last_service_date"] = override.last_service_date
+            elif action.get("last_service_date") is not None:
+                patch_fields["last_service_date"] = action["last_service_date"]
+
+            if patch_fields:
+                await client.patch_vehicle(vehicle_id, **patch_fields)
             return {"message": f"{vehicle_name} service interval saved."}
 
         due_date = override.due_date or action["due_date"]
         field = action["field"]
-        db.update_vehicle_due_date(vehicle_id, field, due_date)
+        patch_kwargs = {field: due_date}
+        await client.patch_vehicle(vehicle_id, **patch_kwargs)
         label = "APK/ITP" if field == "apk_due" else "Insurance"
         return {"message": f"{vehicle_name} {label} reminder set to {due_date}."}
 

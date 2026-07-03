@@ -43,6 +43,14 @@ class ActualBudgetConfig:
 
 
 @dataclass
+class VehicleManagerConfig:
+    url: str = ""
+
+    def __post_init__(self):
+        self.url = os.getenv("VEHICLE_MANAGER_URL", "http://vehicle-manager:8010")
+
+
+@dataclass
 class MemoryConfig:
     db_path: str = ""
     auto_threshold: float = 0.8
@@ -57,6 +65,7 @@ class MemoryConfig:
 @dataclass
 class Settings:
     actual: ActualBudgetConfig = field(default_factory=ActualBudgetConfig)
+    vehicle_manager: VehicleManagerConfig = field(default_factory=VehicleManagerConfig)
     ollama: LLMConfig = field(default_factory=LLMConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     default_currency: str = "EUR"

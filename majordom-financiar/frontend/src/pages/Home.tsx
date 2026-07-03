@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { LogOut, Bell, MoreVertical, Wallet, Database, AlertCircle, ChevronRight } from 'lucide-react'
+import { LogOut, Bell, MoreVertical, Wallet, Database, Car, AlertCircle, ChevronRight } from 'lucide-react'
 import { getHomeData, getHomePending } from '../lib/api'
 import { getUsername, clearAuth } from '../lib/auth'
 import { requestAndSubscribe } from '../lib/push'
@@ -106,7 +106,17 @@ export default function Home() {
                 className="flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/5 transition-colors"
               >
                 <Database size={16} className="text-muted flex-shrink-0" />
-                Database
+                Majordom Memory
+              </a>
+              <a
+                href={`${origin}:8889`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/5 transition-colors"
+              >
+                <Car size={16} className="text-muted flex-shrink-0" />
+                Vehicle Manager
               </a>
               <div className="border-t border-border" />
               <button

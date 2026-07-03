@@ -12,7 +12,6 @@ Architecture:
 
 import json
 import logging
-import sqlite3
 import time as time_module
 from datetime import date, datetime
 
@@ -21,6 +20,7 @@ import httpx
 from backend.core.config import settings
 from backend.core.finance.provider import get_provider
 from backend.core.memory.database import MemoryDB
+from backend.core.vehicle_client import VehicleClient
 from backend.services.push_service import get_push_service
 
 logger = logging.getLogger(__name__)
@@ -208,7 +208,7 @@ async def _check_uncategorized_transactions(db: MemoryDB) -> str | None:
     )
 
 
-def _check_vehicle_reminders(db: MemoryDB, ignore_anti_spam: bool = False) -> list[tuple[str, str, dict]]:
+async def _check_vehicle_reminders(db: MemoryDB, ignore_anti_spam: bool = False) -> list[tuple[str, str, dict]]:
     """Return list of (alert_text, log_key, log_payload) for vehicle alerts due today.
 
     Covers:
@@ -227,20 +227,20 @@ def _check_vehicle_reminders(db: MemoryDB, ignore_anti_spam: bool = False) -> li
     today = date.today()
     alerts: list[tuple[str, str, dict]] = []
 
-    conn = sqlite3.connect(settings.memory.db_path)
-    conn.row_factory = sqlite3.Row
+    # Fetch vehicles + current ODO from vehicle-manager.
+    # list_vehicles() already computes last_odo = MAX(odo_km) server-side —
+    # reuse it directly instead of an extra per-vehicle call (which would also
+    # be wrong: "most recent by date" can diverge from the true max ODO if
+    # entries are logged out of chronological order).
     try:
-        vehicles = [dict(r) for r in conn.execute(
-            "SELECT id, name, apk_due, insurance_due, "
-            "service_interval_km, service_interval_months, last_service_km, last_service_date "
-            "FROM vehicles WHERE active=1"
-        ).fetchall()]
-        # Current ODO per vehicle (max from vehicle_log)
-        odo_rows = {r["vehicle_id"]: r["current_odo"] for r in conn.execute(
-            "SELECT vehicle_id, MAX(odo_km) as current_odo FROM vehicle_log GROUP BY vehicle_id"
-        ).fetchall()}
-    finally:
-        conn.close()
+        client = VehicleClient(base_url=settings.vehicle_manager.url)
+        vehicles = await client.list_vehicles(active_only=True)
+        odo_rows: dict[int, float] = {
+            v["id"]: v["last_odo"] for v in vehicles if v.get("last_odo") is not None
+        }
+    except Exception as e:
+        logger.error("Vehicle reminders check failed to fetch vehicles: %s", e)
+        return []
 
     for v in vehicles:
         # Expiry reminders
@@ -615,7 +615,7 @@ async def run_daily_digest():
 
         # Vehicle/income-variance/goal-risk texts already carry their own
         # per-line emoji (⚠️/🚗/🏍️/🎯) — no external prefix, would double up.
-        vehicle_alerts = _check_vehicle_reminders(db)
+        vehicle_alerts = await _check_vehicle_reminders(db)
         for text, _, _ in vehicle_alerts:
             parts.append(text)
 
@@ -780,7 +780,7 @@ async def get_pending_items() -> list[dict]:
     # unresolved state, not "already told you once this week".
     try:
         db = MemoryDB(settings.memory.db_path)
-        vehicle_alerts = _check_vehicle_reminders(db, ignore_anti_spam=True)
+        vehicle_alerts = await _check_vehicle_reminders(db, ignore_anti_spam=True)
         for text, _, payload in vehicle_alerts:
             vehicle_name = payload.get("vehicle", "")
             items.append({

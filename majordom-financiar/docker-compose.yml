@@ -57,6 +57,8 @@ services:
     depends_on:
       actual-budget:
         condition: service_healthy
+      vehicle-manager:
+        condition: service_healthy
     networks:
       - majordom-net
     # majordom-api is NOT exposed directly to the host.
@@ -85,6 +87,35 @@ services:
     networks:
       - majordom-net
 
+  vehicle-manager-sqlite-web:
+    image: coleifer/sqlite-web
+    container_name: vehicle-manager-sqlite-web
+    restart: unless-stopped
+    ports:
+      - "8889:8080"
+    volumes:
+      - vehicle-manager-data:/data
+    command: ["sqlite_web", "-H", "0.0.0.0", "-p", "8080", "/data/vehicles.db"]
+    networks:
+      - majordom-net
+
+  vehicle-manager:
+    build:
+      context: ../tools/vehicle-manager
+      dockerfile: Dockerfile
+    container_name: vehicle-manager
+    restart: unless-stopped
+    volumes:
+      - vehicle-manager-data:/app/data
+    networks:
+      - majordom-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8010/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
   majordom-web:
     build:
       context: ./frontend
@@ -106,6 +137,8 @@ volumes:
     name: majordom-actual-data
   ollama-data:
     name: majordom-ollama-data
+  vehicle-manager-data:
+    name: vehicle-manager-data
 
 networks:
   majordom-net:

@@ -9,8 +9,8 @@ from backend.api.auth import get_current_user
 from backend.api.receipts import FuelConfirmRequest, FuelConfirmResponse
 from backend.tools import vehicle_proposals
 from backend.tools.finance.actual_budget import add_transaction as ab_add_transaction
-from backend.core.memory.database import MemoryDB
 from backend.core.config import settings
+from backend.core.vehicle_client import VehicleClient, VehicleClientError
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +34,7 @@ async def confirm_vehicle_proposal(
     Same logic as confirm_fuel_receipt in receipts.py:
     1. Get proposal from vehicle_proposals store → 404 if missing
     2. AB transaction via ActualBudgetClient.add_transaction()
-    3. vehicle_log INSERT via db.insert_vehicle_log_entries()
+    3. vehicle_log INSERT via vehicle_client.insert_log_entries()
     4. Calculate post-confirm stats
     5. Delete proposal
     6. Return FuelConfirmResponse
@@ -42,6 +42,8 @@ async def confirm_vehicle_proposal(
     proposal = vehicle_proposals.get(proposal_id)
     if not proposal:
         raise HTTPException(status_code=404, detail="Proposal not found")
+
+    client = VehicleClient(base_url=settings.vehicle_manager.url)
 
     try:
         category_name = request.category_name or proposal.get("category_name", "Car Costs")
@@ -52,9 +54,8 @@ async def confirm_vehicle_proposal(
         notes = f"[fuel] {request.liters}L — {vehicle_name}"
 
         # Read last ODO BEFORE insert (so km_since_last is calculated correctly)
-        db = MemoryDB(db_path=settings.memory.db_path)
         vehicle_id = request.vehicle_id or proposal.get("vehicle_id")
-        last_entry = db.get_last_fuel_entry(vehicle_id) if vehicle_id else None
+        last_entry = await client.get_last_fuel_entry(vehicle_id) if vehicle_id else None
         last_odo = last_entry["odo_km"] if last_entry else None
 
         logger.info("Adding AB transaction: %s €%.2f on %s", station, request.total_eur, tx_date)
@@ -86,8 +87,28 @@ async def confirm_vehicle_proposal(
             "location": station,
             "source": "chat_text",
         }
-        db.insert_vehicle_log_entries([entry])
-        vehicle_log_id = None
+
+        # Try to write vehicle log entry
+        try:
+            inserted, _ = await client.insert_log_entries(vehicle_id, [entry])
+            vehicle_log_id = None
+        except VehicleClientError as e:
+            logger.error("Vehicle-manager insert failed after AB success: %s", e)
+            # Return a response that tells the user AB was saved but vehicle part failed
+            return FuelConfirmResponse(
+                success=True,
+                duplicate=False,
+                transaction_id=transaction_id,
+                vehicle_log_id=None,
+                km_since_last=None,
+                consumption_l100km=None,
+                cost_per_km=None,
+                vehicle_name=vehicle_name,
+                liters=request.liters,
+                price_per_liter=price_per_liter,
+                fuel_grade=None,
+                odo_warning=False,
+            )
 
         # Calculate stats
         km_since_last = None
@@ -116,6 +137,8 @@ async def confirm_vehicle_proposal(
             fuel_grade=None,
         )
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Failed to confirm vehicle proposal %s: %s", proposal_id, e, exc_info=True)
         raise HTTPException(status_code=500, detail="Could not confirm the refuel entry")

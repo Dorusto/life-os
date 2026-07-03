@@ -30,8 +30,8 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
-from backend.core.memory.database import MemoryDB
 from backend.core.config import settings
+from backend.core.vehicle_client import VehicleClient, VehicleClientError
 from backend.services.receipt_service import ReceiptService
 
 logger = logging.getLogger(__name__)
@@ -299,9 +299,11 @@ async def confirm_receipt(
     )
 
 
-def _build_fuel_notes(liters: float, vehicle_id: int, db) -> str:
+async def _build_fuel_notes(liters: float, vehicle_id: int) -> str:
+    """Build fuel notes with vehicle name lookup via vehicle-manager."""
     try:
-        vehicles = db.get_vehicles()
+        client = VehicleClient(base_url=settings.vehicle_manager.url)
+        vehicles = await client.list_vehicles(active_only=True)
         v = next((v for v in vehicles if v["id"] == vehicle_id), None)
         name = v["name"] if v else None
     except Exception:
@@ -329,14 +331,14 @@ async def confirm_fuel_receipt(
             detail="Receipt image not found. Upload the image first.",
         )
 
-    db = MemoryDB(db_path=settings.memory.db_path)
+    vehicle_client = VehicleClient(base_url=settings.vehicle_manager.url)
     service = ReceiptService()
 
     # Step 1: Get last fuel entry BEFORE inserting the new one (for stats)
-    last_entry = db.get_last_fuel_entry(request.vehicle_id)
+    last_entry = await vehicle_client.get_last_fuel_entry(request.vehicle_id)
     last_odo = last_entry["odo_km"] if last_entry else None
 
-    fuel_notes = request.notes or _build_fuel_notes(request.liters, request.vehicle_id, db)
+    fuel_notes = request.notes or await _build_fuel_notes(request.liters, request.vehicle_id)
 
     # Step 2: Save AB transaction using category_name (AB name like "Car Costs")
     # service.confirm() uses category_id which is an internal slug.
@@ -383,7 +385,7 @@ async def confirm_fuel_receipt(
             detail=f"Failed to save transaction: {str(e)}",
         )
 
-    # Step 3: Insert vehicle_log entry
+    # Step 3: Insert vehicle_log entry via vehicle-manager
     price_per_liter = request.price_per_liter
     if price_per_liter is None and request.liters > 0:
         price_per_liter = round(request.total_eur / request.liters, 4)
@@ -406,12 +408,26 @@ async def confirm_fuel_receipt(
         "financial_id": tx_result.get("transaction_id"),
     }
 
-    inserted, _ = db.insert_vehicle_log_entries([vehicle_entry])
-    vehicle_log_id = None
-    if inserted > 0:
-        # The insert was successful, but we don't have a clean way to get the ID
-        # from the batch insert. Just mark it as inserted.
-        pass
+    try:
+        inserted, _ = await vehicle_client.insert_log_entries(request.vehicle_id, [vehicle_entry])
+    except VehicleClientError as e:
+        logger.error("Vehicle-manager insert failed after AB success: %s", e)
+        # Vehicle log failed but AB was saved — return error info
+        vehicle_name = await _get_vehicle_name(vehicle_client, request.vehicle_id)
+        return FuelConfirmResponse(
+            success=True,
+            duplicate=tx_result.get("duplicate", False),
+            transaction_id=tx_result.get("transaction_id"),
+            vehicle_log_id=None,
+            km_since_last=None,
+            consumption_l100km=None,
+            cost_per_km=None,
+            odo_warning=False,
+            vehicle_name=vehicle_name,
+            liters=request.liters,
+            price_per_liter=request.price_per_liter,
+            fuel_grade=request.fuel_grade,
+        )
 
     # Step 4: Calculate post-confirm stats
     km_since_last = None
@@ -444,19 +460,13 @@ async def confirm_fuel_receipt(
     except Exception:
         pass
 
-    vehicle_name = None
-    try:
-        vs = db.get_vehicles()
-        v = next((v for v in vs if v["id"] == request.vehicle_id), None)
-        vehicle_name = v["name"] if v else None
-    except Exception:
-        pass
+    vehicle_name = await _get_vehicle_name(vehicle_client, request.vehicle_id)
 
     return FuelConfirmResponse(
         success=True,
         duplicate=tx_result.get("duplicate", False),
         transaction_id=tx_result.get("transaction_id"),
-        vehicle_log_id=vehicle_log_id,
+        vehicle_log_id=None,
         km_since_last=km_since_last,
         consumption_l100km=consumption_l100km,
         cost_per_km=cost_per_km,
@@ -466,3 +476,13 @@ async def confirm_fuel_receipt(
         price_per_liter=request.price_per_liter,
         fuel_grade=request.fuel_grade,
     )
+
+
+async def _get_vehicle_name(client: VehicleClient, vehicle_id: int) -> str | None:
+    """Look up vehicle name by id from vehicle-manager."""
+    try:
+        vehicles = await client.list_vehicles(active_only=True)
+        v = next((v for v in vehicles if v["id"] == vehicle_id), None)
+        return v["name"] if v else None
+    except Exception:
+        return None

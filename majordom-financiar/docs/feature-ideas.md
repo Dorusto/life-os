@@ -34,5 +34,6 @@ Raw ideas not yet turned into GitHub issues. Once something here is actually goi
 | Calendar integration | Export APK/insurance/loan deadlines to Nextcloud Calendar as iCal. Data already in AB + vehicle_log. |
 | Split bill in chat | "Dinner with 4 people, €120, I paid — how much does each owe?" + log the expense. |
 | Net worth trend | Monthly chart 12 months — evolution not just today's snapshot. M2.7 charts infra ready. |
+| Swagger `/docs` link for vehicle-manager | Instead of (or in addition to) sqlite-web, expose vehicle-manager's port and link its auto-generated FastAPI `/docs` UI from Home's menu — structured API browsing vs. raw SQL rows. Revisit once the service matures past the raw-data-fixing stage sqlite-web is useful for now. |
 
 *Last updated: 2026-07-03*

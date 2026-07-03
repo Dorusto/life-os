@@ -27,6 +27,7 @@ from backend.core.actual_client import ActualBudgetClient
 from backend.core.config import settings
 from backend.core.memory import MemoryDB, SmartCategorizer
 from backend.core.ocr.vision_engine import VisionEngine
+from backend.core.vehicle_client import VehicleClient
 
 logger = logging.getLogger(__name__)
 
@@ -76,6 +77,7 @@ class ReceiptService:
             password=settings.actual.password,
             sync_id=settings.actual.sync_id,
         )
+        self._vehicle_client = VehicleClient(base_url=settings.vehicle_manager.url)
 
     async def process_image(self, image_bytes: bytes) -> dict:
         """
@@ -159,7 +161,7 @@ class ReceiptService:
         # If this is a fuel receipt, detect closest vehicle by ODO
         if receipt.receipt_type == "fuel":
             try:
-                vehicles = self._db.get_last_odo_per_vehicle()
+                vehicles = await self._vehicle_client.list_vehicles(active_only=True)
                 result["vehicles"] = [
                     {"id": v["id"], "name": v["name"], "last_odo": v["last_odo"]}
                     for v in vehicles if v["active"]
