@@ -160,7 +160,7 @@ Extract each service from Majordom into an independent HTTP service with its own
 
 | # | Service | Status | Trigger |
 |---|---------|--------|---------|
-| 6.1 | `vehicle-manager/` — FastAPI + own DB, extracted from memory.db | 🔲 | Next significant vehicle feature |
+| 6.1 | `vehicle-manager/` — FastAPI + own DB, extracted from memory.db | 🔲 | Trigger activated 2026-07-03 — see [#138](https://github.com/Dorusto/life-os/issues/138) |
 | 6.2 | `finance/` — FinanceProvider as HTTP service | 🔲 | After M5 evaluation |
 | 6.3 | `receipt-scanner/` — OCR extracted | 🔲 | When adding async receipt queue |
 | 6.4 | `csv-importer/` — import logic extracted | 🔲 | When adding multi-bank profiles |
@@ -185,24 +185,19 @@ Tier 1 (#96, #69) dropped from this table — both deprioritized, tracked in the
 
 | Issue | What | Est. |
 |---|---|---|
-| [#75](https://github.com/Dorusto/life-os/issues/75) | Reduce chat latency — affects every interaction | 1-2h |
-| [#116](https://github.com/Dorusto/life-os/issues/116) | Month-end uncategorized+unreconciled report (unblocked now that #101 is fixed) | 1-2h |
 | [#99](https://github.com/Dorusto/life-os/issues/99) | Remove `merchant_mappings` SQLite table, use AB rule history instead | 1-2h |
 | [#126](https://github.com/Dorusto/life-os/issues/126) | Freelance/ZZP income dashboard via AB tags — concrete real need (YouTube + Printful) | 1.5-2.5h |
 | [#77](https://github.com/Dorusto/life-os/issues/77) | Trend indicator on Cashflow/Net Worth cards | 45min-1h |
 | [#78](https://github.com/Dorusto/life-os/issues/78) | `setup_default_groups` UX improvements | 45min-1h |
 | [#76](https://github.com/Dorusto/life-os/issues/76) | Offer to add monthly amount to budget after setting a goal | 30-45 min |
-| [#79](https://github.com/Dorusto/life-os/issues/79) | Vehicle list/deactivate chat tool — natural trigger point for M6.1 vehicle-manager extraction if it comes up | 30-45 min |
-| [#81](https://github.com/Dorusto/life-os/issues/81) | Ollama — unload unused model before loading another | 45min-1h30 |
 | [#82](https://github.com/Dorusto/life-os/issues/82) | Teach user sqlite-web navigation | 15-20 min (conversation, no code) |
 
 **Tier 3 — larger features, need a trade-off discussion first:**
 
 | Issue | What | Est. |
 |---|---|---|
-| [#115](https://github.com/Dorusto/life-os/issues/115) | Split transaction across multiple categories | 2-3h |
-| [#117](https://github.com/Dorusto/life-os/issues/117) | Assisted reconciliation | 2-4h |
-| [#93](https://github.com/Dorusto/life-os/issues/93) | Architecture code audit | half a day+ |
+| [#93](https://github.com/Dorusto/life-os/issues/93) | Architecture code audit — do first, natural prep for #138 | half a day+ |
+| [#138](https://github.com/Dorusto/life-os/issues/138) | Extract `vehicle-manager` as independent service (FastAPI + own DB, REST + MCP-friendly) — internal modularity only, no public product yet. Unblocks #79, #134. | half a day+ |
 | [#88](https://github.com/Dorusto/life-os/issues/88) | M6 — setup simplification + platform vision | dedicated planning session, scope not yet clear |
 
 **Proactive budget intelligence — medium priority, grouped (2026-07-03):** real and eventually important, but standard functionality (Tier 2/3 above) comes first — these don't block anything the app already needs to do. Kept as one cluster rather than spread across tiers since they overlap conceptually (all "notice something the user would otherwise miss"); pick one from the group when standard-functionality work runs out, don't spread across sessions piecemeal.
@@ -215,11 +210,20 @@ Tier 1 (#96, #69) dropped from this table — both deprioritized, tracked in the
 | [#113](https://github.com/Dorusto/life-os/issues/113) | End-to-end goal budgeting (compound tool) | 3-4h |
 | [#114](https://github.com/Dorusto/life-os/issues/114) | Cross-check budget estimates against a vault plan file | 2-3h |
 | [#124](https://github.com/Dorusto/life-os/issues/124) | Budget config via chat — remaining scope (Automations, goal templates; rollover toggle already done) | 2-4h |
+| [#116](https://github.com/Dorusto/life-os/issues/116) | Month-end uncategorized+unreconciled report — Home already surfaces pending items, this is a lower-urgency proactive add-on, not a gap | 1-2h |
+| [#41](https://github.com/Dorusto/life-os/issues/41) | Recurring expense audit (monthly) | 1.5-2h |
+| [#42](https://github.com/Dorusto/life-os/issues/42) | Market correction alert | 1-1.5h |
+
+**Deferred to local-first LLM switch-back (2026-07-03, see `decisions.md#llm-provider`) — high priority again once that happens:**
+- [#75](https://github.com/Dorusto/life-os/issues/75) — chat latency, reframe around `qwen3.5:9b`
+- [#65](https://github.com/Dorusto/life-os/issues/65) — LLM hallucinating account creation
+- [#86](https://github.com/Dorusto/life-os/issues/86)/[#80](https://github.com/Dorusto/life-os/issues/80)/[#81](https://github.com/Dorusto/life-os/issues/81) — vision/OCR quality + Ollama VRAM management on local models
 
 **Deferred / opportunistic, not scheduled:**
-- [#80](https://github.com/Dorusto/life-os/issues/80)/[#86](https://github.com/Dorusto/life-os/issues/86) — vision total-amount detection: investigate opportunistically, may not have a full fix (model limitation)
-- [#120](https://github.com/Dorusto/life-os/issues/120) — own-account transfer linking: paused, flagged as delicate
-- M6.1 vehicle-manager extraction (separate FastAPI service + own DB) — **not a standalone task**, per the already-decided principle in `M6` above: extract incrementally when touching vehicle features for a real reason, not as an upfront split. #79 is the closest natural trigger if picked up.
+- [#115](https://github.com/Dorusto/life-os/issues/115) — split transaction across categories: not a priority right now
+- [#117](https://github.com/Dorusto/life-os/issues/117) — assisted reconciliation: low priority
+- [#120](https://github.com/Dorusto/life-os/issues/120) — own-account transfer linking: AB already does this when set up manually; the open question is *how* to trigger it from Majordom, not whether it's wanted — needs more thought before it's scoped, not just low priority
+- [#79](https://github.com/Dorusto/life-os/issues/79)/[#134](https://github.com/Dorusto/life-os/issues/134) — vehicle list/deactivate + fuel charts: sequenced after [#138](https://github.com/Dorusto/life-os/issues/138) (vehicle-manager extraction), not standalone
 
 | Feature | Notes |
 |---------|-------|
