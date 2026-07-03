@@ -768,26 +768,12 @@ async def get_pending_items() -> list[dict]:
     except Exception as e:
         logger.warning("get_pending_items: budget status check failed: %s", e)
 
-    # Goals at risk of missing their deadline (same thresholds as _check_goal_risk)
-    try:
-        goals = await client.get_goals()
-        for goal in goals:
-            deadline = goal.get("deadline")
-            months_remaining = goal.get("months_remaining")
-            if not deadline or months_remaining is None or months_remaining <= 0:
-                continue
-            percentage = goal.get("percentage", 0) or 0
-            is_urgent = months_remaining <= 3 and percentage < 90
-            is_at_risk = months_remaining <= 6 and percentage < 60
-            if not is_urgent and not is_at_risk:
-                continue
-            items.append({
-                "type": "goal_risk",
-                "text": f"Goal '{goal['name']}' at {percentage:.0f}%, {months_remaining} months left",
-                "prompt": f"how is my {goal['name']} goal doing?",
-            })
-    except Exception as e:
-        logger.warning("get_pending_items: goal risk check failed: %s", e)
+    # Goals at risk of missing their deadline were removed from this list —
+    # every goal (with its progress bar, remaining amount, and deadline) is
+    # already displayed directly in Home's "Financial Goals" section, so
+    # flagging it again here was pure duplication. `_check_goal_risk` (the
+    # daily digest push) still covers goals at risk — this only touched the
+    # in-app Home nudge.
 
     # Vehicle reminders — ignore_anti_spam=True so an alert already pushed
     # via tonight's digest still shows here; Home must reflect current
