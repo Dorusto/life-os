@@ -14,7 +14,7 @@ import json
 import logging
 import sqlite3
 import time as time_module
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import httpx
 
@@ -24,6 +24,10 @@ from backend.core.memory.database import MemoryDB
 from backend.services.push_service import get_push_service
 
 logger = logging.getLogger(__name__)
+
+# Manual/CSV-only accounts expected to get regular imports — opt-in only,
+# see get_pending_items()'s account-staleness check for why.
+_CSV_STALENESS_WATCHLIST = {"Bitvavo Crypto"}
 
 
 async def _save_to_chat_history(body: str, db: MemoryDB) -> None:
@@ -208,12 +212,16 @@ async def _check_uncategorized_transactions(db: MemoryDB) -> str | None:
     )
 
 
-def _check_vehicle_reminders(db: MemoryDB) -> list[tuple[str, str, dict]]:
+def _check_vehicle_reminders(db: MemoryDB, ignore_anti_spam: bool = False) -> list[tuple[str, str, dict]]:
     """Return list of (alert_text, log_key, log_payload) for vehicle alerts due today.
 
     Covers:
     - APK/insurance expiring within warn_days
     - Missing APK or insurance dates (nudge every 30 days)
+
+    `ignore_anti_spam=True` skips the "already sent within N days" gate —
+    used by get_pending_items(), which must show current unresolved state
+    even if the digest already pushed the same alert this week.
     """
     rule = db.get_notification_rule("vehicle_reminders")
     if not rule or not rule["enabled"]:
@@ -255,7 +263,7 @@ def _check_vehicle_reminders(db: MemoryDB) -> list[tuple[str, str, dict]]:
 
             spam_key = f"vehicle_reminder_{v['id']}_{reminder_type}"
             last = db.get_last_notification(spam_key)
-            if last and (datetime.now() - datetime.fromisoformat(last["sent_at"])).days < 7:
+            if not ignore_anti_spam and last and (datetime.now() - datetime.fromisoformat(last["sent_at"])).days < 7:
                 continue
 
             label = "APK/ITP" if reminder_type == "apk" else "insurance"
@@ -283,7 +291,7 @@ def _check_vehicle_reminders(db: MemoryDB) -> list[tuple[str, str, dict]]:
             if 0 < remaining_km <= warn_km:
                 spam_key = f"vehicle_service_km_{v['id']}"
                 last = db.get_last_notification(spam_key)
-                if not last or (datetime.now() - datetime.fromisoformat(last["sent_at"])).days >= 7:
+                if ignore_anti_spam or not last or (datetime.now() - datetime.fromisoformat(last["sent_at"])).days >= 7:
                     text = (
                         f"🔧 {v['name']} service due in {remaining_km:.0f} km "
                         f"(at {next_service_km:.0f} km). Book your appointment soon."
@@ -292,7 +300,7 @@ def _check_vehicle_reminders(db: MemoryDB) -> list[tuple[str, str, dict]]:
             elif remaining_km <= 0:
                 spam_key = f"vehicle_service_km_{v['id']}"
                 last = db.get_last_notification(spam_key)
-                if not last or (datetime.now() - datetime.fromisoformat(last["sent_at"])).days >= 7:
+                if ignore_anti_spam or not last or (datetime.now() - datetime.fromisoformat(last["sent_at"])).days >= 7:
                     text = f"⚠️ {v['name']} is {abs(remaining_km):.0f} km overdue for service."
                     alerts.append((text, spam_key, {"vehicle": v["name"], "overdue_km": abs(remaining_km)}))
 
@@ -308,7 +316,7 @@ def _check_vehicle_reminders(db: MemoryDB) -> list[tuple[str, str, dict]]:
                 if 0 < days_to_service <= warn_days:
                     spam_key = f"vehicle_service_date_{v['id']}"
                     last = db.get_last_notification(spam_key)
-                    if not last or (datetime.now() - datetime.fromisoformat(last["sent_at"])).days >= 7:
+                    if ignore_anti_spam or not last or (datetime.now() - datetime.fromisoformat(last["sent_at"])).days >= 7:
                         text = (
                             f"🔧 {v['name']} service due in {days_to_service} days "
                             f"({next_service_date.isoformat()}) — {interval_months} months since last service."
@@ -317,7 +325,7 @@ def _check_vehicle_reminders(db: MemoryDB) -> list[tuple[str, str, dict]]:
                 elif days_to_service <= 0:
                     spam_key = f"vehicle_service_date_{v['id']}"
                     last = db.get_last_notification(spam_key)
-                    if not last or (datetime.now() - datetime.fromisoformat(last["sent_at"])).days >= 7:
+                    if ignore_anti_spam or not last or (datetime.now() - datetime.fromisoformat(last["sent_at"])).days >= 7:
                         text = f"⚠️ {v['name']} is {abs(days_to_service)} days overdue for service."
                         alerts.append((text, spam_key, {"vehicle": v["name"], "overdue_days": abs(days_to_service)}))
             except (ValueError, OverflowError):
@@ -335,7 +343,7 @@ def _check_vehicle_reminders(db: MemoryDB) -> list[tuple[str, str, dict]]:
 
         nudge_key = f"vehicle_setup_nudge_{v['id']}"
         last_nudge = db.get_last_notification(nudge_key)
-        if last_nudge and (datetime.now() - datetime.fromisoformat(last_nudge["sent_at"])).days < 30:
+        if not ignore_anti_spam and last_nudge and (datetime.now() - datetime.fromisoformat(last_nudge["sent_at"])).days < 30:
             continue
 
         missing_str = " and ".join(missing)
@@ -785,14 +793,12 @@ async def get_pending_items() -> list[dict]:
     except Exception as e:
         logger.warning("get_pending_items: goal risk check failed: %s", e)
 
-    # Vehicle reminders — reuses the digest check as-is. Known limitation:
-    # its own anti-spam (max once per 7 days per alert) means an alert
-    # pushed earlier today/this week won't reappear here until it expires,
-    # even though Home is meant to show live state. Acceptable for now —
-    # revisit if this turns out to hide real overdue reminders in practice.
+    # Vehicle reminders — ignore_anti_spam=True so an alert already pushed
+    # via tonight's digest still shows here; Home must reflect current
+    # unresolved state, not "already told you once this week".
     try:
         db = MemoryDB(settings.memory.db_path)
-        vehicle_alerts = _check_vehicle_reminders(db)
+        vehicle_alerts = _check_vehicle_reminders(db, ignore_anti_spam=True)
         for text, _, payload in vehicle_alerts:
             vehicle_name = payload.get("vehicle", "")
             items.append({
@@ -802,5 +808,49 @@ async def get_pending_items() -> list[dict]:
             })
     except Exception as e:
         logger.warning("get_pending_items: vehicle reminders check failed: %s", e)
+
+    # Account sync/import staleness.
+    # - Bank-linked accounts: flag if last_sync is >24h old — something's
+    #   likely actually wrong (they should sync automatically).
+    # - Manual/CSV accounts: only for accounts on an explicit opt-in
+    #   watchlist, not every manual account. An automatic 7-day-since-last-tx
+    #   rule applied to ALL manual accounts flagged low-activity savings/goal
+    #   accounts as "stale" even though sitting idle for weeks is normal for
+    #   them (see 2026-07-03 session — reverted after real-world testing).
+    try:
+        accounts = await get_provider().get_account_sync_status()
+        now = datetime.now()
+        watchlist = {n.lower() for n in _CSV_STALENESS_WATCHLIST}
+        for acc in accounts:
+            if acc["sync_source"]:
+                last_sync = acc.get("last_sync")
+                stale = True
+                if last_sync:
+                    try:
+                        stale = (now - datetime.fromisoformat(last_sync)) > timedelta(hours=24)
+                    except ValueError:
+                        stale = True
+                if stale:
+                    items.append({
+                        "type": "bank_sync_stale",
+                        "text": f"{acc['name']} hasn't synced in over 24h",
+                        "prompt": f"resync {acc['name']}",
+                    })
+            elif acc["name"].lower() in watchlist:
+                most_recent = acc.get("most_recent_transaction_date")
+                if not most_recent:
+                    continue
+                try:
+                    days_since = (date.today() - date.fromisoformat(most_recent)).days
+                except ValueError:
+                    continue
+                if days_since >= 7:
+                    items.append({
+                        "type": "csv_stale",
+                        "text": f"{acc['name']} — no new transactions imported in {days_since} days",
+                        "prompt": f"let's import recent transactions for {acc['name']}",
+                    })
+    except Exception as e:
+        logger.warning("get_pending_items: account staleness check failed: %s", e)
 
     return items
