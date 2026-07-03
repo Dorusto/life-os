@@ -109,13 +109,13 @@ Replaces backlog items: *"Rules sync with AB"* and *"Bulk recategorization via c
 
 ---
 
-### 🔲 M5.0 — Tool domain routing (prerequisite for M5.7 MCP server)
+### ✅ M5.0 — Tool domain routing (prerequisite for M5.7 MCP server)
 
 | # | Feature | Status |
 |---|---------|--------|
-| 5.0.1 | Rename all tools with domain prefix (`finance__*`, `vehicle__*`) | 🔲 |
-| 5.0.2 | Restructure system prompt into domain sections | 🔲 |
-| 5.0.3 | Update frontend tool name references if any | 🔲 |
+| 5.0.1 | Rename all tools with domain prefix (`finance__*`, `vehicle__*`, `system__*`) | ✅ |
+| 5.0.2 | Restructure system prompt into domain sections | ✅ |
+| 5.0.3 | Update frontend tool name references if any | ✅ (none needed — frontend routes on `"type"`, not tool name) |
 
 → Issue [#98](https://github.com/Dorusto/life-os/issues/98) · See `docs/decisions.md#tool-domain-routing`
 
@@ -177,19 +177,14 @@ Today's session pattern worked well and is worth repeating: pick one issue → d
 
 Ordered by priority/importance, not just size — see `decisions.md#tool-domain-routing` and `decisions.md#majordom-as-mcp-server` for why domain routing jumped the queue: it's foundational and compounds (every new flat-named tool added is more to rename later). Time estimates are implementation + verification only — "needs scoping" items can take longer once a trade-off discussion clarifies real scope.
 
-**Tier 0 — risk + foundational debt, do first:**
-
-| Issue | What | Est. |
-|---|---|---|
-| [#98](https://github.com/Dorusto/life-os/issues/98) | Tool domain routing (`finance__*`, `vehicle__*` prefixes) — prerequisite for the MCP server (#58), and every tool added without it is more rename debt later | 2-4h |
+**Tier 0 — risk + foundational debt, do first:** ✅ done — #98 (tool domain routing) completed 2026-07-03.
 
 **Tier 1 — cheap risk/quality-of-life wins, no discussion needed:**
 
 | Issue | What | Est. |
 |---|---|---|
 | [#96](https://github.com/Dorusto/life-os/issues/96) | Dev branch — stop deploying straight from main — deprioritized, single-user only, see decisions.md | 20-40 min |
-| [#92](https://github.com/Dorusto/life-os/issues/92) | Help modal scroll bleeds through on Android PWA | 15-30 min (CSS fix, can't verify on a real Android device remotely) |
-| [#69](https://github.com/Dorusto/life-os/issues/69) | Close account from chat | 30-45 min |
+| [#69](https://github.com/Dorusto/life-os/issues/69) | Close account from chat — deprioritized, not needed yet | 30-45 min |
 
 **Tier 2 — real user-facing value, moderate effort:**
 

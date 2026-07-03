@@ -13,7 +13,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "get_accounts",
+            "name": "finance__get_accounts",
             "description": "Get all bank accounts with their current balances. Call this when the user asks about account balances or when you need account IDs to propose a transfer.",
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
@@ -21,7 +21,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "get_monthly_stats",
+            "name": "finance__get_monthly_stats",
             "description": "Get total spending for a month broken down by category. Call this when the user asks how much they spent, what their biggest expenses were, or wants a spending summary.",
             "parameters": {
                 "type": "object",
@@ -36,7 +36,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "get_budget_status",
+            "name": "finance__get_budget_status",
             "description": "Get budget vs actual spending per category for a month. Call this when the user asks about their budget, how much is left in a category, or whether they are over budget.",
             "parameters": {
                 "type": "object",
@@ -51,7 +51,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "get_transactions",
+            "name": "finance__get_transactions",
             "description": "Get recent transactions, optionally filtered by category or account. Call this when the user asks to see their transactions or spending in a specific category.",
             "parameters": {
                 "type": "object",
@@ -67,7 +67,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "get_spending_history",
+            "name": "finance__get_spending_history",
             "description": "Get monthly spending totals for the last N months. Call this when the user asks about spending trends or wants to compare months.",
             "parameters": {
                 "type": "object",
@@ -81,7 +81,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "get_spending_chart",
+            "name": "finance__get_spending_chart",
             "description": "Show a visual spending chart for a month broken down by category. Call this when the user asks to see a chart, graph, or visual breakdown of their spending.",
             "parameters": {
                 "type": "object",
@@ -96,7 +96,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "get_budget_chart",
+            "name": "finance__get_budget_chart",
             "description": "Show a visual chart comparing budget vs actual spending per category. Call when user asks to see budget performance, how they're tracking against budget, or wants a budget overview chart.",
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
@@ -104,7 +104,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "get_spending_trend",
+            "name": "finance__get_spending_trend",
             "description": "Show a multi-month spending and income trend chart. Call when user asks about spending trends, how their spending changed over months, or wants to see income vs expenses over time.",
             "parameters": {
                 "type": "object",
@@ -118,7 +118,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "get_goals_chart",
+            "name": "finance__get_goals_chart",
             "description": "Show a visual progress chart for all savings goals. Call when user asks about savings goals, goal progress, or how close they are to their financial targets.",
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
@@ -126,7 +126,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "set_notification_time",
+            "name": "system__set_notification_time",
 
             "description": (
                 "Change the time of the daily financial summary notification. "
@@ -149,7 +149,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "propose_transaction",
+            "name": "finance__propose_transaction",
             "description": (
                 "Propose adding a new transaction (expense OR income) to Actual Budget. "
                 "Call this whenever the user mentions spending money, paying for something, "
@@ -200,7 +200,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "propose_budget_rebalance",
+            "name": "finance__propose_budget_rebalance",
             "description": (
                 "Propose moving budget money from one category to another. "
                 "Use this when the user wants to rebalance their budget — for example: "
@@ -232,12 +232,12 @@ TOOLS: list[dict] = [
             },
         },
     },
-    # propose_clarification disabled — llama3.1:8b abuses it for informational questions.
+    # finance__propose_clarification disabled — llama3.1:8b abuses it for informational questions.
     # Re-enable when tested with a model that uses it correctly.
     {
         "type": "function",
         "function": {
-            "name": "propose_account_transfer",
+            "name": "finance__propose_account_transfer",
             "description": (
                 "Propose a transfer between two bank accounts in Actual Budget. "
                 "Use when the user says they moved or transferred money between their own accounts."
@@ -273,7 +273,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "set_account_goal",
+            "name": "finance__set_account_goal",
             "description": (
                 "Set or update a savings goal for an account. "
                 "Use when the user says they want to save a target amount in an account, "
@@ -303,7 +303,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "setup_default_groups",
+            "name": "finance__setup_default_groups",
             "description": (
                 "Propose creating the 7 standard category groups (Housing, Daily Living, Transport, Health, Lifestyle, Finance, Unexpected) "
                 "with their default subcategories. Skips groups that already exist. "
@@ -315,7 +315,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "create_category",
+            "name": "finance__create_category",
             "description": (
                 "Propose creating a new category inside an existing group. "
                 "Use when the user says 'create category X in group Y', 'add category X to group Y', "
@@ -342,7 +342,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "delete_category",
+            "name": "finance__delete_category",
             "description": (
                 "Permanently delete a budget category. "
                 "Use ONLY when the user explicitly says 'delete', 'remove', or 'get rid of' a category. "
@@ -363,8 +363,8 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "propose_set_category_budget",
-            "description": "Set the budgeted amount for a specific category in a given month. Use this when the user wants to assign a specific euro amount to a category budget (e.g. 'set Groceries to €300', 'put €50 in Transport for June'). Different from propose_budget_rebalance which moves money between two categories.",
+            "name": "finance__propose_set_category_budget",
+            "description": "Set the budgeted amount for a specific category in a given month. Use this when the user wants to assign a specific euro amount to a category budget (e.g. 'set Groceries to €300', 'put €50 in Transport for June'). Different from finance__propose_budget_rebalance which moves money between two categories.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -379,7 +379,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "propose_set_budget_carryover",
+            "name": "finance__propose_set_budget_carryover",
             "description": (
                 "Propose enabling or disabling 'Rollover Overspending' for a category — the same "
                 "toggle available in the Actual Budget UI by clicking a category's Balance. When "
@@ -402,7 +402,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "propose_bank_resync",
+            "name": "finance__propose_bank_resync",
             "description": (
                 "Propose triggering a live bank re-sync for an account that has a real bank "
                 "connection (not a manual/CSV account) — pulls fresh transactions from the bank. "
@@ -421,7 +421,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "propose_budget_copy",
+            "name": "finance__propose_budget_copy",
             "description": (
                 "Propose copying last month's budget amounts into a target month (default: "
                 "current month). Use when the user asks to 'copy last month's budget', 'set up "
@@ -447,7 +447,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "rename_category",
+            "name": "finance__rename_category",
             "description": (
                 "Rename an existing budget category. "
                 "Use when the user says 'rename category X to Y', 'change the name of X', 'call X something else'. "
@@ -472,7 +472,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "propose_balance_adjustment",
+            "name": "finance__propose_balance_adjustment",
             "description": "Propose adjusting an account balance to match the real bank balance. Use when the user says the account balance is wrong, or wants to sync/reconcile an account balance.",
             "parameters": {
                 "type": "object",
@@ -493,7 +493,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "get_vehicle_stats",
+            "name": "vehicle__get_vehicle_stats",
             "description": (
                 "Get full vehicle profile and operational statistics: plate number, make, model, year, "
                 "fuel type, APK/insurance due dates, service interval, fuel consumption, cost per km. "
@@ -519,7 +519,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "log_refuel",
+            "name": "vehicle__log_refuel",
             "description": (
                 "Log a vehicle refuel when the user mentions filling up with fuel. "
                 "Use when user says: 'filled up', 'tanked', 'put fuel', 'alimentat', 'getankt'. "
@@ -542,7 +542,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "set_service_interval",
+            "name": "vehicle__set_service_interval",
             "description": (
                 "Set or update the service interval for a vehicle. "
                 "Use when the user says their car needs service every N km or every N months, "
@@ -580,7 +580,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "set_vehicle_reminder",
+            "name": "vehicle__set_vehicle_reminder",
             "description": (
                 "Set an APK/ITP or insurance expiry date on a vehicle. "
                 "Use when the user mentions when their APK, ITP, MOT, or car insurance expires. "
@@ -610,15 +610,15 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "get_vehicle_log",
+            "name": "vehicle__get_vehicle_log",
             "description": (
                 "Return the last N refuel entries for a vehicle from the vehicle log. "
                 "Use when the user asks to see their refuel history or recent fill-ups. "
                 "Each entry shows date, odometer, liters, cost, location, and an ID for reference — the ID is only "
-                "for referencing an entry if the user separately decides to delete one via delete_vehicle_log_entry. "
+                "for referencing an entry if the user separately decides to delete one via vehicle__delete_vehicle_log_entry. "
                 "Do not default to suggesting deletion after showing the list — most of the time the user is just "
                 "reviewing history or investigating consumption. If they seem interested in consumption/efficiency, "
-                "offer get_vehicle_stats instead."
+                "offer vehicle__get_vehicle_stats instead."
             ),
             "parameters": {
                 "type": "object",
@@ -639,19 +639,19 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "delete_vehicle_log_entry",
+            "name": "vehicle__delete_vehicle_log_entry",
             "description": (
                 "Propose deleting a vehicle log entry by its ID. "
                 "Use when the user asks to remove or delete a specific refuel entry. "
                 "A confirmation card appears — nothing is deleted until the user confirms. "
-                "Use get_vehicle_log first to find the entry ID."
+                "Use vehicle__get_vehicle_log first to find the entry ID."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "entry_id": {
                         "type": "integer",
-                        "description": "The numeric ID of the vehicle log entry to delete (shown as 'ID #N' in get_vehicle_log output).",
+                        "description": "The numeric ID of the vehicle log entry to delete (shown as 'ID #N' in vehicle__get_vehicle_log output).",
                     },
                 },
                 "required": ["entry_id"],
@@ -661,7 +661,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "set_vehicle_type",
+            "name": "vehicle__set_vehicle_type",
             "description": (
                 "Set the type of a vehicle: 'car', 'motorcycle', or 'other'. "
                 "Use when the user says a vehicle is a motorcycle or corrects the vehicle type."
@@ -686,7 +686,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "get_uncategorized_groups",
+            "name": "finance__get_uncategorized_groups",
             "description": (
                 "Get all uncategorized transactions grouped by payee with suggested categories. "
                 "Use when the user wants to review or categorize uncategorized transactions. "
@@ -698,7 +698,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "propose_categorize_with_rule",
+            "name": "finance__propose_categorize_with_rule",
             "description": (
                 "Propose bulk-categorizing all uncategorized transactions for a payee, with an "
                 "optional AB rule for future auto-categorization. This is the only categorization "
@@ -742,7 +742,7 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "get_backup_status",
+            "name": "system__get_backup_status",
             "description": (
                 "Report on the daily backup archives (date of the latest one, its size, how many are "
                 "kept). Use when the user asks whether backups are running, when the last backup was, "
@@ -758,137 +758,137 @@ TOOLS: list[dict] = [
 ]
 
 async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
-    if name == "get_accounts":
+    if name == "finance__get_accounts":
         from backend.tools.finance.actual_budget import get_accounts
         return await get_accounts()
 
-    if name == "get_monthly_stats":
+    if name == "finance__get_monthly_stats":
         from backend.tools.finance.actual_budget import get_monthly_stats
         return await get_monthly_stats(**arguments)
 
-    if name == "get_budget_status":
+    if name == "finance__get_budget_status":
         from backend.tools.finance.actual_budget import get_budget_status
         return await get_budget_status(**arguments)
 
-    if name == "get_transactions":
+    if name == "finance__get_transactions":
         from backend.tools.finance.actual_budget import get_transactions
         return await get_transactions(**arguments)
 
-    if name == "get_spending_history":
+    if name == "finance__get_spending_history":
         from backend.tools.finance.actual_budget import get_spending_history
         return await get_spending_history(**arguments)
 
-    if name == "get_spending_chart":
+    if name == "finance__get_spending_chart":
         from backend.tools.finance.actual_budget import get_spending_chart
         return await get_spending_chart(**arguments)
 
-    if name == "get_budget_chart":
+    if name == "finance__get_budget_chart":
         from backend.tools.finance.actual_budget import get_budget_chart
         return await get_budget_chart()
 
-    if name == "get_spending_trend":
+    if name == "finance__get_spending_trend":
         from backend.tools.finance.actual_budget import get_spending_trend
         return await get_spending_trend(**arguments)
 
-    if name == "get_goals_chart":
+    if name == "finance__get_goals_chart":
         from backend.tools.finance.actual_budget import get_goals_chart
         return await get_goals_chart()
 
-    if name == "propose_transaction":
+    if name == "finance__propose_transaction":
 
         from backend.tools.finance.actual_budget import propose_transaction
         return await propose_transaction(**arguments)
 
-    if name == "propose_budget_rebalance":
+    if name == "finance__propose_budget_rebalance":
         from backend.tools.finance.actual_budget import propose_budget_rebalance
         return await propose_budget_rebalance(**arguments)
 
-    if name == "propose_clarification":
+    if name == "finance__propose_clarification":
         from backend.tools.finance.actual_budget import propose_clarification
         return await propose_clarification(**arguments)
 
-    if name == "propose_account_transfer":
+    if name == "finance__propose_account_transfer":
         from backend.tools.finance.actual_budget import propose_account_transfer
         return await propose_account_transfer(**arguments)
 
-    if name == "propose_balance_adjustment":
+    if name == "finance__propose_balance_adjustment":
         from backend.tools.finance.actual_budget import propose_balance_adjustment
         return await propose_balance_adjustment(**arguments)
 
-    if name == "set_account_goal":
+    if name == "finance__set_account_goal":
         from backend.tools.finance.actual_budget import set_account_goal
         return await set_account_goal(**arguments)
 
-    if name == "setup_default_groups":
+    if name == "finance__setup_default_groups":
         from backend.tools.finance.actual_budget import setup_default_groups
         return await setup_default_groups()
 
-    if name == "create_category":
+    if name == "finance__create_category":
         from backend.tools.finance.actual_budget import create_category
         return await create_category(**arguments)
 
-    if name == "delete_category":
+    if name == "finance__delete_category":
         from backend.tools.finance.actual_budget import delete_category
         return await delete_category(**arguments)
 
-    if name == "propose_set_category_budget":
+    if name == "finance__propose_set_category_budget":
         from backend.tools.finance.actual_budget import propose_set_category_budget
         return await propose_set_category_budget(**arguments)
 
-    if name == "propose_budget_copy":
+    if name == "finance__propose_budget_copy":
         from backend.tools.finance.actual_budget import propose_budget_copy
         return await propose_budget_copy(**arguments)
 
-    if name == "propose_bank_resync":
+    if name == "finance__propose_bank_resync":
         from backend.tools.finance.actual_budget import propose_bank_resync
         return await propose_bank_resync(**arguments)
 
-    if name == "propose_set_budget_carryover":
+    if name == "finance__propose_set_budget_carryover":
         from backend.tools.finance.actual_budget import propose_set_budget_carryover
         return await propose_set_budget_carryover(**arguments)
 
-    if name == "rename_category":
+    if name == "finance__rename_category":
         from backend.tools.finance.actual_budget import rename_category
         return await rename_category(**arguments)
 
-    if name == "set_notification_time":
+    if name == "system__set_notification_time":
         from backend.tools.settings.notifications import set_notification_time
         return await set_notification_time(**arguments)
 
-    if name == "get_vehicle_stats":
+    if name == "vehicle__get_vehicle_stats":
         from backend.tools.finance.vehicle import get_vehicle_stats
         return await get_vehicle_stats(**arguments)
 
-    if name == "log_refuel":
+    if name == "vehicle__log_refuel":
         from backend.tools.finance.vehicle import log_refuel
         return await log_refuel(**arguments)
 
-    if name == "set_vehicle_reminder":
+    if name == "vehicle__set_vehicle_reminder":
         from backend.tools.finance.vehicle import set_vehicle_reminder
         return await set_vehicle_reminder(**arguments)
 
-    if name == "set_service_interval":
+    if name == "vehicle__set_service_interval":
         from backend.tools.finance.vehicle import set_service_interval
         return await set_service_interval(**arguments)
 
-    if name == "get_vehicle_log":
+    if name == "vehicle__get_vehicle_log":
         from backend.tools.finance.vehicle import get_vehicle_log
         return await get_vehicle_log(**arguments)
 
-    if name == "delete_vehicle_log_entry":
+    if name == "vehicle__delete_vehicle_log_entry":
         from backend.tools.finance.vehicle import delete_vehicle_log_entry
         return await delete_vehicle_log_entry(**arguments)
 
-    if name == "set_vehicle_type":
+    if name == "vehicle__set_vehicle_type":
         from backend.tools.finance.vehicle import set_vehicle_type
         return await set_vehicle_type(**arguments)
-    if name == "get_uncategorized_groups":
+    if name == "finance__get_uncategorized_groups":
         from backend.tools.finance.actual_budget import get_uncategorized_groups
         return await get_uncategorized_groups()
-    if name == "propose_categorize_with_rule":
+    if name == "finance__propose_categorize_with_rule":
         from backend.tools.finance.actual_budget import propose_categorize_with_rule
         return await propose_categorize_with_rule(**arguments)
-    if name == "get_backup_status":
+    if name == "system__get_backup_status":
         from backend.tools.ops import get_backup_status
         return await get_backup_status()
     return f"Unknown tool: {name}"

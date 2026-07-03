@@ -445,6 +445,7 @@ Tools are prefixed by domain. A single LLM sees all tools and routes based on pr
 |--------|--------|----------|
 | `finance__` | Budget, transactions, investments, bank sync | Actual Budget, Sure |
 | `vehicle__` | Vehicle log, fuel, reminders | SQLite vehicle_log |
+| `system__` | Cross-cutting app settings/ops (notification time, backup status) | Majordom backend |
 | `home__` | Lights, climate, automations | Home Assistant |
 | `media__` | Photos, documents, files | Immich, Nextcloud |
 
@@ -474,4 +475,4 @@ When local inference becomes primary and tool count grows, add a router LLM laye
 - **Audit after each migration step** — verify existing functionality before moving on
 - `majordom-financiar/` → `majordom/` rename happens when folder restructure is triggered by other work
 
-*Last updated: 2026-06-12*
+*Last updated: 2026-07-03*

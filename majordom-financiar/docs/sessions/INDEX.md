@@ -59,3 +59,4 @@
 | [W27](2026-W27.md) | 2026-07-03 | resync ING bug hunt: actualpy balanceType (#135), chat history persistence (#106), PWA stale cache, goal dedup, Fuelio research (#134) | client.py, notification_service.py, Chat.tsx, App.tsx, sw.js, registry.py |
 | [W27](2026-W27.md) | 2026-07-03 | #95: daily backup cron activated + backup.sh root-owned-cleanup fix + get_backup_status tool | scripts/backup.sh, tools/ops.py, registry.py, settings.py, docker-compose.yml, DEPLOY.md |
 | [W27](2026-W27.md) | 2026-07-03 | Backlog sweep: #92 (PWA scroll, fixed by cache fix) closed, #69/#96 deprioritized, #97 deploy.yml fix verified live | .github/workflows/deploy.yml, docs/decisions.md |
+| [W27](2026-W27.md) | 2026-07-03 | #98: tool domain routing — 34 tools prefixed finance__/vehicle__/system__, system prompt restructured | tools/registry.py, api/chat.py, docs/decisions.md, docs/architecture.md |
