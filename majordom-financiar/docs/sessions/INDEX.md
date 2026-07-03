@@ -55,3 +55,4 @@
 | [W27](2026-W27.md) | 2026-07-03 | Home "Needs resolving" widget redesign + unreconciled/bank-sync logic (#130 follow-up) | notification_service.py, client.py, chat.py, Home.tsx, Chat.tsx |
 | [W27](2026-W27.md) | 2026-07-03 | #89: create destination account inline from the transfer card | actual_budget.py, accounts.py, chat.py, AccountTransferCard.tsx, api.ts |
 | [W27](2026-W27.md) | 2026-07-03 | Reverted bank-sync/CSV staleness noise from Home pending-items widget | notification_service.py |
+| [W27](2026-W27.md) | 2026-07-03 | Vehicle reminders hidden by anti-spam + staleness re-added with a watchlist | notification_service.py |
