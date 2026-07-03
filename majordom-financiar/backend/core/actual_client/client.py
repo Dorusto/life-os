@@ -12,6 +12,13 @@ from datetime import date
 
 logger = logging.getLogger(__name__)
 
+# Every request builds its own ActualBudgetClient (see e.g. backend/api/home.py's
+# _get_client()), but actualpy syncs to one shared local cache file keyed by sync_id —
+# concurrent instances racing on that file causes intermittent "no such table" errors
+# (#142, e.g. /api/home vs /api/home/pending firing together on Home page load).
+# One process-wide lock serializes all actualpy access regardless of client instance.
+_actual_lock = asyncio.Lock()
+
 
 def _patch_bank_sync_balance_type() -> None:
     """Make actualpy tolerate balanceType codes it doesn't know about.
@@ -331,7 +338,8 @@ class ActualBudgetClient:
 
     async def _run(self, func):
         loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(self._executor, func)
+        async with _actual_lock:
+            return await loop.run_in_executor(self._executor, func)
 
     async def get_accounts(self) -> list[Account]:
         def _get():

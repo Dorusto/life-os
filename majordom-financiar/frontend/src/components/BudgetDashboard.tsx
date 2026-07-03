@@ -96,27 +96,27 @@ export default function BudgetDashboard({ categories, month, year }: Props) {
     <div className="p-4">
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
-        <div>
+        <div className="min-w-0 flex-1">
           <p className="text-xs tracking-widest uppercase text-muted">
             {MONTH_NAMES[month - 1]} {year}
           </p>
           <div className="flex items-baseline gap-3 mt-1">
-            <p className="font-display text-xl font-bold text-white">Budget</p>
+            <p className="text-white font-semibold text-base">Budget</p>
           </div>
           <p className="text-muted text-xs mt-1 font-mono tabular-nums">
             €{fmt(totalSpent)} / €{fmt(totalBudgeted)} spent
           </p>
         </div>
-        <div className="text-right">
+        <div className="text-right shrink-0 pl-3">
           {totalBudgeted > 0 && (
             <>
-              <p className="text-xs text-muted">{isOver ? 'over budget' : 'remaining'}</p>
               <p
-                className="font-display text-xl font-bold"
+                className="font-display text-xl font-bold whitespace-nowrap"
                 style={{ color: isOver ? '#FF2D2D' : '#22C55E' }}
               >
                 {isOver ? '−' : '+'}€{fmt(Math.abs(budgetBalance))}
               </p>
+              <p className="text-xs text-muted">{isOver ? 'over budget' : 'remaining'}</p>
             </>
           )}
         </div>
