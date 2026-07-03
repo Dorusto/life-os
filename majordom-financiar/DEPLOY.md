@@ -230,6 +230,36 @@ What is backed up:
 | `data/vapid_private.pem` | Web Push keys — if lost, users must re-subscribe |
 | Actual Budget volume | All transactions, budgets, accounts |
 
+### Manual offsite copy (until automated rsync is set up — see #16)
+
+Local backups in `./backups/` don't survive the LXC itself failing. Until an automated
+remote-copy option in `scripts/backup.sh` is configured (SSH access to the NAS is
+intentionally not enabled yet, 2026-07-03 decision — see session log), copy the latest
+archive to the Synology NAS by hand after each backup run.
+
+**Easiest — Dolphin (or any SFTP/SMB-capable file manager):**
+
+1. Open a new location in Dolphin: `sftp://doru@10.10.1.40/home/doru/life-os/majordom-financiar/backups/` — reuses the LXC's existing SSH server, nothing new to enable there
+2. Open a second location for the NAS's existing SMB share (e.g. `smb://10.10.1.11/...`)
+3. Drag the newest `majordom-*.tar.gz` from one to the other
+
+**Command line alternative:**
+
+```bash
+# From your desktop — pull the newest archive down from the server
+LATEST=$(ssh doru@10.10.1.40 'ls -t ~/life-os/majordom-financiar/backups/*.tar.gz | head -1')
+scp "doru@10.10.1.40:$LATEST" ~/Downloads/
+```
+
+Then upload it to the NAS via its web UI (no SMB share handy):
+
+1. Open `https://10.10.1.11:5001` (DSM) in a browser, log in
+2. **File Station** → open (or create) a `Backups/majordom` folder
+3. Upload the file from `~/Downloads/`
+
+Repeat this after each manual `./scripts/backup.sh` run, or periodically for whatever the
+cron job has produced.
+
 ---
 
 ## Environment variable reference

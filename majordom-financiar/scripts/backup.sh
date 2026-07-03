@@ -26,7 +26,15 @@ log "Starting backup → ${ARCHIVE_NAME}"
 # ── 1. Dump Actual Budget Docker volume ─────────────────────────────────────
 
 TMPDIR=$(mktemp -d)
-trap 'rm -rf "$TMPDIR"' EXIT
+# The alpine container below copies the volume as root, so files under
+# $TMPDIR end up root-owned on the host — a plain `rm -rf` as this script's
+# (non-root) user fails with "Permission denied" and leaks the tmpdir on
+# every run. Clean up via a root container too, same as the copy step.
+cleanup() {
+  docker run --rm -v "$TMPDIR":/backup alpine rm -rf /backup 2>/dev/null || true
+  rm -rf "$TMPDIR" 2>/dev/null || true
+}
+trap cleanup EXIT
 
 log "Dumping Actual Budget volume (majordom-actual-data)..."
 docker run --rm \

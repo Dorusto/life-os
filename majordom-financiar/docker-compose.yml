@@ -53,6 +53,7 @@ services:
     env_file: .env
     volumes:
       - ./data:/app/data
+      - ./backups:/app/backups:ro
     depends_on:
       actual-budget:
         condition: service_healthy

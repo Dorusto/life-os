@@ -739,6 +739,22 @@ TOOLS: list[dict] = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_backup_status",
+            "description": (
+                "Report on the daily backup archives (date of the latest one, its size, how many are "
+                "kept). Use when the user asks whether backups are running, when the last backup was, "
+                "or wants reassurance their data is safe. Read-only — never triggers or deletes a backup."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {},
+                "required": [],
+            },
+        },
+    },
 ]
 
 async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
@@ -872,5 +888,8 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "propose_categorize_with_rule":
         from backend.tools.finance.actual_budget import propose_categorize_with_rule
         return await propose_categorize_with_rule(**arguments)
+    if name == "get_backup_status":
+        from backend.tools.ops import get_backup_status
+        return await get_backup_status()
     return f"Unknown tool: {name}"
 

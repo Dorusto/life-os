@@ -61,10 +61,14 @@ class Settings:
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     default_currency: str = "EUR"
     log_level: str = "INFO"
+    backup_dir: str = ""
 
     def __post_init__(self):
         self.default_currency = os.getenv("DEFAULT_CURRENCY", "EUR")
         self.log_level = os.getenv("LOG_LEVEL", "INFO")
+        # Mounted read-only from the host's ./backups/ (scripts/backup.sh output) —
+        # not created here, just read if present, see get_backup_status.
+        self.backup_dir = os.getenv("BACKUP_DIR", "/app/backups")
         # Ensure the DB directory exists
         Path(self.memory.db_path).parent.mkdir(parents=True, exist_ok=True)
 
