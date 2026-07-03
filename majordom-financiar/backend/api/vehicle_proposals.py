@@ -118,4 +118,4 @@ async def confirm_vehicle_proposal(
 
     except Exception as e:
         logger.error("Failed to confirm vehicle proposal %s: %s", proposal_id, e, exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Could not confirm the refuel entry")

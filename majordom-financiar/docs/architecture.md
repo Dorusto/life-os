@@ -240,6 +240,14 @@ A card resolving into a `status` message (bank resync, category actions, transfe
 ### 19. `majordom-api` needs `--build`, not just `restart`, for Python changes to take effect
 Unlike a typical dev setup, `majordom-api` in `docker-compose.yml` only bind-mounts `./data` and `./backups` — the backend source is `COPY`'d into the image at build time (`Dockerfile.backend`). `docker compose restart majordom-api` restarts the *existing* image unchanged; it silently keeps serving old code with no error, no warning, and the container looks healthy. Verify by grepping the running container's source (`docker exec majordom-api grep ... /app/backend/...`) if a code change doesn't seem to take effect. Always use `docker compose up -d --build majordom-api` after editing backend Python. (`majordom-web` has the same constraint — it's a built Nginx+static image too, no source bind-mount.)
 
+### 20. Shared finance-calculation helpers — reuse, don't re-derive
+`backend/core/actual_client/client.py` has 3 module-level helpers (defined just above `class Account`), used by `get_monthly_stats()`, `get_budget_status()`, and `get_home_data()`:
+- `_compute_monthly_totals(session, txs)` — total/income/count/per-category breakdown for a month, including tombstoned-category fuzzy-match remap.
+- `_compute_budget_vs_spent(session, txs, all_cats, year, month)` — budget vs. spent per category, including the rollover-aware balance fallback (`get_accumulated_budgeted_balance`) for categories funded in a prior month.
+- `_tombstoned_category_remap(session, all_cats)` — fuzzy-matches a deleted category's past spending to its closest living equivalent; returns `(dead_names, remap)` so each caller decides what to do with an unmatched id.
+
+Any new code that needs monthly spending or budget-vs-actual data **must call these**, not re-implement the transaction loop inline. Before the #93 audit (2026-07-03), all three call sites had copy-pasted versions of this logic — `get_home_data` silently drifted ahead with the rollover-aware balance fix that `get_budget_status` never got, so the chat tool (`finance__get_budget_status`) and the Home screen showed different numbers for the same category with no error or warning anywhere. Extending one of these helpers when a new requirement appears keeps that class of bug structurally impossible instead of relying on someone noticing the drift.
+
 ---
 
 ## Main Flows

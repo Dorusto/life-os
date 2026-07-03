@@ -1,12 +1,16 @@
 """
 GET /api/home — all Home screen data in one AB session.
 """
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException
 from datetime import date
 
 from backend.api.auth import get_current_user
 from backend.core.actual_client import ActualBudgetClient
 from backend.core.config import settings
+
+logger = logging.getLogger(__name__)
 
 # FIRE constants (same as fire.py — keep in sync if changed)
 FIRE_TARGET = 190_000.0
@@ -58,7 +62,8 @@ async def get_home(
     try:
         data = await client.get_home_data(month=month, year=year)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error("Failed to fetch home data: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Could not fetch home data")
 
     # FIRE uses already-fetched accounts — no extra AB call
     accounts_raw = data.pop("accounts")

@@ -52,6 +52,250 @@ def _safe_get_or_create_payee(session, name: str):
     return payee
 
 
+def _tombstoned_category_remap(session, all_cats) -> tuple[dict[str, str], dict[str, str]]:
+    """Fuzzy-match tombstoned (deleted) category ids to a living category id.
+
+    When a category is deleted in AB, its past transactions keep the old
+    category_id — get_categories() excludes tombstoned categories, so that
+    spending would otherwise be silently dropped from any report.
+
+    Returns (dead_names, remap): dead_names maps every tombstoned category id
+    to its original display name; remap contains only the ids that found a
+    close-enough living match (cutoff=0.4). Callers decide what to do with an
+    unmatched dead id — some keep it visible under its original name, others
+    drop it because it has no budget target to attach to.
+    """
+    from sqlmodel import select as _select
+    from actual.database import Categories as _CatTable
+    from difflib import get_close_matches
+
+    all_raw = session.exec(_select(_CatTable)).all()
+    dead_names = {str(c.id): (c.name or "") for c in all_raw if c.tombstone and c.id}
+    living_lower = {(c.name or "").lower(): str(c.id) for c in all_cats if c.id and c.name}
+
+    remap: dict[str, str] = {}
+    for dead_id, dead_name in dead_names.items():
+        matches = get_close_matches(dead_name.lower(), list(living_lower.keys()), n=1, cutoff=0.4)
+        if matches:
+            remap[dead_id] = living_lower[matches[0]]
+    return dead_names, remap
+
+
+def _compute_monthly_totals(session, txs) -> dict:
+    """Aggregate a month's transactions into total/income/count/per-category breakdown.
+
+    Shared by get_monthly_stats() and get_home_data() so the Home screen and the
+    chat tool's spending numbers can't silently diverge if only one gets updated.
+    """
+    from actual.queries import get_categories
+
+    total = 0.0
+    income = 0.0
+    count = 0
+    by_category: dict[str, dict] = defaultdict(lambda: {"total": 0.0, "count": 0, "name": ""})
+
+    for tx in txs:
+        if tx.tombstone or tx.starting_balance_flag:
+            continue
+        if tx.transferred_id:
+            continue  # skip transfer legs — not spending/income
+        if tx.notes and '[Balance Adjustment]' in tx.notes:
+            continue  # skip reconciliation adjustments — not real income/expense
+        amount = float(tx.amount or 0) / 100
+        if amount > 0:
+            income += amount
+            continue
+        if tx.category and getattr(tx.category, 'is_income', False):
+            continue  # skip income-category transactions
+        amount = abs(amount)
+        total += amount
+        count += 1
+
+        cat_name = "Uncategorized"
+        cat_key = "uncategorized"
+        if tx.category_id:
+            if tx.category:
+                cat_name = tx.category.name or "Uncategorized"
+                cat_key = str(tx.category_id)
+            else:
+                # Tombstoned category — keep UUID, remap below
+                cat_key = str(tx.category_id)
+                cat_name = f"Deleted:{cat_key[:8]}"
+
+        by_category[cat_key]["total"] += amount
+        by_category[cat_key]["count"] += 1
+        by_category[cat_key]["name"] = cat_name
+
+    # Remap tombstoned categories to living equivalents via fuzzy match
+    try:
+        all_cats = get_categories(session)
+        dead_names, remap = _tombstoned_category_remap(session, all_cats)
+        living_map = {str(c.id): (c.name or "Uncategorized") for c in all_cats if c.id}
+        for dead_id, dead_name in dead_names.items():
+            if dead_id not in by_category:
+                continue
+            live_id = remap.get(dead_id)
+            if live_id:
+                if live_id in by_category:
+                    by_category[live_id]["total"] += by_category[dead_id]["total"]
+                    by_category[live_id]["count"] += by_category[dead_id]["count"]
+                else:
+                    by_category[live_id] = by_category[dead_id].copy()
+                    by_category[live_id]["name"] = living_map[live_id]
+                del by_category[dead_id]
+            else:
+                by_category[dead_id]["name"] = dead_name or "Other"
+    except Exception:
+        pass
+
+    return {
+        "total": round(total, 2),
+        "income": round(income, 2),
+        "count": count,
+        "categories": dict(by_category),
+    }
+
+
+def _compute_budget_vs_spent(session, txs, all_cats, target_year: int, target_month: int) -> list[dict]:
+    """Merge budget allocations with actual spending per category for a month.
+
+    Shared by get_budget_status() and get_home_data(). Includes the rollover-aware
+    balance fallback (get_accumulated_budgeted_balance) for categories that have
+    rollover enabled but got no fresh allocation this month — without it, a category
+    funded last month and spent this month would show budgeted=0 even though real
+    money is still available (e.g. a "Holidays" category funded in June, spent in July).
+    """
+    from datetime import date as _date
+    yyyymm = target_year * 100 + target_month
+
+    # --- 1. Fetch budget allocations from zero_budgets ---
+    budget_by_category: dict[str, float] = defaultdict(float)
+
+    try:
+        from sqlalchemy import text as _text
+        # Filter by the `month` column, NOT `id LIKE '{yyyymm}%'` — actualpy's own
+        # create_budget() generates a random UUID `id` for new rows (only rows
+        # created some other way follow the "{month}-{category_id}" id convention),
+        # so an id-prefix filter silently misses any budget set via Majordom's own
+        # tools. Confirmed live: a Transport budget written through
+        # set_budget_amount() was invisible to this query under the old id-prefix
+        # filter despite existing in the table with month=202607.
+        rows = session.execute(
+            _text("SELECT category, amount FROM zero_budgets WHERE month = :yyyymm"),
+            {"yyyymm": yyyymm},
+        ).fetchall()
+        for row in rows:
+            cat_id = str(row[0]) if row[0] else ""
+            amount_cents = float(row[1] or 0)
+            budget_by_category[cat_id] += amount_cents / 100
+        logger.debug("Budget lookup via zero_budgets succeeded: %d rows", len(rows))
+    except Exception as e1:
+        logger.warning("zero_budgets table not available: %s", e1)
+        try:
+            from sqlalchemy import text as _text
+            rows = session.execute(
+                _text("SELECT category, amount FROM reflect_budgets WHERE month = :yyyymm"),
+                {"yyyymm": yyyymm},
+            ).fetchall()
+            for row in rows:
+                cat_id = str(row[0]) if row[0] else ""
+                amount_cents = float(row[1] or 0)
+                budget_by_category[cat_id] += amount_cents / 100
+            logger.debug("Budget lookup via reflect_budgets succeeded: %d rows", len(rows))
+        except Exception as e2:
+            logger.warning(
+                "reflect_budgets also not available: %s. Returning spending-only data.", e2,
+            )
+
+    # --- 2. Fetch actual spending for the month ---
+    spent_by_category: dict[str, float] = defaultdict(float)
+    for tx in txs:
+        if tx.tombstone or tx.starting_balance_flag:
+            continue
+        if tx.transferred_id:
+            continue  # skip transfer legs — not spending
+        if tx.category and getattr(tx.category, 'is_income', False):
+            continue  # skip income-category transactions
+        amount = float(tx.amount or 0) / 100
+        if amount >= 0:
+            continue  # skip income
+        amount = abs(amount)
+        cat_id = str(tx.category_id) if tx.category_id else "uncategorized"
+        spent_by_category[cat_id] += amount
+
+    # --- 3. Category name/group resolution ---
+    cat_name_map: dict[str, str] = {}
+    cat_group_map: dict[str, str] = {}
+    cat_obj_map = {}
+    for cat in all_cats:
+        if cat.id:
+            cat_name_map[str(cat.id)] = cat.name or "Uncategorized"
+            cat_group_map[str(cat.id)] = cat.group.name if cat.group else "Unexpected"
+            cat_obj_map[str(cat.id)] = cat
+
+    # --- 3b. Remap spending from tombstoned categories to living ones ---
+    try:
+        _dead_names, remap = _tombstoned_category_remap(session, all_cats)
+        for dead_id, live_id in remap.items():
+            if dead_id not in spent_by_category:
+                continue
+            spent_by_category[live_id] += spent_by_category.pop(dead_id)
+            logger.debug(
+                "Tombstoned category '%s' spending remapped to '%s'",
+                _dead_names.get(dead_id, dead_id), cat_name_map.get(live_id, live_id),
+            )
+    except Exception as e:
+        logger.warning("Tombstone remap failed (non-fatal): %s", e)
+
+    # --- 4. Merge budget + spending — include ALL non-hidden categories ---
+    all_category_ids = (
+        set(budget_by_category.keys())
+        | set(spent_by_category.keys())
+        | {str(c.id) for c in all_cats if c.id and not c.hidden}
+    )
+
+    result = []
+    for cat_id in all_category_ids:
+        if cat_id == "uncategorized":
+            continue
+        # Skip categories not in our name map (deleted, hidden, etc.)
+        if cat_id not in cat_name_map:
+            continue
+        budgeted = round(budget_by_category.get(cat_id, 0.0), 2)
+        spent = round(spent_by_category.get(cat_id, 0.0), 2)
+        # A category with rollover enabled that got no fresh allocation this
+        # month (relying entirely on last month's carried-over balance) shows
+        # budgeted=0 here, even though real money is still available. Must run
+        # BEFORE the budgeted==0-and-spent==0 skip below, otherwise a rollover
+        # category with no spending yet this month gets filtered out before
+        # ever checking its balance.
+        if budgeted == 0 and cat_id in cat_obj_map:
+            try:
+                from actual.queries import get_accumulated_budgeted_balance
+                accumulated = get_accumulated_budgeted_balance(
+                    session, _date(target_year, target_month, 1), cat_obj_map[cat_id],
+                )
+                budgeted = round(float(accumulated), 2)
+            except Exception:
+                pass
+        # Skip system/unbudgeted categories with no activity
+        if budgeted == 0 and spent == 0:
+            continue
+        percentage = round(spent / budgeted * 100, 1) if budgeted > 0 else 0.0
+        result.append({
+            "category_id": cat_id,
+            "category_name": cat_name_map.get(cat_id, "Unknown"),
+            "group_name": cat_group_map.get(cat_id, "Unexpected"),
+            "budgeted": budgeted,
+            "spent": spent,
+            "percentage": percentage,
+        })
+
+    # Sort: over-budget first, then by percentage descending
+    result.sort(key=lambda r: (-1 if r["percentage"] > 100 else 0, -r["percentage"], r["category_name"]))
+    return result
+
+
 @dataclass
 class Account:
     id: str
@@ -171,81 +415,8 @@ class ActualBudgetClient:
             with self._get_actual() as actual:
                 actual.download_budget()
                 txs = get_transactions(actual.session, start_date=start, end_date=end)
-
-                total = 0.0
-                income = 0.0
-                count = 0
-                by_category: dict[str, dict] = defaultdict(lambda: {"total": 0.0, "count": 0, "name": ""})
-
-                for tx in txs:
-                    if tx.tombstone or tx.starting_balance_flag:
-                        continue
-                    if tx.transferred_id:
-                        continue  # skip transfer legs — not spending/income
-                    if tx.notes and '[Balance Adjustment]' in tx.notes:
-                        continue  # skip reconciliation adjustments — not real income/expense
-                    amount = float(tx.amount or 0) / 100
-                    if amount > 0:
-                        income += amount
-                        continue
-                    if tx.category and getattr(tx.category, 'is_income', False):
-                        continue  # skip income-category transactions
-                    amount = abs(amount)
-                    total += amount
-                    count += 1
-
-                    cat_name = "Uncategorized"
-                    cat_key = "uncategorized"
-                    if tx.category_id:
-                        if tx.category:
-                            cat_name = tx.category.name or "Uncategorized"
-                            cat_key = str(tx.category_id)
-                        else:
-                            # Tombstoned category — keep UUID, remap below
-                            cat_key = str(tx.category_id)
-                            cat_name = f"Deleted:{cat_key[:8]}"
-
-                    by_category[cat_key]["total"] += amount
-                    by_category[cat_key]["count"] += 1
-                    by_category[cat_key]["name"] = cat_name
-
-                # Remap tombstoned categories to living equivalents via fuzzy match
-                try:
-                    from sqlmodel import select as _select
-                    from actual.database import Categories as _CatTable
-                    from actual.queries import get_categories as _get_cats
-                    from difflib import get_close_matches
-                    all_raw = actual.session.exec(_select(_CatTable)).all()
-                    all_cats = _get_cats(actual.session)
-                    living_map = {str(c.id): (c.name or "Uncategorized") for c in all_cats if c.id}
-                    living_lower = {(c.name or "").lower(): str(c.id) for c in all_cats if c.id and c.name}
-                    dead_names = {str(c.id): (c.name or "") for c in all_raw if c.tombstone and c.id}
-                    for dead_id, dead_name in dead_names.items():
-                        if dead_id not in by_category:
-                            continue
-                        matches = get_close_matches(dead_name.lower(), list(living_lower.keys()), n=1, cutoff=0.4)
-                        if matches:
-                            live_id = living_lower[matches[0]]
-                            if live_id in by_category:
-                                by_category[live_id]["total"] += by_category[dead_id]["total"]
-                                by_category[live_id]["count"] += by_category[dead_id]["count"]
-                            else:
-                                by_category[live_id] = by_category[dead_id].copy()
-                                by_category[live_id]["name"] = living_map[live_id]
-                            del by_category[dead_id]
-                        else:
-                            by_category[dead_id]["name"] = dead_name or "Other"
-                except Exception:
-                    pass
-
-                return {
-                    "month": month,
-                    "year": year,
-                    "total": round(total, 2),
-                    "income": round(income, 2),
-                    "count": count,
-                    "categories": dict(by_category),
-                }
+                totals = _compute_monthly_totals(actual.session, txs)
+                return {"month": month, "year": year, **totals}
 
         return await self._run(_get)
 
@@ -318,167 +489,18 @@ class ActualBudgetClient:
 
         def _get():
             import calendar
-            from collections import defaultdict
             from datetime import date as _date
             from actual.queries import get_transactions, get_categories
 
             start = _date(year, month, 1)
             last_day = calendar.monthrange(year, month)[1]
             end = _date(year, month, last_day)
-            yyyymm = year * 100 + month  # e.g. 202605
 
             with self._get_actual() as actual:
                 actual.download_budget()
-
-                # --- 1. Fetch budget allocations from zero_budgets ---
-                budget_by_category: dict[str, float] = defaultdict(float)
-                budget_lookup_succeeded = False
-
-                try:
-                    from sqlalchemy import text as _text
-                    # Try zero_budgets table first. Filter by the `month`
-                    # column, NOT `id LIKE '{yyyymm}%'` — actualpy's own
-                    # create_budget() generates a random UUID `id` for new
-                    # rows (only rows created some other way follow the
-                    # "{month}-{category_id}" id convention), so an id-prefix
-                    # filter silently misses any budget set via Majordom's
-                    # own tools. Confirmed live: a Transport budget written
-                    # through set_budget_amount() was invisible to this query
-                    # under the old id-prefix filter despite existing in the
-                    # table with month=202607.
-                    rows = actual.session.execute(
-                        _text("SELECT category, amount FROM zero_budgets WHERE month = :yyyymm"),
-                        {"yyyymm": yyyymm},
-                    ).fetchall()
-                    for row in rows:
-                        cat_id = str(row[0]) if row[0] else ""
-                        amount_cents = float(row[1] or 0)
-                        budget_by_category[cat_id] += amount_cents / 100
-                    budget_lookup_succeeded = True
-                    logger.debug(
-                        "Budget lookup via zero_budgets succeeded: %d rows",
-                        len(rows),
-                    )
-                except Exception as e1:
-                    logger.warning("zero_budgets table not available: %s", e1)
-                    try:
-                        from sqlalchemy import text as _text
-                        # Fallback: reflect_budgets table
-                        rows = actual.session.execute(
-                            _text("SELECT category, amount FROM reflect_budgets WHERE month = :yyyymm"),
-                            {"yyyymm": yyyymm},
-                        ).fetchall()
-                        for row in rows:
-                            cat_id = str(row[0]) if row[0] else ""
-                            amount_cents = float(row[1] or 0)
-                            budget_by_category[cat_id] += amount_cents / 100
-                        budget_lookup_succeeded = True
-                        logger.debug(
-                            "Budget lookup via reflect_budgets succeeded: %d rows",
-                            len(rows),
-                        )
-                    except Exception as e2:
-                        logger.warning(
-                            "reflect_budgets also not available: %s. "
-                            "Returning spending-only data.",
-                            e2,
-                        )
-
-                # --- 2. Fetch actual spending for the month ---
                 txs = get_transactions(actual.session, start_date=start, end_date=end)
-
-                spent_by_category: dict[str, float] = defaultdict(float)
-
-                for tx in txs:
-                    if tx.tombstone or tx.starting_balance_flag:
-                        continue
-                    if tx.transferred_id:
-                        continue  # skip transfer legs — not spending
-                    if tx.category and getattr(tx.category, 'is_income', False):
-                        continue  # skip income-category transactions
-                    amount = float(tx.amount or 0) / 100
-                    if amount >= 0:
-                        continue  # skip income
-                    amount = abs(amount)
-                    cat_id = str(tx.category_id) if tx.category_id else "uncategorized"
-                    spent_by_category[cat_id] += amount
-
-                # --- 3. Fetch all categories for name resolution ---
                 all_cats = get_categories(actual.session)  # non-tombstoned only
-                cat_name_map: dict[str, str] = {}
-                cat_group_map: dict[str, str] = {}
-                for cat in all_cats:
-                    if cat.id:
-                        cat_name_map[str(cat.id)] = cat.name or "Uncategorized"
-                        cat_group_map[str(cat.id)] = cat.group.name if cat.group else "Unexpected"
-
-                # --- 3b. Remap spending from tombstoned categories to living ones ---
-                # When a category is deleted in AB, its transactions keep the old
-                # category_id.  get_categories() excludes tombstoned, so those
-                # transactions would be silently dropped.  We fuzzy-match deleted
-                # category names to living categories and re-attribute the spending.
-                try:
-                    from sqlmodel import select as _select
-                    from actual.database import Categories as _CatTable
-                    from difflib import get_close_matches
-                    all_raw = actual.session.exec(_select(_CatTable)).all()
-                    dead_names = {
-                        str(c.id): (c.name or "")
-                        for c in all_raw if c.tombstone and c.id
-                    }
-                    living_lower = {
-                        (c.name or "").lower(): str(c.id)
-                        for c in all_cats if c.id and c.name
-                    }
-                    for dead_id, dead_name in dead_names.items():
-                        if dead_id not in spent_by_category:
-                            continue
-                        matches = get_close_matches(
-                            dead_name.lower(), list(living_lower.keys()), n=1, cutoff=0.4
-                        )
-                        if matches:
-                            live_id = living_lower[matches[0]]
-                            spent_by_category[live_id] += spent_by_category.pop(dead_id)
-                            logger.debug(
-                                "Tombstoned category '%s' spending remapped to '%s'",
-                                dead_name, cat_name_map.get(live_id, live_id),
-                            )
-                except Exception as e:
-                    logger.warning("Tombstone remap failed (non-fatal): %s", e)
-
-                # --- 4. Merge budget + spending — include ALL non-hidden categories ---
-                all_category_ids = (
-                    set(budget_by_category.keys())
-                    | set(spent_by_category.keys())
-                    | {str(c.id) for c in all_cats if c.id and not c.hidden}
-                )
-
-                result = []
-                for cat_id in all_category_ids:
-                    if cat_id == "uncategorized":
-                        continue
-                    # Skip categories not in our name map (deleted, hidden, etc.)
-                    if cat_id not in cat_name_map:
-                        continue
-                    budgeted = round(budget_by_category.get(cat_id, 0.0), 2)
-                    spent = round(spent_by_category.get(cat_id, 0.0), 2)
-                    # Skip system/unbudgeted categories with no activity
-                    if budgeted == 0 and spent == 0:
-                        continue
-                    percentage = round(spent / budgeted * 100, 1) if budgeted > 0 else 0.0
-                    result.append({
-                        "category_id": cat_id,
-                        "category_name": cat_name_map.get(cat_id, "Unknown"),
-                        "group_name": cat_group_map.get(cat_id, "Unexpected"),
-                        "budgeted": budgeted,
-                        "spent": spent,
-                        "percentage": percentage,
-                    })
-
-                # Sort: over-budget first, then by percentage descending
-                result.sort(key=lambda r: (-1 if r["percentage"] > 100 else 0, -r["percentage"], r["category_name"]))
-
-                return result
+                return _compute_budget_vs_spent(actual.session, txs, all_cats, year, month)
 
         return await self._run(_get)
 
@@ -722,7 +744,6 @@ class ActualBudgetClient:
         def _get():
             import calendar
             import re
-            from collections import defaultdict
             from datetime import date as _date
             from actual.queries import get_accounts, get_transactions, get_categories
             from actual.database import Transactions, Accounts
@@ -758,210 +779,15 @@ class ActualBudgetClient:
                 end = _date(target_year, target_month, last_day)
 
                 txs = get_transactions(actual.session, start_date=start, end_date=end)
+                totals = _compute_monthly_totals(actual.session, txs)
+                stats_result = {"month": target_month, "year": target_year, **totals}
 
-                total = 0.0
-                income = 0.0
-                count = 0
-                by_category: dict[str, dict] = defaultdict(lambda: {"total": 0.0, "count": 0, "name": ""})
-
-                for tx in txs:
-                    if tx.tombstone or tx.starting_balance_flag:
-                        continue
-                    if tx.transferred_id:
-                        continue
-                    if tx.notes and '[Balance Adjustment]' in tx.notes:
-                        continue
-                    amount = float(tx.amount or 0) / 100
-                    if amount > 0:
-                        income += amount
-                        continue
-                    if tx.category and getattr(tx.category, 'is_income', False):
-                        continue
-                    amount = abs(amount)
-                    total += amount
-                    count += 1
-
-                    cat_name = "Uncategorized"
-                    cat_key = "uncategorized"
-                    if tx.category_id:
-                        if tx.category:
-                            cat_name = tx.category.name or "Uncategorized"
-                            cat_key = str(tx.category_id)
-                        else:
-                            cat_key = str(tx.category_id)
-                            cat_name = f"Deleted:{cat_key[:8]}"
-
-                    by_category[cat_key]["total"] += amount
-                    by_category[cat_key]["count"] += 1
-                    by_category[cat_key]["name"] = cat_name
-
-                # Remap tombstoned categories via fuzzy match
-                try:
-                    from sqlmodel import select as _select
-                    from actual.database import Categories as _CatTable
-                    from difflib import get_close_matches
-                    all_raw = actual.session.exec(_select(_CatTable)).all()
-                    all_cats = get_categories(actual.session)
-                    living_map = {str(c.id): (c.name or "Uncategorized") for c in all_cats if c.id}
-                    living_lower = {(c.name or "").lower(): str(c.id) for c in all_cats if c.id and c.name}
-                    dead_names = {str(c.id): (c.name or "") for c in all_raw if c.tombstone and c.id}
-                    for dead_id, dead_name in dead_names.items():
-                        if dead_id not in by_category:
-                            continue
-                        matches = get_close_matches(dead_name.lower(), list(living_lower.keys()), n=1, cutoff=0.4)
-                        if matches:
-                            live_id = living_lower[matches[0]]
-                            if live_id in by_category:
-                                by_category[live_id]["total"] += by_category[dead_id]["total"]
-                                by_category[live_id]["count"] += by_category[dead_id]["count"]
-                            else:
-                                by_category[live_id] = by_category[dead_id].copy()
-                                by_category[live_id]["name"] = living_map[live_id]
-                            del by_category[dead_id]
-                        else:
-                            by_category[dead_id]["name"] = dead_name or "Other"
-                except Exception:
-                    pass
-
-                stats_result = {
-                    "month": target_month,
-                    "year": target_year,
-                    "total": round(total, 2),
-                    "income": round(income, 2),
-                    "count": count,
-                    "categories": dict(by_category),
-                }
-
-                # 3. Budget status
-                yyyymm = target_year * 100 + target_month
-                budget_by_category: dict[str, float] = defaultdict(float)
-
-                try:
-                    from sqlalchemy import text as _text
-                    # Filter by `month`, not `id LIKE` — see the comment in
-                    # get_budget_status() for why the id-prefix filter misses
-                    # budgets written through Majordom's own tools.
-                    rows = actual.session.execute(
-                        _text("SELECT category, amount FROM zero_budgets WHERE month = :yyyymm"),
-                        {"yyyymm": yyyymm},
-                    ).fetchall()
-                    for row in rows:
-                        cat_id = str(row[0]) if row[0] else ""
-                        amount_cents = float(row[1] or 0)
-                        budget_by_category[cat_id] += amount_cents / 100
-                except Exception:
-                    try:
-                        from sqlalchemy import text as _text
-                        rows = actual.session.execute(
-                            _text("SELECT category, amount FROM reflect_budgets WHERE month = :yyyymm"),
-                            {"yyyymm": yyyymm},
-                        ).fetchall()
-                        for row in rows:
-                            cat_id = str(row[0]) if row[0] else ""
-                            amount_cents = float(row[1] or 0)
-                            budget_by_category[cat_id] += amount_cents / 100
-                    except Exception:
-                        pass
-
-                spent_by_category: dict[str, float] = defaultdict(float)
-                for tx in txs:
-                    if tx.tombstone or tx.starting_balance_flag:
-                        continue
-                    if tx.transferred_id:
-                        continue
-                    if tx.category and getattr(tx.category, 'is_income', False):
-                        continue
-                    amount = float(tx.amount or 0) / 100
-                    if amount >= 0:
-                        continue
-                    amount = abs(amount)
-                    cat_id = str(tx.category_id) if tx.category_id else "uncategorized"
-                    spent_by_category[cat_id] += amount
-
+                # 3. Budget status — same computation as get_budget_status(), reused
+                # here so the Home screen and the chat tool never diverge.
                 all_cats = get_categories(actual.session)
-                cat_name_map: dict[str, str] = {}
-                cat_group_map: dict[str, str] = {}
-                for cat in all_cats:
-                    if cat.id:
-                        cat_name_map[str(cat.id)] = cat.name or "Uncategorized"
-                        cat_group_map[str(cat.id)] = cat.group.name if cat.group else "Unexpected"
-
-                # Remap tombstoned spending for budget
-                try:
-                    from sqlmodel import select as _select
-                    from actual.database import Categories as _CatTable
-                    from difflib import get_close_matches
-                    all_raw = actual.session.exec(_select(_CatTable)).all()
-                    dead_names = {
-                        str(c.id): (c.name or "")
-                        for c in all_raw if c.tombstone and c.id
-                    }
-                    living_lower = {
-                        (c.name or "").lower(): str(c.id)
-                        for c in all_cats if c.id and c.name
-                    }
-                    for dead_id, dead_name in dead_names.items():
-                        if dead_id not in spent_by_category:
-                            continue
-                        matches = get_close_matches(
-                            dead_name.lower(), list(living_lower.keys()), n=1, cutoff=0.4
-                        )
-                        if matches:
-                            live_id = living_lower[matches[0]]
-                            spent_by_category[live_id] += spent_by_category.pop(dead_id)
-                except Exception:
-                    pass
-
-                all_category_ids = (
-                    set(budget_by_category.keys())
-                    | set(spent_by_category.keys())
-                    | {str(c.id) for c in all_cats if c.id and not c.hidden}
+                budget_result = _compute_budget_vs_spent(
+                    actual.session, txs, all_cats, target_year, target_month,
                 )
-                cat_obj_map = {str(c.id): c for c in all_cats if c.id}
-
-                budget_result = []
-                for cat_id in all_category_ids:
-                    if cat_id == "uncategorized":
-                        continue
-                    if cat_id not in cat_name_map:
-                        continue
-                    budgeted = round(budget_by_category.get(cat_id, 0.0), 2)
-                    spent = round(spent_by_category.get(cat_id, 0.0), 2)
-                    # A category with rollover enabled that got no fresh
-                    # allocation this month (relying entirely on last month's
-                    # carried-over balance) shows budgeted=0 here, even
-                    # though real money is still available — e.g. a
-                    # "Holidays" category funded in June, spent in July.
-                    # get_accumulated_budgeted_balance() is what AB's own UI
-                    # shows as the category Balance (rollover-aware); use it
-                    # as the effective budgeted amount so the category still
-                    # appears while there's a balance, and naturally stops
-                    # appearing once it's fully spent (balance reaches 0).
-                    # Must run BEFORE the budgeted==0-and-spent==0 skip below,
-                    # otherwise a rollover category with no July spending yet
-                    # gets filtered out before ever checking its balance.
-                    if budgeted == 0 and cat_id in cat_obj_map:
-                        try:
-                            from actual.queries import get_accumulated_budgeted_balance
-                            accumulated = get_accumulated_budgeted_balance(
-                                actual.session, _date(target_year, target_month, 1), cat_obj_map[cat_id],
-                            )
-                            budgeted = round(float(accumulated), 2)
-                        except Exception:
-                            pass
-                    if budgeted == 0 and spent == 0:
-                        continue
-                    percentage = round(spent / budgeted * 100, 1) if budgeted > 0 else 0.0
-                    budget_result.append({
-                        "category_id": cat_id,
-                        "category_name": cat_name_map.get(cat_id, "Unknown"),
-                        "group_name": cat_group_map.get(cat_id, "Unexpected"),
-                        "budgeted": budgeted,
-                        "spent": spent,
-                        "percentage": percentage,
-                    })
-
-                budget_result.sort(key=lambda r: (-1 if r["percentage"] > 100 else 0, -r["percentage"], r["category_name"]))
 
                 # 4. Goals
                 goals_result = []

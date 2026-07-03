@@ -250,10 +250,6 @@ export interface FireData {
   monthly_contribution: number
 }
 
-export async function getFire(): Promise<FireData> {
-  return request<FireData>('/stats/fire')
-}
-
 // --- Stats ---
 
 export interface CategoryStat {
@@ -514,14 +510,6 @@ export async function sendChatMessageStreaming(
   }
 }
 
-export async function getMonthlyStats(month?: number, year?: number): Promise<MonthlyStats> {
-  const params = new URLSearchParams()
-  if (month) params.set('month', String(month))
-  if (year) params.set('year', String(year))
-  const qs = params.toString()
-  return request<MonthlyStats>(`/stats${qs ? `?${qs}` : ''}`)
-}
-
 // --- Goals ---
 
 export interface Goal {
@@ -533,10 +521,6 @@ export interface Goal {
   deadline?: string | null
   monthly_needed?: number | null
   months_remaining?: number | null
-}
-
-export async function getGoals(): Promise<Goal[]> {
-  return request<Goal[]>('/accounts/goals')
 }
 
 // --- Home (unified endpoint) ---
@@ -578,14 +562,6 @@ export interface BudgetCategory {
   budgeted: number
   spent: number
   percentage: number
-}
-
-export async function getBudgetStatus(month?: number, year?: number): Promise<BudgetCategory[]> {
-  const params = new URLSearchParams()
-  if (month) params.set('month', String(month))
-  if (year) params.set('year', String(year))
-  const qs = params.toString()
-  return request<BudgetCategory[]>(`/budget${qs ? `?${qs}` : ''}`)
 }
 
 // --- Categories ---
