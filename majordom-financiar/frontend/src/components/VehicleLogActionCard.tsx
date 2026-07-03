@@ -43,6 +43,9 @@ export default function VehicleLogActionCard({ data, onConfirmed, onCancelled }:
           {data.location && <span> · {data.location}</span>}
         </p>
         <p className="text-yellow-500 text-xs mt-1">ID #{data.entry_id} · This cannot be undone.</p>
+        {data.has_ab_transaction && (
+          <p className="text-yellow-500 text-xs mt-0.5">⚠ Will also remove the Actual Budget transaction</p>
+        )}
       </div>
 
       <div className="flex gap-2">

@@ -12,6 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from backend.api.auth import get_current_user
 from backend.tools import vehicle_log_actions as action_store
 from backend.core.config import settings
+from backend.core.actual_client import ActualBudgetClient
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -27,6 +28,7 @@ async def confirm_vehicle_log_action(
         raise HTTPException(status_code=404, detail="Action not found or already completed")
 
     entry_id = action["entry_id"]
+    financial_id = action.get("financial_id")
     conn = sqlite3.connect(settings.memory.db_path)
     try:
         row = conn.execute("SELECT id FROM vehicle_log WHERE id = ?", (entry_id,)).fetchone()
@@ -43,7 +45,25 @@ async def confirm_vehicle_log_action(
         conn.close()
         action_store.delete(action_id)
 
-    return {"message": f"Vehicle log entry #{entry_id} deleted."}
+    # Fuelio historical imports have no financial_id — only refuels logged
+    # from photo/text (today onward) are linked to an AB transaction (#83).
+    ab_deleted = False
+    if financial_id:
+        client = ActualBudgetClient(
+            url=settings.actual.url,
+            password=settings.actual.password,
+            sync_id=settings.actual.sync_id,
+        )
+        try:
+            ab_deleted = await client.delete_transaction(financial_id)
+        except Exception as e:
+            logger.error("Failed to delete AB transaction %s for vehicle log entry %s: %s", financial_id, entry_id, e)
+
+    message = f"Vehicle log entry #{entry_id} deleted."
+    if financial_id:
+        message += " AB transaction also removed." if ab_deleted else " (AB transaction could not be removed — check manually.)"
+
+    return {"message": message}
 
 
 @router.post("/vehicle-log-actions/{action_id}/cancel")

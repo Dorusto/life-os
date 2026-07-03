@@ -340,7 +340,7 @@ async def delete_vehicle_log_entry(entry_id: int) -> str:
         return f"No vehicle log entry found with ID #{entry_id}."
 
     action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {"entry_id": entry_id})
+    action_store.store(action_id, {"entry_id": entry_id, "financial_id": row["financial_id"]})
 
     return _json.dumps({
         "type": "vehicle_log_action",
@@ -352,6 +352,7 @@ async def delete_vehicle_log_entry(entry_id: int) -> str:
         "odo_km": row["odo_km"],
         "fuel_liters": row["fuel_liters"],
         "cost_total": row["cost_total"],
+        "has_ab_transaction": bool(row["financial_id"]),
         "location": row["location"],
     })
 

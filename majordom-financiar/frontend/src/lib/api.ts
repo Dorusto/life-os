@@ -763,6 +763,7 @@ export interface VehicleLogActionData {
   fuel_liters: number | null
   cost_total: number | null
   location: string | null
+  has_ab_transaction?: boolean
 }
 
 export async function confirmVehicleLogAction(id: string): Promise<{ message: string }> {

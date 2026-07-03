@@ -452,6 +452,25 @@ class ActualBudgetClient:
 
         return await self._run(_get)
 
+    async def delete_transaction(self, financial_id: str) -> bool:
+        """Soft-delete a transaction by financial_id (tombstone=1). Returns False if not found."""
+        def _delete():
+            from actual.database import Transactions
+            with self._get_actual() as actual:
+                actual.download_budget()
+                tx = actual.session.query(Transactions).filter(
+                    Transactions.financial_id == financial_id,
+                    Transactions.tombstone == 0,
+                ).first()
+                if not tx:
+                    logger.warning(f"Transaction not found for deletion: {financial_id}")
+                    return False
+                tx.tombstone = 1
+                actual.commit()
+                logger.info(f"Transaction deleted in Actual Budget: {financial_id}")
+                return True
+        return await self._run(_delete)
+
     async def update_transaction_category(self, financial_id: str, category_name: str) -> bool:
         """Update the category of an existing transaction by financial_id."""
         def _update():
