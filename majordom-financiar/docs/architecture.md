@@ -240,6 +240,8 @@ A card resolving into a `status` message (bank resync, category actions, transfe
 ### 19. `majordom-api` needs `--build`, not just `restart`, for Python changes to take effect
 Unlike a typical dev setup, `majordom-api` in `docker-compose.yml` only bind-mounts `./data` and `./backups` — the backend source is `COPY`'d into the image at build time (`Dockerfile.backend`). `docker compose restart majordom-api` restarts the *existing* image unchanged; it silently keeps serving old code with no error, no warning, and the container looks healthy. Verify by grepping the running container's source (`docker exec majordom-api grep ... /app/backend/...`) if a code change doesn't seem to take effect. Always use `docker compose up -d --build majordom-api` after editing backend Python. (`majordom-web` has the same constraint — it's a built Nginx+static image too, no source bind-mount.)
 
+**Corollary — recreating `majordom-api` breaks `majordom-web` until it's restarted too:** `majordom-web`'s nginx (`location /api/` → `proxy_pass http://majordom-api:8000/api/;`) resolves the `majordom-api` hostname once and holds it — recreating `majordom-api` (via `--build`, which assigns the container a new Docker-network IP) leaves nginx pointing at the old, now-dead IP, so every `/api/*` request 502s ("Bad Gateway" in the chat UI) even though `majordom-api` itself reports healthy. No error appears until a real request is made. Fix: `docker compose restart majordom-web` (plain restart is enough, no rebuild — its own code didn't change) right after any `--build` of `majordom-api`. Confirm via `docker logs majordom-web --tail 30 | grep refused` (shows the stale IP) vs `docker inspect majordom-api --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'` (shows the real one).
+
 ### 20. Shared finance-calculation helpers — reuse, don't re-derive
 `backend/core/actual_client/client.py` has 3 module-level helpers (defined just above `class Account`), used by `get_monthly_stats()`, `get_budget_status()`, and `get_home_data()`:
 - `_compute_monthly_totals(session, txs)` — total/income/count/per-category breakdown for a month, including tombstoned-category fuzzy-match remap.
@@ -247,6 +249,12 @@ Unlike a typical dev setup, `majordom-api` in `docker-compose.yml` only bind-mou
 - `_tombstoned_category_remap(session, all_cats)` — fuzzy-matches a deleted category's past spending to its closest living equivalent; returns `(dead_names, remap)` so each caller decides what to do with an unmatched id.
 
 Any new code that needs monthly spending or budget-vs-actual data **must call these**, not re-implement the transaction loop inline. Before the #93 audit (2026-07-03), all three call sites had copy-pasted versions of this logic — `get_home_data` silently drifted ahead with the rollover-aware balance fix that `get_budget_status` never got, so the chat tool (`finance__get_budget_status`) and the Home screen showed different numbers for the same category with no error or warning anywhere. Extending one of these helpers when a new requirement appears keeps that class of bug structurally impossible instead of relying on someone noticing the drift.
+
+### 21. Never use real user data as few-shot examples in the system prompt
+
+`_build_system_prompt()` in `backend/api/chat.py` used the user's actual vehicle nicknames ("Cora", "Wabi Sabi") as illustrative examples for unrelated tools (`set_service_interval`, `set_vehicle_reminder`, `log_refuel`). Found while investigating #139: the LLM fabricated a "current vehicles" list containing exactly those two names when asked about a vehicle ("Kia") that wasn't in the prompt as an example — it had treated the prompt's illustrative examples as ground-truth fleet data instead of live tool output, and rejected the real vehicle because it wasn't among the "known" names. Fixed by replacing them with obviously fictional placeholders (`"MyCar"`, `"MyBike"`).
+
+Any few-shot example in a system prompt (any domain, not just vehicles) must use a clearly fictional placeholder name — never a real account, vehicle, category, or contact name that also exists in the user's actual data. If a prompt example and a real tool result can ever contain the same literal string, the model may conflate "instruction example" with "fact," with no visible error to reveal it.
 
 ---
 

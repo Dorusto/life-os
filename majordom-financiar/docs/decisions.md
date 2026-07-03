@@ -7,6 +7,18 @@
 
 ## Architecture decisions
 
+### `majordom-web` proxies to `majordom-api` via nginx
+
+**Date:** 2026-04-12 (v2 web UI release, commit `f27515a`) — retroactively documented 2026-07-03, no entry existed until now.
+
+**Decision:** `majordom-web` is a built Nginx + static-React image; `location /api/` proxies to `http://majordom-api:8000/api/` over the internal Docker network. `majordom-api` has no host port mapping.
+
+**Why:** Single exposed port for both frontend and API (simpler for Coolify/Tailscale), backend never reachable directly from the host network, one HTTPS certificate covers both.
+
+**Gotcha:** nginx resolves the `majordom-api` hostname once and holds the connection — recreating `majordom-api` alone (`docker compose up -d --build majordom-api`, scoped to one service) leaves nginx pointing at the old container's now-dead IP, causing 502 "Bad Gateway" on every `/api/*` call until `majordom-web` is also restarted. The documented deploy flow (`DEPLOY.md` — `docker compose up -d --build`, no service name) rebuilds everything together and never hits this; it only surfaces when rebuilding `majordom-api` in isolation for local testing. See `docs/architecture.md` rule 19's corollary.
+
+---
+
 ### No financial data in SQLite
 
 **Date:** 2026-05-14 (architecture audit)
