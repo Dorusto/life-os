@@ -696,13 +696,7 @@ async def confirm_csv(
     # Track low-confidence categorizations (LLM-suggested, not from history)
     # for the pending_review nudge (M2.3).
     low_confidence = [
-        {
-            "financial_id": _financial_id(row.date, row.merchant, row.amount),
-            "merchant": row.merchant,
-            "amount": row.amount,
-            "date": row.date,
-            "category_name": row.category_name,
-        }
+        _financial_id(row.date, row.merchant, row.amount)
         for row in body.rows
         if row.category_name
         and not row.category_confirmed

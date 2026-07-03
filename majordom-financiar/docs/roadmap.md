@@ -189,7 +189,6 @@ Tier 1 (#96, #69) dropped from this table — both deprioritized, tracked in the
 | [#116](https://github.com/Dorusto/life-os/issues/116) | Month-end uncategorized+unreconciled report (unblocked now that #101 is fixed) | 1-2h |
 | [#99](https://github.com/Dorusto/life-os/issues/99) | Remove `merchant_mappings` SQLite table, use AB rule history instead | 1-2h |
 | [#126](https://github.com/Dorusto/life-os/issues/126) | Freelance/ZZP income dashboard via AB tags — concrete real need (YouTube + Printful) | 1.5-2.5h |
-| [#112](https://github.com/Dorusto/life-os/issues/112) | Annual budget pacing | 1.5-2.5h |
 | [#77](https://github.com/Dorusto/life-os/issues/77) | Trend indicator on Cashflow/Net Worth cards | 45min-1h |
 | [#78](https://github.com/Dorusto/life-os/issues/78) | `setup_default_groups` UX improvements | 45min-1h |
 | [#76](https://github.com/Dorusto/life-os/issues/76) | Offer to add monthly amount to budget after setting a goal | 30-45 min |
@@ -201,15 +200,21 @@ Tier 1 (#96, #69) dropped from this table — both deprioritized, tracked in the
 
 | Issue | What | Est. |
 |---|---|---|
-| [#110](https://github.com/Dorusto/life-os/issues/110) | Budget realism check per category | 2-3h |
-| [#111](https://github.com/Dorusto/life-os/issues/111) | Proactive sinking fund detection | 2-3h |
-| [#114](https://github.com/Dorusto/life-os/issues/114) | Cross-check budget estimates against a vault plan file | 2-3h |
 | [#115](https://github.com/Dorusto/life-os/issues/115) | Split transaction across multiple categories | 2-3h |
-| [#124](https://github.com/Dorusto/life-os/issues/124) | Budget config via chat — remaining scope (Automations, goal templates; rollover toggle already done) | 2-4h |
 | [#117](https://github.com/Dorusto/life-os/issues/117) | Assisted reconciliation | 2-4h |
-| [#113](https://github.com/Dorusto/life-os/issues/113) | End-to-end goal budgeting (compound tool) | 3-4h |
 | [#93](https://github.com/Dorusto/life-os/issues/93) | Architecture code audit | half a day+ |
 | [#88](https://github.com/Dorusto/life-os/issues/88) | M6 — setup simplification + platform vision | dedicated planning session, scope not yet clear |
+
+**Proactive budget intelligence — medium priority, grouped (2026-07-03):** real and eventually important, but standard functionality (Tier 2/3 above) comes first — these don't block anything the app already needs to do. Kept as one cluster rather than spread across tiers since they overlap conceptually (all "notice something the user would otherwise miss"); pick one from the group when standard-functionality work runs out, don't spread across sessions piecemeal.
+
+| Issue | What | Est. |
+|---|---|---|
+| [#110](https://github.com/Dorusto/life-os/issues/110) | Budget realism check per category (one-off vs recurring) | 2-3h |
+| [#111](https://github.com/Dorusto/life-os/issues/111) | Proactive sinking fund detection | 2-3h |
+| [#112](https://github.com/Dorusto/life-os/issues/112) | Annual budget pacing | 1.5-2.5h |
+| [#113](https://github.com/Dorusto/life-os/issues/113) | End-to-end goal budgeting (compound tool) | 3-4h |
+| [#114](https://github.com/Dorusto/life-os/issues/114) | Cross-check budget estimates against a vault plan file | 2-3h |
+| [#124](https://github.com/Dorusto/life-os/issues/124) | Budget config via chat — remaining scope (Automations, goal templates; rollover toggle already done) | 2-4h |
 
 **Deferred / opportunistic, not scheduled:**
 - [#80](https://github.com/Dorusto/life-os/issues/80)/[#86](https://github.com/Dorusto/life-os/issues/86) — vision total-amount detection: investigate opportunistically, may not have a full fix (model limitation)

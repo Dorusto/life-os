@@ -236,6 +236,9 @@ A card resolving into a `status` message (bank resync, category actions, transfe
 ### 18. Dumping a Docker volume via a throwaway container leaves root-owned files
 `scripts/backup.sh` copies the Actual Budget Docker volume into a host tmpdir via `docker run ... alpine cp -a ...` — the container runs as root by default, so everything it writes into the bind-mounted tmpdir is root-owned on the host, even though the tmpdir itself was created by the (non-root) host user. A plain `rm -rf "$TMPDIR"` afterward fails with "Permission denied" on those files — silently leaking a root-owned directory in `/tmp` on every run. Fix: clean up through a root container too (`docker run --rm -v "$TMPDIR":/backup alpine rm -rf /backup`), not the host shell — the same pattern applies to any future script that dumps a Docker volume to the host filesystem this way. Note the container will still print (and can't avoid) `rm: can't remove '/backup': Resource busy` for the mount point itself — that's expected and harmless, contents underneath are still removed; redirect stderr if the noise matters.
 
+### 19. `majordom-api` needs `--build`, not just `restart`, for Python changes to take effect
+Unlike a typical dev setup, `majordom-api` in `docker-compose.yml` only bind-mounts `./data` and `./backups` — the backend source is `COPY`'d into the image at build time (`Dockerfile.backend`). `docker compose restart majordom-api` restarts the *existing* image unchanged; it silently keeps serving old code with no error, no warning, and the container looks healthy. Verify by grepping the running container's source (`docker exec majordom-api grep ... /app/backend/...`) if a code change doesn't seem to take effect. Always use `docker compose up -d --build majordom-api` after editing backend Python. (`majordom-web` has the same constraint — it's a built Nginx+static image too, no source bind-mount.)
+
 ---
 
 ## Main Flows

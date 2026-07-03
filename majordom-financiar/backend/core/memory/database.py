@@ -116,10 +116,6 @@ class MemoryDB:
 
                 CREATE TABLE IF NOT EXISTS pending_review (
                     financial_id TEXT PRIMARY KEY,
-                    merchant     TEXT NOT NULL,
-                    amount       REAL NOT NULL,
-                    date         TEXT NOT NULL,
-                    category_name TEXT NOT NULL,
                     imported_at  TEXT NOT NULL DEFAULT (datetime('now')),
                     notified_at  TEXT DEFAULT NULL
                 );
@@ -208,6 +204,14 @@ class MemoryDB:
                     conn.commit()
                 except Exception:
                     pass  # column already exists
+            # Drop financial data accidentally duplicated into pending_review (#99 audit) —
+            # only financial_id + count are ever read (notification_service._check_pending_review)
+            for col in ("merchant", "amount", "date", "category_name"):
+                try:
+                    conn.execute(f"ALTER TABLE pending_review DROP COLUMN {col}")
+                    conn.commit()
+                except Exception:
+                    pass  # column already dropped, or table freshly created without it
             logger.info(f"Database initialized: {self.db_path}")
         finally:
             conn.close()
@@ -532,19 +536,19 @@ class MemoryDB:
 
     # --- Pending Review ---
 
-    def add_pending_reviews(self, rows: list[dict]):
-        """Insert low-confidence categorized transactions for later review.
+    def add_pending_reviews(self, financial_ids: list[str]):
+        """Flag low-confidence categorized transactions for a later review nudge.
 
-        Each dict: {financial_id, merchant, amount, date, category_name}.
-        Uses INSERT OR IGNORE to avoid duplicates on re-import.
+        Only the AB transaction ID is stored — the actual transaction data
+        (merchant, amount, date, category) lives in Actual Budget, the source
+        of truth. Uses INSERT OR IGNORE to avoid duplicates on re-import.
         """
         conn = self._get_conn()
         try:
-            conn.executemany("""
-                INSERT OR IGNORE INTO pending_review
-                    (financial_id, merchant, amount, date, category_name)
-                VALUES (:financial_id, :merchant, :amount, :date, :category_name)
-            """, rows)
+            conn.executemany(
+                "INSERT OR IGNORE INTO pending_review (financial_id) VALUES (?)",
+                [(fid,) for fid in financial_ids],
+            )
             conn.commit()
         finally:
             conn.close()
