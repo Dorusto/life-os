@@ -65,6 +65,8 @@ async def confirm_category_action(
             await client.create_category(cat_name, grp_name)
             message = f"Category created: '{cat_name}' in group '{grp_name}'"
         elif action["action"] == "set_goal":
+            from backend.tools.finance.actual_budget import calc_monthly_needed
+
             target = override.target if override.target is not None else action["target"]
             deadline = override.deadline if override.deadline is not None else action.get("deadline")
             await client.set_account_goal(
@@ -75,6 +77,10 @@ async def confirm_category_action(
             message = f"Goal set: {action['account_name']} → €{target:,.0f}"
             if deadline:
                 message += f" by {deadline}"
+            accounts = await client.get_accounts()
+            balance = next((a.balance for a in accounts if a.name == action["account_name"]), 0.0)
+            monthly_needed = calc_monthly_needed(target, balance, deadline)
+            return {"message": message, "monthly_needed": monthly_needed}
         elif action["action"] == "set_budget":
             from datetime import date as _date
             new_amount = override.amount if override.amount is not None else action["new_amount"]
@@ -167,6 +173,29 @@ async def confirm_category_action(
         action_store.delete(action_id)
 
     return {"message": message}
+
+
+class SavingsBudgetProposal(BaseModel):
+    amount: float
+    month: str | None = None
+
+
+@router.post("/category-actions/propose-savings-budget")
+async def propose_savings_budget(
+    body: SavingsBudgetProposal,
+    current_user: str = Depends(get_current_user),
+):
+    """Chained follow-up after a savings goal is set — reuses propose_set_category_budget
+    against the "Savings" category (see #76: offer to top up the budget by monthly_needed)."""
+    import json
+    from backend.tools.finance.actual_budget import propose_set_category_budget
+
+    result = await propose_set_category_budget(
+        category_name="Savings",
+        amount=body.amount,
+        month=body.month or "",
+    )
+    return json.loads(result)
 
 
 @router.post("/category-actions/{action_id}/cancel")

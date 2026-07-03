@@ -7,11 +7,12 @@ export interface GoalProposalData {
   account_name: string
   target: number
   deadline?: string | null
+  monthly_needed?: number | null
 }
 
 interface Props {
   data: GoalProposalData
-  onConfirmed: (message: string) => void
+  onConfirmed: (message: string, monthlyNeeded?: number | null) => void
   onCancelled: () => void
 }
 
@@ -27,7 +28,7 @@ export default function GoalProposalCard({ data, onConfirmed, onCancelled }: Pro
         target: parseFloat(target) || data.target,
         deadline: deadline || null,
       })
-      onConfirmed(result.message)
+      onConfirmed(result.message, result.monthly_needed)
     } catch (err) {
       onConfirmed(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
     } finally {

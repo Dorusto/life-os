@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Send, Plus, Camera, Image, FileText, HelpCircle, X, Trash2 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, saveChatHistory, clearChatHistory, type SetupAccount, type BalanceAdjustmentData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type FuelConfirmResponse, type VehicleLogActionData, type VehicleReminderData } from '../lib/api'
+import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, saveChatHistory, clearChatHistory, proposeSavingsBudget, type SetupAccount, type BalanceAdjustmentData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type FuelConfirmResponse, type VehicleLogActionData, type VehicleReminderData } from '../lib/api'
 import CsvImportCard from '../components/CsvImportCard'
 import FuelioImportCard, { FuelioImportData } from '../components/FuelioImportCard'
 import ProposalCard, { ProposalData } from '../components/ProposalCard'
@@ -35,6 +35,10 @@ export interface Message {
   ts?: number
   /** True for messages loaded from server history — skip re-persisting them. */
   _synced?: boolean
+  /** Set on a card chained after another card's status (e.g. savings-goal → budget top-up, #76) —
+   *  its resolution is persisted directly (with this text) instead of re-anchoring to the original
+   *  user message, which would otherwise duplicate it in server history (see architecture.md rule 17). */
+  chainedOfferText?: string
   chartData?: MonthlyStats
   proposal?: ProposalData
   budgetRebalance?: BudgetRebalanceData
@@ -745,16 +749,31 @@ export default function Chat({ messages, setMessages }: ChatProps) {
               <CategoryActionCard
                 data={msg.categoryAction}
                 onConfirmed={(message) => {
+                  // Chained cards (e.g. the savings-budget top-up offered after a goal is
+                  // set, #76) persist themselves — re-anchoring to the original user message
+                  // via the generic effect below would duplicate it in server history.
+                  if (msg.chainedOfferText) {
+                    saveChatHistory([
+                      { role: 'assistant', content: msg.chainedOfferText },
+                      { role: 'status', content: message },
+                    ]).catch(() => {})
+                  }
                   setMessages(prev =>
                     prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: message } : m
+                      i === idx ? { role: 'status' as const, content: message, _synced: !!msg.chainedOfferText } : m
                     )
                   )
                 }}
                 onCancelled={() => {
+                  if (msg.chainedOfferText) {
+                    saveChatHistory([
+                      { role: 'assistant', content: msg.chainedOfferText },
+                      { role: 'status', content: 'Cancelled.' },
+                    ]).catch(() => {})
+                  }
                   setMessages(prev =>
                     prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: 'Cancelled.' } : m
+                      i === idx ? { role: 'status' as const, content: 'Cancelled.', _synced: !!msg.chainedOfferText } : m
                     )
                   )
                 }}
@@ -762,12 +781,34 @@ export default function Chat({ messages, setMessages }: ChatProps) {
             ) : msg.role === 'goal_proposal' && msg.goalProposal ? (
               <GoalProposalCard
                 data={msg.goalProposal}
-                onConfirmed={(message) => {
+                onConfirmed={async (message, monthlyNeeded) => {
                   setMessages(prev =>
                     prev.map((m, i) =>
                       i === idx ? { role: 'status' as const, content: message } : m
                     )
                   )
+                  if (monthlyNeeded && monthlyNeeded > 0) {
+                    const offerText = `To reach this goal, you'd need to put aside €${monthlyNeeded.toFixed(0)}/mo. Want to add that to your Savings budget?`
+                    try {
+                      const proposal = await proposeSavingsBudget(monthlyNeeded)
+                      if ('type' in proposal && proposal.type === 'error') {
+                        setMessages(prev => [...prev, { role: 'status' as const, content: proposal.message }])
+                      } else {
+                        setMessages(prev => [
+                          ...prev,
+                          { role: 'assistant' as const, content: offerText },
+                          {
+                            role: 'category_action' as const,
+                            content: '',
+                            categoryAction: proposal as CategoryActionData,
+                            chainedOfferText: offerText,
+                          },
+                        ])
+                      }
+                    } catch (err) {
+                      setMessages(prev => [...prev, { role: 'status' as const, content: err instanceof Error ? err.message : 'Failed to prepare budget update.' }])
+                    }
+                  }
                 }}
                 onCancelled={() => {
                   setMessages(prev =>

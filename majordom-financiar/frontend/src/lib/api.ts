@@ -743,7 +743,7 @@ export interface CategoryActionData {
 export async function confirmCategoryAction(
   id: string,
   override?: { target?: number; deadline?: string | null; category_name?: string; group_name?: string; amount?: number; payee?: string; create_rule?: boolean; category_amounts?: Record<string, number> }
-): Promise<{ message: string }> {
+): Promise<{ message: string; monthly_needed?: number | null }> {
   return request(`/category-actions/${id}/confirm`, {
     method: 'POST',
     body: JSON.stringify(override ?? {}),
@@ -752,6 +752,16 @@ export async function confirmCategoryAction(
 
 export async function cancelCategoryAction(id: string): Promise<void> {
   return request<void>(`/category-actions/${id}/cancel`, { method: 'POST' })
+}
+
+export async function proposeSavingsBudget(
+  amount: number,
+  month?: string
+): Promise<CategoryActionData | { type: 'error'; message: string }> {
+  return request('/category-actions/propose-savings-budget', {
+    method: 'POST',
+    body: JSON.stringify({ amount, month }),
+  })
 }
 
 // --- Vehicle log actions ---

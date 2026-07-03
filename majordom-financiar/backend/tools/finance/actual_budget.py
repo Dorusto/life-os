@@ -560,6 +560,22 @@ async def complete_setup(balances: list[dict]) -> str:
     return "Setup complete. All balances already matched — no adjustments needed."
 
 
+def calc_monthly_needed(target: float, balance: float, deadline: str | None) -> float | None:
+    """Months-remaining budget math — shared between the goal proposal and its confirmation."""
+    if not deadline:
+        return None
+    from datetime import date as _date
+    try:
+        dl_year, dl_month = map(int, deadline.split("-"))
+    except (ValueError, AttributeError):
+        return None
+    today = _date.today()
+    months_remaining = (dl_year - today.year) * 12 + (dl_month - today.month)
+    if months_remaining <= 0:
+        return None
+    return round((target - balance) / months_remaining, 2)
+
+
 async def set_account_goal(account_name: str, target: float, deadline: str | None = None) -> str:
     """Propose setting a savings goal. Returns a confirmation card — does NOT write yet."""
     import uuid
@@ -572,9 +588,14 @@ async def set_account_goal(account_name: str, target: float, deadline: str | Non
     resolved = exact or (get_close_matches(account_name, all_names, n=1, cutoff=0.6) or [None])[0]
     if not resolved:
         return json.dumps({"type": "error", "message": f"Account not found: {account_name!r}. Available: {', '.join(all_names)}"})
+    balance = next(a.balance for a in accounts if a.name == resolved)
+    monthly_needed = calc_monthly_needed(target, balance, deadline)
     action_id = uuid.uuid4().hex[:8]
     action_store.store(action_id, {"action": "set_goal", "account_name": resolved, "target": target, "deadline": deadline})
-    return json.dumps({"type": "goal_proposal", "id": action_id, "account_name": resolved, "target": target, "deadline": deadline})
+    return json.dumps({
+        "type": "goal_proposal", "id": action_id, "account_name": resolved,
+        "target": target, "deadline": deadline, "monthly_needed": monthly_needed,
+    })
 
 
 async def rename_category(old_name: str, new_name: str) -> str:
