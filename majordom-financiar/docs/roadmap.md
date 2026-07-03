@@ -179,12 +179,7 @@ Ordered by priority/importance, not just size — see `decisions.md#tool-domain-
 
 **Tier 0 — risk + foundational debt, do first:** ✅ done — #98 (tool domain routing) completed 2026-07-03.
 
-**Tier 1 — cheap risk/quality-of-life wins, no discussion needed:**
-
-| Issue | What | Est. |
-|---|---|---|
-| [#96](https://github.com/Dorusto/life-os/issues/96) | Dev branch — stop deploying straight from main — deprioritized, single-user only, see decisions.md | 20-40 min |
-| [#69](https://github.com/Dorusto/life-os/issues/69) | Close account from chat — deprioritized, not needed yet | 30-45 min |
+Tier 1 (#96, #69) dropped from this table — both deprioritized, tracked in their own GitHub issues, revisit when we get to low-priority items.
 
 **Tier 2 — real user-facing value, moderate effort:**
 

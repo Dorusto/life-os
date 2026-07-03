@@ -343,7 +343,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
           const msgs = prev.filter(m => m.role === 'user' || m.role === 'assistant')
           const lastUserIdx = msgs.map(m => m.role).lastIndexOf('user')
           const lastAssistantIdx = msgs.map(m => m.role).lastIndexOf('assistant')
-          if (lastUserIdx >= 0 && lastAssistantIdx > lastUserIdx) {
+          if (lastUserIdx >= 0 && lastAssistantIdx > lastUserIdx && msgs[lastAssistantIdx].content.trim()) {
             saveChatHistory([
               { role: 'user', content: msgs[lastUserIdx].content },
               { role: 'assistant', content: msgs[lastAssistantIdx].content },
