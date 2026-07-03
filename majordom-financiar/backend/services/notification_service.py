@@ -14,7 +14,7 @@ import json
 import logging
 import sqlite3
 import time as time_module
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 import httpx
 
@@ -24,10 +24,6 @@ from backend.core.memory.database import MemoryDB
 from backend.services.push_service import get_push_service
 
 logger = logging.getLogger(__name__)
-
-# Manual/CSV-only accounts expected to get regular imports — opt-in only,
-# see get_pending_items()'s account-staleness check for why.
-_CSV_STALENESS_WATCHLIST = {"Bitvavo Crypto", "Crypto card"}
 
 
 async def _save_to_chat_history(body: str, db: MemoryDB) -> None:
@@ -809,48 +805,11 @@ async def get_pending_items() -> list[dict]:
     except Exception as e:
         logger.warning("get_pending_items: vehicle reminders check failed: %s", e)
 
-    # Account sync/import staleness.
-    # - Bank-linked accounts: flag if last_sync is >24h old — something's
-    #   likely actually wrong (they should sync automatically).
-    # - Manual/CSV accounts: only for accounts on an explicit opt-in
-    #   watchlist, not every manual account. An automatic 7-day-since-last-tx
-    #   rule applied to ALL manual accounts flagged low-activity savings/goal
-    #   accounts as "stale" even though sitting idle for weeks is normal for
-    #   them (see 2026-07-03 session — reverted after real-world testing).
-    try:
-        accounts = await get_provider().get_account_sync_status()
-        now = datetime.now()
-        watchlist = {n.lower() for n in _CSV_STALENESS_WATCHLIST}
-        for acc in accounts:
-            if acc["sync_source"]:
-                last_sync = acc.get("last_sync")
-                stale = True
-                if last_sync:
-                    try:
-                        stale = (now - datetime.fromisoformat(last_sync)) > timedelta(hours=24)
-                    except ValueError:
-                        stale = True
-                if stale:
-                    items.append({
-                        "type": "bank_sync_stale",
-                        "text": f"{acc['name']} hasn't synced in over 24h",
-                        "prompt": f"resync {acc['name']}",
-                    })
-            elif acc["name"].lower() in watchlist:
-                most_recent = acc.get("most_recent_transaction_date")
-                if not most_recent:
-                    continue
-                try:
-                    days_since = (date.today() - date.fromisoformat(most_recent)).days
-                except ValueError:
-                    continue
-                if days_since >= 7:
-                    items.append({
-                        "type": "csv_stale",
-                        "text": f"{acc['name']} — no new transactions imported in {days_since} days",
-                        "prompt": f"let's import recent transactions for {acc['name']}",
-                    })
-    except Exception as e:
-        logger.warning("get_pending_items: account staleness check failed: %s", e)
+    # Account sync/import staleness nudges (bank-linked and manual/CSV) were
+    # removed from Home — both the "resync X" and "import recent
+    # transactions" prompts they generated caused more friction than value
+    # (the bank one hit an actualpy parsing bug — see run_bank_resync in
+    # actual_client/client.py; the CSV one is available on request via chat
+    # regardless). See 2026-07-03 session for the removal.
 
     return items

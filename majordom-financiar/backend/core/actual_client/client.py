@@ -13,6 +13,27 @@ from datetime import date
 logger = logging.getLogger(__name__)
 
 
+def _patch_bank_sync_balance_type() -> None:
+    """Make actualpy tolerate balanceType codes it doesn't know about.
+
+    actualpy's BalanceType enum only covers GoCardless's documented values,
+    but some banks (e.g. ING NL) return other ISO 20022 codes verbatim
+    (observed: "XPCD"). That's a raw balance-type label we never read —
+    we only care about the imported transactions — so an unrecognized code
+    should not abort the whole sync with a pydantic validation error.
+    """
+    from actual.api.bank_sync import BalanceType
+
+    def _missing_(cls, value):
+        logger.warning("Unknown bank-sync balanceType %r — treating as INFORMATION", value)
+        return cls.INFORMATION
+
+    BalanceType._missing_ = classmethod(_missing_)
+
+
+_patch_bank_sync_balance_type()
+
+
 def _safe_get_or_create_payee(session, name: str):
     """Like actualpy's get_or_create_payee but tolerates duplicate payee names.
 
