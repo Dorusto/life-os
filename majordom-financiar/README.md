@@ -39,8 +39,12 @@ You don't learn Actual Budget. You don't configure categories. You don't set up 
 |--------|--------|
 | 📷 Photograph a receipt | AI extracts merchant, amount, date → you confirm → saved to Actual Budget |
 | 📄 Import a CSV bank export | Auto-detects format → shows preview → you set categories → saved to Actual Budget |
+| 🏦 Automatic bank sync | Enable Banking open-banking connection — tested live with ING NL |
 | 💬 Chat with the assistant | Ask questions about your spending, balances, and categories |
 | 📊 Dashboard | Monthly spending by category (donut chart) + recent transactions |
+| 🚗 Vehicle log | Fuelio replacement — fuel log, refuel from photos, APK/insurance reminders |
+| 🎯 Savings goals & FIRE | Progress bars, monthly-needed calculation, financial-independence timeline on Home |
+| 🔔 Proactive alerts | Budget overspend, income variance, goal risk — pushed to you, not buried in a dashboard |
 
 **Everything runs on your own server. Zero cloud. Zero subscriptions.**
 
@@ -227,12 +231,9 @@ See [ROADMAP.md](ROADMAP.md) for the full roadmap with implementation details, d
 
 Short version of what's coming:
 - Document Management — scan invoices, warranties, vehicle docs, insurance policies
-- Vehicle Management — full Fuelino replacement: fuel log, consumption charts, maintenance reminders
-- FIRE calculator (financial independence timeline)
-- Savings goals with progress tracking
-- Monthly budget limits + alerts
-- Investment portfolio tracking (Sure)
-- Automatic bank sync via open banking — working via Enable Banking (tested live with ING NL)
+- Vehicle consumption/cost charts and cross-vehicle comparison (the fuel log itself already works, see above)
+- Investment portfolio tracking (Sure) — budget/investments integration in progress
+- Extract vehicle tracking into its own independent service (internal modularity, REST + MCP)
 
 ---
 
