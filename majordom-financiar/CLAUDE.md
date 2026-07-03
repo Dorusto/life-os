@@ -19,7 +19,7 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 | Task | Read |
 |------|------|
 | Bug in backend/api/ or core/ | `docs/architecture.md#critical-technical-rules` + `docs/sessions/` (grep topic) |
-| New feature | `docs/roadmap.md` (current milestone) + `docs/architecture.md#main-flows` |
+| New feature | `docs/roadmap.md` (current milestone) + `docs/backlog.md` (issue priority) + `docs/architecture.md#main-flows` |
 | Refactor | `docs/decisions.md` + `docs/architecture.md` |
 | Chat / tool calling | `docs/learn/10-chat-tools.md` + `docs/architecture.md#critical-technical-rules` |
 | CSV import | `docs/learn/07-csv-import.md` |
@@ -155,7 +155,7 @@ When user confirms something works:
 **Always — do NOT report task as done until all steps below are checked:**
 1. Commit with correct timestamp
 2. Close GitHub issue: `gh issue list` → find relevant open issue → `gh issue close NNN -c "message"`
-3. Update `docs/roadmap.md` — mark ✅ done if milestone item; if feature has a spec in `docs/specs/`, update it too
+3. Update `docs/roadmap.md` (milestone item — mark ✅ done) or `docs/backlog.md` (backlog issue — remove from its tier/cluster); if feature has a spec in `docs/specs/`, update it too
 4. Add entry to `docs/sessions/YYYY-WNN.md` (current week's file)
 5. Update `docs/sessions/INDEX.md` — add row for the session
 6. Check if docs need updating:
@@ -190,6 +190,6 @@ If a lesson from this session deserves a detailed explanation with analogies/dia
 
 - `docs/architecture.md` — technical rules + flows + project structure
 - `docs/decisions.md` — why things are the way they are
-- `docs/roadmap.md` — milestones + backlog
+- `docs/roadmap.md` — milestones · `docs/backlog.md` — issue-level priority
 - `docs/sessions/INDEX.md` — what was built and when
 - `PRIVATE_context.md` — account names, vehicle profiles (gitignored)

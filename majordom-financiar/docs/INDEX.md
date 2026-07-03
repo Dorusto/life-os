@@ -5,7 +5,7 @@
 | Task type | Read first |
 |-----------|-----------|
 | Bug in backend/api/ or core/ | `docs/architecture.md#critical-rules` + `docs/sessions/` (grep topic) |
-| New feature | `docs/roadmap.md` (current milestone) + `docs/architecture.md#main-flows` |
+| New feature | `docs/roadmap.md` (current milestone) + `docs/backlog.md` (issue priority) + `docs/architecture.md#main-flows` |
 | Refactor | `docs/decisions.md` + `docs/architecture.md` |
 | Tool calling / chat | `docs/learn/10-chat-tools.md` + `docs/architecture.md#critical-rules` |
 | CSV import | `docs/learn/07-csv-import.md` |
@@ -39,7 +39,7 @@
 
 ## Quick reference
 
-- **What's next to build** → `docs/roadmap.md`
+- **What's next to build** → `docs/backlog.md` (issue priority) · `docs/roadmap.md` (milestones)
 - **Why was X decided this way** → `docs/decisions.md`
 - **What did we fix last week** → `docs/sessions/INDEX.md`
 - **Critical rules (never break)** → `docs/architecture.md#critical-technical-rules`

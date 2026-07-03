@@ -101,10 +101,10 @@ majordom-financiar/
 │       └── config/          ← settings.py
 │
 ├── scripts/prompts/         ← DeepSeek task prompts (one .md per task)
-├── docs/                    ← This documentation
+├── docs/                    ← This documentation (roadmap.md = milestones, backlog.md = issue priority)
 ├── ARCHITECTURE.md          ← Redirect → docs/architecture.md
 ├── ROADMAP.md               ← Redirect → docs/roadmap.md
-└── CLAUDE.md                ← Claude Code instructions (gitignored)
+└── CLAUDE.md                ← Claude Code instructions (tracked, no private data)
 ```
 
 ---

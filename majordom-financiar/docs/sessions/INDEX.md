@@ -62,3 +62,4 @@
 | [W27](2026-W27.md) | 2026-07-03 | #98: tool domain routing — 34 tools prefixed finance__/vehicle__/system__, system prompt restructured | tools/registry.py, api/chat.py, docs/decisions.md, docs/architecture.md |
 | [W27](2026-W27.md) | 2026-07-03 | #137: stop persisting empty assistant responses to chat history | pages/Chat.tsx |
 | [W27](2026-W27.md) | 2026-07-03 | Backlog triage + #99 audit: fixed pending_review SQLite violation, discovered majordom-api build-vs-restart trap | core/memory/database.py, api/csv_import.py, docs/architecture.md, docs/decisions.md, docs/roadmap.md |
+| [W27](2026-W27.md) | 2026-07-03 | Doc cleanup: split docs/backlog.md out of roadmap.md, tracked root CLAUDE.md in git | docs/roadmap.md, docs/backlog.md, docs/INDEX.md, CLAUDE.md (both), .gitignore |

@@ -8,6 +8,8 @@ A practical guide for opening a new Claude session and getting to work efficient
 
 Open `docs/roadmap.md`. Find the **current milestone** (the first one without ✅). Within that milestone, pick the first unfinished item. If everything in the milestone is done, the milestone is complete — move to the next.
 
+For day-to-day issue-level work (most sessions in practice), check `docs/backlog.md` instead — it's the tactical, frequently-reprioritized list (Tier 0-3, proactive-intelligence cluster, deferred items), organized by actual priority rather than milestone order.
+
 If you have a bug reported or something broken: that takes priority over roadmap items.
 
 If you have multiple candidates and aren't sure which to pick: ask Claude — "I have these 3 options, which unblocks the most?"
@@ -93,7 +95,7 @@ When the task works and you're satisfied:
 2. Claude will:
    - Commit with correct timestamp
    - Close the GitHub issue
-   - Update `docs/roadmap.md`
+   - Update `docs/roadmap.md` (milestone item) or `docs/backlog.md` (backlog issue)
    - Add entry to `docs/sessions/YYYY-WNN.md`
    - Update `docs/sessions/INDEX.md`
 3. You verify the commit message looks right
