@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 
 # Manual/CSV-only accounts expected to get regular imports — opt-in only,
 # see get_pending_items()'s account-staleness check for why.
-_CSV_STALENESS_WATCHLIST = {"Bitvavo Crypto"}
+_CSV_STALENESS_WATCHLIST = {"Bitvavo Crypto", "Crypto card"}
 
 
 async def _save_to_chat_history(body: str, db: MemoryDB) -> None:
