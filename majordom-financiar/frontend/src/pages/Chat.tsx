@@ -15,6 +15,7 @@ import ReconciliationCard from '../components/ReconciliationCard'
 import ReceiptCard from '../components/ReceiptCard'
 import FuelReceiptCard from '../components/FuelReceiptCard'
 import CategoryActionCard from '../components/CategoryActionCard'
+import BudgetCopyCard from '../components/BudgetCopyCard'
 import GoalProposalCard, { GoalProposalData } from '../components/GoalProposalCard'
 import VehicleLogActionCard from '../components/VehicleLogActionCard'
 import VehicleReminderCard from '../components/VehicleReminderCard'
@@ -678,6 +679,24 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                       i === idx
                         ? { role: 'status' as const, content: 'Cancelled.' }
                         : m
+                    )
+                  )
+                }}
+              />
+            ) : msg.role === 'category_action' && msg.categoryAction?.action === 'budget_copy' ? (
+              <BudgetCopyCard
+                data={msg.categoryAction}
+                onConfirmed={(message) => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx ? { role: 'status' as const, content: message } : m
+                    )
+                  )
+                }}
+                onCancelled={() => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx ? { role: 'status' as const, content: 'Cancelled.' } : m
                     )
                   )
                 }}

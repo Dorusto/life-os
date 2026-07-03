@@ -95,6 +95,13 @@ async def lifespan(app: FastAPI):
                 config={},
             )
             logger.info("Default notification rule seeded: goal_risk")
+        if not db.get_notification_rule("budget_copy_nudge"):
+            db.upsert_notification_rule(
+                rule_type="budget_copy_nudge",
+                enabled=True,
+                config={},
+            )
+            logger.info("Default notification rule seeded: budget_copy_nudge")
     except Exception as _e:
         logger.warning("Could not seed built-in CSV profiles: %s", _e)
     try:

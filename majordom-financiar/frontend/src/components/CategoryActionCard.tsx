@@ -50,13 +50,23 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const isSetupGroups = data.action === 'setup_groups'
   const isSetBudget = data.action === 'set_budget'
   const isCategorizeWithRule = data.action === 'categorize_with_rule'
+  const isSetBudgetCarryover = data.action === 'set_budget_carryover'
 
   return (
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
       <div>
         <p className="text-white font-medium">
-          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetupGroups ? 'Create standard groups?' : isSetBudget ? 'Set budget amount?' : isCategorizeWithRule ? 'Categorize transactions?' : 'Rename category?'}
+          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetupGroups ? 'Create standard groups?' : isSetBudget ? 'Set budget amount?' : isCategorizeWithRule ? 'Categorize transactions?' : isSetBudgetCarryover ? `${data.enabled ? 'Enable' : 'Disable'} rollover overspending?` : 'Rename category?'}
         </p>
+        {isSetBudgetCarryover && (
+          <p className="text-muted text-sm mt-0.5">
+            <span className="text-white">{data.category_name}</span>
+            {' · '}{data.month}
+            {' — '}{data.enabled
+              ? 'negative balances will carry over and reduce next month\'s available budget'
+              : 'balances will reset to zero each month as usual'}
+          </p>
+        )}
         {isSetupGroups && (
           <p className="text-muted text-xs mt-1">{data.preview}</p>
         )}
@@ -85,7 +95,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
             ))}
           </div>
         )}
-        {!isDelete && !isCreate && !isSetBudget && !isCategorizeWithRule && (
+        {!isDelete && !isCreate && !isSetBudget && !isCategorizeWithRule && !isSetBudgetCarryover && (
           <p className="text-muted text-sm mt-0.5">
             <span className="text-white">{data.category_name}</span>
             {' → '}
@@ -216,7 +226,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
           }`}
         >
           <Check size={14} />
-          {isDelete ? 'Delete' : isCreate ? 'Create' : isSetupGroups ? 'Create all' : isSetBudget ? 'Set budget' : isCategorizeWithRule ? 'Categorize' : 'Rename'}
+          {isDelete ? 'Delete' : isCreate ? 'Create' : isSetupGroups ? 'Create all' : isSetBudget ? 'Set budget' : isCategorizeWithRule ? 'Categorize' : isSetBudgetCarryover ? 'Confirm' : 'Rename'}
         </button>
         <button
           onClick={handleCancel}

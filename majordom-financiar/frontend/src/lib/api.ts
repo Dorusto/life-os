@@ -716,7 +716,7 @@ export async function cancelBalanceAdjustment(id: string): Promise<void> {
 
 export interface CategoryActionData {
   id: string
-  action: 'rename' | 'delete' | 'create' | 'setup_groups' | 'set_budget' | 'categorize_with_rule'
+  action: 'rename' | 'delete' | 'create' | 'setup_groups' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover'
   category_name: string
   new_name?: string
   group_name?: string
@@ -735,11 +735,18 @@ export interface CategoryActionData {
   transactions?: { date: string; amount: number; notes: string }[]
   rule_prefix?: string
   is_consistent?: boolean
+  // budget_copy fields:
+  target_month?: string
+  source_month?: string
+  categories?: { category_id: string; category_name: string; group_name: string; amount: number }[]
+  excluded_templates?: string[]
+  // set_budget_carryover fields:
+  enabled?: boolean
 }
 
 export async function confirmCategoryAction(
   id: string,
-  override?: { target?: number; deadline?: string | null; category_name?: string; group_name?: string; amount?: number; payee?: string; create_rule?: boolean }
+  override?: { target?: number; deadline?: string | null; category_name?: string; group_name?: string; amount?: number; payee?: string; create_rule?: boolean; category_amounts?: Record<string, number> }
 ): Promise<{ message: string }> {
   return request(`/category-actions/${id}/confirm`, {
     method: 'POST',

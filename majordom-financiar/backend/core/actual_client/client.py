@@ -315,10 +315,19 @@ class ActualBudgetClient:
 
                 try:
                     from sqlalchemy import text as _text
-                    # Try zero_budgets table first
+                    # Try zero_budgets table first. Filter by the `month`
+                    # column, NOT `id LIKE '{yyyymm}%'` — actualpy's own
+                    # create_budget() generates a random UUID `id` for new
+                    # rows (only rows created some other way follow the
+                    # "{month}-{category_id}" id convention), so an id-prefix
+                    # filter silently misses any budget set via Majordom's
+                    # own tools. Confirmed live: a Transport budget written
+                    # through set_budget_amount() was invisible to this query
+                    # under the old id-prefix filter despite existing in the
+                    # table with month=202607.
                     rows = actual.session.execute(
-                        _text("SELECT category, amount FROM zero_budgets WHERE id LIKE :prefix"),
-                        {"prefix": f"{yyyymm}%"},
+                        _text("SELECT category, amount FROM zero_budgets WHERE month = :yyyymm"),
+                        {"yyyymm": yyyymm},
                     ).fetchall()
                     for row in rows:
                         cat_id = str(row[0]) if row[0] else ""
@@ -335,8 +344,8 @@ class ActualBudgetClient:
                         from sqlalchemy import text as _text
                         # Fallback: reflect_budgets table
                         rows = actual.session.execute(
-                            _text("SELECT category, amount FROM reflect_budgets WHERE id LIKE :prefix"),
-                            {"prefix": f"{yyyymm}%"},
+                            _text("SELECT category, amount FROM reflect_budgets WHERE month = :yyyymm"),
+                            {"yyyymm": yyyymm},
                         ).fetchall()
                         for row in rows:
                             cat_id = str(row[0]) if row[0] else ""
@@ -808,9 +817,12 @@ class ActualBudgetClient:
 
                 try:
                     from sqlalchemy import text as _text
+                    # Filter by `month`, not `id LIKE` — see the comment in
+                    # get_budget_status() for why the id-prefix filter misses
+                    # budgets written through Majordom's own tools.
                     rows = actual.session.execute(
-                        _text("SELECT category, amount FROM zero_budgets WHERE id LIKE :prefix"),
-                        {"prefix": f"{yyyymm}%"},
+                        _text("SELECT category, amount FROM zero_budgets WHERE month = :yyyymm"),
+                        {"yyyymm": yyyymm},
                     ).fetchall()
                     for row in rows:
                         cat_id = str(row[0]) if row[0] else ""
@@ -820,8 +832,8 @@ class ActualBudgetClient:
                     try:
                         from sqlalchemy import text as _text
                         rows = actual.session.execute(
-                            _text("SELECT category, amount FROM reflect_budgets WHERE id LIKE :prefix"),
-                            {"prefix": f"{yyyymm}%"},
+                            _text("SELECT category, amount FROM reflect_budgets WHERE month = :yyyymm"),
+                            {"yyyymm": yyyymm},
                         ).fetchall()
                         for row in rows:
                             cat_id = str(row[0]) if row[0] else ""
@@ -1826,6 +1838,92 @@ class ActualBudgetClient:
                 return count
         return await self._run(_update)
 
+    async def get_budget_copy_source(self, month: int, year: int) -> dict:
+        """
+        Fetch per-category budgeted amounts for `month`/`year`, for the "copy
+        last month's budget" flow (#87). Excludes:
+        - Income categories (only expense categories get copied)
+        - Goal-template categories — detected via "#template" in the
+          category's Notes entry. (Categories.goal_def/template_settings
+          looked like they might also signal this — verified live they
+          don't: template_settings defaults to {'source': 'notes'} on every
+          category regardless, not a usable flag.) Blindly copying a fixed
+          amount onto a category that already has its own goal template
+          double-budgets it every month instead of tracking toward the goal
+          (the exact bug in #125 — Dolomiti received the full €2000 again
+          each month via repeated copy).
+
+        Returns {"categories": [{category_id, category_name, group_name,
+        amount}], "excluded_templates": [category_name, ...]}.
+        """
+        def _get():
+            import calendar
+            from collections import defaultdict
+            from actual.queries import get_categories
+            from actual.database import Notes
+
+            yyyymm = year * 100 + month
+            with self._get_actual() as actual:
+                actual.download_budget()
+
+                all_cats = get_categories(actual.session)
+                notes_by_id = {
+                    str(n.id): (n.note or "")
+                    for n in actual.session.query(Notes).all()
+                }
+
+                budget_by_category: dict[str, float] = defaultdict(float)
+                try:
+                    from sqlalchemy import text as _text
+                    # Filter by `month`, not `id LIKE` — see get_budget_status().
+                    rows = actual.session.execute(
+                        _text("SELECT category, amount FROM zero_budgets WHERE month = :yyyymm"),
+                        {"yyyymm": yyyymm},
+                    ).fetchall()
+                    for row in rows:
+                        if row[0]:
+                            budget_by_category[str(row[0])] += float(row[1] or 0) / 100
+                except Exception:
+                    try:
+                        from sqlalchemy import text as _text
+                        rows = actual.session.execute(
+                            _text("SELECT category, amount FROM reflect_budgets WHERE month = :yyyymm"),
+                            {"yyyymm": yyyymm},
+                        ).fetchall()
+                        for row in rows:
+                            if row[0]:
+                                budget_by_category[str(row[0])] += float(row[1] or 0) / 100
+                    except Exception:
+                        pass
+
+                categories = []
+                excluded_templates = []
+                for cat in all_cats:
+                    if not cat.id or cat.hidden or getattr(cat, "is_income", False):
+                        continue
+                    cat_id = str(cat.id)
+                    note_text = notes_by_id.get(cat_id, "")
+                    # goal_def/template_settings are NOT reliable signals here —
+                    # verified live that template_settings defaults to
+                    # {'source': 'notes'} on every category regardless of
+                    # whether it actually has a goal template. The #template
+                    # text convention in Notes is the only real signal.
+                    has_template = "#template" in note_text.lower()
+                    if has_template:
+                        excluded_templates.append(cat.name or "Unknown")
+                        continue
+                    categories.append({
+                        "category_id": cat_id,
+                        "category_name": cat.name or "Unknown",
+                        "group_name": cat.group.name if cat.group else "Unexpected",
+                        "amount": round(budget_by_category.get(cat_id, 0.0), 2),
+                    })
+
+                categories.sort(key=lambda c: (c["group_name"], c["category_name"]))
+                return {"categories": categories, "excluded_templates": excluded_templates}
+
+        return await self._run(_get)
+
     async def set_budget_amount(
         self,
         category_name: str,
@@ -1852,4 +1950,31 @@ class ActualBudgetClient:
                 actual.commit()
                 return {"category_name": category_name, "old_amount": old_amount, "new_amount": new_amount}
 
+        return await self._run(_set)
+
+    async def set_budget_carryover(self, category_name: str, month: date, enabled: bool) -> bool:
+        """
+        Toggle "Rollover Overspending" for a category in a given month — the
+        same `carryover` field on ZeroBudgets/ReflectBudgets that AB's own UI
+        writes (click Balance -> Cover overspending / roll over).
+
+        actualpy's create_budget(carryover=...) only applies that value when
+        creating a brand-new budget row — if a budget already exists for the
+        month (the common case, e.g. right after #87's copy), the carryover
+        kwarg is silently ignored. Set the field directly on the existing
+        row instead of relying on that.
+        """
+        def _set():
+            from actual.queries import get_budget, get_category, create_budget
+            with self._get_actual() as actual:
+                actual.download_budget()
+                cat = get_category(actual.session, category_name)
+                if not cat:
+                    raise ValueError(f"Category not found: {category_name}")
+                budget = get_budget(actual.session, month, cat)
+                if not budget:
+                    budget = create_budget(actual.session, month, cat, amount=0.0, carryover=enabled)
+                budget.carryover = int(enabled)
+                actual.commit()
+                return True
         return await self._run(_set)

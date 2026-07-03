@@ -124,7 +124,7 @@ def _build_headers() -> dict[str, str]:
     return headers
 
 
-_PROPOSAL_TOOLS = {"propose_transaction", "propose_budget_rebalance", "propose_account_transfer", "propose_clarification", "propose_balance_adjustment", "rename_category", "delete_category", "set_account_goal", "create_category", "setup_default_groups", "log_refuel", "delete_vehicle_log_entry", "set_vehicle_reminder", "set_service_interval", "propose_set_category_budget", "propose_categorize_with_rule", "get_spending_chart", "get_budget_chart", "get_spending_trend", "get_goals_chart"}
+_PROPOSAL_TOOLS = {"propose_transaction", "propose_budget_rebalance", "propose_account_transfer", "propose_clarification", "propose_balance_adjustment", "rename_category", "delete_category", "set_account_goal", "create_category", "setup_default_groups", "log_refuel", "delete_vehicle_log_entry", "set_vehicle_reminder", "set_service_interval", "propose_set_category_budget", "propose_categorize_with_rule", "propose_budget_copy", "propose_set_budget_carryover", "get_spending_chart", "get_budget_chart", "get_spending_trend", "get_goals_chart"}
 
 
 

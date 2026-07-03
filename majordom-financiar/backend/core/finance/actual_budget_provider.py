@@ -117,6 +117,12 @@ class ActualBudgetProvider:
             category_name, new_amount, month
         )
 
+    async def get_budget_copy_source(self, month: int, year: int) -> dict:
+        return await self._client().get_budget_copy_source(month, year)
+
+    async def set_budget_carryover(self, category_name: str, month: date, enabled: bool) -> bool:
+        return await self._client().set_budget_carryover(category_name, month, enabled)
+
     async def count_uncategorized(self) -> int:
         return await self._client().count_uncategorized()
 

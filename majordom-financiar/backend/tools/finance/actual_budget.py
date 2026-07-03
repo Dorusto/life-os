@@ -696,6 +696,113 @@ async def propose_set_category_budget(
     })
 
 
+async def propose_set_budget_carryover(category_name: str, enabled: bool, month: str = "") -> str:
+    """
+    Propose enabling/disabling "Rollover Overspending" for a category in a
+    given month (default: current month) — AB's carryover field, the same
+    thing the user would toggle by clicking a category's Balance in the AB
+    UI. Returns a confirmation card — does NOT write to Actual Budget yet.
+    """
+    import json
+    import uuid
+    from difflib import get_close_matches
+    from datetime import date as _date
+    from backend.tools import category_actions as action_store
+
+    today = _date.today()
+    if month:
+        try:
+            year, m = int(month[:4]), int(month[5:7])
+            target_month = _date(year, m, 1)
+        except (ValueError, IndexError):
+            target_month = today.replace(day=1)
+    else:
+        target_month = today.replace(day=1)
+
+    client = get_provider()
+    cats = await client.get_categories()
+    cat_names = [c.name for c in cats]
+    exact = next((n for n in cat_names if n.lower() == category_name.lower()), None)
+    resolved = exact or (get_close_matches(category_name, cat_names, n=1, cutoff=0.6) or [None])[0]
+    if not resolved:
+        return json.dumps({
+            "type": "error",
+            "message": f"Category not found: {category_name!r}. Available: {', '.join(cat_names)}",
+        })
+
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {
+        "action": "set_budget_carryover",
+        "category_name": resolved,
+        "enabled": enabled,
+        "month": target_month.isoformat(),
+    })
+    return json.dumps({
+        "type": "category_action",
+        "id": action_id,
+        "action": "set_budget_carryover",
+        "category_name": resolved,
+        "enabled": enabled,
+        "month": target_month.strftime("%Y-%m"),
+    })
+
+
+async def propose_budget_copy(month: str = "") -> str:
+    """
+    Propose copying last month's budget amounts into the target month
+    (default: current month). Returns a confirmation card listing every
+    expense category with its amount, pre-filled and editable — does NOT
+    write to Actual Budget yet.
+
+    Goal-template categories (annual/one-off goals like a trip fund) are
+    automatically excluded — blindly copying a fixed amount onto a category
+    that already tracks toward its own goal template would double-budget it
+    every month instead of letting the template calculate what's still
+    needed (see issue #125).
+    """
+    import json
+    import uuid
+    from datetime import date as _date
+    from backend.tools import category_actions as action_store
+
+    today = _date.today()
+    if month:
+        try:
+            year, m = int(month[:4]), int(month[5:7])
+        except (ValueError, IndexError):
+            year, m = today.year, today.month
+    else:
+        year, m = today.year, today.month
+
+    if m == 1:
+        prev_year, prev_month = year - 1, 12
+    else:
+        prev_year, prev_month = year, m - 1
+
+    client = get_provider()
+    source = await client.get_budget_copy_source(prev_month, prev_year)
+
+    if not source["categories"]:
+        return json.dumps({"type": "error", "message": "No expense categories found to copy."})
+
+    target_month_str = f"{year:04d}-{m:02d}"
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {
+        "action": "budget_copy",
+        "target_month": target_month_str,
+        "categories": source["categories"],
+    })
+    return json.dumps({
+        "type": "category_action",
+        "id": action_id,
+        "action": "budget_copy",
+        "target_month": target_month_str,
+        "source_month": f"{prev_year:04d}-{prev_month:02d}",
+        "categories": source["categories"],
+        "excluded_templates": source["excluded_templates"],
+    })
+
+
 async def setup_default_groups() -> str:
     """Propose creating the 7 standard category groups (Housing, Daily Living, Transport, Health, Lifestyle, Finance, Unexpected) with their default subcategories. Only creates groups/categories that don't already exist."""
     import uuid

@@ -379,6 +379,55 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "propose_set_budget_carryover",
+            "description": (
+                "Propose enabling or disabling 'Rollover Overspending' for a category — the same "
+                "toggle available in the Actual Budget UI by clicking a category's Balance. When "
+                "enabled, a negative balance (overspending) carries over and reduces next month's "
+                "available budget for that category, instead of resetting to zero. Use when the "
+                "user asks to 'enable rollover on X', 'turn on overspending carryover for X', or "
+                "similar. A confirmation card appears — nothing is written until the user confirms."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "category_name": {"type": "string", "description": "The budget category name."},
+                    "enabled": {"type": "boolean", "description": "True to enable rollover, false to disable."},
+                    "month": {"type": "string", "description": "Month in YYYY-MM format. Omit for current month."},
+                },
+                "required": ["category_name", "enabled"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "propose_budget_copy",
+            "description": (
+                "Propose copying last month's budget amounts into a target month (default: "
+                "current month). Use when the user asks to 'copy last month's budget', 'set up "
+                "this month's budget the same as last month', or similar — this replicates what "
+                "'Copy last month's budget' would do in the Actual Budget UI, without the user "
+                "ever opening it. Returns a card listing every expense category with an editable "
+                "amount, pre-filled from last month — nothing is written until the user confirms. "
+                "Goal-template categories (annual/one-off funds) are automatically excluded from "
+                "the copy, shown separately on the card."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "month": {
+                        "type": "string",
+                        "description": "Target month in YYYY-MM format. Omit for current month.",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "rename_category",
             "description": (
                 "Rename an existing budget category. "
@@ -746,6 +795,14 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "propose_set_category_budget":
         from backend.tools.finance.actual_budget import propose_set_category_budget
         return await propose_set_category_budget(**arguments)
+
+    if name == "propose_budget_copy":
+        from backend.tools.finance.actual_budget import propose_budget_copy
+        return await propose_budget_copy(**arguments)
+
+    if name == "propose_set_budget_carryover":
+        from backend.tools.finance.actual_budget import propose_set_budget_carryover
+        return await propose_set_budget_carryover(**arguments)
 
     if name == "rename_category":
         from backend.tools.finance.actual_budget import rename_category

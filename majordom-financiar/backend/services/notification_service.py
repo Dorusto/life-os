@@ -528,6 +528,47 @@ async def _check_goal_risk(db: MemoryDB) -> str | None:
     return "\n".join(at_risk)
 
 
+async def _check_budget_copy_nudge(db: MemoryDB) -> str | None:
+    """
+    Early in the month, nudge to copy last month's budget if the current
+    month's budget looks unset (issue #87's proactive variant — the base
+    tool is request-only by design, this is a separate opt-in nudge).
+    """
+    rule = db.get_notification_rule("budget_copy_nudge")
+    if not rule or not rule["enabled"]:
+        return None
+
+    today = date.today()
+    if today.day > 5:
+        return None
+
+    last = db.get_last_notification("budget_copy_nudge")
+    if last and last["sent_at"][:7] == today.isoformat()[:7]:
+        return None
+
+    try:
+        client = get_provider()
+        if today.month == 1:
+            prev_year, prev_month = today.year - 1, 12
+        else:
+            prev_year, prev_month = today.year, today.month - 1
+
+        prev_source = await client.get_budget_copy_source(prev_month, prev_year)
+        prev_total = sum(c["amount"] for c in prev_source["categories"])
+        if prev_total == 0:
+            return None  # nothing to copy anyway
+
+        current_source = await client.get_budget_copy_source(today.month, today.year)
+        current_total = sum(c["amount"] for c in current_source["categories"])
+        if current_total > 0:
+            return None  # already set up
+    except Exception as e:
+        logger.warning("Budget copy nudge check failed: %s", e)
+        return None
+
+    return "New month, budget looks empty — say 'copy last month's budget' to carry over last month's amounts."
+
+
 # ---------------------------------------------------------------------------
 # Main orchestrator — one push per day with everything bundled
 # ---------------------------------------------------------------------------
@@ -568,17 +609,23 @@ async def run_daily_digest():
         if uncategorized_text:
             parts.append(f"🏷️ {uncategorized_text}")
 
+        # Vehicle/income-variance/goal-risk texts already carry their own
+        # per-line emoji (⚠️/🚗/🏍️/🎯) — no external prefix, would double up.
         vehicle_alerts = _check_vehicle_reminders(db)
         for text, _, _ in vehicle_alerts:
-            parts.append(f"🚗 {text}")
+            parts.append(text)
 
         income_variance_text = await _check_income_variance(db)
         if income_variance_text:
-            parts.append(f"💰 {income_variance_text}")
+            parts.append(income_variance_text)
 
         goal_risk_text = await _check_goal_risk(db)
         if goal_risk_text:
-            parts.append(f"🎯 {goal_risk_text}")
+            parts.append(goal_risk_text)
+
+        budget_copy_nudge_text = await _check_budget_copy_nudge(db)
+        if budget_copy_nudge_text:
+            parts.append(f"📋 {budget_copy_nudge_text}")
 
         if not parts:
             logger.debug("No content for daily digest today")
@@ -629,6 +676,9 @@ async def run_daily_digest():
 
         if goal_risk_text:
             db.log_notification("goal_risk", {})
+
+        if budget_copy_nudge_text:
+            db.log_notification("budget_copy_nudge", {})
 
         logger.info("Daily digest sent — %d part(s): %s", len(parts), " | ".join(p[:40] for p in parts))
 

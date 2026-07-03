@@ -24,6 +24,7 @@ class GoalOverride(BaseModel):
     amount: float | None = None
     payee: str | None = None
     create_rule: bool | None = None
+    category_amounts: dict[str, float] | None = None  # budget_copy: category_id -> edited amount
 
 
 @router.post("/category-actions/{action_id}/confirm")
@@ -127,6 +128,30 @@ async def confirm_category_action(
                     else " No rule created — payee history is inconsistent (same payee was categorized differently before)."
                 )
             )
+        elif action["action"] == "budget_copy":
+            from datetime import date as _date
+            target_month_str = action["target_month"]
+            year, mth = int(target_month_str[:4]), int(target_month_str[5:7])
+            target_month = _date(year, mth, 1)
+            overrides = override.category_amounts or {}
+            updated = 0
+            for cat in action["categories"]:
+                final_amount = overrides.get(cat["category_id"], cat["amount"])
+                await client.set_budget_amount(
+                    category_name=cat["category_name"],
+                    new_amount=final_amount,
+                    month=target_month,
+                )
+                updated += 1
+            message = f"Budget copied to {target_month_str} — {updated} categories set."
+        elif action["action"] == "set_budget_carryover":
+            from datetime import date as _date
+            cat_name = override.category_name or action["category_name"]
+            enabled = action["enabled"]
+            month_str = action["month"]
+            target_month = _date.fromisoformat(month_str)
+            await client.set_budget_carryover(cat_name, target_month, enabled)
+            message = f"Rollover overspending {'enabled' if enabled else 'disabled'} for '{cat_name}' ({month_str[:7]})."
         else:
             raise HTTPException(status_code=400, detail=f"Unknown action: {action['action']}")
     except ValueError as e:
