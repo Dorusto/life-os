@@ -232,18 +232,21 @@ async def get_vehicle_log(vehicle_name: str = "", limit: int = 10) -> str:
     Includes entry ID so the user can reference entries for deletion.
     """
     client = _get_client()
-    vehicles = await client.list_vehicles(active_only=True)
 
-    if not vehicles:
-        return "No vehicles found."
-
+    # An explicit name may refer to a retired/inactive vehicle — search all of
+    # them so past data stays reachable for analysis. No name given means
+    # "which of my current cars", so that stays active-only.
     if vehicle_name:
+        vehicles = await client.list_vehicles(active_only=False)
         matched = next((v for v in vehicles if vehicle_name.lower() in v["name"].lower()), None)
         if not matched:
             return f"No vehicle found matching '{vehicle_name}'."
         display_name = matched["name"]
         vehicle_id = matched["id"]
     else:
+        vehicles = await client.list_vehicles(active_only=True)
+        if not vehicles:
+            return "No vehicles found."
         if len(vehicles) > 1:
             names = ", ".join(v["name"] for v in vehicles)
             return f"Multiple vehicles: {names}. Specify which one."
@@ -305,16 +308,21 @@ async def get_vehicle_stats(vehicle_name: str = "", period: str = "") -> str:
     Returns a formatted text summary.
     """
     client = _get_client()
-    vehicles = await client.list_vehicles(active_only=True)
 
-    if not vehicles:
-        return "No vehicles found. Import your Fuelio history first."
-
+    # An explicit name may refer to a retired/inactive vehicle — search all of
+    # them so past data stays reachable for analysis. No name given means
+    # "which of my current cars", so that stays active-only.
     if vehicle_name:
+        vehicles = await client.list_vehicles(active_only=False)
+        if not vehicles:
+            return "No vehicles found. Import your Fuelio history first."
         matched = next((v for v in vehicles if vehicle_name.lower() in v["name"].lower()), None)
         if not matched:
             return f"No vehicle found matching '{vehicle_name}'."
     else:
+        vehicles = await client.list_vehicles(active_only=True)
+        if not vehicles:
+            return "No vehicles found. Import your Fuelio history first."
         if len(vehicles) > 1:
             names = ", ".join(v["name"] for v in vehicles)
             return f"Multiple vehicles found: {names}. Specify which one."
