@@ -146,6 +146,14 @@ After connecting, note the Tailscale IP of the LXC (e.g. `100.x.x.x`) or use you
 > ```
 > Leave the terminal open and open `http://localhost:5007` — localhost counts as a secure context.
 
+**Debug tools (sqlite-web) need their own `tailscale serve` entry per port.** The `sqlite-web` containers (`memory.db` on 8888, `vehicle-manager`'s DB on 8889) have no TLS of their own — browsers connecting over `https://<tailnet-name>:<port>` will fail with `SSL_ERROR_RX_RECORD_TOO_LONG` unless Tailscale terminates HTTPS for that exact port. This is configured per port, not once for the whole domain — adding a new debug port later needs its own line:
+
+```bash
+sudo tailscale serve --bg --https=8889 http://127.0.0.1:8889
+```
+
+Check current mappings with `tailscale serve status`. As of this writing: `:443` → majordom-web (3000), `:8888` → sqlite-web/memory.db, `:8889` → sqlite-web/vehicle-manager.
+
 ### 7. Set up Actual Budget
 
 1. Open `http://<LXC-Tailscale-IP>:5006` in your browser
