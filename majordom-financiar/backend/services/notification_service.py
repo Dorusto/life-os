@@ -14,7 +14,7 @@ import json
 import logging
 import sqlite3
 import time as time_module
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 import httpx
 
@@ -802,45 +802,5 @@ async def get_pending_items() -> list[dict]:
             })
     except Exception as e:
         logger.warning("get_pending_items: vehicle reminders check failed: %s", e)
-
-    # Account staleness — split by account type. Bank-linked accounts should
-    # sync automatically; if last_sync is >24h old something's actually
-    # wrong and a manual resync helps. Manual/CSV-only accounts have no
-    # auto-sync at all, so the bar is a week without a fresh import instead.
-    try:
-        client = get_provider()
-        accounts = await client.get_account_sync_status()
-        now = datetime.now()
-        for acc in accounts:
-            if acc["sync_source"]:
-                last_sync = acc.get("last_sync")
-                stale = True
-                if last_sync:
-                    try:
-                        last_sync_dt = datetime.fromisoformat(last_sync)
-                        stale = (now - last_sync_dt) > timedelta(hours=24)
-                    except ValueError:
-                        stale = True
-                if stale:
-                    items.append({
-                        "type": "bank_sync_stale",
-                        "text": f"{acc['name']} hasn't synced in over 24h",
-                        "prompt": f"resync {acc['name']}",
-                    })
-            else:
-                most_recent = acc.get("most_recent_transaction_date")
-                if most_recent:
-                    try:
-                        days_since = (date.today() - date.fromisoformat(most_recent)).days
-                        if days_since >= 7:
-                            items.append({
-                                "type": "csv_stale",
-                                "text": f"{acc['name']} — no new transactions imported in {days_since} days",
-                                "prompt": f"let's import recent transactions for {acc['name']}",
-                            })
-                    except ValueError:
-                        pass
-    except Exception as e:
-        logger.warning("get_pending_items: account staleness check failed: %s", e)
 
     return items
