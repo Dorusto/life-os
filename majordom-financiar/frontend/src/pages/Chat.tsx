@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Send, Plus, Camera, Image, FileText, HelpCircle, X, Trash2 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, saveChatHistory, clearChatHistory, proposeSavingsBudget, type SetupAccount, type BalanceAdjustmentData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type FuelConfirmResponse, type VehicleLogActionData, type VehicleReminderData } from '../lib/api'
+import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, saveChatHistory, clearChatHistory, proposeSavingsBudget, type SetupAccount, type BalanceAdjustmentData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type FuelConfirmResponse, type VehicleLogActionData, type VehicleReminderData, type VehicleStatusData } from '../lib/api'
 import CsvImportCard from '../components/CsvImportCard'
 import FuelioImportCard, { FuelioImportData } from '../components/FuelioImportCard'
 import ProposalCard, { ProposalData } from '../components/ProposalCard'
@@ -20,6 +20,7 @@ import BudgetCopyCard from '../components/BudgetCopyCard'
 import GoalProposalCard, { GoalProposalData } from '../components/GoalProposalCard'
 import VehicleLogActionCard from '../components/VehicleLogActionCard'
 import VehicleReminderCard from '../components/VehicleReminderCard'
+import VehicleStatusCard from '../components/VehicleStatusCard'
 import SpendingChart from '../components/SpendingChart'
 import BudgetChart from '../components/BudgetChart'
 import TrendChart from '../components/TrendChart'
@@ -29,7 +30,7 @@ import type { MonthlyStats } from '../lib/api'
 
 
 export interface Message {
-  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'fuelio_import' | 'income_source' | 'reconciliation' | 'receipt' | 'category_action' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder' | 'spending_chart' | 'budget_chart' | 'spending_trend' | 'goals_chart'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'fuelio_import' | 'income_source' | 'reconciliation' | 'receipt' | 'category_action' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder' | 'vehicle_status' | 'spending_chart' | 'budget_chart' | 'spending_trend' | 'goals_chart'
 
   content: string
   ts?: number
@@ -63,6 +64,7 @@ export interface Message {
   fuelLog?: { draft: ReceiptDraft; fuelStats?: FuelConfirmResponse }
   vehicleLogAction?: VehicleLogActionData
   vehicleReminder?: VehicleReminderData
+  vehicleStatus?: VehicleStatusData
   budgetChartData?: { categories: {name: string, budgeted: number, spent: number, percentage: number}[], month: number, year: number }
   trendData?: { months: {month: number, year: number, label: string, total: number, income: number}[] }
   goalsChartData?: { goals: any[] }
@@ -432,6 +434,10 @@ export default function Chat({ messages, setMessages }: ChatProps) {
         }
         if (parsed.type === 'vehicle_reminder') {
           setMessages(prev => [...prev, { role: 'vehicle_reminder' as const, content: '', vehicleReminder: parsed as VehicleReminderData }])
+          return
+        }
+        if (parsed.type === 'vehicle_status') {
+          setMessages(prev => [...prev, { role: 'vehicle_status' as const, content: '', vehicleStatus: parsed as VehicleStatusData }])
           return
         }
         if (parsed.type === 'spending_chart') {
@@ -839,6 +845,24 @@ export default function Chat({ messages, setMessages }: ChatProps) {
             ) : msg.role === 'vehicle_reminder' && msg.vehicleReminder ? (
               <VehicleReminderCard
                 data={msg.vehicleReminder}
+                onConfirmed={(message) => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx ? { role: 'status' as const, content: message } : m
+                    )
+                  )
+                }}
+                onCancelled={() => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx ? { role: 'status' as const, content: 'Cancelled.' } : m
+                    )
+                  )
+                }}
+              />
+            ) : msg.role === 'vehicle_status' && msg.vehicleStatus ? (
+              <VehicleStatusCard
+                data={msg.vehicleStatus}
                 onConfirmed={(message) => {
                   setMessages(prev =>
                     prev.map((m, i) =>

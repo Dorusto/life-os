@@ -390,6 +390,8 @@ life-os/
 
 **Done (2026-07-03):** Extraction complete — `tools/vehicle-manager/` (own SQLite, REST API, Fuelio CSV parser, migration script) is the source of truth for `vehicles`/`vehicle_log`; `MemoryDB`'s vehicle tables/methods and `fuelio_import.py`'s local CSV parsing are deleted. `backend/tools/finance/vehicle.py` is now a thin HTTP client (`backend/core/vehicle_client/`). Delegated to DeepSeek in two prompts (`scripts/prompts/deepseek/138_001_*.md`, `138_002_*.md`); 4 real bugs found and fixed during audit + live testing against a real Fuelio export (missing `VehicleClientError` export crashing app startup, a deleted-method call left in `receipt_service.py`'s photo-receipt flow, "km remaining until service" computed from the wrong distance figure, and a Fuelio `Active="0"` parsing bug making imported vehicles invisible) — see `docs/sessions/2026-W27.md` for the full list. #79 and #134 are now unblocked as thin consumers of the new API. Server (LXC) deployment/migration pending as a separate operational step.
 
+**#79 follow-up (2026-07-03):** the extraction's `VehiclePatchRequest`/`patch_vehicle()` allowed-fields whitelist never carried over the ability to set `active` — no endpoint could (de)activate a vehicle at all, an unnoticed gap since #138's own testing never exercised it. Added `active` to both (`tools/vehicle-manager/app/models.py`, `app/database.py`) as part of implementing #79's list/deactivate chat tool.
+
 ---
 
 ### Dev branch / deploy-only-from-main workflow (#96) — deprioritized

@@ -817,3 +817,19 @@ export async function confirmVehicleReminder(
 export async function cancelVehicleReminder(id: string): Promise<void> {
   return request<void>(`/vehicle-reminder-actions/${id}/cancel`, { method: 'POST' })
 }
+
+// --- Vehicle status actions ---
+
+export interface VehicleStatusData {
+  id: string
+  vehicle_name: string
+  active: boolean
+}
+
+export async function confirmVehicleStatus(id: string): Promise<{ message: string }> {
+  return request(`/vehicle-status-actions/${id}/confirm`, { method: 'POST' })
+}
+
+export async function cancelVehicleStatus(id: string): Promise<void> {
+  return request<void>(`/vehicle-status-actions/${id}/cancel`, { method: 'POST' })
+}

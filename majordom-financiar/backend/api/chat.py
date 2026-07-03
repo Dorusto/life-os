@@ -152,7 +152,7 @@ _PROPOSAL_TOOLS = {
     "finance__propose_budget_copy", "finance__propose_set_budget_carryover", "finance__propose_bank_resync",
     "finance__get_spending_chart", "finance__get_budget_chart", "finance__get_spending_trend", "finance__get_goals_chart",
     "vehicle__log_refuel", "vehicle__delete_vehicle_log_entry", "vehicle__set_vehicle_reminder",
-    "vehicle__set_service_interval",
+    "vehicle__set_service_interval", "vehicle__propose_set_vehicle_active",
 }
 
 

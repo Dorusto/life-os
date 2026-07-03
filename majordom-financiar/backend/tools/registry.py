@@ -686,6 +686,42 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "vehicle__list_vehicles",
+            "description": (
+                "List every vehicle, active and inactive (sold/retired), with make/model/year. "
+                "Use when the user asks what vehicles they have, or before offering to mark one as sold."
+            ),
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "vehicle__propose_set_vehicle_active",
+            "description": (
+                "Propose marking a vehicle as active or inactive, e.g. after it's sold. "
+                "A confirmation card appears — nothing changes until the user confirms. "
+                "Use vehicle__list_vehicles first if unsure of the exact name."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "vehicle_name": {
+                        "type": "string",
+                        "description": "Vehicle name or partial name, e.g. 'kia'.",
+                    },
+                    "active": {
+                        "type": "boolean",
+                        "description": "true to mark active, false to mark inactive (sold/retired).",
+                    },
+                },
+                "required": ["vehicle_name", "active"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "finance__get_uncategorized_groups",
             "description": (
                 "Get all uncategorized transactions grouped by payee with suggested categories. "
@@ -882,6 +918,15 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "vehicle__set_vehicle_type":
         from backend.tools.finance.vehicle import set_vehicle_type
         return await set_vehicle_type(**arguments)
+
+    if name == "vehicle__list_vehicles":
+        from backend.tools.finance.vehicle import list_vehicles
+        return await list_vehicles()
+
+    if name == "vehicle__propose_set_vehicle_active":
+        from backend.tools.finance.vehicle import propose_set_vehicle_active
+        return await propose_set_vehicle_active(**arguments)
+
     if name == "finance__get_uncategorized_groups":
         from backend.tools.finance.actual_budget import get_uncategorized_groups
         return await get_uncategorized_groups()

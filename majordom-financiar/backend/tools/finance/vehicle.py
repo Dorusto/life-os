@@ -426,3 +426,44 @@ async def set_vehicle_type(vehicle_name: str, vehicle_type: str) -> str:
     icons = {"car": "🚗", "motorcycle": "🏍️", "other": "🚙"}
     icon = icons.get(vehicle_type, "🚗")
     return f"{icon} {vehicle_name} is now set as a {vehicle_type}."
+
+
+async def list_vehicles() -> str:
+    """List every vehicle (active and inactive) with its status, for the user to review or pick one to deactivate."""
+    client = _get_client()
+    vehicles = await client.list_vehicles(active_only=False)
+    if not vehicles:
+        return "No vehicles found."
+
+    lines = ["**Vehicles:**"]
+    for v in vehicles:
+        status = "active" if v.get("active", 1) else "inactive (sold/retired)"
+        details = " ".join(p for p in [v.get("make"), v.get("model"), str(v.get("year") or "")] if p)
+        suffix = f" — {details}" if details else ""
+        lines.append(f"- {v['name']}{suffix} ({status})")
+    return "\n".join(lines)
+
+
+async def propose_set_vehicle_active(vehicle_name: str, active: bool) -> str:
+    """
+    Propose marking a vehicle as active or inactive (e.g. after it's sold).
+    Returns a confirmation card — does NOT write yet.
+    """
+    from difflib import get_close_matches
+    from backend.tools import vehicle_status_actions
+
+    client = _get_client()
+    vehicles = await client.list_vehicles(active_only=False)
+    all_names = [v["name"] for v in vehicles]
+    exact = next((n for n in all_names if n.lower() == vehicle_name.lower()), None)
+    resolved_name = exact or (get_close_matches(vehicle_name, all_names, n=1, cutoff=0.6) or [None])[0]
+    if not resolved_name:
+        return json.dumps({"type": "error", "message": f"Vehicle not found: {vehicle_name!r}. Available: {', '.join(all_names)}"})
+
+    matched = next(v for v in vehicles if v["name"] == resolved_name)
+    action_id = uuid.uuid4().hex[:8]
+    vehicle_status_actions.store(action_id, {"vehicle_id": matched["id"], "vehicle_name": resolved_name, "active": active})
+    return json.dumps({
+        "type": "vehicle_status", "id": action_id,
+        "vehicle_name": resolved_name, "active": active,
+    })

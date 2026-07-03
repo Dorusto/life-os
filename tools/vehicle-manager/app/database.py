@@ -167,7 +167,7 @@ def patch_vehicle(vehicle_id: int, updates: dict, db_path: str | None = None) ->
     allowed_fields = {
         "vehicle_type", "apk_due", "insurance_due",
         "service_interval_km", "service_interval_months",
-        "last_service_km", "last_service_date",
+        "last_service_km", "last_service_date", "active",
     }
     set_clauses = []
     params = []
