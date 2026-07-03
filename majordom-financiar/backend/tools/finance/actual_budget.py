@@ -459,21 +459,16 @@ async def propose_account_transfer(
     from_id, from_name = _resolve(from_account_id)
     to_id, to_name = _resolve(to_account_id)
 
-    # If destination not found, ask for clarification instead of silent fallback
-    if to_id is None:
-        options = [a.name for a in accounts] + ["Record as expense instead"]
-        return json.dumps({
-            "type": "clarification",
-            "question": f"Account '{to_account_id}' not found in Actual Budget. Choose a destination or record as expense:",
-            "options": options,
-        })
+    # Destination not found — show the transfer card with an inline "create
+    # account" option instead of a separate clarification round-trip.
+    to_account_missing = to_id is None
 
     # If source not found, fall back to first account (user can correct via selector)
     if from_id is None and accounts:
         from_id, from_name = accounts[0].id, accounts[0].name
 
-    # Avoid same-account transfers
-    if from_id == to_id and len(accounts) >= 2:
+    # Avoid same-account transfers (only applies when destination already exists)
+    if not to_account_missing and from_id == to_id and len(accounts) >= 2:
         other = next(a for a in accounts if a.id != from_id)
         to_id, to_name = other.id, other.name
 
@@ -481,8 +476,9 @@ async def propose_account_transfer(
         "type": "account_transfer",
         "from_account_id": from_id,
         "from_account_name": from_name,
-        "to_account_id": to_id,
-        "to_account_name": to_name,
+        "to_account_id": to_id or "",
+        "to_account_name": to_name or to_account_id,
+        "to_account_missing": to_account_missing,
         "amount": amount,
         "date": date,
         "notes": notes,

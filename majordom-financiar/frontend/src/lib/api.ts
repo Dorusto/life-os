@@ -664,13 +664,17 @@ export interface AccountTransferData {
   from_account_name: string
   to_account_id: string
   to_account_name: string
+  to_account_missing?: boolean
   amount: number
   date: string
   notes: string
   accounts?: { id: string; name: string; balance: number }[]
 }
 
-export async function confirmAccountTransfer(data: AccountTransferData): Promise<{ message: string }> {
+export async function confirmAccountTransfer(
+  data: AccountTransferData,
+  newAccount?: { name: string; offBudget: boolean }
+): Promise<{ message: string }> {
   return request('/accounts/transfer', {
     method: 'POST',
     body: JSON.stringify({
@@ -679,6 +683,8 @@ export async function confirmAccountTransfer(data: AccountTransferData): Promise
       amount: data.amount,
       date: data.date,
       notes: data.notes,
+      create_account_name: newAccount?.name,
+      create_account_off_budget: newAccount?.offBudget ?? false,
     }),
   })
 }

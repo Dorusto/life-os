@@ -30,6 +30,8 @@ class TransferRequest(BaseModel):
     amount: float
     date: str
     notes: str = ""
+    create_account_name: str | None = None
+    create_account_off_budget: bool = False
 
 
 class TransferResult(BaseModel):
@@ -70,10 +72,28 @@ async def transfer_money(
         raise HTTPException(status_code=400, detail=f"Invalid date: {body.date}")
 
     client = _get_client()
+
+    to_account_id = body.to_account_id
+    created_account_name: str | None = None
+    if not to_account_id:
+        if not body.create_account_name or not body.create_account_name.strip():
+            raise HTTPException(status_code=400, detail="Destination account is required")
+        try:
+            created = await client.create_account(
+                body.create_account_name.strip(),
+                initial_balance=0.0,
+                off_budget=body.create_account_off_budget,
+            )
+        except Exception as e:
+            logger.error("Account creation failed: %s", e)
+            raise HTTPException(status_code=500, detail="Failed to create account")
+        to_account_id = created.id
+        created_account_name = created.name
+
     try:
         result = await client.create_transfer(
             from_account_id=body.from_account_id,
-            to_account_id=body.to_account_id,
+            to_account_id=to_account_id,
             amount=body.amount,
             tx_date=tx_date,
             notes=body.notes,
@@ -84,4 +104,7 @@ async def transfer_money(
         logger.error("Transfer failed: %s", e)
         raise HTTPException(status_code=500, detail="Failed to create transfer")
 
-    return TransferResult(message=f"Transfer of €{body.amount:.2f} completed successfully.")
+    message = f"Transfer of €{body.amount:.2f} completed successfully."
+    if created_account_name:
+        message = f"Account '{created_account_name}' created. " + message
+    return TransferResult(message=message)

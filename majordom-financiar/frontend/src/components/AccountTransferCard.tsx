@@ -12,6 +12,9 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
   const [loading, setLoading] = useState(false)
   const [fromId, setFromId] = useState(data.from_account_id)
   const [toId, setToId] = useState(data.to_account_id)
+  const [creatingNew, setCreatingNew] = useState(data.to_account_missing ?? false)
+  const [newAccountName, setNewAccountName] = useState(data.to_account_name ?? '')
+  const [newAccountOffBudget, setNewAccountOffBudget] = useState(false)
 
   const accounts = data.accounts ?? [
     { id: data.from_account_id, name: data.from_account_name, balance: 0 },
@@ -24,13 +27,18 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
   async function handleConfirm() {
     setLoading(true)
     try {
-      const result = await confirmAccountTransfer({
-        ...data,
-        from_account_id: fromId,
-        from_account_name: fromAcc?.name ?? fromId,
-        to_account_id: toId,
-        to_account_name: toAcc?.name ?? toId,
-      })
+      const result = creatingNew
+        ? await confirmAccountTransfer(
+            { ...data, from_account_id: fromId, from_account_name: fromAcc?.name ?? fromId, to_account_id: '', to_account_name: newAccountName.trim() },
+            { name: newAccountName.trim(), offBudget: newAccountOffBudget }
+          )
+        : await confirmAccountTransfer({
+            ...data,
+            from_account_id: fromId,
+            from_account_name: fromAcc?.name ?? fromId,
+            to_account_id: toId,
+            to_account_name: toAcc?.name ?? toId,
+          })
       onConfirmed(result.message)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
@@ -80,18 +88,61 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
 
         <div className="space-y-1">
           <p className="text-muted text-xs uppercase tracking-wide">To</p>
-          <select
-            value={toId}
-            onChange={e => setToId(e.target.value)}
-            disabled={loading}
-            className={selectClass}
-          >
-            {accounts.map(a => (
-              <option key={a.id} value={a.id} style={{ background: '#1A1A1A' }}>
-                {a.name} · €{a.balance.toFixed(2)}
-              </option>
-            ))}
-          </select>
+          {creatingNew ? (
+            <div className="space-y-1.5">
+              <input
+                type="text"
+                value={newAccountName}
+                onChange={e => setNewAccountName(e.target.value)}
+                disabled={loading}
+                placeholder="New account name"
+                className="w-full bg-surface-2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-accent disabled:opacity-50"
+              />
+              <label className="flex items-center gap-1.5 text-xs text-muted pl-1 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={newAccountOffBudget}
+                  onChange={e => setNewAccountOffBudget(e.target.checked)}
+                  disabled={loading}
+                  className="accent-accent"
+                />
+                Off-budget (tracking only)
+              </label>
+              {accounts.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => { setCreatingNew(false); setToId(accounts[0].id) }}
+                  disabled={loading}
+                  className="text-xs text-accent hover:underline pl-1"
+                >
+                  Use an existing account instead
+                </button>
+              )}
+            </div>
+          ) : (
+            <>
+              <select
+                value={toId}
+                onChange={e => setToId(e.target.value)}
+                disabled={loading}
+                className={selectClass}
+              >
+                {accounts.map(a => (
+                  <option key={a.id} value={a.id} style={{ background: '#1A1A1A' }}>
+                    {a.name} · €{a.balance.toFixed(2)}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() => { setCreatingNew(true); setNewAccountName('') }}
+                disabled={loading}
+                className="text-xs text-accent hover:underline pl-1"
+              >
+                + Create new account instead
+              </button>
+            </>
+          )}
           <p className="text-xs text-muted pl-1">
             <span className="text-green-400">+€{data.amount.toFixed(2)}</span>
           </p>
@@ -105,7 +156,7 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
       <div className="flex gap-2">
         <button
           onClick={handleConfirm}
-          disabled={loading || fromId === toId}
+          disabled={loading || (creatingNew ? !newAccountName.trim() : fromId === toId)}
           className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-40"
         >
           <Check size={14} />
