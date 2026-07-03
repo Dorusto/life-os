@@ -232,7 +232,7 @@ Short version of what's coming:
 - Savings goals with progress tracking
 - Monthly budget limits + alerts
 - Investment portfolio tracking (Sure)
-- Automatic bank sync via open banking *(on hold — access restrictions for individual developers in the EU make this difficult to implement)*
+- Automatic bank sync via open banking — working via Enable Banking (tested live with ING NL)
 
 ---
 
