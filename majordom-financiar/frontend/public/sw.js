@@ -1,4 +1,4 @@
-const CACHE_NAME = 'majordom-v1';
+const CACHE_NAME = 'majordom-v2';
 const APP_SHELL = ['/', '/index.html'];
 
 const STATIC_ASSETS = [
@@ -75,7 +75,28 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Cache-first for static assets and app shell
+  // Network-first for the app shell (navigations + '/index.html') — Vite's
+  // hashed JS/CSS filenames change on every build, but the shell's own URL
+  // never does, so cache-first here would keep serving a stale index.html
+  // (pointing at old bundle hashes) forever after a deploy. Fall back to the
+  // cached shell only when offline.
+  const isAppShell = event.request.mode === 'navigate' || APP_SHELL.some(a => url.pathname === a);
+  if (isAppShell) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() => caches.match(event.request).then((r) => r || caches.match('/index.html')))
+    );
+    return;
+  }
+
+  // Cache-first for hashed static assets (safe — a content change means a new URL)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) return cachedResponse;
@@ -96,9 +117,6 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => {
-          if (event.request.mode === 'navigate') {
-            return caches.match('/index.html');
-          }
           return new Response('Offline', {
             status: 503,
             headers: { 'Content-Type': 'text/plain' },
