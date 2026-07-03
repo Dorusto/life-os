@@ -20,6 +20,5 @@ jobs:
       - name: Rebuild and restart services
         run: |
           cd "$MAJORDOM_PATH/majordom-financiar"
-          docker compose rm -sf actual-budget || true
           docker compose build --no-cache majordom-api majordom-web
           docker compose up -d

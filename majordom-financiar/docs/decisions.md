@@ -348,3 +348,15 @@ life-os/
 **Trigger for extraction:** next time a significant vehicle feature is added (new schema, new endpoint). Not worth extracting as a standalone task with no new functionality.
 
 **Why NOT now:** No active vehicle feature in progress. Extracting without adding value = pure overhead.
+
+---
+
+### Dev branch / deploy-only-from-main workflow (#96) — deprioritized
+
+**Date:** 2026-07-03
+
+**Decision:** Issue #96 (work on a `dev` branch, merge to `main` only when verified — since every push to `main` deploys instantly to production) is deprioritized. Left open, not scheduled.
+
+**Why:** Doru is currently the only user of Majordom. A broken commit reaching production instantly only affects him, in the same session where he'd notice and fix it — the risk #96 protects against doesn't really exist yet with a single user.
+
+**Trigger to revisit:** the moment a second person starts actually using Majordom (partner, family member, anyone besides Doru). Claude should proactively bring this back up if that comes up in a future conversation, rather than waiting to be asked.
