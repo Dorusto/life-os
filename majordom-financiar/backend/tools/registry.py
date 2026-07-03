@@ -734,6 +734,29 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__get_transactions_by_tag",
+            "description": (
+                "Get all transactions containing a #tag in their notes, with an income/cost/net "
+                "breakdown. Use for per-order or per-job costing when income and cost transactions "
+                "share a tag (e.g. '#C002-GVoros' linking a YouTube payment or Printful order's "
+                "income to its associated cost) — answer with net profit directly, no separate "
+                "calculation needed."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "tag": {
+                        "type": "string",
+                        "description": "The tag to search for, with or without the leading '#', e.g. 'C002-GVoros'.",
+                    },
+                },
+                "required": ["tag"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "finance__propose_categorize_with_rule",
             "description": (
                 "Propose bulk-categorizing all uncategorized transactions for a payee, with an "
@@ -930,6 +953,11 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "finance__get_uncategorized_groups":
         from backend.tools.finance.actual_budget import get_uncategorized_groups
         return await get_uncategorized_groups()
+
+    if name == "finance__get_transactions_by_tag":
+        from backend.tools.finance.actual_budget import get_transactions_by_tag
+        return await get_transactions_by_tag(**arguments)
+
     if name == "finance__propose_categorize_with_rule":
         from backend.tools.finance.actual_budget import propose_categorize_with_rule
         return await propose_categorize_with_rule(**arguments)

@@ -163,6 +163,7 @@ gh issue list --milestone "M4 — Smart Alerts"
 - Frontend auth: use `authFetch()` from `../lib/auth` or `getToken()` — never `localStorage.getItem('auth_token')`, the real key is `'majordom_token'`
 - Tool call args: `json.loads(args)` before `**args` — OpenAI format returns args as string, not dict
 - `LLM_BASE_URL` must NOT end with `/v1` — code appends `/v1/chat/completions` automatically
+- New `ActualBudgetClient` method (`backend/core/actual_client/client.py`) isn't reachable from tool code until it's also added to `ActualBudgetProvider` (`backend/core/finance/actual_budget_provider.py`, a thin pass-through) and declared on the `FinanceProvider` Protocol (`backend/core/finance/provider.py`) — all three, or `get_provider()`'s result raises `AttributeError` (#126)
 
 ---
 

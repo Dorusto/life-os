@@ -912,6 +912,19 @@ async def get_uncategorized_groups() -> str:
     })
 
 
+async def get_transactions_by_tag(tag: str) -> str:
+    """
+    Return all transactions tagged with #tag in their notes, with an income/cost/net
+    breakdown. Read-only — use for per-order/per-job costing (#126), e.g. a shared
+    tag linking a YouTube/Printful order's income transaction to its cost transaction(s).
+    """
+    client = get_provider()
+    result = await client.get_transactions_by_tag(tag)
+    if not result["transactions"]:
+        return json.dumps({"type": "info", "message": f"No transactions found tagged '{result['tag']}'."})
+    return json.dumps({"type": "tag_summary", **result})
+
+
 async def propose_categorize_with_rule(payee: str, category_name: str, notes_contains: str = "") -> str:
     """
     Propose categorizing a payee group AND creating an AB rule for future auto-categorization.

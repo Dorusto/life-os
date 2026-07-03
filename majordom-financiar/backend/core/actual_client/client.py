@@ -1710,6 +1710,55 @@ class ActualBudgetClient:
                 return groups
         return await self._run(_fetch)
 
+    async def get_transactions_by_tag(self, tag: str) -> dict:
+        """
+        Return every transaction whose notes contain the given #tag (case-insensitive),
+        with an income/cost/net breakdown. Powers ad-hoc per-order/per-job costing (#126)
+        — e.g. a shared #C002-GVoros tag links a YouTube/Printful order's income
+        transaction to its associated cost transaction(s).
+        """
+        def _fetch():
+            from actual.database import Transactions, Payees
+            with self._get_actual() as actual:
+                actual.download_budget()
+                tag_pattern = tag if tag.startswith("#") else f"#{tag}"
+                rows = (
+                    actual.session.query(Transactions, Payees.name)
+                    .outerjoin(Payees, Transactions.payee_id == Payees.id)
+                    .filter(
+                        Transactions.notes.ilike(f"%{tag_pattern}%"),
+                        Transactions.tombstone == 0,
+                        Transactions.is_parent == 0,
+                    )
+                    .order_by(Transactions.date)
+                    .all()
+                )
+
+                transactions = []
+                income = 0.0
+                cost = 0.0
+                for tx, payee_name in rows:
+                    amount = float(tx.amount or 0) / 100
+                    if amount > 0:
+                        income += amount
+                    else:
+                        cost += abs(amount)
+                    transactions.append({
+                        "date": tx.get_date().isoformat() if tx.date is not None else None,
+                        "payee": payee_name or "",
+                        "amount": round(amount, 2),
+                        "notes": tx.notes or "",
+                    })
+
+                return {
+                    "tag": tag_pattern,
+                    "transactions": transactions,
+                    "income": round(income, 2),
+                    "cost": round(cost, 2),
+                    "net": round(income - cost, 2),
+                }
+        return await self._run(_fetch)
+
     async def create_payee_rule(self, payee_name_prefix: str, category_id: str) -> None:
         """Create an AB rule: imported_description contains prefix → set category."""
         def _create():
