@@ -29,6 +29,7 @@ export default function FireWidget({ data }: { data: FireData | null }) {
   const years = Math.floor(data.months_remaining / 12)
   const topColor = data.on_track ? '#22C55E' : '#F59E0B'
   const statusText = data.on_track ? 'on track ✓' : 'behind schedule ⚠'
+  const pctTrend = Math.round((data.fire_pct - data.fire_pct_prev) * 10) / 10
 
   return (
     <div
@@ -62,6 +63,11 @@ export default function FireWidget({ data }: { data: FireData | null }) {
       {/* Years remaining + status */}
       <p className="text-muted text-xs mt-0.5">
         ~{years} years · {statusText}
+      </p>
+
+      {/* Trend vs previous month (#77) */}
+      <p className={`text-xs mt-1 ${pctTrend > 0 ? 'text-emerald-400' : pctTrend < 0 ? 'text-red-400' : 'text-muted'}`}>
+        {pctTrend > 0 ? '↑' : pctTrend < 0 ? '↓' : '→'} {Math.abs(pctTrend).toFixed(1)}% vs last month
       </p>
     </div>
   )

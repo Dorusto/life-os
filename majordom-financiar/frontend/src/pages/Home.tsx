@@ -31,6 +31,7 @@ export default function Home() {
   const goals = homeData?.goals
   const fireData = homeData?.fire
   const cashflow = stats ? stats.income - stats.total : null
+  const cashflowTrend = stats && stats.prev_cashflow !== undefined ? cashflow! - stats.prev_cashflow : null
 
   function handleLogout() {
     clearAuth()
@@ -191,6 +192,7 @@ export default function Home() {
             value={cashflow}
             format="currency"
             highlight={cashflow !== null ? (cashflow >= 0 ? 'positive' : 'negative') : 'neutral'}
+            trend={cashflowTrend}
           />
           <FireWidget data={fireData ?? null} />
         </div>
@@ -317,9 +319,10 @@ interface MetricCardProps {
   value: number | null
   format: 'currency' | 'percent'
   highlight: 'positive' | 'negative' | 'neutral'
+  trend?: number | null
 }
 
-function MetricCard({ label, sublabel, value, format, highlight }: MetricCardProps) {
+function MetricCard({ label, sublabel, value, format, highlight, trend }: MetricCardProps) {
   const formatted = value === null
     ? '—'
     : format === 'currency'
@@ -344,6 +347,11 @@ function MetricCard({ label, sublabel, value, format, highlight }: MetricCardPro
       <p className={`font-display text-2xl font-bold tabular-nums ${valueClass}`}>{formatted}</p>
       <p className="text-white text-sm font-medium mt-1">{label}</p>
       <p className="text-muted text-xs">{sublabel}</p>
+      {trend !== null && trend !== undefined && (
+        <p className={`text-xs mt-1 ${trend > 0 ? 'text-emerald-400' : trend < 0 ? 'text-red-400' : 'text-muted'}`}>
+          {trend > 0 ? '↑' : trend < 0 ? '↓' : '→'} {formatCurrency(Math.abs(trend))} vs last month
+        </p>
+      )}
     </div>
   )
 }

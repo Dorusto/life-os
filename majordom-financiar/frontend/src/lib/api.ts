@@ -244,6 +244,7 @@ export interface FireData {
   fire_portfolio: number
   fire_target: number
   fire_pct: number
+  fire_pct_prev: number
   months_remaining: number
   projected_2035: number
   on_track: boolean
@@ -266,6 +267,7 @@ export interface MonthlyStats {
   income: number
   count: number
   categories: CategoryStat[]
+  prev_cashflow?: number
 }
 
 // --- Fuelio Import ---

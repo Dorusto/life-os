@@ -751,6 +751,15 @@ class ActualBudgetClient:
             target_month = month or _date.today().month
             target_year = year or _date.today().year
 
+            # Previous month/year (for #77 trend indicators) — handles January rollover.
+            if target_month == 1:
+                prev_month, prev_year = 12, target_year - 1
+            else:
+                prev_month, prev_year = target_month - 1, target_year
+            prev_last_day = calendar.monthrange(prev_year, prev_month)[1]
+            prev_end = _date(prev_year, prev_month, prev_last_day)
+            prev_end_int = int(prev_end.strftime("%Y%m%d"))
+
             with self._get_actual() as actual:
                 actual.download_budget()  # once only
 
@@ -766,10 +775,19 @@ class ActualBudgetClient:
                         for tx in txs
                         if not tx.tombstone
                     ) / 100
+                    # Balance as of the end of the previous month — reuses the same
+                    # already-fetched transaction list, no extra AB query. Powers the
+                    # FIRE widget's month-over-month trend (#77).
+                    balance_prev_month_end = sum(
+                        float(tx.amount or 0)
+                        for tx in txs
+                        if not tx.tombstone and tx.date is not None and tx.date <= prev_end_int
+                    ) / 100
                     accounts_result.append({
                         "id": str(acc.id),
                         "name": acc.name,
                         "balance": balance,
+                        "balance_prev_month_end": balance_prev_month_end,
                         "off_budget": bool(acc.offbudget),
                     })
 
@@ -780,7 +798,16 @@ class ActualBudgetClient:
 
                 txs = get_transactions(actual.session, start_date=start, end_date=end)
                 totals = _compute_monthly_totals(actual.session, txs)
-                stats_result = {"month": target_month, "year": target_year, **totals}
+
+                # Previous month's cashflow (#77 trend) — same shared helper, different range.
+                prev_start = _date(prev_year, prev_month, 1)
+                prev_txs = get_transactions(actual.session, start_date=prev_start, end_date=prev_end)
+                prev_totals = _compute_monthly_totals(actual.session, prev_txs)
+
+                stats_result = {
+                    "month": target_month, "year": target_year, **totals,
+                    "prev_cashflow": round(prev_totals["income"] - prev_totals["total"], 2),
+                }
 
                 # 3. Budget status — same computation as get_budget_status(), reused
                 # here so the Home screen and the chat tool never diverge.
