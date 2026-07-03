@@ -402,6 +402,25 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "propose_bank_resync",
+            "description": (
+                "Propose triggering a live bank re-sync for an account that has a real bank "
+                "connection (not a manual/CSV account) — pulls fresh transactions from the bank. "
+                "Use when the user asks to 'resync X', 're-sync my bank', 'refresh X account', or "
+                "similar. A confirmation card appears — nothing syncs until the user confirms."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "account_name": {"type": "string", "description": "The bank-linked account name to resync."},
+                },
+                "required": ["account_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "propose_budget_copy",
             "description": (
                 "Propose copying last month's budget amounts into a target month (default: "
@@ -799,6 +818,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "propose_budget_copy":
         from backend.tools.finance.actual_budget import propose_budget_copy
         return await propose_budget_copy(**arguments)
+
+    if name == "propose_bank_resync":
+        from backend.tools.finance.actual_budget import propose_bank_resync
+        return await propose_bank_resync(**arguments)
 
     if name == "propose_set_budget_carryover":
         from backend.tools.finance.actual_budget import propose_set_budget_carryover

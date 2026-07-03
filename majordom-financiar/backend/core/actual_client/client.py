@@ -704,7 +704,7 @@ class ActualBudgetClient:
             from collections import defaultdict
             from datetime import date as _date
             from actual.queries import get_accounts, get_transactions, get_categories
-            from actual.database import Transactions
+            from actual.database import Transactions, Accounts
 
             target_month = month or _date.today().month
             target_year = year or _date.today().year
@@ -997,10 +997,12 @@ class ActualBudgetClient:
                 )
                 unreconciled_count = (
                     actual.session.query(Transactions)
+                    .join(Accounts, Transactions.acct == Accounts.id)
                     .filter(
                         Transactions.cleared == False,
                         Transactions.tombstone == 0,
                         Transactions.is_parent == 0,
+                        (Accounts.account_sync_source == None) | (Accounts.account_sync_source == ""),
                     )
                     .count()
                 )
@@ -1560,6 +1562,80 @@ class ActualBudgetClient:
                     .count()
                 )
         return await self._run(_count)
+
+    async def count_unreconciled(self) -> int:
+        """
+        Count transactions not yet marked cleared, excluding accounts with a
+        live bank sync link (account_sync_source set — gocardless/simplefin).
+        Those self-resolve at the next sync, so flagging them is noise; only
+        manual/CSV-only accounts (e.g. crypto.com) genuinely stay
+        unreconciled until fixed by hand.
+        """
+        def _count():
+            from actual.database import Transactions, Accounts
+            with self._get_actual() as actual:
+                actual.download_budget()
+                return (
+                    actual.session.query(Transactions)
+                    .join(Accounts, Transactions.acct == Accounts.id)
+                    .filter(
+                        Transactions.cleared == False,
+                        Transactions.tombstone == 0,
+                        Transactions.is_parent == 0,
+                        (Accounts.account_sync_source == None) | (Accounts.account_sync_source == ""),
+                    )
+                    .count()
+                )
+        return await self._run(_count)
+
+    async def get_account_sync_status(self) -> list[dict]:
+        """
+        Per-account bank-sync metadata for open accounts:
+        {id, name, sync_source, last_sync, most_recent_transaction_date}.
+        `sync_source` is empty for manual/CSV-only accounts (no live bank
+        link) — `most_recent_transaction_date` is used as a staleness proxy
+        for those, since there's no import-timestamp field on the account
+        itself.
+        """
+        def _get():
+            from actual.queries import get_accounts, get_transactions
+            with self._get_actual() as actual:
+                actual.download_budget()
+                accounts = get_accounts(actual.session)
+                result = []
+                for acc in accounts:
+                    if acc.closed:
+                        continue
+                    last_sync = getattr(acc, "last_sync", None)
+                    most_recent = None
+                    if not acc.account_sync_source:
+                        txs = get_transactions(actual.session, account=acc)
+                        dates = [tx.get_date() for tx in txs if not tx.tombstone]
+                        if dates:
+                            most_recent = max(dates).isoformat()
+                    result.append({
+                        "id": str(acc.id),
+                        "name": acc.name,
+                        "sync_source": acc.account_sync_source or "",
+                        "last_sync": last_sync,
+                        "most_recent_transaction_date": most_recent,
+                    })
+                return result
+        return await self._run(_get)
+
+    async def run_bank_resync(self, account_name: str) -> int:
+        """Trigger a live bank re-sync for one account. Returns the count of newly imported transactions."""
+        def _sync():
+            from actual.queries import get_account
+            with self._get_actual() as actual:
+                actual.download_budget()
+                acc = get_account(actual.session, account_name)
+                if not acc:
+                    raise ValueError(f"Account not found: {account_name}")
+                new_txs = actual.run_bank_sync(account=acc)
+                actual.commit()
+                return len(new_txs)
+        return await self._run(_sync)
 
     async def count_uncategorized_by_payee(self, payee: str, notes_contains: str = "") -> int:
         """

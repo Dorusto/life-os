@@ -71,3 +71,10 @@ async def get_home(
         **data,
         "fire": _calc_fire(accounts),
     }
+
+
+@router.get("/home/pending")
+async def get_home_pending(current_user: str = Depends(get_current_user)):
+    """Live 'needs resolving' list for the Home widget dropdown."""
+    from backend.services.notification_service import get_pending_items
+    return {"items": await get_pending_items()}

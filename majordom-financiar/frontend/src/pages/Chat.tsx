@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, FormEvent } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Send, Plus, Camera, Image, FileText, HelpCircle, X, Trash2 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, saveChatHistory, clearChatHistory, type SetupAccount, type BalanceAdjustmentData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type FuelConfirmResponse, type VehicleLogActionData, type VehicleReminderData } from '../lib/api'
@@ -79,6 +80,8 @@ interface ChatProps {
 }
 
 export default function Chat({ messages, setMessages }: ChatProps) {
+  const location = useLocation()
+  const navigate = useNavigate()
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [sentHistory, setSentHistory] = useState<string[]>([])
@@ -99,6 +102,17 @@ export default function Chat({ messages, setMessages }: ChatProps) {
       }
     }
   }, [showHelp])
+  // Pre-fill the input from a "prefill" prompt passed via navigation state
+  // (e.g. tapping a "Needs resolving" item on Home) — never auto-sent, the
+  // user reviews/edits before confirming, same as any other write action.
+  useEffect(() => {
+    const prefill = (location.state as { prefill?: string } | null)?.prefill
+    if (prefill) {
+      setInput(prefill)
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state])
   const csvInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)

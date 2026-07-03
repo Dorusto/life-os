@@ -152,6 +152,10 @@ async def confirm_category_action(
             target_month = _date.fromisoformat(month_str)
             await client.set_budget_carryover(cat_name, target_month, enabled)
             message = f"Rollover overspending {'enabled' if enabled else 'disabled'} for '{cat_name}' ({month_str[:7]})."
+        elif action["action"] == "bank_resync":
+            acc_name = action["account_name"]
+            count = await client.run_bank_resync(acc_name)
+            message = f"Resynced '{acc_name}' — {count} new transaction{'s' if count != 1 else ''} imported."
         else:
             raise HTTPException(status_code=400, detail=f"Unknown action: {action['action']}")
     except ValueError as e:

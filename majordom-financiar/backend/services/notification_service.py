@@ -705,3 +705,142 @@ async def run_pending_review_nudge():
 
 async def run_vehicle_reminders():
     pass  # now handled inside run_daily_digest
+
+
+# ---------------------------------------------------------------------------
+# get_pending_items — live "needs resolving" list for the Home widget
+# ---------------------------------------------------------------------------
+
+async def get_pending_items() -> list[dict]:
+    """
+    Everything currently needing attention, computed live — unlike the daily
+    digest, NOT gated by "already sent today/this week" anti-spam (Home
+    should always reflect current state, not just what hasn't been pushed
+    yet). Each item: {type, text, prompt} — `prompt` is a starting chat
+    message the Home widget pre-fills (not auto-sends) when tapped.
+
+    Deliberately reimplements the condition checks rather than calling the
+    digest's _check_*() functions directly, since those have anti-spam
+    baked in and would go silent here right after a digest fires.
+    """
+    items: list[dict] = []
+    client = get_provider()
+
+    # Uncategorized transactions
+    try:
+        count = await client.count_uncategorized()
+        if count > 0:
+            items.append({
+                "type": "uncategorized",
+                "text": f"{count} uncategorized transaction{'s' if count != 1 else ''}",
+                "prompt": "review uncategorized transactions",
+            })
+    except Exception as e:
+        logger.warning("get_pending_items: uncategorized check failed: %s", e)
+
+    # Unreconciled transactions
+    try:
+        count = await client.count_unreconciled()
+        if count > 0:
+            items.append({
+                "type": "unreconciled",
+                "text": f"{count} unreconciled transaction{'s' if count != 1 else ''}",
+                "prompt": "show me unreconciled transactions",
+            })
+    except Exception as e:
+        logger.warning("get_pending_items: unreconciled check failed: %s", e)
+
+    # Over-budget categories this month
+    try:
+        budget_status = await client.get_budget_status()
+        for b in budget_status:
+            if b["budgeted"] > 0 and b["percentage"] > 100:
+                over_by = b["spent"] - b["budgeted"]
+                items.append({
+                    "type": "over_budget",
+                    "text": f"{b['category_name']} is €{over_by:.0f} over budget",
+                    "prompt": f"help me with {b['category_name']} being over budget this month",
+                })
+    except Exception as e:
+        logger.warning("get_pending_items: budget status check failed: %s", e)
+
+    # Goals at risk of missing their deadline (same thresholds as _check_goal_risk)
+    try:
+        goals = await client.get_goals()
+        for goal in goals:
+            deadline = goal.get("deadline")
+            months_remaining = goal.get("months_remaining")
+            if not deadline or months_remaining is None or months_remaining <= 0:
+                continue
+            percentage = goal.get("percentage", 0) or 0
+            is_urgent = months_remaining <= 3 and percentage < 90
+            is_at_risk = months_remaining <= 6 and percentage < 60
+            if not is_urgent and not is_at_risk:
+                continue
+            items.append({
+                "type": "goal_risk",
+                "text": f"Goal '{goal['name']}' at {percentage:.0f}%, {months_remaining} months left",
+                "prompt": f"how is my {goal['name']} goal doing?",
+            })
+    except Exception as e:
+        logger.warning("get_pending_items: goal risk check failed: %s", e)
+
+    # Vehicle reminders — reuses the digest check as-is. Known limitation:
+    # its own anti-spam (max once per 7 days per alert) means an alert
+    # pushed earlier today/this week won't reappear here until it expires,
+    # even though Home is meant to show live state. Acceptable for now —
+    # revisit if this turns out to hide real overdue reminders in practice.
+    try:
+        db = MemoryDB(settings.memory.db_path)
+        vehicle_alerts = _check_vehicle_reminders(db)
+        for text, _, payload in vehicle_alerts:
+            vehicle_name = payload.get("vehicle", "")
+            items.append({
+                "type": "vehicle_reminder",
+                "text": text,
+                "prompt": f"tell me about {vehicle_name}'s upcoming reminder",
+            })
+    except Exception as e:
+        logger.warning("get_pending_items: vehicle reminders check failed: %s", e)
+
+    # Account staleness — split by account type. Bank-linked accounts should
+    # sync automatically; if last_sync is >24h old something's actually
+    # wrong and a manual resync helps. Manual/CSV-only accounts have no
+    # auto-sync at all, so the bar is a week without a fresh import instead.
+    try:
+        client = get_provider()
+        accounts = await client.get_account_sync_status()
+        now = datetime.now()
+        for acc in accounts:
+            if acc["sync_source"]:
+                last_sync = acc.get("last_sync")
+                stale = True
+                if last_sync:
+                    try:
+                        last_sync_dt = datetime.fromisoformat(last_sync)
+                        stale = (now - last_sync_dt) > timedelta(hours=24)
+                    except ValueError:
+                        stale = True
+                if stale:
+                    items.append({
+                        "type": "bank_sync_stale",
+                        "text": f"{acc['name']} hasn't synced in over 24h",
+                        "prompt": f"resync {acc['name']}",
+                    })
+            else:
+                most_recent = acc.get("most_recent_transaction_date")
+                if most_recent:
+                    try:
+                        days_since = (date.today() - date.fromisoformat(most_recent)).days
+                        if days_since >= 7:
+                            items.append({
+                                "type": "csv_stale",
+                                "text": f"{acc['name']} — no new transactions imported in {days_since} days",
+                                "prompt": f"let's import recent transactions for {acc['name']}",
+                            })
+                    except ValueError:
+                        pass
+    except Exception as e:
+        logger.warning("get_pending_items: account staleness check failed: %s", e)
+
+    return items

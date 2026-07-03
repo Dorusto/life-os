@@ -558,6 +558,17 @@ export async function getHomeData(month?: number, year?: number): Promise<HomeDa
   return request<HomeData>(`/home${qs ? `?${qs}` : ''}`)
 }
 
+export interface PendingItem {
+  type: string
+  text: string
+  prompt: string
+}
+
+export async function getHomePending(): Promise<PendingItem[]> {
+  const result = await request<{ items: PendingItem[] }>('/home/pending')
+  return result.items
+}
+
 // --- Budget ---
 
 export interface BudgetCategory {
@@ -716,7 +727,7 @@ export async function cancelBalanceAdjustment(id: string): Promise<void> {
 
 export interface CategoryActionData {
   id: string
-  action: 'rename' | 'delete' | 'create' | 'setup_groups' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover'
+  action: 'rename' | 'delete' | 'create' | 'setup_groups' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'bank_resync'
   category_name: string
   new_name?: string
   group_name?: string
@@ -742,6 +753,9 @@ export interface CategoryActionData {
   excluded_templates?: string[]
   // set_budget_carryover fields:
   enabled?: boolean
+  // bank_resync fields:
+  account_name?: string
+  last_sync?: string | null
 }
 
 export async function confirmCategoryAction(

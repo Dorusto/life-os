@@ -747,6 +747,49 @@ async def propose_set_budget_carryover(category_name: str, enabled: bool, month:
     })
 
 
+async def propose_bank_resync(account_name: str) -> str:
+    """
+    Propose triggering a live bank re-sync for an account that has a real
+    bank link (gocardless/simplefin) — pulls fresh transactions from the
+    bank. Returns a confirmation card — does NOT sync yet.
+    """
+    import json
+    import uuid
+    from difflib import get_close_matches
+    from backend.tools import category_actions as action_store
+
+    client = get_provider()
+    accounts = await client.get_account_sync_status()
+    names = [a["name"] for a in accounts]
+    exact = next((a for a in accounts if a["name"].lower() == account_name.lower()), None)
+    if not exact:
+        close = get_close_matches(account_name, names, n=1, cutoff=0.6)
+        exact = next((a for a in accounts if a["name"] == close[0]), None) if close else None
+    if not exact:
+        return json.dumps({
+            "type": "error",
+            "message": f"Account not found: {account_name!r}. Available: {', '.join(names)}",
+        })
+    if not exact["sync_source"]:
+        return json.dumps({
+            "type": "error",
+            "message": f"'{exact['name']}' has no live bank link — it's a manual/CSV account, re-sync doesn't apply.",
+        })
+
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {
+        "action": "bank_resync",
+        "account_name": exact["name"],
+    })
+    return json.dumps({
+        "type": "category_action",
+        "id": action_id,
+        "action": "bank_resync",
+        "account_name": exact["name"],
+        "last_sync": exact["last_sync"],
+    })
+
+
 async def propose_budget_copy(month: str = "") -> str:
     """
     Propose copying last month's budget amounts into the target month

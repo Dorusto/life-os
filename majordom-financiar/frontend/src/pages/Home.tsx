@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { LogOut, Bell, MoreVertical, Wallet, Database, AlertCircle, ChevronRight } from 'lucide-react'
-import { getHomeData } from '../lib/api'
+import { getHomeData, getHomePending } from '../lib/api'
 import { getUsername, clearAuth } from '../lib/auth'
 import { requestAndSubscribe } from '../lib/push'
 import BudgetDashboard from '../components/BudgetDashboard'
@@ -19,13 +19,18 @@ export default function Home() {
     staleTime: 120_000,
   })
 
+  const { data: pendingItems } = useQuery({
+    queryKey: ['home-pending'],
+    queryFn: () => getHomePending(),
+    staleTime: 120_000,
+  })
+  const [pendingExpanded, setPendingExpanded] = useState(false)
+
   const budgetStatus = homeData?.budget
   const stats = homeData?.stats
   const goals = homeData?.goals
   const fireData = homeData?.fire
   const cashflow = stats ? stats.income - stats.total : null
-  const uncategorizedCount = homeData?.uncategorized_count ?? 0
-  const unreconciledCount = homeData?.unreconciled_count ?? 0
 
   function handleLogout() {
     clearAuth()
@@ -130,23 +135,41 @@ export default function Home() {
         </button>
       )}
 
-      {/* Needs resolving — surfaced directly instead of buried in chat/digest (#130) */}
-      {(uncategorizedCount > 0 || unreconciledCount > 0) && (
-        <button
-          onClick={() => navigate('/chat')}
-          className="mx-5 mt-3 flex items-center gap-3 px-4 py-3 rounded-xl bg-surface border border-yellow-500/30 hover:border-yellow-500/60 transition-colors text-left"
-        >
-          <AlertCircle size={18} className="text-yellow-500 flex-shrink-0" />
-          <div className="flex-1">
-            <p className="text-white text-sm font-medium">Needs resolving</p>
-            <p className="text-muted text-xs">
-              {uncategorizedCount > 0 && `${uncategorizedCount} uncategorized`}
-              {uncategorizedCount > 0 && unreconciledCount > 0 && ' · '}
-              {unreconciledCount > 0 && `${unreconciledCount} unreconciled`}
-            </p>
-          </div>
-          <ChevronRight size={16} className="text-muted flex-shrink-0" />
-        </button>
+      {/* Needs resolving — all pending digest items, expandable, each item
+          taps through to chat with a pre-filled starting prompt (#130) */}
+      {pendingItems && pendingItems.length > 0 && (
+        <div className="mx-5 mt-3 rounded-xl bg-surface border border-yellow-500/30 overflow-hidden">
+          <button
+            onClick={() => setPendingExpanded(o => !o)}
+            className="w-full flex items-center gap-3 px-4 py-3 text-left"
+          >
+            <AlertCircle size={18} className="text-yellow-500 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-white text-sm font-medium">Needs resolving</p>
+              <p className="text-muted text-xs">
+                {pendingItems.length} thing{pendingItems.length !== 1 ? 's' : ''} to look at
+              </p>
+            </div>
+            <ChevronRight
+              size={16}
+              className={`text-muted flex-shrink-0 transition-transform ${pendingExpanded ? 'rotate-90' : ''}`}
+            />
+          </button>
+          {pendingExpanded && (
+            <div className="border-t border-border divide-y divide-border">
+              {pendingItems.map((item, i) => (
+                <button
+                  key={i}
+                  onClick={() => navigate('/chat', { state: { prefill: item.prompt } })}
+                  className="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
+                >
+                  <span className="text-white text-sm">{item.text}</span>
+                  <ChevronRight size={14} className="text-muted flex-shrink-0" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
       {/* Key metrics row */}
