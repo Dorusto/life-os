@@ -84,9 +84,9 @@ Backlog (needs dedicated UI tab): mileage log view, moving average consumption, 
 | 4.2 | Budget alert (after each transaction) | ✅ |
 | 4.3 | Income variance alert | ✅ |
 | 4.4 | Goal risk alert (weekly) | ✅ |
-| 4.5 | Recurring expense audit (monthly) — push on 1st of month: "You have 8 recurring charges: Netflix €15, Ziggo €45… Want to review?" | 🔲 |
+| 4.5 | Recurring expense audit (monthly) — push on 1st of month: "You have 8 recurring charges: Netflix €15, Ziggo €45… Want to review?" | 🔲 See [#41](https://github.com/Dorusto/life-os/issues/41) in `backlog.md` |
 | 4.6 | Vehicle reminders bundled in daily digest | ✅ |
-| 4.7 | Market correction alert (ETF dip) | 🔲 |
+| 4.7 | Market correction alert (ETF dip) | 🔲 See [#42](https://github.com/Dorusto/life-os/issues/42) in `backlog.md` |
 | 4.8 | Savings goals progress bars | ✅ |
 | 4.9 | FIRE / Crossover Point Report in chat | 🔲 |
 | 4.10 | Persistent chat history + clear button | ✅ |
@@ -172,6 +172,8 @@ Extract each service from Majordom into an independent HTTP service with its own
 ## Backlog
 
 Issue-level priority tracking (Tier 0-3, proactive-intelligence cluster, deferred items, feature ideas) moved to **[docs/backlog.md](backlog.md)** (2026-07-03) — it's tactical and churns often, which didn't fit well alongside milestones here. Start there for "what's next."
+
+**Rule (2026-07-03):** milestones above are descriptive — what phase/theme we're in, what "done" looks like. They don't decide priority; `backlog.md`'s tiers do, regardless of whether an issue also happens to have a milestone number. When a milestone item maps to a tracked issue (rare), the milestone row links to it instead of tracking status twice — see 4.5/4.7/6.1 above.
 
 ---
 

@@ -31,6 +31,7 @@ Tier 1 (#96, #69) dropped from this list — both deprioritized, tracked in thei
 |---|---|---|
 | [#93](https://github.com/Dorusto/life-os/issues/93) | Architecture code audit — do first, natural prep for #138 | half a day+ |
 | [#138](https://github.com/Dorusto/life-os/issues/138) | Extract `vehicle-manager` as independent service (FastAPI + own DB, REST + MCP-friendly) — internal modularity only, no public product yet. Unblocks #79, #134. See `decisions.md#vehicle-manager`. | half a day+ |
+| [#58](https://github.com/Dorusto/life-os/issues/58) | MCP server endpoint for Majordom's own tools (M5.7) — wanted, sequenced after #138 since it establishes the reusable REST+MCP pattern first | half a day+ |
 | [#88](https://github.com/Dorusto/life-os/issues/88) | M6 — setup simplification + platform vision | dedicated planning session, scope not yet clear |
 
 ### Proactive budget intelligence — medium priority, grouped (2026-07-03)
