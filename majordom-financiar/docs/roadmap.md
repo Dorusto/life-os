@@ -181,7 +181,6 @@ Ordered by priority/importance, not just size — see `decisions.md#tool-domain-
 
 | Issue | What | Est. |
 |---|---|---|
-| [#95](https://github.com/Dorusto/life-os/issues/95) | **P0** — activate daily backup, real data currently at risk | 30-60 min |
 | [#98](https://github.com/Dorusto/life-os/issues/98) | Tool domain routing (`finance__*`, `vehicle__*` prefixes) — prerequisite for the MCP server (#58), and every tool added without it is more rename debt later | 2-4h |
 
 **Tier 1 — cheap risk/quality-of-life wins, no discussion needed:**
