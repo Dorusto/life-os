@@ -56,3 +56,4 @@
 | [W27](2026-W27.md) | 2026-07-03 | #89: create destination account inline from the transfer card | actual_budget.py, accounts.py, chat.py, AccountTransferCard.tsx, api.ts |
 | [W27](2026-W27.md) | 2026-07-03 | Reverted bank-sync/CSV staleness noise from Home pending-items widget | notification_service.py |
 | [W27](2026-W27.md) | 2026-07-03 | Vehicle reminders hidden by anti-spam + staleness re-added with a watchlist | notification_service.py |
+| [W27](2026-W27.md) | 2026-07-03 | resync ING bug hunt: actualpy balanceType (#135), chat history persistence (#106), PWA stale cache, goal dedup, Fuelio research (#134) | client.py, notification_service.py, Chat.tsx, App.tsx, sw.js, registry.py |

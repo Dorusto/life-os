@@ -190,7 +190,6 @@ Ordered by priority/importance, not just size — see `decisions.md#tool-domain-
 |---|---|---|
 | [#97](https://github.com/Dorusto/life-os/issues/97) | Deploy workflow — drop the unnecessary container-removal step | 10-15 min |
 | [#96](https://github.com/Dorusto/life-os/issues/96) | Dev branch — stop deploying straight from main | 20-40 min |
-| [#106](https://github.com/Dorusto/life-os/issues/106) | Confirmation card disappears from chat history on navigation | 20-40 min (root cause not yet investigated) |
 | [#92](https://github.com/Dorusto/life-os/issues/92) | Help modal scroll bleeds through on Android PWA | 15-30 min (CSS fix, can't verify on a real Android device remotely) |
 | [#69](https://github.com/Dorusto/life-os/issues/69) | Close account from chat | 30-45 min |
 

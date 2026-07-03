@@ -613,8 +613,12 @@ TOOLS: list[dict] = [
             "name": "get_vehicle_log",
             "description": (
                 "Return the last N refuel entries for a vehicle from the vehicle log. "
-                "Use when the user asks to see their refuel history, recent fill-ups, or wants to find an entry to delete. "
-                "Each entry shows date, odometer, liters, cost, location, and an ID for reference."
+                "Use when the user asks to see their refuel history or recent fill-ups. "
+                "Each entry shows date, odometer, liters, cost, location, and an ID for reference — the ID is only "
+                "for referencing an entry if the user separately decides to delete one via delete_vehicle_log_entry. "
+                "Do not default to suggesting deletion after showing the list — most of the time the user is just "
+                "reviewing history or investigating consumption. If they seem interested in consumption/efficiency, "
+                "offer get_vehicle_stats instead."
             ),
             "parameters": {
                 "type": "object",
