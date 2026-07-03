@@ -4,12 +4,12 @@
 
 | Task type | Read first |
 |-----------|-----------|
-| Bug in backend/api/ or core/ | `docs/architecture.md#critical-rules` + `docs/sessions/` (grep topic) |
+| Bug in backend/api/ or core/ | `docs/architecture.md#critical-technical-rules` + `docs/sessions/` (grep topic) |
 | New feature | `docs/roadmap.md` (current milestone) + GitHub labels for issue priority (`CLAUDE.md#priority-tracking`) + `docs/architecture.md#main-flows` |
 | Refactor | `docs/decisions.md` + `docs/architecture.md` |
-| Tool calling / chat | `docs/learn/10-chat-tools.md` + `docs/architecture.md#critical-rules` |
+| Tool calling / chat | `docs/learn/10-chat-tools.md` + `docs/architecture.md#critical-technical-rules` |
 | CSV import | `docs/learn/07-csv-import.md` |
-| Actual Budget integration | `docs/learn/04-actual-budget.md` + `docs/architecture.md#critical-rules` |
+| Actual Budget integration | `docs/learn/04-actual-budget.md` + `docs/architecture.md#critical-technical-rules` |
 | Notifications / Web Push | `docs/sessions/2026-W22.md` (Web Push VAPID, APScheduler) |
 | Vehicle management | `docs/sessions/2026-W22.md` (M3.x, M4.6 sections) |
 
@@ -44,6 +44,6 @@
 - **What did we fix last week** → `docs/sessions/INDEX.md`
 - **Critical rules (never break)** → `docs/architecture.md#critical-technical-rules`
 - **Project file structure** → `docs/architecture.md#project-structure`
-- **Dev workflow gaps + ops priorities** → `docs/dev-workflow.md`
+- **Raw ideas not yet issues** → `docs/feature-ideas.md`
 - **Disaster recovery (LXC rebuild)** → `docs/recovery.md`
 - **Backup script** → `scripts/backup.sh`

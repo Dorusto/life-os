@@ -109,6 +109,7 @@ majordom-financiar/
 
 ---
 
+<a id="critical-technical-rules"></a>
 ## Critical Technical Rules — DO NOT BREAK THESE
 
 ### 1. Async vs Sync — CRITICAL

@@ -20,19 +20,19 @@ One server. Your data. Zero recurring costs.
 The system is built around three autonomous assistants ("Majordomii"), each managing a different area of your life:
 
 ### 🏦 Majordom Financiar *(active development)*
-Your personal CFO, running locally.
+Your personal CFO, running locally — chat with it through an installable web app (PWA).
 
-- Send a receipt photo on Telegram → AI extracts the data → saved automatically
+- Photograph a receipt in the app → AI extracts the data → you confirm → saved automatically
 - Natural language commands: *"what did I spend this week?"*, *"show my balance"*
 - Full integration with [Actual Budget](https://actualbudget.org/) for budgeting and reporting
-- Powered by [Ollama](https://ollama.com/) with a local vision model — no data leaves your server
+- LLM chat/vision via Ollama (fully local) or a cloud API (OpenRouter/DeepSeek) — your choice, configured per deployment
 
-**Stack:** Python · python-telegram-bot · Ollama (qwen2.5vl) · Actual Budget · Docker
+**Stack:** FastAPI (Python) · React + TypeScript PWA · Ollama or OpenRouter · Actual Budget · Docker
 
 ### 🏃 Majordom Wellness *(planned)*
 Movement, nutrition and health — monitored and personalized.
 
-- Food journal via Telegram (free text → AI → macros)
+- Food journal via chat (free text → AI → macros)
 - Activity tracking (Garmin/GPX import)
 - Health metrics over time
 - Integration with Home Assistant for smart sensors
@@ -44,7 +44,7 @@ Your personal digital vault and home automation hub.
 - Document archive with full-text search (Paperless-ngx)
 - Media library (Jellyfin)
 - Home automation and energy monitoring (Home Assistant)
-- Search your own archive via Telegram: *"find the lease contract"*
+- Search your own archive via chat: *"find the lease contract"*
 
 ---
 
@@ -52,8 +52,7 @@ Your personal digital vault and home automation hub.
 
 ### Requirements
 - Docker & Docker Compose
-- [Ollama](https://ollama.com/) running locally or on your network
-- A Telegram bot token (from [@BotFather](https://t.me/BotFather))
+- An LLM: [Ollama](https://ollama.com/) running locally/on your network, or an API key for a cloud provider (OpenRouter, DeepSeek)
 - [Actual Budget](https://actualbudget.org/) self-hosted instance
 
 ### Setup
@@ -62,11 +61,11 @@ Your personal digital vault and home automation hub.
 git clone https://github.com/Dorusto/life-os.git
 cd life-os/majordom-financiar
 cp .env.example .env
-# Edit .env with your credentials
-docker-compose up -d
+# Edit .env with your credentials (login, JWT secret, LLM, Actual Budget)
+docker compose up -d
 ```
 
-See `.env.example` for all required configuration values.
+Open `http://your-server-ip:3000` (or your Tailscale hostname) and log in with the username/password you set in `.env`. See `.env.example` for all required configuration values.
 
 ---
 

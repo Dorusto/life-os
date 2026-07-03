@@ -64,3 +64,4 @@
 | [W27](2026-W27.md) | 2026-07-03 | Backlog triage + #99 audit: fixed pending_review SQLite violation, discovered majordom-api build-vs-restart trap | core/memory/database.py, api/csv_import.py, docs/architecture.md, docs/decisions.md, docs/roadmap.md |
 | [W27](2026-W27.md) | 2026-07-03 | Doc cleanup: split docs/backlog.md out of roadmap.md, tracked root CLAUDE.md in git | docs/roadmap.md, docs/backlog.md, docs/INDEX.md, CLAUDE.md (both), .gitignore |
 | [W27](2026-W27.md) | 2026-07-03 | Priority tracking moved to GitHub Milestones + Labels, docs/backlog.md retired same day | docs/roadmap.md, docs/feature-ideas.md, CLAUDE.md (both), docs/INDEX.md, docs/learn/13-starting-a-task.md, docs/architecture.md |
+| [W27](2026-W27.md) | 2026-07-03 | Full documentation audit: closed stale M2/M3 milestones, fixed broken anchors, deleted 3 orphaned docs, rewrote both stale READMEs | docs/decisions.md, docs/architecture.md, docs/INDEX.md, README.md (both) |

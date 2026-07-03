@@ -1,6 +1,6 @@
 # Majordom — Personal Finance Assistant
 
-**Majordom is not a finance app. It's a conversational intelligence layer over powerful tools (Actual Budget, Ghostfolio) that makes them accessible without you ever having to learn them.**
+**Majordom is not a finance app. It's a conversational intelligence layer over powerful tools (Actual Budget, Sure) that makes them accessible without you ever having to learn them.**
 
 You talk to Majordom. Majordom does everything else — in the background, on your own server, with your data staying yours.
 
@@ -231,7 +231,7 @@ Short version of what's coming:
 - FIRE calculator (financial independence timeline)
 - Savings goals with progress tracking
 - Monthly budget limits + alerts
-- Investment portfolio tracking (Ghostfolio)
+- Investment portfolio tracking (Sure)
 - Automatic bank sync via open banking *(on hold — access restrictions for individual developers in the EU make this difficult to implement)*
 
 ---

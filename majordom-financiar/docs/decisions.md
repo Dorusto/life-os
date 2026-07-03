@@ -43,6 +43,7 @@
 
 ---
 
+<a id="llm-provider"></a>
 ### LLM provider — OpenRouter over local Ollama
 
 **Date:** 2026-06-01
@@ -103,6 +104,7 @@
 
 ---
 
+<a id="sure-adoption"></a>
 ### Sure adoption + AB coexistence strategy
 
 **Date:** 2026-06-03 · **Updated:** 2026-06-21
@@ -151,6 +153,7 @@ Sure checklist (budget allocation parity, MCP server) is deferred until the eval
 
 ---
 
+<a id="tool-domain-routing"></a>
 ### Tool domain routing — prefixed flat tools, structured system prompt
 
 **Date:** 2026-06-12
@@ -330,6 +333,7 @@ Sure checklist (budget allocation parity, MCP server) is deferred until the eval
 
 ---
 
+<a id="vehicle-manager"></a>
 ### Vehicle manager — future independent service
 
 **Date:** 2026-06-03 (external conversation) · **Documented:** 2026-06-21
