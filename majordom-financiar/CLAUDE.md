@@ -19,7 +19,7 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 | Task | Read |
 |------|------|
 | Bug in backend/api/ or core/ | `docs/architecture.md#critical-technical-rules` + `docs/sessions/` (grep topic) |
-| New feature | `docs/roadmap.md` (current milestone) + `docs/backlog.md` (issue priority) + `docs/architecture.md#main-flows` |
+| New feature | `docs/roadmap.md` (current milestone) + GitHub labels for issue priority (`#priority-tracking` below) + `docs/architecture.md#main-flows` |
 | Refactor | `docs/decisions.md` + `docs/architecture.md` |
 | Chat / tool calling | `docs/learn/10-chat-tools.md` + `docs/architecture.md#critical-technical-rules` |
 | CSV import | `docs/learn/07-csv-import.md` |
@@ -50,6 +50,30 @@ La finalizarea oricărui milestone (M complet sau feature major), actualizează 
 2. `/home/doru/Sync/Obsidian/Second_Brain/10_PROJECTS/10_Life_OS/CLAUDE.md` — secțiunea "Status Majordom"
 
 Fără acest pas, Second Brain rămâne out of sync și sesiunile de strategie YouTube/Business lucrează pe date false.
+
+---
+
+## Priority tracking
+
+**Rule (2026-07-03, do not violate):** issue priority/status lives ONLY on GitHub — never in a hand-maintained markdown file. Two separate incidents the same day (`docs/roadmap.md`'s milestone table and `docs/backlog.md` both independently tracking #41/#42/#138's status and disagreeing; before that, the root `CLAUDE.md` "Current priorities" list drifting from reality for weeks) are why: any doc that duplicates what an issue's own state already says WILL go stale, because nothing forces the two to update together.
+
+**Mechanism:**
+- **GitHub Milestones** — big phases (M0-M6, matching `docs/roadmap.md`'s themes). Assign an issue to a milestone when it maps to a specific roadmap phase.
+- **GitHub Labels** — tactical priority: `tier-2`, `tier-3` (ready to pick up, by effort), `intelligence-cluster` (proactive budget intelligence, medium priority, after standard functionality), `deferred-local-first` (blocked on switching back to local LLM), `deferred-opportunistic` (not scheduled).
+
+**Query examples:**
+```
+gh issue list --label tier-2
+gh issue list --label intelligence-cluster
+gh issue list --milestone "M4 — Smart Alerts"
+```
+
+**What CAN live in docs:**
+- Narrative that doesn't fit a label — sequencing rationale, "why these are grouped" — goes in the issue's own body/comments, not a separate tracking table.
+- `docs/roadmap.md` stays narrative-only: milestone themes, what "done" looks like. No per-item status tables for anything with a live GitHub issue — link to the issue instead (see 4.5/4.7/5.7/5.9/6.1 in the M4/M5/M6 tables for the pattern).
+- `docs/feature-ideas.md` is for ideas that AREN'T issues yet. The moment one becomes actionable, open an issue (with the right label/milestone) and remove it from that list.
+
+**Before adding any new priority/status list to a doc:** stop — it almost certainly belongs as a GitHub label or milestone instead.
 
 ---
 
@@ -155,7 +179,7 @@ When user confirms something works:
 **Always — do NOT report task as done until all steps below are checked:**
 1. Commit with correct timestamp
 2. Close GitHub issue: `gh issue list` → find relevant open issue → `gh issue close NNN -c "message"`
-3. Update `docs/roadmap.md` (milestone item — mark ✅ done) or `docs/backlog.md` (backlog issue — remove from its tier/cluster); if feature has a spec in `docs/specs/`, update it too
+3. Update `docs/roadmap.md` if it's a milestone item (mark ✅ done); closing the GitHub issue already updates its priority tracking (label/milestone) automatically — no separate doc to touch. If feature has a spec in `docs/specs/`, update it too
 4. Add entry to `docs/sessions/YYYY-WNN.md` (current week's file)
 5. Update `docs/sessions/INDEX.md` — add row for the session
 6. Check if docs need updating:
@@ -190,6 +214,7 @@ If a lesson from this session deserves a detailed explanation with analogies/dia
 
 - `docs/architecture.md` — technical rules + flows + project structure
 - `docs/decisions.md` — why things are the way they are
-- `docs/roadmap.md` — milestones · `docs/backlog.md` — issue-level priority
+- `docs/roadmap.md` — milestones · GitHub Labels/Milestones — issue-level priority (`#priority-tracking` above)
+- `docs/feature-ideas.md` — raw ideas not yet turned into issues
 - `docs/sessions/INDEX.md` — what was built and when
 - `PRIVATE_context.md` — account names, vehicle profiles (gitignored)

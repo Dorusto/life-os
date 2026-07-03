@@ -84,9 +84,9 @@ Backlog (needs dedicated UI tab): mileage log view, moving average consumption, 
 | 4.2 | Budget alert (after each transaction) | ✅ |
 | 4.3 | Income variance alert | ✅ |
 | 4.4 | Goal risk alert (weekly) | ✅ |
-| 4.5 | Recurring expense audit (monthly) — push on 1st of month: "You have 8 recurring charges: Netflix €15, Ziggo €45… Want to review?" | 🔲 See [#41](https://github.com/Dorusto/life-os/issues/41) in `backlog.md` |
+| 4.5 | Recurring expense audit (monthly) — push on 1st of month: "You have 8 recurring charges: Netflix €15, Ziggo €45… Want to review?" | 🔲 See [#41](https://github.com/Dorusto/life-os/issues/41) |
 | 4.6 | Vehicle reminders bundled in daily digest | ✅ |
-| 4.7 | Market correction alert (ETF dip) | 🔲 See [#42](https://github.com/Dorusto/life-os/issues/42) in `backlog.md` |
+| 4.7 | Market correction alert (ETF dip) | 🔲 See [#42](https://github.com/Dorusto/life-os/issues/42) |
 | 4.8 | Savings goals progress bars | ✅ |
 | 4.9 | FIRE / Crossover Point Report in chat | 🔲 |
 | 4.10 | Persistent chat history + clear button | ✅ |
@@ -145,9 +145,9 @@ Sure test checklist (before any integration work):
 | 5.4 | Crypto tracker with sell alert | 🔲 |
 | 5.5 | Trading 212 sync | 🔲 |
 | 5.6 | XTB sync | 🔲 |
-| 5.7 | MCP server endpoint for Majordom | 🔲 |
+| 5.7 | MCP server endpoint for Majordom | 🔲 See [#58](https://github.com/Dorusto/life-os/issues/58) |
 | 5.8 | Child portfolio dashboard | 🔲 |
-| 5.9 | Freelance / ZZP dashboard | 🔲 |
+| 5.9 | Freelance / ZZP dashboard | 🔲 See [#126](https://github.com/Dorusto/life-os/issues/126) |
 | 5.10 | Joint / couple budget | 🔲 |
 
 ~~Ghostfolio~~ — on hold, replaced by Sure. Removed from active roadmap.
@@ -160,7 +160,7 @@ Extract each service from Majordom into an independent HTTP service with its own
 
 | # | Service | Status | Trigger |
 |---|---------|--------|---------|
-| 6.1 | `vehicle-manager/` — FastAPI + own DB, extracted from memory.db | 🔲 | Trigger activated 2026-07-03 — see [#138](https://github.com/Dorusto/life-os/issues/138) |
+| 6.1 | `vehicle-manager/` — FastAPI + own DB, extracted from memory.db | 🔲 See [#138](https://github.com/Dorusto/life-os/issues/138) | Trigger activated 2026-07-03 |
 | 6.2 | `finance/` — FinanceProvider as HTTP service | 🔲 | After M5 evaluation |
 | 6.3 | `receipt-scanner/` — OCR extracted | 🔲 | When adding async receipt queue |
 | 6.4 | `csv-importer/` — import logic extracted | 🔲 | When adding multi-bank profiles |
@@ -171,9 +171,16 @@ Extract each service from Majordom into an independent HTTP service with its own
 
 ## Backlog
 
-Issue-level priority tracking (Tier 0-3, proactive-intelligence cluster, deferred items, feature ideas) moved to **[docs/backlog.md](backlog.md)** (2026-07-03) — it's tactical and churns often, which didn't fit well alongside milestones here. Start there for "what's next."
+Issue-level priority lives natively on GitHub (2026-07-03) — not in a hand-maintained doc. See `CLAUDE.md#priority-tracking` for the full rule and query examples.
 
-**Rule (2026-07-03):** milestones above are descriptive — what phase/theme we're in, what "done" looks like. They don't decide priority; `backlog.md`'s tiers do, regardless of whether an issue also happens to have a milestone number. When a milestone item maps to a tracked issue (rare), the milestone row links to it instead of tracking status twice — see 4.5/4.7/6.1 above.
+Quick reference:
+- `gh issue list --label tier-2` / `tier-3` — ready to pick up, ordered by effort
+- `gh issue list --label intelligence-cluster` — proactive budget intelligence, medium priority, after standard functionality
+- `gh issue list --label deferred-local-first` — blocked on switching back to local LLM
+- `gh issue list --label deferred-opportunistic` — not scheduled
+- `gh issue list --milestone "M4 — Smart Alerts"` (or M5, M6, ...) — everything in a given phase
+
+Milestones above are descriptive — what phase/theme we're in, what "done" looks like. They don't decide priority; the labels above do, regardless of whether an issue also happens to have a milestone. When a milestone item maps to a tracked issue, the milestone row links to it instead of tracking status twice — see 4.5/4.7/5.7/5.9/6.1 above.
 
 ---
 

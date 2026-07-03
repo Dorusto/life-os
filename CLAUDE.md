@@ -10,7 +10,7 @@ The user talks to Majordom in natural language. Majordom calls the right service
 
 Full architecture + target structure: `majordom-financiar/docs/architecture.md`
 Full roadmap (milestones): `majordom-financiar/docs/roadmap.md`
-Full backlog (issue priority): `majordom-financiar/docs/backlog.md`
+Issue priority: GitHub Milestones + Labels, not a doc — see `majordom-financiar/CLAUDE.md#priority-tracking`
 
 ---
 
@@ -46,7 +46,7 @@ See `majordom-financiar/PRIVATE_context.md` (gitignored, private) for the comple
 
 ## Current priorities (2026-07-03)
 
-Full prioritized backlog (Tier 0-3, proactive-intelligence cluster, deferred items) lives in `majordom-financiar/docs/backlog.md` — this section is a pointer, not a duplicate, to avoid the two going stale independently.
+Full prioritized backlog lives on GitHub as Milestones + Labels (`tier-2`, `tier-3`, `intelligence-cluster`, `deferred-local-first`, `deferred-opportunistic`) — not a doc, see `majordom-financiar/CLAUDE.md#priority-tracking`. Example: `gh issue list --label tier-2`.
 
 1. **Just completed** — M5.0 tool domain routing (#98), #137 (chat history bug), #99 audit (found + fixed an unrelated SQLite violation in `pending_review`)
 2. **Next up** — #93 (code audit) → [#138](https://github.com/Dorusto/life-os/issues/138) (extract `vehicle-manager` as independent service) → #79/#134 as its consumers
