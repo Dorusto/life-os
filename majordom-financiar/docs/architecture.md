@@ -217,6 +217,11 @@ Separately: if a category's target month has already passed (goal reached), "Ove
 ### 13. AB "Total Income (YTD)" and Net Worth reports include Starting Balances
 Account opening balances are counted as "income" at import time in AB's native reports (Total Income YTD, Net Worth graph — visible as a vertical jump when large accounts are added). Any income/net-worth calculation Majordom does must explicitly exclude "Starting Balances" transactions, or projections/alerts will be based on inflated numbers. See issue #112.
 
+### 14. Home "Needs resolving" widget must bypass digest anti-spam
+`get_pending_items()` (backend/services/notification_service.py) powers the Home widget's live pending-items list and must always reflect *current* unresolved state. The digest's `_check_*()` functions bake in "don't repeat the same alert within N days" anti-spam — reusing one of those as-is silently hides a still-true condition from the widget just because the digest already pushed it once this week (found via `_check_vehicle_reminders`, see 2026-07-03 session). Any digest check wired into `get_pending_items()` needs its anti-spam bypassed explicitly (e.g. `_check_vehicle_reminders(db, ignore_anti_spam=True)`), or reimplemented independently like the uncategorized/unreconciled/budget/goal checks already are.
+
+Also: don't build automatic staleness/noise heuristics from account metadata alone (e.g. "no transaction in N days") without a way to distinguish accounts that are supposed to sit idle (savings/goal buckets) from ones that aren't — this produced 20+ false positives in practice. Prefer an explicit opt-in list (`_CSV_STALENESS_WATCHLIST`) over a heuristic that can't be verified against the user's real account structure.
+
 ---
 
 ## Main Flows
