@@ -43,3 +43,13 @@
 | [W27](2026-W27.md) | 2026-07-02 | Vault findings → issues #101-#131 + CSV import cleared/imported_id fix (#101, #102) | api/csv_import.py, docs/architecture.md, docs/roadmap.md |
 | [W27](2026-W27.md) | 2026-07-02 | CSV import currency conversion (#103) + account auto-suggestion (#118) + near-duplicate detection | detector.py, csv_import.py, ImportPage.tsx, CsvImportCard.tsx |
 | [W27](2026-W27.md) | 2026-07-03 | Categorization bug batch: unify tools (#104), fix inconsistent card (#107), setup Skip option (#108) | registry.py, actual_budget.py, chat.py, category_actions.py, CategoryActionCard.tsx, SetupBalancesCard.tsx |
+| [W27](2026-W27.md) | 2026-07-03 | #109 payee fuzzy matching + #132 notes-based categorization filter | actual_budget.py, client.py, CategoryActionCard.tsx |
+| [W27](2026-W27.md) | 2026-07-03 | UX polish batch (#119, #127, #128, #129, #130, #131) | actual_budget.py, client.py, chat.py, notification_service.py |
+| [W27](2026-W27.md) | 2026-07-03 | #122: notes-based category suggestion + AB rule creation | actual_budget.py, client.py, proposals.py, api/proposals.py |
+| [W27](2026-W27.md) | 2026-07-03 | #123: notes-based fallback in uncategorized-groups review | client.py, chat.py |
+| [W27](2026-W27.md) | 2026-07-03 | #120 paused, #121 near-duplicate receipt/bank-sync merge implemented | client.py, receipt_service.py, api/receipts.py, ReceiptCard.tsx, FuelReceiptCard.tsx |
+| [W27](2026-W27.md) | 2026-07-03 | Old-issue cleanup: #118 missed close, #39/#40 stale, #83 real delete_transaction fix | api/vehicle_log_actions.py, tools/finance/vehicle.py, VehicleLogActionCard.tsx |
+| [W27](2026-W27.md) | 2026-07-03 | Full old-issue audit (#4, #7, #8, #9, #11, #32, #33, #56, #57, #59, #62, #100) | database.py, docs/roadmap.md |
+| [W27](2026-W27.md) | 2026-07-03 | #87 copy last month's budget + #125 goal-template fix + rollover toggle (#124 partial) | client.py, actual_budget.py, category_actions.py, BudgetCopyCard.tsx |
+| [W27](2026-W27.md) | 2026-07-03 | Home dashboard: rollover categories disappearing (real production bug) | actual_client/client.py |
+| [W27](2026-W27.md) | 2026-07-03 | Home "Needs resolving" widget redesign + unreconciled/bank-sync logic (#130 follow-up) | notification_service.py, client.py, chat.py, Home.tsx, Chat.tsx |
