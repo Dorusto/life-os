@@ -160,7 +160,7 @@ Extract each service from Majordom into an independent HTTP service with its own
 
 | # | Service | Status | Trigger |
 |---|---------|--------|---------|
-| 6.1 | `vehicle-manager/` — FastAPI + own DB, extracted from memory.db | 🔲 See [#138](https://github.com/Dorusto/life-os/issues/138) | Trigger activated 2026-07-03 |
+| 6.1 | `vehicle-manager/` — FastAPI + own DB, extracted from memory.db | ✅ Done 2026-07-03, see [#138](https://github.com/Dorusto/life-os/issues/138) | — |
 | 6.2 | `finance/` — FinanceProvider as HTTP service | 🔲 | After M5 evaluation |
 | 6.3 | `receipt-scanner/` — OCR extracted | 🔲 | When adding async receipt queue |
 | 6.4 | `csv-importer/` — import logic extracted | 🔲 | When adding multi-bank profiles |
