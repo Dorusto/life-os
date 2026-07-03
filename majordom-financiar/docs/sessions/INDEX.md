@@ -73,3 +73,4 @@
 | [W27](2026-W27.md) | 2026-07-03 | #77: trend indicators on Cashflow/FIRE cards — Net Worth card no longer exists (replaced by FIRE M5.2), redirected trend there instead; found + filed #142 (real `/api/home` race with `/api/home/pending`) | client.py, home.py, api.ts, Home.tsx, FireWidget.tsx |
 | [W27](2026-W27.md) | 2026-07-03 | Home UI polish (Budget card title/layout) + #142 fixed: process-wide actualpy lock serializes concurrent client instances | BudgetDashboard.tsx, actual_client/client.py |
 | [W27](2026-W27.md) | 2026-07-03 | #126: get_transactions_by_tag for freelance/ZZP order costing — hit the FinanceProvider pass-through gotcha (client method invisible to tools until also added to provider + Protocol) | client.py, actual_budget.py, registry.py, actual_budget_provider.py, provider.py, CLAUDE.md |
+| [W27](2026-W27.md) | 2026-07-03 | #141: logging.basicConfig() added — all logger.info() calls had been silent no-ops since day one | main.py |

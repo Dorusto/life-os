@@ -21,6 +21,10 @@ from backend.api import auth, receipts, transactions, chat, chat_history, csv_im
 from backend.core.config import settings
 from backend.core.scheduler import scheduler
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
 logger = logging.getLogger(__name__)
 
 UPLOADS_DIR = Path("/app/data/uploads")
