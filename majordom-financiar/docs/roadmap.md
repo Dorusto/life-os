@@ -171,6 +171,50 @@ Extract each service from Majordom into an independent HTTP service with its own
 
 ## Backlog
 
+### Next session — start here (as of 2026-07-03)
+
+Today's session pattern worked well and is worth repeating: pick one issue → discuss trade-offs if it has real variants → implement → verify live against the local docker-compose test stack → commit → session log entry → next. Rough time estimates below (implementation + verification only — "big" ones need a trade-off discussion first, which isn't included and can add real time if scope turns out bigger than it looks).
+
+**Small (quick wins, pick any, no discussion needed first):**
+
+| Issue | What | Est. |
+|---|---|---|
+| [#97](https://github.com/Dorusto/life-os/issues/97) | Deploy workflow — drop the unnecessary container-removal step | 10-15 min |
+| [#92](https://github.com/Dorusto/life-os/issues/92) | Help modal scroll bleeds through on Android PWA | 15-30 min (CSS fix, can't verify on a real Android device remotely) |
+| [#106](https://github.com/Dorusto/life-os/issues/106) | Confirmation card disappears from chat history on navigation | 20-40 min (root cause not yet investigated) |
+| [#96](https://github.com/Dorusto/life-os/issues/96) | Dev branch — stop deploying straight from main | 20-40 min |
+| [#69](https://github.com/Dorusto/life-os/issues/69) | Close account from chat | 30-45 min |
+| [#95](https://github.com/Dorusto/life-os/issues/95) | **P0** — activate daily backup, real data currently at risk | 30-60 min, depends on chosen approach (simple cron+tar vs. something more robust) |
+
+**Big (discuss trade-offs before implementing; estimates are implementation only):**
+
+| Issue | What | Est. |
+|---|---|---|
+| [#82](https://github.com/Dorusto/life-os/issues/82) | Teach user sqlite-web navigation | 15-20 min (conversation, no code) |
+| [#76](https://github.com/Dorusto/life-os/issues/76) | Offer to add monthly amount to budget after setting a goal | 30-45 min |
+| [#79](https://github.com/Dorusto/life-os/issues/79) | Vehicle list/deactivate chat tool | 30-45 min |
+| [#77](https://github.com/Dorusto/life-os/issues/77) | Trend indicator on Cashflow/Net Worth cards | 45min-1h |
+| [#78](https://github.com/Dorusto/life-os/issues/78) | `setup_default_groups` UX improvements | 45min-1h |
+| [#81](https://github.com/Dorusto/life-os/issues/81) | Ollama — unload unused model before loading another | 45min-1h30 |
+| [#116](https://github.com/Dorusto/life-os/issues/116) | Month-end uncategorized+unreconciled report (unblocked now that #101 is fixed) | 1-2h |
+| [#99](https://github.com/Dorusto/life-os/issues/99) | Remove `merchant_mappings` SQLite table, use AB rule history instead | 1-2h |
+| [#75](https://github.com/Dorusto/life-os/issues/75) | Reduce chat latency | 1-2h |
+| [#80](https://github.com/Dorusto/life-os/issues/80) / [#86](https://github.com/Dorusto/life-os/issues/86) | Vision — total amount not detected on some receipts | 1-2h investigation, may not have a full fix (model limitation) |
+| [#126](https://github.com/Dorusto/life-os/issues/126) | Freelance/ZZP income dashboard via AB tags | 1.5-2.5h |
+| [#112](https://github.com/Dorusto/life-os/issues/112) | Annual budget pacing | 1.5-2.5h |
+| [#110](https://github.com/Dorusto/life-os/issues/110) | Budget realism check per category | 2-3h |
+| [#111](https://github.com/Dorusto/life-os/issues/111) | Proactive sinking fund detection | 2-3h |
+| [#114](https://github.com/Dorusto/life-os/issues/114) | Cross-check budget estimates against a vault plan file | 2-3h |
+| [#115](https://github.com/Dorusto/life-os/issues/115) | Split transaction across multiple categories | 2-3h |
+| [#124](https://github.com/Dorusto/life-os/issues/124) | Budget config via chat — remaining scope (Automations, goal templates; rollover toggle already done) | 2-4h |
+| [#98](https://github.com/Dorusto/life-os/issues/98) | Tool domain routing | 2-4h |
+| [#117](https://github.com/Dorusto/life-os/issues/117) | Assisted reconciliation | 2-4h |
+| [#113](https://github.com/Dorusto/life-os/issues/113) | End-to-end goal budgeting (compound tool) | 3-4h |
+| [#93](https://github.com/Dorusto/life-os/issues/93) | Architecture code audit | half a day+ |
+| [#88](https://github.com/Dorusto/life-os/issues/88) | M6 — setup simplification + platform vision | dedicated planning session, scope not yet clear |
+
+[#120](https://github.com/Dorusto/life-os/issues/120) (own-account transfer linking) stays paused — flagged as delicate, no estimate.
+
 | Feature | Notes |
 |---------|-------|
 | [Enable Banking (auto bank sync)](specs/ab-integration.md#enable-banking-automatic-bank-sync) | PSD2 via Enable Banking API — free for personal use; replaces CSV for supported banks |
