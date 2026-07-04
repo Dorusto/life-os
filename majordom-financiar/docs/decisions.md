@@ -238,25 +238,21 @@ Confirmed AB also has a native transfer mechanism usable the same way: every acc
 
 ---
 
-### Category system — 7 universal groups
+### Category system — 7 universal groups (superseded 2026-07-04)
 
-**Date:** 2026-05-29
+**Date:** 2026-05-29 — **superseded 2026-07-04**, see #78 in `docs/sessions/2026-W27.md`.
 
-**Decision:** 7 fixed top-level groups as starting point. User can add/modify/delete freely. AI assigns top-level only — never auto-creates subcategories.
+**Original decision:** 7 fixed top-level groups as a one-shot `setup_default_groups` chat tool, creating whatever was missing from a hardcoded template (Housing, Daily Living, Transport, Health, Lifestyle, Finance, Unexpected). User can add/modify/delete freely afterward; AI assigns top-level only — never auto-creates subcategories.
 
-| Group | Covers |
-|-------|--------|
-| 🏠 Housing | rent, mortgage, utilities, repairs, cleaning |
-| 🛒 Daily Living | food, hygiene, clothing, children, pets |
-| 🚗 Transport | car, fuel, public transport, moto, parking |
-| 💊 Health | medicine, doctor, gym, therapist, insurance |
-| 🎯 Lifestyle | restaurants, vacations, subscriptions, hobbies, gifts |
-| 💰 Finance | investments, savings |
-| ⚡ Unexpected | safety net — everything that doesn't fit |
+**Why it was superseded:** the one-shot template tool had no visibility into what already existed — a user with a differently-named group ("Food") would end up with a duplicate ("Daily Living") instead of a rename. Discussion on 2026-07-04 reframed the actual need as ongoing management, not one-time templated creation: a single card (`list_categories` tool → `CategoryOverviewCard`) that shows every group/category currently in Actual Budget and lets the user rename or add inline — no hardcoded template, no assumption about what "standard" categories should be.
 
-**Why:** 7 groups cover 95%+ of personal finance without overwhelming the user at setup. Home shows top-level; tap to expand subcategories.
+**Removed:** `setup_default_groups()`, its `_GROUPS` constant, and the whole "propose the 7 standard groups" flow.
 
-**Rejected:** Auto-generated subcategories — creates noise and inconsistency across users.
+**Still open (deferred, not filed as an issue yet):**
+- Deploy-time category baseline seeding, so a fresh install doesn't start with zero categories (the original motivation for having *some* starting template) — needs its own decision on where that seed lives (install script vs. first-run tool).
+- A "smart suggestions" layer (a few onboarding questions — kids, a savings goal — feeding suggested categories into the overview card) — explicitly deferred, intelligence intentionally left out of the 2026-07-04 implementation.
+
+**Rejected (still holds):** Auto-generated subcategories with no user visibility into what's being created — the AI-assigns-top-level-only constraint on the *categorization* logic is unaffected by this change and still applies.
 
 ---
 
