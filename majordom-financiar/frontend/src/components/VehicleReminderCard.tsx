@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Bell, X } from 'lucide-react'
+import { Bell, Check, X } from 'lucide-react'
 import { confirmVehicleReminder, cancelVehicleReminder, type VehicleReminderData } from '../lib/api'
 
 interface Props {
@@ -167,8 +167,8 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
           disabled={loading || (!isService && !isApkRequired && !dueDate)}
           className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-50 whitespace-nowrap"
         >
-          <Bell size={14} />
-          Set reminder
+          {isApkRequired ? <Check size={14} /> : <Bell size={14} />}
+          {isApkRequired ? 'Save' : 'Set reminder'}
         </button>
         <button
           onClick={handleCancel}
