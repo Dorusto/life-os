@@ -4,9 +4,9 @@ Majordom is a personal AI orchestrator — conversational UI + MCP server + proa
 
 The user talks to Majordom in natural language. Majordom calls the right service, executes the action, and asks for confirmation. The user never interacts with the underlying services directly.
 
-**Active development:** `majordom-financiar/` → target: `majordom/` (incremental rename)
+**Active development:** `majordom-financiar/` → target: `majordom-finance/` (see #150 — naming convention still being decided, not the old single-`majordom/` target)
 **Finance platform:** Actual Budget (current) → Sure (conditional — deferred until Ghostfolio vs Sure evaluation)
-**Architecture target:** `life-os/` as modular monorepo — each service independent
+**Architecture target:** `life-os/` as modular monorepo and platform brand — each service independent, named `majordom-<domain>` (e.g. `majordom-finance`, `majordom-garage`) — see #150
 
 Full architecture + target structure: `majordom-financiar/docs/architecture.md`
 Full roadmap (milestones): `majordom-financiar/docs/roadmap.md`
