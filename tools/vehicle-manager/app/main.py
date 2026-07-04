@@ -20,7 +20,7 @@ from app.models import (
     DeleteResult, FuelioImportResult, HealthResponse, LogInsertResult,
     VehicleLogEntry, VehicleUpsertRequest, VehiclePatchRequest, VehicleUpsertResult,
 )
-from app.fuelio_parser import parse_csv
+from app.fuelio_parser import parse_csv, derive_vehicle_reminder_fields
 
 logging.basicConfig(
     level=logging.INFO,
@@ -191,6 +191,9 @@ async def import_fuelio(file: UploadFile = File(...)):
 
     if cost_entries:
         cost_inserted, cost_skipped = insert_vehicle_log_entries(cost_entries)
+        reminder_fields = derive_vehicle_reminder_fields(cost_entries)
+        if reminder_fields:
+            patch_vehicle(vehicle_id, reminder_fields)
 
     return FuelioImportResult(
         vehicle_name=vehicle_data.get("name", "Unknown"),

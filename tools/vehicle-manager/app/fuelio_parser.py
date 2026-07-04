@@ -230,6 +230,44 @@ def parse_costs_section(headers: list[str], rows: list[list[str]], vehicle_id: i
     return entries
 
 
+def derive_vehicle_reminder_fields(entries: list[dict]) -> dict:
+    """Derive vehicle-profile fields (apk_due, insurance_due, service interval/last-service)
+    from a list of Costs-section entries (freshly parsed or already stored in vehicle_log —
+    both share the same entry_type/remind_date/repeat_odo/repeat_months/odo_km/date shape).
+
+    A renewal always pushes reminder dates further into the future, so the latest
+    remind_date among same-type entries is the current one. For maintenance, the entry
+    with the latest date is the most recent service performed.
+    """
+    fields: dict = {}
+
+    def _latest_value(candidates: list[dict], key: str):
+        values = [e[key] for e in candidates if e.get(key)]
+        return max(values) if values else None
+
+    apk_due = _latest_value([e for e in entries if e.get("entry_type") == "service"], "remind_date")
+    if apk_due:
+        fields["apk_due"] = apk_due
+
+    insurance_due = _latest_value([e for e in entries if e.get("entry_type") == "insurance"], "remind_date")
+    if insurance_due:
+        fields["insurance_due"] = insurance_due
+
+    maintenance_entries = [e for e in entries if e.get("entry_type") == "maintenance"]
+    if maintenance_entries:
+        latest = max(maintenance_entries, key=lambda e: e.get("date") or "")
+        if latest.get("repeat_odo"):
+            fields["service_interval_km"] = latest["repeat_odo"]
+        if latest.get("repeat_months"):
+            fields["service_interval_months"] = latest["repeat_months"]
+        if latest.get("odo_km"):
+            fields["last_service_km"] = latest["odo_km"]
+        if latest.get("date"):
+            fields["last_service_date"] = latest["date"][:10]
+
+    return fields
+
+
 def parse_csv(file_bytes: bytes) -> tuple[dict | None, list[dict], list[dict]]:
     """Parse a Fuelio sync CSV file.
 
