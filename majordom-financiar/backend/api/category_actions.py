@@ -45,20 +45,6 @@ async def confirm_category_action(
         elif action["action"] == "delete":
             await client.delete_category(action["category_name"])
             message = f"Category deleted: '{action['category_name']}'"
-        elif action["action"] == "setup_groups":
-            created = []
-            for group_name, sub_names in action["groups"]:
-                try:
-                    await client.create_category_group(group_name)
-                except Exception:
-                    pass
-                for sub_name in sub_names:
-                    try:
-                        await client.create_category(sub_name, group_name)
-                        created.append(f"{group_name} → {sub_name}")
-                    except Exception:
-                        pass
-            message = f"Created {len(action['groups'])} groups with subcategories: {', '.join(g for g, _ in action['groups'])}"
         elif action["action"] == "create":
             cat_name = override.category_name or action["category_name"]
             grp_name = override.group_name or action["group_name"]
@@ -196,6 +182,66 @@ async def propose_savings_budget(
         month=body.month or "",
     )
     return json.loads(result)
+
+
+class CategoryOverviewApply(BaseModel):
+    new_groups: list[str] = []
+    renamed_groups: dict[str, str] = {}
+    new_categories: list[dict] = []  # [{"name": str, "group_name": str}]
+    renamed_categories: dict[str, str] = {}
+
+
+@router.post("/category-actions/overview/apply")
+async def apply_category_overview(
+    body: CategoryOverviewApply,
+    current_user: str = Depends(get_current_user),
+):
+    """Apply a batch of edits made on the category overview card — new/renamed groups and categories."""
+    client = get_provider()
+    created_groups = 0
+    renamed_groups = 0
+    created_categories = 0
+    renamed_categories = 0
+
+    for group_name in body.new_groups:
+        try:
+            await client.create_category_group(group_name)
+            created_groups += 1
+        except Exception as e:
+            logger.warning("Failed to create category group '%s': %s", group_name, e)
+
+    for old_name, new_name in body.renamed_groups.items():
+        try:
+            await client.rename_category_group(old_name, new_name)
+            renamed_groups += 1
+        except Exception as e:
+            logger.warning("Failed to rename category group '%s' -> '%s': %s", old_name, new_name, e)
+
+    for cat in body.new_categories:
+        try:
+            await client.create_category(cat["name"], cat["group_name"])
+            created_categories += 1
+        except Exception as e:
+            logger.warning("Failed to create category '%s' in '%s': %s", cat.get("name"), cat.get("group_name"), e)
+
+    for old_name, new_name in body.renamed_categories.items():
+        try:
+            await client.rename_category(old_name, new_name)
+            renamed_categories += 1
+        except Exception as e:
+            logger.warning("Failed to rename category '%s' -> '%s': %s", old_name, new_name, e)
+
+    parts = []
+    if created_groups:
+        parts.append(f"{created_groups} group{'s' if created_groups != 1 else ''} created")
+    if renamed_groups:
+        parts.append(f"{renamed_groups} group{'s' if renamed_groups != 1 else ''} renamed")
+    if created_categories:
+        parts.append(f"{created_categories} categor{'ies' if created_categories != 1 else 'y'} created")
+    if renamed_categories:
+        parts.append(f"{renamed_categories} categor{'ies' if renamed_categories != 1 else 'y'} renamed")
+    message = ", ".join(parts) if parts else "No changes made."
+    return {"message": message}
 
 
 @router.post("/category-actions/{action_id}/cancel")

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Send, Plus, Camera, Image, FileText, HelpCircle, X, Trash2 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, saveChatHistory, clearChatHistory, proposeSavingsBudget, type SetupAccount, type BalanceAdjustmentData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type FuelConfirmResponse, type VehicleLogActionData, type VehicleReminderData, type VehicleStatusData } from '../lib/api'
+import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, saveChatHistory, clearChatHistory, proposeSavingsBudget, type SetupAccount, type BalanceAdjustmentData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type CategoryOverviewData, type FuelConfirmResponse, type VehicleLogActionData, type VehicleReminderData, type VehicleStatusData } from '../lib/api'
 import CsvImportCard from '../components/CsvImportCard'
 import FuelioImportCard, { FuelioImportData } from '../components/FuelioImportCard'
 import ProposalCard, { ProposalData } from '../components/ProposalCard'
@@ -15,6 +15,7 @@ import IncomeSourceCard from '../components/IncomeSourceCard'
 import ReceiptCard from '../components/ReceiptCard'
 import FuelReceiptCard from '../components/FuelReceiptCard'
 import CategoryActionCard from '../components/CategoryActionCard'
+import CategoryOverviewCard from '../components/CategoryOverviewCard'
 import BudgetCopyCard from '../components/BudgetCopyCard'
 import GoalProposalCard, { GoalProposalData } from '../components/GoalProposalCard'
 import VehicleLogActionCard from '../components/VehicleLogActionCard'
@@ -29,7 +30,7 @@ import type { MonthlyStats } from '../lib/api'
 
 
 export interface Message {
-  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'fuelio_import' | 'income_source' | 'receipt' | 'category_action' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder' | 'vehicle_status' | 'spending_chart' | 'budget_chart' | 'spending_trend' | 'goals_chart'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'fuelio_import' | 'income_source' | 'receipt' | 'category_action' | 'category_overview' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder' | 'vehicle_status' | 'spending_chart' | 'budget_chart' | 'spending_trend' | 'goals_chart'
 
   content: string
   ts?: number
@@ -58,6 +59,7 @@ export interface Message {
     fuelStats?: FuelConfirmResponse
   }
   categoryAction?: CategoryActionData
+  categoryOverview?: CategoryOverviewData
   goalProposal?: GoalProposalData
   fuelLog?: { draft: ReceiptDraft; fuelStats?: FuelConfirmResponse }
   vehicleLogAction?: VehicleLogActionData
@@ -418,6 +420,10 @@ export default function Chat({ messages, setMessages }: ChatProps) {
           setMessages(prev => [...prev, { role: 'category_action' as const, content: '', categoryAction: parsed as CategoryActionData }])
           return
         }
+        if (parsed.type === 'category_overview') {
+          setMessages(prev => [...prev, { role: 'category_overview' as const, content: '', categoryOverview: parsed as CategoryOverviewData }])
+          return
+        }
         if (parsed.type === 'goal_proposal') {
           setMessages(prev => [...prev, { role: 'goal_proposal' as const, content: '', goalProposal: parsed as GoalProposalData }])
           return
@@ -727,6 +733,24 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                       i === idx
                         ? { role: 'status' as const, content: 'Cancelled.' }
                         : m
+                    )
+                  )
+                }}
+              />
+            ) : msg.role === 'category_overview' && msg.categoryOverview ? (
+              <CategoryOverviewCard
+                data={msg.categoryOverview}
+                onConfirmed={(message) => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx ? { role: 'status' as const, content: message } : m
+                    )
+                  )
+                }}
+                onCancelled={() => {
+                  setMessages(prev =>
+                    prev.map((m, i) =>
+                      i === idx ? { role: 'status' as const, content: 'Closed.' } : m
                     )
                   )
                 }}

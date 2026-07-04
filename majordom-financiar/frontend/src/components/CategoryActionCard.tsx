@@ -47,7 +47,6 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
 
   const isDelete = data.action === 'delete'
   const isCreate = data.action === 'create'
-  const isSetupGroups = data.action === 'setup_groups'
   const isSetBudget = data.action === 'set_budget'
   const isCategorizeWithRule = data.action === 'categorize_with_rule'
   const isSetBudgetCarryover = data.action === 'set_budget_carryover'
@@ -57,7 +56,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
       <div>
         <p className="text-white font-medium">
-          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetupGroups ? 'Create standard groups?' : isSetBudget ? 'Set budget amount?' : isCategorizeWithRule ? 'Categorize transactions?' : isSetBudgetCarryover ? `${data.enabled ? 'Enable' : 'Disable'} rollover overspending?` : isBankResync ? 'Resync bank account?' : 'Rename category?'}
+          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetBudget ? 'Set budget amount?' : isCategorizeWithRule ? 'Categorize transactions?' : isSetBudgetCarryover ? `${data.enabled ? 'Enable' : 'Disable'} rollover overspending?` : isBankResync ? 'Resync bank account?' : 'Rename category?'}
         </p>
         {isSetBudgetCarryover && (
           <p className="text-muted text-sm mt-0.5">
@@ -73,9 +72,6 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
             <span className="text-white">{data.account_name}</span>
             {' — '}{data.last_sync ? `last synced ${data.last_sync}` : 'never synced'}, pulls fresh transactions from the bank
           </p>
-        )}
-        {isSetupGroups && (
-          <p className="text-muted text-xs mt-1">{data.preview}</p>
         )}
         {isDelete && (
           <p className="text-muted text-sm mt-0.5">
@@ -233,7 +229,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
           }`}
         >
           <Check size={14} />
-          {isDelete ? 'Delete' : isCreate ? 'Create' : isSetupGroups ? 'Create all' : isSetBudget ? 'Set budget' : isCategorizeWithRule ? 'Categorize' : isSetBudgetCarryover || isBankResync ? 'Confirm' : 'Rename'}
+          {isDelete ? 'Delete' : isCreate ? 'Create' : isSetBudget ? 'Set budget' : isCategorizeWithRule ? 'Categorize' : isSetBudgetCarryover || isBankResync ? 'Confirm' : 'Rename'}
         </button>
         <button
           onClick={handleCancel}

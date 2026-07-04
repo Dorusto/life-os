@@ -880,34 +880,18 @@ async def propose_budget_copy(month: str = "") -> str:
     })
 
 
-async def setup_default_groups() -> str:
-    """Propose creating the 7 standard category groups (Housing, Daily Living, Transport, Health, Lifestyle, Finance, Unexpected) with their default subcategories. Only creates groups/categories that don't already exist."""
-    import uuid
-    from backend.tools import category_actions as action_store
-
-    _GROUPS = [
-        ("Housing",      ["Home & Maintenance", "Utilities"]),
-        ("Daily Living", ["Groceries & Drinks", "Clothing", "Children"]),
-        ("Transport",    ["Transport"]),
-        ("Health",       ["Health"]),
-        ("Lifestyle",    ["Restaurants & Cafes", "Entertainment & Vacation", "Personal"]),
-        ("Finance",      ["Investments & Savings"]),
-        ("Unexpected",   ["Other"]),
-    ]
-
+async def list_categories() -> str:
+    """Show all existing category groups and their subcategories as an editable overview card. Use when the user asks to see, manage, organize, or set up categories/groups."""
     client = get_provider()
-    existing_groups = await client.get_category_groups()
-    existing_lower = {g.lower() for g in existing_groups}
+    cats = await client.get_categories()
+    group_names = await client.get_category_groups()
 
-    to_create = [(g, cats) for g, cats in _GROUPS if g.lower() not in existing_lower]
+    by_group: dict[str, list[dict]] = {name: [] for name in group_names}
+    for c in cats:
+        by_group.setdefault(c.group_name, []).append({"id": c.id, "name": c.name})
 
-    if not to_create:
-        return json.dumps({"type": "error", "message": "All 7 standard groups already exist."})
-
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {"action": "setup_groups", "groups": to_create})
-    preview = ", ".join(g for g, _ in to_create)
-    return json.dumps({"type": "category_action", "id": action_id, "action": "setup_groups", "preview": preview, "groups": to_create})
+    groups = [{"name": name, "categories": by_group.get(name, [])} for name in group_names]
+    return json.dumps({"type": "category_overview", "groups": groups})
 
 
 async def get_uncategorized_groups() -> str:

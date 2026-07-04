@@ -64,6 +64,8 @@ class FinanceProvider(Protocol):
 
     async def rename_category(self, old_name: str, new_name: str) -> None: ...
 
+    async def rename_category_group(self, old_name: str, new_name: str) -> None: ...
+
     async def set_budget_amount(
         self,
         category_name: str,

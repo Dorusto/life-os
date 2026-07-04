@@ -721,13 +721,11 @@ export async function cancelBalanceAdjustment(id: string): Promise<void> {
 
 export interface CategoryActionData {
   id: string
-  action: 'rename' | 'delete' | 'create' | 'setup_groups' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'bank_resync'
+  action: 'rename' | 'delete' | 'create' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'bank_resync'
   category_name: string
   new_name?: string
   group_name?: string
   available_groups?: string[]
-  preview?: string
-  groups?: [string, string[]][]
   // set_budget fields:
   current_amount?: number
   new_amount?: number
@@ -764,6 +762,29 @@ export async function confirmCategoryAction(
 
 export async function cancelCategoryAction(id: string): Promise<void> {
   return request<void>(`/category-actions/${id}/cancel`, { method: 'POST' })
+}
+
+// --- Category overview (show all + inline add/rename) ---
+
+export interface CategoryOverviewData {
+  type: 'category_overview'
+  groups: { name: string; categories: { id: string; name: string }[] }[]
+}
+
+export interface CategoryOverviewApplyPayload {
+  new_groups: string[]
+  renamed_groups: Record<string, string>
+  new_categories: { name: string; group_name: string }[]
+  renamed_categories: Record<string, string>
+}
+
+export async function applyCategoryOverview(
+  payload: CategoryOverviewApplyPayload
+): Promise<{ message: string }> {
+  return request('/category-actions/overview/apply', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 }
 
 export async function proposeSavingsBudget(

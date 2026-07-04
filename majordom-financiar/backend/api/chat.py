@@ -109,6 +109,7 @@ Use `finance__*` tools when the user mentions money, budget, transactions, accou
 - If the amount is missing from the user's message, call finance__propose_clarification immediately — NEVER guess or invent an amount.
 - To move budget between categories: call finance__propose_budget_rebalance. Never describe it as text.
 - To set a category budget to a specific euro amount: call finance__propose_set_category_budget. Use this when the user mentions a number + category (e.g. "set Transport to €110", "put €300 in Groceries"). NEVER call finance__rename_category for this — rename is only for changing a category's name, not its amount.
+- To show, manage, or organize the full list of category groups and subcategories — call finance__list_categories immediately. Use this for "show me my categories", "arată-mi categoriile", "I want to configure categories", or any request to see/set up the category structure. Never answer with the account list or invent category names from memory.
 - To transfer money between accounts: call finance__propose_account_transfer. Never describe it as text. Pass account names EXACTLY as the user stated them — do NOT substitute with known accounts. If an account is not in Actual Budget, the transfer card offers to create it inline.
 - To answer questions about spending, balances, or budget: call the appropriate finance__get_* tool first, then answer based on the result.
 - When presenting finance__get_uncategorized_groups results: state the command format the user should type FIRST (e.g. "Say 'categorize all X as Y' for any group below"), THEN list the groups. With long lists the instruction gets missed if it's only at the end.
@@ -148,7 +149,7 @@ _PROPOSAL_TOOLS = {
     "finance__propose_transaction", "finance__propose_budget_rebalance", "finance__propose_account_transfer",
     "finance__propose_clarification", "finance__propose_balance_adjustment", "finance__rename_category",
     "finance__delete_category", "finance__set_account_goal", "finance__create_category",
-    "finance__setup_default_groups", "finance__propose_set_category_budget", "finance__propose_categorize_with_rule",
+    "finance__list_categories", "finance__propose_set_category_budget", "finance__propose_categorize_with_rule",
     "finance__propose_budget_copy", "finance__propose_set_budget_carryover", "finance__propose_bank_resync",
     "finance__get_spending_chart", "finance__get_budget_chart", "finance__get_spending_trend", "finance__get_goals_chart",
     "vehicle__log_refuel", "vehicle__delete_vehicle_log_entry", "vehicle__set_vehicle_reminder",

@@ -303,11 +303,11 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "finance__setup_default_groups",
+            "name": "finance__list_categories",
             "description": (
-                "Propose creating the 7 standard category groups (Housing, Daily Living, Transport, Health, Lifestyle, Finance, Unexpected) "
-                "with their default subcategories. Skips groups that already exist. "
-                "Use when the user asks to set up default categories or standard groups."
+                "Show all existing category groups and their subcategories as an editable card. "
+                "Use when the user asks to see, manage, organize, or set up categories or groups "
+                "(e.g. 'show me my categories', 'arată-mi categoriile', 'I want to configure categories')."
             ),
             "parameters": {"type": "object", "properties": {}, "required": []},
         },
@@ -878,9 +878,9 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
         from backend.tools.finance.actual_budget import set_account_goal
         return await set_account_goal(**arguments)
 
-    if name == "finance__setup_default_groups":
-        from backend.tools.finance.actual_budget import setup_default_groups
-        return await setup_default_groups()
+    if name == "finance__list_categories":
+        from backend.tools.finance.actual_budget import list_categories
+        return await list_categories()
 
     if name == "finance__create_category":
         from backend.tools.finance.actual_budget import create_category
