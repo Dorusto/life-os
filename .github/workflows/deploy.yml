@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "majordom-financiar/**"
+      - "tools/vehicle-manager/**"
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
@@ -20,5 +21,5 @@ jobs:
       - name: Rebuild and restart services
         run: |
           cd "$MAJORDOM_PATH/majordom-financiar"
-          docker compose build --no-cache majordom-api majordom-web
+          docker compose build --no-cache majordom-api majordom-web vehicle-manager
           docker compose up -d
