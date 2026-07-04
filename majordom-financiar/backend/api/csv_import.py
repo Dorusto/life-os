@@ -311,6 +311,7 @@ def _do_import(
                 category=cat_obj,
                 imported_id=fid,
                 cleared=True,
+                imported_payee=row.merchant,
             )
             existing_ids.add(fid)
             imported += 1

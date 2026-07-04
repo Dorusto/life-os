@@ -497,6 +497,7 @@ class ActualBudgetClient:
                     amount=-abs(amount) if is_expense else abs(amount),
                     category=cat_obj,
                     imported_id=imported_id,
+                    imported_payee=payee if payee else None,
                 )
                 actual.commit()
                 return str(tx.id)
