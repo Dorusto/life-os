@@ -172,3 +172,15 @@ class ActualBudgetProvider:
         return await self._client().create_payee_notes_rule(
             payee_name_prefix, notes_contains, category_id
         )
+
+    async def create_payee_transfer_rule(
+        self, payee_name_prefix: str, target_account_id: str
+    ) -> None:
+        return await self._client().create_payee_transfer_rule(
+            payee_name_prefix, target_account_id
+        )
+
+    async def match_existing_rules(
+        self, candidates: list[dict]
+    ) -> list[dict | None]:
+        return await self._client().match_existing_rules(candidates)

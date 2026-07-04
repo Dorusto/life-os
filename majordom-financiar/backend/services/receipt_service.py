@@ -96,18 +96,20 @@ class ReceiptService:
 
         merchant = receipt.merchant or ""
 
-        # Ask the categorizer for a suggestion based on this merchant.
-        # predict() checks (in order): merchant history → keywords → fallback
-        prediction = self._categorizer.predict(merchant=merchant)
+        # Check Actual Budget's own rules first (payee or receipt-text based) —
+        # only fall back to the local keyword categorizer if no rule matches (#99).
+        rule_matches = await self._actual.match_existing_rules(
+            [{"payee": merchant, "notes": receipt.raw_text}]
+        )
+        rule_match = rule_matches[0] if rule_matches else None
 
-        # Map category_source so the frontend can show a meaningful label
-        # e.g. "From your history" vs "AI guess" vs "Unknown"
-        if prediction.from_history:
+        if rule_match and rule_match.get("category_name"):
+            suggested_category_id = rule_match["category_name"]
             source = "history"
-        elif prediction.confidence >= 0.7:
-            source = "keywords"
         else:
-            source = "none"
+            prediction = self._categorizer.predict(merchant=merchant, ocr_text=receipt.raw_text)
+            suggested_category_id = prediction.category_id if prediction.confidence > 0 else None
+            source = "keywords" if prediction.confidence >= 0.7 else "none"
 
         # Format date as ISO string for JSON serialization
         tx_date = receipt.date
@@ -127,7 +129,7 @@ class ReceiptService:
             "merchant": merchant,
             "amount": receipt.total,
             "date": date_str,
-            "suggested_category_id": prediction.category_id if prediction.confidence > 0 else None,
+            "suggested_category_id": suggested_category_id,
             "category_source": source,
             # Fuel receipts override category below after receipt_type is known
             "categories": [
@@ -193,9 +195,10 @@ class ReceiptService:
         account_id: str,
         notes: str = "[receipt photo]",
         confirmed_by: str = "web",
+        create_rule: bool = False,
     ) -> dict:
         """
-        Step 2: Save confirmed receipt data to Actual Budget and update memory.
+        Step 2: Save confirmed receipt data to Actual Budget.
 
         Returns:
           {"duplicate": bool, "transaction_id": str | None}
@@ -206,6 +209,10 @@ class ReceiptService:
           double-taps Confirm), the second save is silently skipped.
           This is the same algorithm used by the Telegram bot and CSV importer —
           deduplication works across all three transports.
+
+        create_rule: if True, also create an Actual Budget rule so future
+        receipts from this merchant auto-categorize (#99) — never automatic,
+        only when the user explicitly checks the box on the confirmation card.
         """
         # Look up the display name for Actual Budget's get_or_create_category
         category_info = _CATEGORY_BY_ID.get(category_id, {})
@@ -233,12 +240,25 @@ class ReceiptService:
             logger.info("Duplicate receipt skipped: %s %.2f on %s", merchant, amount, date)
             return {"duplicate": True, "transaction_id": None}
 
-        # Update the categorizer memory so the next receipt from this merchant
-        # is auto-categorized. learn() also updates keyword index in memory.
-        self._categorizer.learn(
-            merchant=merchant,
-            category_id=category_id,
-        )
+        if create_rule:
+            try:
+                existing = await self._actual.match_existing_rules([{"payee": merchant, "notes": notes}])
+                already_covered = (
+                    existing and existing[0]
+                    and existing[0].get("category_name", "").lower() == category_name.lower()
+                )
+                if not already_covered:
+                    cats = await self._actual.get_categories()
+                    cat = next((c for c in cats if c.name.lower() == category_name.lower()), None)
+                    if cat:
+                        # merchant is verbatim what the user left in the (editable)
+                        # field — no server-side "smart prefix" guess (#99).
+                        await self._actual.create_payee_rule(
+                            payee_name_prefix=merchant,
+                            category_id=cat.id,
+                        )
+            except Exception as e:
+                logger.warning("Failed to create AB rule for receipt merchant '%s': %s", merchant, e)
 
         logger.info(
             "Receipt confirmed by %s → %s %.2f EUR [%s]",

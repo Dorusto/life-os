@@ -10,6 +10,7 @@ interface IncomeSourceCardProps {
 }
 
 export default function IncomeSourceCard({ payee, amount, date, onConfirmed }: IncomeSourceCardProps) {
+  const [editedPayee, setEditedPayee] = useState(payee)
   const [mode, setMode] = useState<'income' | 'transfer'>('income')
   const [incomeName, setIncomeName] = useState('')
   const [accountId, setAccountId] = useState('')
@@ -30,7 +31,7 @@ export default function IncomeSourceCard({ payee, amount, date, onConfirmed }: I
     setError(null)
     try {
       const result = await createIncomeSource({
-        payee,
+        payee: editedPayee.trim(),
         type: mode,
         income_name: mode === 'income' ? incomeName.trim() : undefined,
         account_id: mode === 'transfer' ? accountId : undefined,
@@ -56,9 +57,18 @@ export default function IncomeSourceCard({ payee, amount, date, onConfirmed }: I
       <div className="flex items-center gap-2 text-sm">
         <span className="text-green-400 font-medium">+€{amount.toFixed(2)}</span>
         <span className="text-muted">·</span>
-        <span className="text-white">{payee}</span>
-        <span className="text-muted">·</span>
         <span className="text-muted">{date.slice(5).replace('-', '/')}</span>
+      </div>
+
+      {/* Payee — editable; this exact text becomes the rule's match text (#99) */}
+      <div className="flex flex-col gap-1">
+        <label className="text-xs text-muted uppercase tracking-wide">Payee (rule will match this text)</label>
+        <input
+          type="text"
+          value={editedPayee}
+          onChange={e => setEditedPayee(e.target.value)}
+          className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-accent transition-colors"
+        />
       </div>
 
       {/* Mode toggle */}
@@ -125,7 +135,7 @@ export default function IncomeSourceCard({ payee, amount, date, onConfirmed }: I
       {/* Save button */}
       <button
         onClick={handleSave}
-        disabled={loading || (mode === 'income' ? !incomeName.trim() : !accountId)}
+        disabled={loading || !editedPayee.trim() || (mode === 'income' ? !incomeName.trim() : !accountId)}
         className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {loading ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : <><Check size={14} /> Save</>}

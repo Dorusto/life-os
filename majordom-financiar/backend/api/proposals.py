@@ -61,13 +61,8 @@ async def confirm_proposal(
                 cats = await client.get_categories()
                 cat = next((c for c in cats if c.name.lower() == category_name.lower()), None)
                 if cat:
-                    payee_name = proposal["payee"]
-                    first_word = payee_name.split()[0] if payee_name else ""
-                    rule_prefix = (
-                        first_word
-                        if len(first_word) >= 4 and first_word.isalnum()
-                        else payee_name
-                    )
+                    from backend.core.actual_client.client import rule_match_prefix
+                    rule_prefix = rule_match_prefix(proposal["payee"])
                     await client.create_payee_notes_rule(
                         payee_name_prefix=rule_prefix,
                         notes_contains=proposal["category_name"],

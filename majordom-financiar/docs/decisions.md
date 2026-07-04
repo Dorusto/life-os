@@ -202,6 +202,28 @@ Sure checklist (budget allocation parity, MCP server) is deferred until the eval
 
 ---
 
+### #99 direction — `merchant_mappings` replaced by AB native Rules, not a history query
+
+**Date:** 2026-07-03
+
+**Decision:** Original issue text proposed `ActualBudgetClient.get_category_for_payee()` querying AB transaction history. Superseded during planning: `actualpy` exposes AB's native Rules engine directly (`create_rule`, `get_rules`, `get_ruleset`, `run_rules` — see `actual/rules.py`, `actual/queries.py`). Confirmation cards (CSV import, receipt OCR, `propose_transaction`) will get a "save as rule" checkbox; checking it calls `create_rule()` to write a real AB rule (condition on payee or `notes CONTAINS`, action `SET category`). `SmartCategorizer.predict()`'s HISTORY level is replaced by checking AB's existing ruleset instead of querying a private SQLite copy or re-deriving from raw transaction history.
+
+Confirmed AB also has a native transfer mechanism usable the same way: every account gets an auto-created hidden payee with `transfer_acct` pointing to that account (`create_account`, `queries.py:784-798`). Setting a transaction's payee to that special payee (`set_transaction_payee`, `queries.py:348-390`) auto-creates the linked mirror transaction. A rule's action can set that payee directly — so `income_sources.py`'s transfer branch (today: `__transfer__:{account_id}` sentinel in `merchant_mappings`) becomes a real AB rule too, with zero new SQLite storage.
+
+**Why:** User's own example exposed the flaw in a payee-keyed SQLite mapping (mine, "transfer_payee_hints" table, proposed and then rejected): the same real-world payee can mean different things on different transactions (e.g. a person paying sometimes for a side-business order, sometimes for something unrelated) — a payee-keyed table can't express that, but an AB rule keyed on `notes CONTAINS <word>` can, and it's the same mechanism AB already offers natively in its own Rules UI. Stated goal: minimize what lives in Majordom, prefer anything AB already does natively.
+
+**Left unchanged (for now):** `category_keywords` (SQLite) — the OCR-derived keyword-learning level of `SmartCategorizer` (level 2). Not simply "duplicated AB data" like `merchant_mappings` was (AB has no concept of receipt OCR text), and it works on accumulating statistical weight across many confirmations rather than a crisp condition — doesn't map cleanly onto a single AB rule. Whether this should *also* eventually become AB rules (e.g. `notes CONTAINS <keyword>`) is a separate, not-yet-decided question — deliberately kept out of #99's scope to avoid scope creep.
+
+**Rejected: migrating existing `merchant_mappings` rows into AB rules.** Considered, then explicitly declined by the user: writing rules against a live AB instance with real transaction history is a hard-to-reverse action, the user already has a number of manually-created rules in AB, and diffing/deduping against them (via `get_rules()`) before a bulk migration was judged not worth the risk for data that isn't load-bearing. Decision: drop `merchant_mappings` with no migration once the rule-based flow ships; whatever mappings existed are lost, and the "save as rule" checkbox simply rebuilds rules going forward, one confirmation at a time, same as any new user starting fresh. Explicitly fine as long as it doesn't touch anything already correct/functional in AB itself — only Majordom's own SQLite copy is discarded.
+
+**Mid-implementation discovery — don't rebuild what already exists.** Before writing any new code, found that the AB-native rule mechanism this decision calls for was already half-built: `client.py` already has `create_payee_rule()`, `create_payee_notes_rule()`, and the transfer-payee mechanism (`create_transfer()`, using `Payees.transfer_acct`), already wired into two of the five `predict()`/`learn()` call sites (`propose_transaction` via `proposals.py`'s `create_rule` checkbox, and `propose_categorize_with_rule` via `category_actions.py`). The actual remaining gap for #99 is narrower than the issue text suggested: (1) none of the 5 call sites check for an *existing* matching rule before falling back to `SmartCategorizer.predict()`'s SQLite history level, (2) `income_sources.py`'s transfer branch has no rule-creation equivalent yet (needs a new `create_payee_transfer_rule()`, reusing the transfer-payee lookup already in `create_transfer()`), (3) CSV import silently auto-learned via SQLite on every confirmed row with no opt-out — removing `merchant_mappings` with no replacement would silently regress that. Recorded here specifically so a future session/agent doesn't re-discover this the hard way mid-implementation — see the matching gotcha in `CLAUDE.md`.
+
+**Decision — CSV import gets an explicit "save as rule" checkbox (not silent auto-learn).** The old behavior (auto-`learn()` on every confirmed row, no opt-out, invisible to the user) is exactly the kind of hidden state #99 is removing. Chosen instead: same explicit-checkbox pattern already used by `propose_transaction` and `propose_categorize_with_rule`, applied per-row in `CsvImportCard.tsx` — consistent UX across all three confirm flows, and every rule that gets created was one the user explicitly asked for.
+
+**Noted, not fixed here:** `category_actions.py`'s `categorize_with_rule` confirm handler always calls `create_payee_rule()` (payee-only), never `create_payee_notes_rule()`, even when `notes_contains` was set on the action — meaning a notes-scoped bulk categorization can still create an over-broad payee-only rule. Adjacent to this work but out of scope for #99; flagged for a separate fix.
+
+---
+
 ## Product decisions
 
 ### UI — 2 tabs only (Home + Majordom)

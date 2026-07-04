@@ -13,9 +13,9 @@ Profile detection order:
   Once LLM detects a format it is saved to SQLite for future imports.
 
 Deduplication:
-  SHA256(date+merchant+amount)[:16] — same hash as add_transaction and
-  add_transactions_batch, so duplicates are caught regardless of which
-  transport (bot / web / CSV) originally imported the transaction.
+  SHA256(date+merchant+amount)[:16] — same hash as add_transaction,
+  so duplicates are caught regardless of which transport (bot / web / CSV)
+  originally imported the transaction.
 
 Categories:
   Actual Budget is the single source of truth.  The preview fetches the real AB
@@ -47,9 +47,9 @@ router = APIRouter()
 def _financial_id(date_str: str, merchant: str, amount: float) -> str:
     """
     SHA256(date+merchant+amount)[:16] — cross-transport deduplication key.
-    Identical algorithm to ActualBudgetClient.add_transaction and
-    add_transactions_batch, ensuring a transaction imported via CSV is never
-    re-imported via receipt scan or /add command.
+    Identical algorithm to ActualBudgetClient.add_transaction, ensuring a
+    transaction imported via CSV is never re-imported via receipt scan or
+    /add command.
     """
     sig = f"{date_str}{merchant}{amount:.4f}"
     return hashlib.sha256(sig.encode()).hexdigest()[:16]
@@ -67,9 +67,10 @@ class ImportRowPreview(BaseModel):
     is_expense: bool
     currency: str
     category_name: str       # actual AB category name, or "" if unknown
-    category_confirmed: bool  # True = from confirmed merchant history
+    category_confirmed: bool  # True = matched an existing Actual Budget rule
     duplicate: bool
     is_transfer_candidate: bool = False
+    transfer_to_account_id: str | None = None  # set when an existing AB rule already resolves this to a known transfer target (#99)
     possible_duplicate: bool = False  # same date+merchant already in AB, different amount — needs verification
     existing_amount: float | None = None  # the amount already in AB, if possible_duplicate
 
@@ -80,6 +81,7 @@ class ImportPreview(BaseModel):
     total_rows: int       # raw CSV rows (includes income-only rows skipped by normalizer)
     accounts: list[dict]  # [{id, name}] — for the account selector in the UI
     ab_categories: list[str]  # all AB category names for the frontend dropdown
+    category_groups: list[str]  # all AB category group names, for "create new category"
 
 
 class ImportRowConfirm(BaseModel):
@@ -88,11 +90,13 @@ class ImportRowConfirm(BaseModel):
     amount: float
     is_expense: bool
     category_name: str  # actual AB category name, or "" = leave uncategorized
-    category_confirmed: bool = False  # True = from history; False = LLM suggestion
+    category_confirmed: bool = False  # True = matched an existing AB rule; False = keyword/LLM guess
     duplicate: bool
     is_transfer_candidate: bool = False
     transfer_to_account_id: str = ""  # non-empty → create AB transfer to this account
     notes: str = ""
+    create_rule: bool = False  # user checked "save as rule" for this row (#99)
+    new_category_group: str | None = None  # set → category_name is new, create it in this group first (#99)
 
 
 class ImportConfirmRequest(BaseModel):
@@ -112,8 +116,6 @@ class ImportResult(BaseModel):
     merged: int = 0
     retroactively_updated: int = 0
     unknown_income_rows: list[UnknownIncomeRow] = []
-    account_balance: float | None = None
-    account_name: str | None = None
 
 # ---------------------------------------------------------------------------
 # Sync helpers — run in thread executor via ActualBudgetClient._run()
@@ -121,7 +123,7 @@ class ImportResult(BaseModel):
 
 def _fetch_preview_data(
     actual_client: ActualBudgetClient,
-) -> tuple[set[str], list[str], dict[tuple[str, str], list[float]]]:
+) -> tuple[set[str], list[str], dict[tuple[str, str], list[float]], list[str]]:
     """
     Single AB session that returns:
       - set of financial_ids already in AB (for exact duplicate detection)
@@ -130,8 +132,9 @@ def _fetch_preview_data(
         detection (same date+merchant already in AB, but a different amount —
         e.g. a transaction imported once with a wrong amount, later corrected
         in the CSV source; catches it instead of silently creating a second one)
+      - list of non-hidden category group names (for the "create new category" option)
     """
-    from actual.queries import get_categories, get_transactions
+    from actual.queries import get_categories, get_category_groups, get_transactions
     with actual_client._get_actual() as actual:
         actual.download_budget()
         existing_ids = {
@@ -143,13 +146,17 @@ def _fetch_preview_data(
             c.name for c in get_categories(actual.session)
             if c.name and not c.hidden and not c.tombstone
         ]
+        category_groups = [
+            g.name for g in get_category_groups(actual.session)
+            if g.name and not g.hidden and not g.tombstone
+        ]
         near_dup_index: dict[tuple[str, str], list[float]] = {}
         for tx in get_transactions(actual.session):
             if tx.tombstone or not tx.payee or not tx.payee.name:
                 continue
             key = (tx.get_date().isoformat(), tx.payee.name.strip().lower())
             near_dup_index.setdefault(key, []).append(abs(float(tx.amount or 0)) / 100)
-        return existing_ids, ab_categories, near_dup_index
+        return existing_ids, ab_categories, near_dup_index, category_groups
 
 
 def _map_to_ab_category(cat_id: str, ab_categories: list[str]) -> str | None:
@@ -532,13 +539,29 @@ async def preview_csv(
     )
 
     # One AB session: existing IDs + real category list + near-duplicate index
-    existing_ids, ab_categories, near_dup_index = await actual._run(lambda: _fetch_preview_data(actual))
+    existing_ids, ab_categories, near_dup_index, category_groups = await actual._run(lambda: _fetch_preview_data(actual))
     accounts = await actual.get_accounts()
 
     categorizer = SmartCategorizer(db=db)
 
+    # For refunds, strip common prefixes so "Refund: Vpn*..." matches "Vpn*..." in history
+    def _lookup_merchant(tx) -> str:
+        m = tx.merchant
+        if not tx.is_expense:
+            for prefix in ("Refund: ", "Refund ", "REFUND: ", "REFUND "):
+                if m.startswith(prefix):
+                    return m[len(prefix):]
+        return m
+
+    # Check Actual Budget's existing rules once for the whole import — a single
+    # fetch of the ruleset regardless of row count, not a per-row query (#99).
+    rule_matches = await actual.match_existing_rules([
+        {"payee": _lookup_merchant(tx), "notes": tx.description}
+        for tx in transactions
+    ])
+
     preview_rows: list[ImportRowPreview] = []
-    for tx in transactions:
+    for tx, rule_match in zip(transactions, rule_matches):
         fid = _financial_id(tx.date.isoformat(), tx.merchant, tx.amount)
         duplicate = fid in existing_ids
 
@@ -559,23 +582,34 @@ async def preview_csv(
                 possible_duplicate = True
                 existing_amount = candidates[0]
 
-        # For refunds, strip common prefixes so "Refund: Vpn*..." matches "Vpn*..." in history
-        lookup_merchant = tx.merchant
-        if not tx.is_expense:
-            for prefix in ("Refund: ", "Refund ", "REFUND: ", "REFUND "):
-                if lookup_merchant.startswith(prefix):
-                    lookup_merchant = lookup_merchant[len(prefix):]
-                    break
+        lookup_merchant = _lookup_merchant(tx)
 
-        pred = categorizer.predict(merchant=lookup_merchant)
-
-        # Map internal prediction to a real AB category name.
-        # Exclude "Other" — if SmartCategorizer only knows "Other" for this merchant,
-        # treat it as unknown so the user is forced to categorize manually.
         ab_name = ""
-        if pred.category_id and pred.category_id != "other":
-            mapped = _map_to_ab_category(pred.category_id, ab_categories) or ""
-            ab_name = mapped if mapped != "Other" else ""
+        category_confirmed = False
+        is_transfer = tx.is_transfer_candidate
+        known_transfer_account_id = None
+
+        if rule_match and rule_match.get("is_transfer"):
+            # An existing AB rule already treats this payee as a transfer —
+            # and already tells us exactly which account, so the row doesn't
+            # need to ask the user again (#99).
+            is_transfer = True
+            known_transfer_account_id = rule_match.get("account_id")
+        elif rule_match and rule_match.get("category_name"):
+            # An existing AB rule already matched — highest-confidence source,
+            # takes priority over the local keyword categorizer.
+            ab_name = rule_match["category_name"]
+            # Amounts above €50 always require re-verification regardless of the match.
+            category_confirmed = tx.amount <= 50
+        else:
+            pred = categorizer.predict(merchant=lookup_merchant, ocr_text=tx.description)
+            # Map internal prediction to a real AB category name.
+            # Exclude "Other" — if SmartCategorizer only knows "Other" for this
+            # merchant, treat it as unknown so the user categorizes manually.
+            if pred.category_id and pred.category_id != "other":
+                mapped = _map_to_ab_category(pred.category_id, ab_categories) or ""
+                ab_name = mapped if mapped != "Other" else ""
+            # Keyword-only guess — never auto-confirmed, always needs a look.
 
         preview_rows.append(ImportRowPreview(
             id=fid,
@@ -585,16 +619,10 @@ async def preview_csv(
             is_expense=tx.is_expense,
             currency=tx.currency,
             category_name=ab_name,
-            # "Other" is a fallback, not a real categorization — never treat as confirmed.
-            # Amounts above €50 always require re-verification regardless of history.
-            category_confirmed=(
-                bool(ab_name)
-                and pred.from_history
-                and ab_name != "Other"
-                and tx.amount <= 50
-            ),
+            category_confirmed=category_confirmed,
             duplicate=duplicate,
-            is_transfer_candidate=tx.is_transfer_candidate,
+            is_transfer_candidate=is_transfer,
+            transfer_to_account_id=known_transfer_account_id,
             possible_duplicate=possible_duplicate,
             existing_amount=existing_amount,
         ))
@@ -637,6 +665,7 @@ async def preview_csv(
         total_rows=len(rows),
         accounts=[{"id": acc.id, "name": acc.name} for acc in accounts],
         ab_categories=ab_categories,
+        category_groups=category_groups,
     )
 
 
@@ -656,6 +685,24 @@ async def confirm_csv(
         sync_id=settings.actual.sync_id,
     )
 
+    # Create any new categories the user picked "+ Create new category" for,
+    # before _do_import() runs — it only assigns *existing* categories by
+    # name, never creates one (#99).
+    new_categories = {
+        (row.category_name, row.new_category_group)
+        for row in body.rows
+        if row.new_category_group and row.category_name and not row.duplicate
+    }
+    if new_categories:
+        existing_names = {c.name.lower() for c in await actual.get_categories()}
+        for name, group in new_categories:
+            if name.lower() in existing_names:
+                continue  # already exists — _do_import()'s own name lookup will find it
+            try:
+                await actual.create_category(name=name, group_name=group)
+            except Exception as e:
+                logger.warning("Failed to create category '%s' in group '%s': %s", name, group, e)
+
     imported, skipped, merged, retroactively_updated = await actual._run(
         lambda: _do_import(actual, body.account_id, body.rows)
     )
@@ -664,13 +711,43 @@ async def confirm_csv(
     accounts_after = await actual.get_accounts()
     matched_account = next((a for a in accounts_after if a.id == body.account_id), None)
 
-    # Teach SmartCategorizer from confirmed categories so future imports remember
-    # merchant → AB category name mappings without any LLM call.
     db = MemoryDB(db_path=settings.memory.db_path)
-    categorizer = SmartCategorizer(db=db)
-    for row in body.rows:
-        if not row.duplicate and row.category_name and row.category_name != "Other":
-            categorizer.learn(row.merchant.lower(), row.category_name)
+
+    # Create AB rules for rows where the user explicitly checked "save as
+    # rule" — never automatic (#99). Replaces the old silent per-row
+    # categorizer.learn() SQLite mapping.
+    rule_rows = [r for r in body.rows if r.create_rule and not r.duplicate]
+    if rule_rows:
+        cats = await actual.get_categories()
+        cats_by_name = {c.name.lower(): c for c in cats}
+        # Check existing rules once for the whole batch — skip creating a rule
+        # that's already covered by one (avoids exact duplicates when the user
+        # checks "save as rule" more than once for the same merchant) (#99).
+        existing_matches = await actual.match_existing_rules(
+            [{"payee": row.merchant, "notes": row.notes} for row in rule_rows]
+        )
+        for row, existing in zip(rule_rows, existing_matches):
+            # row.merchant is verbatim what the user left in the (editable)
+            # Merchant field — no server-side "smart prefix" guess (#99).
+            try:
+                if row.transfer_to_account_id:
+                    if existing and existing.get("is_transfer") and existing.get("account_id") == row.transfer_to_account_id:
+                        continue
+                    await actual.create_payee_transfer_rule(
+                        payee_name_prefix=row.merchant,
+                        target_account_id=row.transfer_to_account_id,
+                    )
+                elif row.category_name and row.category_name != "Other":
+                    if existing and existing.get("category_name", "").lower() == row.category_name.lower():
+                        continue
+                    cat = cats_by_name.get(row.category_name.lower())
+                    if cat:
+                        await actual.create_payee_rule(
+                            payee_name_prefix=row.merchant,
+                            category_id=cat.id,
+                        )
+            except Exception as e:
+                logger.warning("Failed to create AB rule for CSV row '%s': %s", row.merchant, e)
 
     # Collect unknown income rows — income rows (is_expense=False) that have no
     # category_name set. These will be shown to the user as IncomeSourceCard cards
@@ -717,6 +794,4 @@ async def confirm_csv(
         merged=merged,
         retroactively_updated=retroactively_updated,
         unknown_income_rows=unknown_income_rows,
-        account_balance=matched_account.balance if matched_account else None,
-        account_name=matched_account.name if matched_account else None,
     )

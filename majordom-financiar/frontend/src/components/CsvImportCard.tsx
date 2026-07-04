@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Loader2, AlertCircle, Check } from 'lucide-react'
 import {
   confirmCsvImport,
+  createAccount,
   type ImportPreview,
   type ImportResult,
   type AccountOption,
@@ -11,6 +12,7 @@ import { matchAccountBySource } from '../lib/csvImportUtils'
 // --- Local types (mirrors ImportRow from api.ts with local UI additions) ---
 
 const TRANSFER_VALUE = '__transfer__'
+const NEW_CATEGORY_VALUE = '__new_category__'
 
 interface LocalRow {
   id: string
@@ -29,6 +31,9 @@ interface LocalRow {
   notes: string
   transferToAccountId: string  // non-empty → this row is a transfer to that account
   isManualTransfer: boolean    // true when user explicitly selected "↔ Transfer to…"
+  createRule: boolean          // user checked "save as rule" for this row (#99)
+  isNewCategory: boolean       // true when user selected "+ Create new category" (#99)
+  newCategoryGroup: string     // group to create the new category in
 }
 
 // Word-level Jaccard similarity for merchant name matching.
@@ -111,11 +116,21 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
       isTransferCandidate: r.is_transfer_candidate ?? false,
       excluded: r.is_transfer_candidate ?? false,
       notes: '',
-      transferToAccountId: '',
-      isManualTransfer: false,
+      // An existing AB rule already resolved this to a known transfer target —
+      // treat it the same as a manually-confirmed transfer so it's actually
+      // imported, not silently dropped or re-asked about later (#99).
+      transferToAccountId: r.transfer_to_account_id ?? '',
+      isManualTransfer: !!r.transfer_to_account_id,
+      createRule: false,
+      isNewCategory: false,
+      newCategoryGroup: '',
     }))
   )
   const [importing, setImporting] = useState(false)
+  const [creatingAccount, setCreatingAccount] = useState(false)
+  const [newAccountName, setNewAccountName] = useState('')
+  const [newAccountOffBudget, setNewAccountOffBudget] = useState(false)
+  const [accountError, setAccountError] = useState<string | null>(null)
 
   // Auto-select account if name matches source
   const matched = matchAccountBySource(preview.source_name, preview.accounts)
@@ -137,14 +152,16 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
       const merchant = prev.find(r => r.id === id)?.merchant ?? ''
       return prev.map(r => {
         if (r.id === id) {
-          // Switching to transfer clears the category; switching away clears the account
+          // Switching to transfer or new-category clears the category; switching away clears the account
           const isTransfer = categoryName === TRANSFER_VALUE
+          const isNewCategory = categoryName === NEW_CATEGORY_VALUE
           return {
             ...r,
-            categoryName: isTransfer ? '' : categoryName,
-            categoryConfirmed: !isTransfer,
+            categoryName: (isTransfer || isNewCategory) ? '' : categoryName,
+            categoryConfirmed: !isTransfer && !isNewCategory,
             transferToAccountId: isTransfer ? r.transferToAccountId : '',
             isManualTransfer: isTransfer,
+            isNewCategory,
             excluded: isTransfer ? true : (r.isTransferCandidate ? r.excluded : false),
           }
         }
@@ -175,16 +192,36 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
     setRows(prev => prev.map(r => r.id === id ? { ...r, excluded: !r.excluded } : r))
   }
 
+  function handleToggleCreateRule(id: string) {
+    setRows(prev => prev.map(r => r.id === id ? { ...r, createRule: !r.createRule } : r))
+  }
+
+  function handleMerchantChange(id: string, merchant: string) {
+    setRows(prev => prev.map(r => r.id === id ? { ...r, merchant } : r))
+  }
+
   async function handleImport() {
     setImporting(true)
+    setAccountError(null)
     try {
+      let targetAccountId = accountId
+      if (creatingAccount) {
+        try {
+          const created = await createAccount(newAccountName.trim(), newAccountOffBudget)
+          targetAccountId = created.id
+        } catch (err) {
+          setAccountError(err instanceof Error ? err.message : 'Failed to create account')
+          setImporting(false)
+          return
+        }
+      }
       // Include regular rows + transfer rows (those excluded but with a destination account)
       const rowsToSend = [
         ...rows.filter(r => !r.excluded),
         ...transferRows,
       ]
       const result = await confirmCsvImport({
-        account_id: accountId,
+        account_id: targetAccountId,
         rows: rowsToSend.map(r => ({
           date: r.date,
           merchant: r.merchant,
@@ -196,6 +233,8 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
           is_transfer_candidate: r.isTransferCandidate,
           transfer_to_account_id: r.transferToAccountId || undefined,
           notes: r.notes || undefined,
+          create_rule: r.createRule,
+          new_category_group: r.isNewCategory && r.categoryName ? (r.newCategoryGroup.trim() || 'Majordom') : undefined,
         })),
       })
       const parts = [`Imported ${result.imported} transactions.`]
@@ -225,24 +264,66 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
       </div>
 
       {/* Account selector */}
-      <div className="flex items-center gap-3">
-        <label className="text-xs text-muted whitespace-nowrap">Account</label>
-        <select
-          value={accountId}
-          onChange={e => setAccountId(e.target.value)}
-          className={`${selectClass} ${!accountId ? 'border-yellow-500/60 text-yellow-500' : ''}`}
-        >
-          <option value="" disabled>— select account —</option>
-          {preview.accounts.map((acc: AccountOption) => (
-            <option key={acc.id} value={acc.id}>{acc.name}</option>
-          ))}
-        </select>
-      </div>
-      {!accountId && (
+      {creatingAccount ? (
+        <div className="space-y-1.5">
+          <label className="text-xs text-muted whitespace-nowrap">New account name</label>
+          <input
+            type="text"
+            value={newAccountName}
+            onChange={e => setNewAccountName(e.target.value)}
+            placeholder={preview.source_name}
+            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white text-sm placeholder:text-muted focus:outline-none focus:border-accent transition-colors"
+            autoFocus
+          />
+          <label className="flex items-center gap-1.5 text-xs text-muted cursor-pointer">
+            <input
+              type="checkbox"
+              checked={newAccountOffBudget}
+              onChange={e => setNewAccountOffBudget(e.target.checked)}
+              className="rounded border-border"
+            />
+            Off-budget (tracking only)
+          </label>
+          <button
+            type="button"
+            onClick={() => { setCreatingAccount(false); setNewAccountName('') }}
+            className="text-xs text-accent hover:underline"
+          >
+            Use an existing account instead
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-3">
+          <label className="text-xs text-muted whitespace-nowrap">Account</label>
+          <select
+            value={accountId}
+            onChange={e => setAccountId(e.target.value)}
+            className={`${selectClass} ${!accountId ? 'border-yellow-500/60 text-yellow-500' : ''}`}
+          >
+            <option value="" disabled>— select account —</option>
+            {preview.accounts.map((acc: AccountOption) => (
+              <option key={acc.id} value={acc.id}>{acc.name}</option>
+            ))}
+          </select>
+        </div>
+      )}
+      {!creatingAccount && !accountId && (
         <p className="text-yellow-500 text-xs">
-          No account matched "{preview.source_name}". Select one.
+          No account matched "{preview.source_name}". Select one, or{' '}
+          <button
+            type="button"
+            onClick={() => { setCreatingAccount(true); setNewAccountName(preview.source_name) }}
+            className="text-accent hover:underline"
+          >
+            create a new account
+          </button>.
         </p>
       )}
+      {accountError && <p className="text-red-400 text-xs">{accountError}</p>}
+
+      <datalist id="csv-import-category-groups">
+        {preview.category_groups.map(g => <option key={g} value={g} />)}
+      </datalist>
 
       {/* Transaction list */}
       <div className="max-h-72 overflow-y-auto -mx-4 px-4">
@@ -275,7 +356,14 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
                           <AlertCircle size={10} className="text-yellow-500 flex-shrink-0" />
                         </span>
                       )}
-                      {row.merchant}
+                      <input
+                        type="text"
+                        value={row.merchant}
+                        onChange={e => handleMerchantChange(row.id, e.target.value)}
+                        disabled={row.duplicate}
+                        title="Edit — also used as the rule's match text when 'Save as rule' is checked"
+                        className="min-w-0 flex-1 bg-transparent text-white text-xs focus:outline-none focus:bg-background rounded px-0.5 -mx-0.5 disabled:opacity-60"
+                      />
                       {row.isTransferCandidate && (
                         <span
                           className="bg-blue-500/10 text-blue-400 border border-blue-500/30 text-[10px] px-1 rounded whitespace-nowrap"
@@ -302,28 +390,39 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
                     {row.duplicate ? (
                       <span className="text-muted italic">duplicate</span>
                     ) : row.isManualTransfer && row.transferToAccountId ? (
-                      // Transfer confirmed — full "A → B" badge + undo button
+                      // Transfer confirmed — full "A → B" badge + undo button + save-as-rule
                       (() => {
                         const thisAccName = preview.accounts.find(a => a.id === accountId)?.name ?? '?'
                         const otherAccName = preview.accounts.find(a => a.id === row.transferToAccountId)?.name ?? '?'
                         const fromName = row.is_expense ? thisAccName : otherAccName
                         const toName   = row.is_expense ? otherAccName : thisAccName
                         return (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-blue-400 text-[11px] bg-blue-500/10 border border-blue-500/30 px-2 py-1 rounded-lg whitespace-nowrap leading-tight">
-                              {fromName} → {toName}
-                            </span>
-                            <button
-                              onClick={() => setRows(prev => prev.map(r =>
-                                r.id === row.id
-                                  ? { ...r, isManualTransfer: false, transferToAccountId: '', categoryName: '', excluded: false }
-                                  : r
-                              ))}
-                              className="text-muted hover:text-red-400 text-sm leading-none flex-shrink-0"
-                              title="Remove transfer"
-                            >
-                              ×
-                            </button>
+                          <div>
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-blue-400 text-[11px] bg-blue-500/10 border border-blue-500/30 px-2 py-1 rounded-lg whitespace-nowrap leading-tight">
+                                {fromName} → {toName}
+                              </span>
+                              <button
+                                onClick={() => setRows(prev => prev.map(r =>
+                                  r.id === row.id
+                                    ? { ...r, isManualTransfer: false, transferToAccountId: '', categoryName: '', excluded: false }
+                                    : r
+                                ))}
+                                className="text-muted hover:text-red-400 text-sm leading-none flex-shrink-0"
+                                title="Remove transfer"
+                              >
+                                ×
+                              </button>
+                            </div>
+                            <label className="flex items-center gap-1 text-[10px] text-muted mt-0.5 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={row.createRule}
+                                onChange={() => handleToggleCreateRule(row.id)}
+                                className="rounded border-border h-2.5 w-2.5"
+                              />
+                              Save as rule
+                            </label>
                           </div>
                         )
                       })()
@@ -355,29 +454,83 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
                           ×
                         </button>
                       </div>
+                    ) : row.isNewCategory ? (
+                      // New category — name + group, defaults to "Majordom" if group left blank
+                      <div className="space-y-1">
+                        <div className="flex gap-1 items-center">
+                          <input
+                            type="text"
+                            value={row.categoryName}
+                            onChange={e => setRows(prev => prev.map(r => r.id === row.id ? { ...r, categoryName: e.target.value } : r))}
+                            placeholder="New category name"
+                            autoFocus
+                            className={`${selectClass} border-yellow-500/60 flex-1`}
+                          />
+                          <button
+                            onClick={() => setRows(prev => prev.map(r => r.id === row.id ? { ...r, isNewCategory: false, categoryName: '' } : r))}
+                            className="text-muted hover:text-white text-sm leading-none flex-shrink-0 px-1"
+                            title="Cancel"
+                          >
+                            ×
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          value={row.newCategoryGroup}
+                          onChange={e => setRows(prev => prev.map(r => r.id === row.id ? { ...r, newCategoryGroup: e.target.value } : r))}
+                          placeholder="Group (default: Majordom)"
+                          list="csv-import-category-groups"
+                          className={selectClass}
+                        />
+                        {row.categoryName !== '' && (
+                          <label className="flex items-center gap-1 text-[10px] text-muted cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={row.createRule}
+                              onChange={() => handleToggleCreateRule(row.id)}
+                              className="rounded border-border h-2.5 w-2.5"
+                            />
+                            Save as rule
+                          </label>
+                        )}
+                      </div>
                     ) : (
                       // Normal: category dropdown with Transfer as first option
-                      <div className="relative">
-                        <select
-                          value={row.categoryName}
-                          onChange={e => handleCategoryChange(row.id, e.target.value)}
-                          className={`${selectClass} ${row.categoryName === '' ? 'border-yellow-500/60 pr-5' : !row.categoryConfirmed ? 'border-yellow-500/30 pr-5' : ''}`}
-                        >
-                          <option value={TRANSFER_VALUE}>
-                            {row.is_expense ? '↔ Transfer to…' : '↔ Transfer from…'}
-                          </option>
-                          <option value="">— no category —</option>
-                          {preview.ab_categories.map(name => (
-                            <option key={name} value={name}>{name}</option>
-                          ))}
-                        </select>
-                        {(!row.categoryConfirmed || row.categoryName === '') && (
-                          <span
-                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-yellow-500 text-xs pointer-events-none"
-                            title={row.categoryName === '' ? 'Needs a category' : 'Auto-suggested — verify if correct'}
+                      <div>
+                        <div className="relative">
+                          <select
+                            value={row.categoryName}
+                            onChange={e => handleCategoryChange(row.id, e.target.value)}
+                            className={`${selectClass} ${row.categoryName === '' ? 'border-yellow-500/60 pr-5' : !row.categoryConfirmed ? 'border-yellow-500/30 pr-5' : ''}`}
                           >
-                            ?
-                          </span>
+                            <option value={TRANSFER_VALUE}>
+                              {row.is_expense ? '↔ Transfer to…' : '↔ Transfer from…'}
+                            </option>
+                            <option value={NEW_CATEGORY_VALUE}>+ Create new category</option>
+                            <option value="">— no category —</option>
+                            {preview.ab_categories.map(name => (
+                              <option key={name} value={name}>{name}</option>
+                            ))}
+                          </select>
+                          {(!row.categoryConfirmed || row.categoryName === '') && (
+                            <span
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-yellow-500 text-xs pointer-events-none"
+                              title={row.categoryName === '' ? 'Needs a category' : 'Auto-suggested — verify if correct'}
+                            >
+                              ?
+                            </span>
+                          )}
+                        </div>
+                        {row.categoryName !== '' && (
+                          <label className="flex items-center gap-1 text-[10px] text-muted mt-0.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={row.createRule}
+                              onChange={() => handleToggleCreateRule(row.id)}
+                              className="rounded border-border h-2.5 w-2.5"
+                            />
+                            Save as rule
+                          </label>
                         )}
                       </div>
                     )}
@@ -418,7 +571,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
         </button>
         <button
           onClick={handleImport}
-          disabled={!accountId || importing}
+          disabled={(creatingAccount ? !newAccountName.trim() : !accountId) || importing}
           className="flex-1 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
         >
           {importing ? (

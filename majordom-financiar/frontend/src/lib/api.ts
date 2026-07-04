@@ -210,6 +210,7 @@ export async function confirmReceipt(data: {
   notes?: string
   force_new?: boolean
   attach_to?: string
+  create_rule?: boolean
 }): Promise<ConfirmResponse> {
   return request<ConfirmResponse>(`/receipts/${data.receipt_id}/confirm`, {
     method: 'POST',
@@ -236,6 +237,13 @@ export async function getAccounts(): Promise<Account[]> {
 
 export async function getAccountList(): Promise<AccountListItem[]> {
   return request<AccountListItem[]>('/accounts')
+}
+
+export async function createAccount(name: string, offBudget = false): Promise<AccountListItem> {
+  return request<AccountListItem>('/accounts', {
+    method: 'POST',
+    body: JSON.stringify({ name, off_budget: offBudget }),
+  })
 }
 
 // --- FIRE ---
@@ -296,9 +304,10 @@ export interface ImportRow {
   is_expense: boolean
   currency: string
   category_name: string      // actual AB category name, or "" if unknown
-  category_confirmed: boolean
+  category_confirmed: boolean  // true = matched an existing Actual Budget rule
   duplicate: boolean
   is_transfer_candidate: boolean
+  transfer_to_account_id?: string | null  // set when an existing AB rule already knows the transfer target (#99)
   possible_duplicate: boolean  // same date+merchant already in AB, different amount
   existing_amount: number | null  // the amount already in AB, if possible_duplicate
 }
@@ -309,6 +318,7 @@ export interface ImportPreview {
   total_rows: number
   accounts: AccountOption[]
   ab_categories: string[]    // all AB category names for the dropdown
+  category_groups: string[]  // all AB category group names, for "create new category"
 }
 
 export interface ImportRowConfirm {
@@ -317,11 +327,13 @@ export interface ImportRowConfirm {
   amount: number
   is_expense: boolean
   category_name: string      // actual AB category name, or "" = uncategorized
-  category_confirmed?: boolean  // true = from history; false = LLM suggestion (default false)
+  category_confirmed?: boolean  // true = matched an existing AB rule; false = keyword/LLM guess (default false)
   duplicate: boolean
   is_transfer_candidate: boolean
   transfer_to_account_id?: string  // set → create AB transfer to this account
   notes?: string
+  create_rule?: boolean  // user checked "save as rule" for this row (#99)
+  new_category_group?: string  // set → category_name is new, create it in this group first (#99)
 }
 
 export interface ImportConfirm {
@@ -335,8 +347,6 @@ export interface ImportResult {
   skipped: number
   retroactively_updated?: number
   unknown_income_rows?: Array<{ payee: string; amount: number; date: string }>
-  account_balance?: number
-  account_name?: string
 }
 
 export async function previewCsvImport(file: File): Promise<ImportPreview> {

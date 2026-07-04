@@ -28,7 +28,6 @@ class CategoryPrediction:
     category_name: str
     confidence: float  # 0.0 - 1.0
     reason: str  # Explanation shown to the user
-    from_history: bool = False  # True only if from user-confirmed merchant_mappings
 
     @property
     def emoji(self) -> str:
@@ -48,10 +47,12 @@ class SmartCategorizer:
     """
     Categorizer that learns from user feedback.
 
-    Categorization levels (in priority order):
-    1. HISTORY — exact merchant seen before → confidence 95%
-    2. KEYWORDS — matching keywords → confidence 70-90%
-    3. FALLBACK → "other" with confidence 0%
+    Merchant-history matching (formerly level 1 here) now lives in Actual
+    Budget's own Rules engine — see ActualBudgetClient.match_existing_rules().
+    Callers check that first; this class only covers what AB's rules can't
+    express (statistical keyword learning from receipt OCR text) (#99):
+    1. KEYWORDS — matching keywords → confidence 70-90%
+    2. FALLBACK → "other" with confidence 0%
     """
 
     def __init__(self, db: MemoryDB, categories_path: str | None = None):
@@ -99,7 +100,12 @@ class SmartCategorizer:
         self, merchant: str, ocr_text: str = "", amount: float = 0.0
     ) -> CategoryPrediction:
         """
-        Predict the category for a transaction.
+        Predict the category for a transaction from learned keywords only.
+
+        Merchant-history matching lives in Actual Budget's own Rules engine
+        now (ActualBudgetClient.match_existing_rules) — callers check that
+        first and only fall back to this keyword-based guess when no AB rule
+        already matches (#99).
 
         Args:
             merchant: The store/merchant name
@@ -112,21 +118,7 @@ class SmartCategorizer:
         merchant_lower = merchant.lower().strip()
         text_lower = ocr_text.lower() if ocr_text else merchant_lower
 
-        # --- Level 1: Exact history (user-confirmed) ---
-        mapping = self.db.get_merchant_category(merchant_lower)
-        if mapping and mapping.times_seen >= 1:
-            # Confidence increases with number of confirmations
-            conf = min(0.95, 0.70 + mapping.times_seen * 0.05)
-            cat = self.categories.get(mapping.category_id, {})
-            return CategoryPrediction(
-                category_id=mapping.category_id,
-                category_name=cat.get("name", mapping.category_id),
-                confidence=conf,
-                reason=f"Known merchant (seen {mapping.times_seen}x)",
-                from_history=True,
-            )
-
-        # --- Level 2: Keywords ---
+        # --- Keywords ---
         keyword_match = self._match_keywords(text_lower)
         if keyword_match:
             cat_id, matched_keyword = keyword_match
@@ -171,16 +163,16 @@ class SmartCategorizer:
 
     def learn(self, merchant: str, category_id: str, ocr_text: str = ""):
         """
-        Learn from user feedback.
+        Learn keywords from confirmed OCR text. Merchant → category itself is
+        no longer stored here — Actual Budget's own Rules engine is the single
+        source of truth for that now (create_payee_rule() et al. on
+        ActualBudgetClient) (#99).
 
         Args:
             merchant: The store/merchant name
             category_id: The confirmed category
             ocr_text: Full OCR text (for keyword extraction)
         """
-        # Save the merchant → category mapping
-        self.db.save_merchant_mapping(merchant, category_id)
-
         # Extract and save new keywords from OCR text
         if ocr_text:
             tokens = self._tokenize(ocr_text)

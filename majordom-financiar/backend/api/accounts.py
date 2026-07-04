@@ -24,6 +24,11 @@ class AccountListItem(BaseModel):
     off_budget: bool
 
 
+class CreateAccountRequest(BaseModel):
+    name: str
+    off_budget: bool = False
+
+
 class TransferRequest(BaseModel):
     from_account_id: str
     to_account_id: str
@@ -55,6 +60,27 @@ async def list_accounts(current_user: str = Depends(get_current_user)):
         AccountListItem(id=a.id, name=a.name, balance=a.balance, off_budget=a.off_budget)
         for a in accounts
     ]
+
+
+@router.post("/accounts", response_model=AccountListItem)
+async def create_account(
+    body: CreateAccountRequest,
+    current_user: str = Depends(get_current_user),
+):
+    """Create a new account in Actual Budget — e.g. from the CSV import account selector."""
+    if not body.name.strip():
+        raise HTTPException(status_code=400, detail="Account name is required")
+    client = _get_client()
+    try:
+        created = await client.create_account(
+            body.name.strip(),
+            initial_balance=0.0,
+            off_budget=body.off_budget,
+        )
+    except Exception as e:
+        logger.error("Account creation failed: %s", e)
+        raise HTTPException(status_code=500, detail="Failed to create account")
+    return AccountListItem(id=created.id, name=created.name, balance=created.balance, off_budget=body.off_budget)
 
 
 @router.post("/accounts/transfer", response_model=TransferResult)

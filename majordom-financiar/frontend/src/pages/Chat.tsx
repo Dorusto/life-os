@@ -12,7 +12,6 @@ import AccountTransferCard from '../components/AccountTransferCard'
 import SetupBalancesCard from '../components/SetupBalancesCard'
 import BalanceAdjustmentCard from '../components/BalanceAdjustmentCard'
 import IncomeSourceCard from '../components/IncomeSourceCard'
-import ReconciliationCard from '../components/ReconciliationCard'
 import ReceiptCard from '../components/ReceiptCard'
 import FuelReceiptCard from '../components/FuelReceiptCard'
 import CategoryActionCard from '../components/CategoryActionCard'
@@ -30,7 +29,7 @@ import type { MonthlyStats } from '../lib/api'
 
 
 export interface Message {
-  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'fuelio_import' | 'income_source' | 'reconciliation' | 'receipt' | 'category_action' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder' | 'vehicle_status' | 'spending_chart' | 'budget_chart' | 'spending_trend' | 'goals_chart'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'fuelio_import' | 'income_source' | 'receipt' | 'category_action' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder' | 'vehicle_status' | 'spending_chart' | 'budget_chart' | 'spending_trend' | 'goals_chart'
 
   content: string
   ts?: number
@@ -50,7 +49,6 @@ export interface Message {
   csvImport?: { status: 'loading' | 'ready' | 'error'; preview?: ImportPreview; error?: string }
   fuelioImport?: FuelioImportData
   incomeRow?: { payee: string; amount: number; date: string }
-  reconciliation?: { accountName: string; balance: number; importedCount: number }
   receipt?: {
     status: 'loading' | 'reviewing' | 'error'
     imageUrl?: string
@@ -907,18 +905,6 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                       })
                     }
                   }
-                  // Append reconciliation card if backend returned account balance
-                  if (result?.account_balance !== undefined && result.account_name) {
-                    newMessages.push({
-                      role: 'reconciliation' as const,
-                      content: '',
-                      reconciliation: {
-                        accountName: result.account_name,
-                        balance: result.account_balance,
-                        importedCount: result.imported,
-                      },
-                    })
-                  }
                   setMessages(prev => {
                     const updated = prev.map((m, i) =>
                       i === idx ? newMessages[0] : m
@@ -1061,27 +1047,6 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                   }}
                 />
               )
-            ) : msg.role === 'reconciliation' && msg.reconciliation ? (
-              <ReconciliationCard
-                accountName={msg.reconciliation.accountName}
-                balance={msg.reconciliation.balance}
-                importedCount={msg.reconciliation.importedCount}
-                onDismiss={() => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: 'Balance confirmed.' } : m
-                    )
-                  )
-                }}
-                onAdjust={(realBalance) => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: 'Checking balance...' } : m
-                    )
-                  )
-                  handleSendText(`Balance for ${msg.reconciliation!.accountName} should be €${realBalance.toFixed(2)}`)
-                }}
-              />
             ) : (
 
               <div className={`flex flex-col max-w-[80%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>

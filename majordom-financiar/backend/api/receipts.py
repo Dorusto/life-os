@@ -92,6 +92,7 @@ class ConfirmRequest(BaseModel):
     notes: Optional[str] = None
     force_new: bool = False        # skip the near-duplicate check, always create
     attach_to: Optional[str] = None  # financial_id of an existing tx to attach to instead
+    create_rule: bool = False      # also create an AB rule so future receipts from this merchant auto-categorize (#99)
 
 
 class NearDuplicateMatch(BaseModel):
@@ -282,6 +283,7 @@ async def confirm_receipt(
             account_id=request.account_id,
             notes=request.notes or "[receipt photo]",
             confirmed_by=current_user,
+            create_rule=request.create_rule,
         )
     except HTTPException:
         raise

@@ -30,6 +30,7 @@ export default function ReceiptCard({
   const [accountId, setAccountId] = useState(draft?.accounts[0]?.id ?? '')
   const [saving, setSaving] = useState(false)
   const [possibleMatch, setPossibleMatch] = useState<NearDuplicateMatch | null>(null)
+  const [createRule, setCreateRule] = useState(false)
 
   // Sync form state when draft arrives (loading → reviewing transition)
   useEffect(() => {
@@ -56,6 +57,7 @@ export default function ReceiptCard({
         account_id: accountId,
         force_new: opts?.forceNew,
         attach_to: opts?.attachTo,
+        create_rule: createRule,
       })
       if (result.possible_match) {
         // Found a likely bank-sync match — hold off, let the user decide
@@ -190,6 +192,17 @@ export default function ReceiptCard({
               ))}
             </select>
           </div>
+
+          {/* Save as rule */}
+          <label className="flex items-center gap-2 text-xs text-muted cursor-pointer">
+            <input
+              type="checkbox"
+              checked={createRule}
+              onChange={e => setCreateRule(e.target.checked)}
+              className="rounded border-border"
+            />
+            Save as rule — auto-categorize future receipts from this merchant
+          </label>
 
           {/* Account — only if multiple */}
           {draft.accounts.length > 1 && (

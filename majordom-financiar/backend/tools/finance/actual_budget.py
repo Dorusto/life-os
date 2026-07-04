@@ -85,13 +85,28 @@ async def propose_transaction(
         from datetime import date as _date
         date = _date.today().isoformat()
 
-    # Notes-based category match takes priority over payee history — a payee
-    # like a family member's name can mean a different category every time
-    # (groceries vs. gift vs. personal allowance), so the description the
-    # user actually typed for THIS transaction is more reliable than what
-    # that payee was categorized as before. Still just a suggestion — the
-    # card is editable, nothing is set without confirmation.
+    # Check Actual Budget's own rules first — the most authoritative source
+    # (either created by the user directly in AB, or via a previous "save as
+    # rule" checkbox on this card). A rule scoped to notes (create_payee_notes_rule)
+    # already only fires when both payee AND notes match, so it naturally
+    # handles the "same payee, different purpose" case (a family member's name
+    # can mean groceries one time and a gift the next) without needing the
+    # payee-only guess below to be deprioritized by hand (#99).
     notes_category_match = False
+    if not category_name:
+        try:
+            rule_matches = await get_provider().match_existing_rules(
+                [{"payee": payee, "notes": notes}]
+            )
+            if rule_matches and rule_matches[0] and rule_matches[0].get("category_name"):
+                category_name = rule_matches[0]["category_name"]
+        except Exception:
+            pass
+
+    # Notes-based category match — the description the user actually typed
+    # for THIS transaction mentions a real category name (e.g. "electricity
+    # bill" → "Electricity"). Still just a suggestion — the card is editable,
+    # nothing is set without confirmation.
     if not category_name and notes:
         try:
             cats = await get_provider().get_categories()
@@ -109,7 +124,9 @@ async def propose_transaction(
     if not category_name:
         try:
             from backend.core.memory.categorizer import SmartCategorizer
-            prediction = SmartCategorizer().predict(payee, amount=amount)
+            from backend.core.memory.database import MemoryDB
+            db = MemoryDB(db_path=settings.memory.db_path)
+            prediction = SmartCategorizer(db=db).predict(payee, amount=amount)
             if prediction.category_name:
                 category_name = prediction.category_name
         except Exception:
@@ -973,13 +990,8 @@ async def propose_categorize_with_rule(payee: str, category_name: str, notes_con
             message += f" Did you mean: {', '.join(name_lower_map[c] for c in close)}?"
         return json.dumps({"type": "error", "message": message})
 
-    # Compute rule_prefix (same logic as get_uncategorized_groups in client.py)
-    first_word = payee.split()[0] if payee else ""
-    rule_prefix = (
-        first_word
-        if len(first_word) >= 4 and first_word.isalnum()
-        else payee
-    )
+    from backend.core.actual_client.client import rule_match_prefix
+    rule_prefix = rule_match_prefix(payee)
 
     # Check consistency: look up the payee in AB history
     is_consistent = True

@@ -3,10 +3,13 @@ from __future__ import annotations
 Local database (SQLite) for the majordom's memory.
 
 Stores:
-- Merchant → category associations (for learning)
-- Category keywords
+- Category keywords (learned from receipt OCR text)
 - CSV import profiles
 - Onboarding state
+
+Merchant → category associations used to live here (merchant_mappings) but
+were removed in #99 — Actual Budget's own Rules engine is the single source
+of truth for that now (see ActualBudgetClient.create_payee_rule() et al.).
 """
 import sqlite3
 from pathlib import Path
@@ -16,15 +19,6 @@ import logging
 import json
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass
-class MerchantMapping:
-    """Learned merchant → category association."""
-    merchant: str
-    category_id: str
-    times_seen: int = 1
-    last_seen: str = ""
 
 
 class MemoryDB:
@@ -47,13 +41,6 @@ class MemoryDB:
         conn = self._get_conn()
         try:
             conn.executescript("""
-                CREATE TABLE IF NOT EXISTS merchant_mappings (
-                    merchant TEXT PRIMARY KEY,
-                    category_id TEXT NOT NULL,
-                    times_seen INTEGER DEFAULT 1,
-                    last_seen TEXT DEFAULT (datetime('now'))
-                );
-
                 CREATE TABLE IF NOT EXISTS category_keywords (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     keyword TEXT NOT NULL,
@@ -149,54 +136,12 @@ class MemoryDB:
                     conn.commit()
                 except Exception:
                     pass  # column already dropped, or table freshly created without it
-            logger.info(f"Database initialized: {self.db_path}")
-        finally:
-            conn.close()
-
-    # --- Merchant Mappings (for learning) ---
-
-    def get_merchant_category(self, merchant: str) -> MerchantMapping | None:
-        """Find the category associated with a merchant."""
-        conn = self._get_conn()
-        try:
-            # Exact match
-            row = conn.execute(
-                "SELECT * FROM merchant_mappings WHERE merchant = ?",
-                (merchant.lower(),)
-            ).fetchone()
-
-            if row:
-                return MerchantMapping(**dict(row))
-
-            # Fuzzy search (contains)
-            row = conn.execute(
-                "SELECT * FROM merchant_mappings WHERE ? LIKE '%' || merchant || '%' "
-                "OR merchant LIKE '%' || ? || '%' "
-                "ORDER BY times_seen DESC LIMIT 1",
-                (merchant.lower(), merchant.lower())
-            ).fetchone()
-
-            if row:
-                return MerchantMapping(**dict(row))
-
-            return None
-        finally:
-            conn.close()
-
-    def save_merchant_mapping(self, merchant: str, category_id: str):
-        """Save/update the merchant → category association."""
-        conn = self._get_conn()
-        try:
-            conn.execute("""
-                INSERT INTO merchant_mappings (merchant, category_id, times_seen, last_seen)
-                VALUES (?, ?, 1, datetime('now'))
-                ON CONFLICT(merchant) DO UPDATE SET
-                    category_id = excluded.category_id,
-                    times_seen = times_seen + 1,
-                    last_seen = datetime('now')
-            """, (merchant.lower(), category_id))
+            # merchant_mappings removed (#99) — Actual Budget's own Rules engine
+            # replaced it. No migration: existing mappings are re-derivable from
+            # AB transaction history, or simply not recreated (decided acceptable).
+            conn.execute("DROP TABLE IF EXISTS merchant_mappings")
             conn.commit()
-            logger.info(f"Mapping saved: '{merchant}' → '{category_id}'")
+            logger.info(f"Database initialized: {self.db_path}")
         finally:
             conn.close()
 

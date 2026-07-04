@@ -20,6 +20,24 @@ logger = logging.getLogger(__name__)
 _actual_lock = asyncio.Lock()
 
 
+def rule_match_prefix(payee_name: str) -> str:
+    """
+    Default suggestion for an AB rule's CONTAINS-match text: first word if it's
+    specific enough (>=4 alphanumeric chars) — generalizes across store-number
+    suffixes, e.g. "Lidl Amsterdam 1234" -> "Lidl" also matches "Lidl Rotterdam
+    5678" on a future import. Falls back to the full name otherwise.
+
+    Only a *suggestion* — flows that let the user edit the merchant/payee text
+    before confirming (CSV import, receipts) use whatever ends up in that field
+    verbatim instead of calling this again, so the user stays in control of
+    what a rule actually matches on (#99). Flows without a per-row editable
+    field at confirm time (bulk uncategorized-groups action, chat proposal
+    notes-rule) still rely on this as the actual value.
+    """
+    first_word = payee_name.split()[0] if payee_name else ""
+    return first_word if len(first_word) >= 4 and first_word.isalnum() else payee_name
+
+
 def _patch_bank_sync_balance_type() -> None:
     """Make actualpy tolerate balanceType codes it doesn't know about.
 
@@ -1055,6 +1073,32 @@ class ActualBudgetClient:
                 return str(sched.id)
         return await self._run(_create)
 
+    @staticmethod
+    def _get_or_create_transfer_payee(session, to_acct) -> "Payees":
+        """
+        Find (or create) the special payee that triggers a linked transfer to
+        `to_acct`. When an account is created, actualpy creates a blank Payee
+        with `transfer_acct` set to that account's id — setting a transaction's
+        payee to it is what makes actualpy auto-create the mirrored transaction
+        in the destination account. Shared by create_transfer() and
+        create_payee_transfer_rule() so both use the exact same lookup.
+        """
+        from actual.database import Payees
+        from actual.queries import get_or_create_payee
+
+        transfer_payee = (
+            session.query(Payees)
+            .filter(
+                Payees.transfer_acct == to_acct.id,
+                Payees.tombstone == 0,
+            )
+            .first()
+        )
+        if not transfer_payee:
+            transfer_payee = get_or_create_payee(session, None)
+            transfer_payee.transfer_acct = to_acct.id
+        return transfer_payee
+
     async def create_transfer(
         self,
         from_account_id: str,
@@ -1077,10 +1121,8 @@ class ActualBudgetClient:
             from decimal import Decimal
             from actual.queries import (
                 create_transaction,
-                get_or_create_payee,
                 get_account,
             )
-            from actual.database import Payees
 
             with self._get_actual() as actual:
                 actual.download_budget()
@@ -1089,26 +1131,15 @@ class ActualBudgetClient:
                 from_acct = get_account(actual.session, from_account_id)
                 if not from_acct:
                     raise ValueError(f"Source account not found: {from_account_id}")
+                if from_acct.tombstone or from_acct.closed:
+                    raise ValueError(f"Source account is closed: {from_acct.name}")
                 to_acct = get_account(actual.session, to_account_id)
                 if not to_acct:
                     raise ValueError(f"Destination account not found: {to_account_id}")
+                if to_acct.tombstone or to_acct.closed:
+                    raise ValueError(f"Destination account is closed: {to_acct.name}")
 
-                # Find the transfer payee for the destination account.
-                # When an account is created, actualpy creates a Payee with
-                # transfer_acct set to the account's id. This payee is what
-                # triggers linked transfer transactions.
-                transfer_payee = (
-                    actual.session.query(Payees)
-                    .filter(
-                        Payees.transfer_acct == to_acct.id,
-                        Payees.tombstone == 0,
-                    )
-                    .first()
-                )
-                if not transfer_payee:
-                    # Create a transfer payee for the destination account
-                    transfer_payee = get_or_create_payee(actual.session, None)
-                    transfer_payee.transfer_acct = to_acct.id
+                transfer_payee = self._get_or_create_transfer_payee(actual.session, to_acct)
 
                 # Create the outgoing transaction in the source account.
                 # With process_payee=True (default), create_transaction calls
@@ -1331,101 +1362,6 @@ class ActualBudgetClient:
 
         return await self._run(_get)
 
-    async def add_transactions_batch(
-        self,
-        account_id: str,
-        transactions: list,
-        categorizer=None,
-    ) -> tuple[int, int, int, list]:
-        """
-        Import multiple transactions at once in a single commit.
-
-        Args:
-            account_id: Account ID in Actual Budget
-            transactions: list[NormalizedTransaction]
-            categorizer: Optional SmartCategorizer for auto-categorization
-
-        Returns:
-            (imported, skipped_duplicates, errors, low_confidence_list)
-            low_confidence_list: [(NormalizedTransaction, prediction)] for manual confirmation
-        """
-        def _batch():
-            import hashlib
-            from actual.queries import (
-                create_transaction, get_or_create_payee,
-                get_or_create_category, get_transactions,
-            )
-
-            with self._get_actual() as actual:
-                actual.download_budget()
-
-                existing_txs = get_transactions(actual.session)
-                existing_ids = {
-                    tx.financial_id for tx in existing_txs
-                    if tx.financial_id and not tx.tombstone
-                }
-
-                imported = 0
-                skipped = 0
-                errors = 0
-                low_confidence = []
-
-                for tx in transactions:
-                    try:
-                        sig = f"{tx.date.isoformat()}{tx.merchant}{tx.amount:.4f}"
-                        imported_id = hashlib.sha256(sig.encode()).hexdigest()[:16]
-
-                        if imported_id in existing_ids:
-                            skipped += 1
-                            continue
-
-                        payee_obj = get_or_create_payee(actual.session, tx.merchant)
-
-                        cat_obj = None
-                        pred = None
-                        if categorizer:
-                            pred = categorizer.predict(
-                                merchant=tx.merchant,
-                                ocr_text=tx.description,
-                            )
-                            # Auto-categorize only if the merchant was previously
-                            # confirmed by the user (from_history=True).
-                            # Keywords/AI alone are not enough — always ask.
-                            if pred.from_history and pred.category_name and pred.category_name != "Other":
-                                cat_obj = get_or_create_category(
-                                    actual.session,
-                                    pred.category_name,
-                                    group_name="Majordom",
-                                )
-                            else:
-                                low_confidence.append((tx, pred))
-
-                        notes = "[import CSV]"
-                        actual_amount = -abs(tx.amount) if tx.is_expense else abs(tx.amount)
-                        create_transaction(
-                            actual.session,
-                            date=tx.date,
-                            account=account_id,
-                            payee=payee_obj,
-                            notes=notes,
-                            amount=actual_amount,
-                            category=cat_obj,
-                            imported_id=imported_id,
-                        )
-                        existing_ids.add(imported_id)
-                        imported += 1
-
-                    except Exception as e:
-                        logger.warning(f"Error processing transaction {tx.merchant} {tx.amount}: {e}")
-                        errors += 1
-
-                if imported > 0:
-                    actual.commit()
-                    logger.info(f"CSV import: {imported} imported, {skipped} duplicates, {errors} errors, {len(low_confidence)} low confidence")
-
-            return imported, skipped, errors, low_confidence
-
-        return await self._run(_batch)
 
     async def count_uncategorized(self) -> int:
         """Count all transactions without a category (expenses and income, excludes transfers)."""
@@ -1628,12 +1564,7 @@ class ActualBudgetClient:
 
                 groups = []
                 for row in rows:
-                    first_word = row.payee_name.split()[0] if row.payee_name else ""
-                    rule_prefix = (
-                        first_word
-                        if len(first_word) >= 4 and first_word.isalnum()
-                        else row.payee_name
-                    )
+                    rule_prefix = rule_match_prefix(row.payee_name or "")
                     history = (
                         actual.session.query(Transactions.category_id)
                         .filter(
@@ -1822,6 +1753,112 @@ class ActualBudgetClient:
                 actual.commit()
         await self._run(_create)
 
+    async def create_payee_transfer_rule(self, payee_name_prefix: str, target_account_id: str) -> None:
+        """
+        Create an AB rule: imported_description contains prefix → set payee to
+        the special transfer payee for target_account_id. Reuses the same
+        transfer-payee lookup as create_transfer() — setting a transaction's
+        payee to it is what makes actualpy auto-create the linked mirror
+        transaction in target_account_id (#99).
+        """
+        def _create():
+            from actual.rules import Rule, Condition, Action
+            from actual.queries import create_rule, get_account
+            with self._get_actual() as actual:
+                actual.download_budget()
+                to_acct = get_account(actual.session, target_account_id)
+                if not to_acct:
+                    raise ValueError(f"Target account not found: {target_account_id}")
+                transfer_payee = self._get_or_create_transfer_payee(actual.session, to_acct)
+                rule = Rule(
+                    conditions=[
+                        Condition(
+                            field="imported_description",
+                            op="contains",
+                            value=payee_name_prefix,
+                        )
+                    ],
+                    operation="and",
+                    actions=[
+                        Action(op="set", field="description", value=transfer_payee.id)
+                    ],
+                )
+                create_rule(actual.session, rule)
+                actual.commit()
+        await self._run(_create)
+
+    async def match_existing_rules(self, candidates: list[dict]) -> list[dict | None]:
+        """
+        Read-only check: for each candidate {"payee": str, "notes": str}, see if an
+        AB rule already existing (from AB's own UI, or from a previous "save as
+        rule" checkbox — create_payee_rule/create_payee_notes_rule/create_payee_transfer_rule)
+        would categorize it. Evaluates rule CONDITIONS only via Rule.evaluate() —
+        never calls Rule.run()/Action.run(), so nothing is ever written to AB by
+        this check, even for a matching transfer rule (#99).
+
+        Fetches the ruleset once and evaluates every candidate in memory — no
+        per-candidate query, however many rows are passed.
+
+        Returns, per candidate in the same order:
+          {"category_name": str} — a category rule matched
+          {"is_transfer": True, "account_id": str, "account_name": str} — a transfer rule matched
+          None — no existing rule matches
+        """
+        def _match():
+            from actual.database import Transactions, Payees, Categories, Accounts
+            from actual.queries import get_ruleset
+            from actual.rules import ActionType
+
+            with self._get_actual() as actual:
+                actual.download_budget()
+                ruleset = get_ruleset(actual.session)
+                if not ruleset.rules:
+                    return [None] * len(candidates)
+
+                categories_by_id = {
+                    c.id: c.name for c in actual.session.query(Categories)
+                    .filter(Categories.tombstone == 0).all()
+                }
+                transfer_target_by_payee_id = {
+                    p.id: p.transfer_acct
+                    for p in actual.session.query(Payees)
+                    .filter(Payees.transfer_acct != None).all()
+                }
+                account_names_by_id = {
+                    a.id: a.name for a in actual.session.query(Accounts).all()
+                }
+
+                results: list[dict | None] = []
+                for cand in candidates:
+                    tx = Transactions(
+                        imported_description=cand.get("payee") or "",
+                        notes=cand.get("notes") or "",
+                    )
+                    match = None
+                    for rule in ruleset.rules:
+                        if not rule.evaluate(tx):
+                            continue
+                        for action in rule.actions:
+                            if action.op != ActionType.SET:
+                                continue
+                            if action.field == "category":
+                                cat_name = categories_by_id.get(action.value)
+                                if cat_name:
+                                    match = {"category_name": cat_name}
+                            elif action.field == "description":
+                                target_acct_id = transfer_target_by_payee_id.get(action.value)
+                                if target_acct_id:
+                                    match = {
+                                        "is_transfer": True,
+                                        "account_id": target_acct_id,
+                                        "account_name": account_names_by_id.get(target_acct_id, ""),
+                                    }
+                        if match:
+                            break
+                    results.append(match)
+                return results
+
+        return await self._run(_match)
 
     async def update_uncategorized_by_payee(
         self, payee: str, category_id: str, notes_contains: str = "",
