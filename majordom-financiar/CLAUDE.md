@@ -90,6 +90,18 @@ gh issue list --milestone "M4 — Smart Alerts"
 
 ---
 
+## Known process gaps (identified 2026-07-04)
+
+Found during an external review of `architecture.md`/`decisions.md` for a course-curriculum project. Reviewed against established practices (ADRs, SRE runbooks, fitness functions) on 2026-07-04 — 3 of 5 fixed same day, 1 given a deliberately light mitigation, 1 left open by choice (see reasoning per item). Full comparison + reasoning: `docs/sessions/` (grep "process gaps").
+
+1. **No regression tests for documented silent-failure gotchas** — **left open, by choice.** `architecture.md` rules 12, 14, 15, 17, 21, 22 all document bugs that failed silently. Writing automated regression tests for each was judged not worth the overhead for a single-user app (same reasoning as decision `#96`). Light mitigation instead: any newly-documented silent-failure gotcha should get a tracked GitHub issue (not a new doc), so it's at least visible/queryable, not purely "hope someone reads the rule."
+2. **Architecture audits triggered by symptom, not schedule** — **mitigated, light.** A monthly scheduled check (see the `schedule` skill setup, 2026-07-04) reviews the existing audit triggers in `docs/roadmap.md` and opens a GitHub issue only if one actually fires — doesn't force an audit, just stops the trigger from being missed silently.
+3. **`architecture.md` mixed stable design rules with operational/deploy quirks** — **fixed 2026-07-04.** Rules 18-19 (Docker backup, `--build` vs `restart`) tagged inline with `🔧 RUNBOOK` rather than physically moved — a physical split would have orphaned ~15 existing cross-references to those rule numbers in `decisions.md` and `docs/sessions/`. New ops-only rules should get the same tag going forward.
+4. **`decisions.md` entries accumulated retroactive updates inline** — **fixed 2026-07-04.** Added an explicit ADR-style immutability rule to the top of `decisions.md`: entries are never edited after the fact, only superseded by a new entry with a one-line marker. Existing violations (e.g. "Sure adoption") are left as-is — rewriting old entries to fit the new rule would itself violate the new rule.
+5. **Pre-implementation research had a blind spot mid-implementation** — **fixed 2026-07-04.** "Before any implementation" (below) now states explicitly: if implementation reveals something unexpected, stop and re-verify before continuing — not just a one-time gate before writing code.
+
+---
+
 ## Collaboration rules
 
 **Claude = senior/architect:** reads code, designs solution, writes spec and DeepSeek prompt.
@@ -113,6 +125,8 @@ gh issue list --milestone "M4 — Smart Alerts"
 4. Check `docs/architecture.md#critical-technical-rules` for rules relevant to those files
 5. Check `docs/decisions.md` for relevant decisions
 6. If the task involves a loop over transactions/categories/budgets, check whether an existing shared helper in `backend/core/actual_client/client.py` already covers it (see architecture.md rule 20) — extend it instead of writing a new copy
+
+**This check isn't a one-time gate — repeat it mid-implementation.** If the code reveals something unexpected (a mechanism that already half-exists, a structure different from what the pre-implementation check assumed) — stop and re-verify before continuing, don't push through on the original assumption. #99 found the requested mechanism already half-built *mid-implementation*; the pre-implementation check alone hadn't caught it beforehand.
 
 ### Additionally, if delegating to DeepSeek
 
@@ -203,7 +217,6 @@ When user confirms something works:
    - Design decision made during session → add to `docs/decisions.md`
    - Rule already documented → no action
 7. Fix any outdated notes in this file (CLAUDE.md)
-8. **YouTube / learning check** — ask: "Is this concept interesting enough for a YouTube video or worth understanding deeper?" If yes, suggest the user open a Second Brain session to document it as a potential video topic. Criteria: new architecture pattern, non-obvious technical decision, visible user-facing feature, or something the user asked "how does this work?" about during the session.
 
 **Sessions log format** (`docs/sessions/YYYY-WNN.md`):
 ```markdown
