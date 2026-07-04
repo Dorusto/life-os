@@ -8,18 +8,38 @@ interface Props {
   onCancelled: () => void
 }
 
-interface PendingCategory {
+interface PendingGroup {
+  tempId: string
   name: string
-  groupName: string // display name of the target group at the time it was added
+}
+
+interface PendingCategory {
+  tempId: string
+  name: string
+  targetKey: string // 'existing:<original group name>' or 'new:<group tempId>'
+}
+
+// A row shown on the card — either a real group from Actual Budget, or a
+// locally-added one pending save. Both get the same rename/add-category UI.
+interface DisplayGroup {
+  key: string // 'existing:<original name>' or 'new:<tempId>'
+  displayName: string
+  existingCategories: { id: string; name: string }[]
+}
+
+let tempIdCounter = 0
+function nextTempId(): string {
+  tempIdCounter += 1
+  return `tmp${tempIdCounter}`
 }
 
 export default function CategoryOverviewCard({ data, onConfirmed, onCancelled }: Props) {
   const [renamedGroups, setRenamedGroups] = useState<Record<string, string>>({})
   const [renamedCategories, setRenamedCategories] = useState<Record<string, string>>({})
-  const [newGroups, setNewGroups] = useState<string[]>([])
+  const [newGroups, setNewGroups] = useState<PendingGroup[]>([])
   const [newCategories, setNewCategories] = useState<PendingCategory[]>([])
 
-  const [editingGroup, setEditingGroup] = useState<string | null>(null)
+  const [editingGroupKey, setEditingGroupKey] = useState<string | null>(null)
   const [editingCategory, setEditingCategory] = useState<string | null>(null)
   const [editValue, setEditValue] = useState('')
   const [addingCategoryFor, setAddingCategoryFor] = useState<string | null>(null)
@@ -28,27 +48,44 @@ export default function CategoryOverviewCard({ data, onConfirmed, onCancelled }:
   const [newGroupValue, setNewGroupValue] = useState('')
   const [loading, setLoading] = useState(false)
 
-  function displayGroupName(original: string): string {
-    return renamedGroups[original] ?? original
+  const displayGroups: DisplayGroup[] = [
+    ...data.groups.map(g => ({
+      key: `existing:${g.name}`,
+      displayName: renamedGroups[g.name] ?? g.name,
+      existingCategories: g.categories,
+    })),
+    ...newGroups.map(pg => ({
+      key: `new:${pg.tempId}`,
+      displayName: pg.name,
+      existingCategories: [],
+    })),
+  ]
+
+  function startEditGroup(key: string, currentName: string) {
+    setEditingGroupKey(key)
+    setEditValue(currentName)
   }
 
-  function startEditGroup(original: string) {
-    setEditingGroup(original)
-    setEditValue(displayGroupName(original))
-  }
-
-  function saveEditGroup(original: string) {
+  function saveEditGroup(key: string) {
     const trimmed = editValue.trim()
-    if (trimmed && trimmed !== original) {
-      setRenamedGroups(prev => ({ ...prev, [original]: trimmed }))
-    } else {
-      setRenamedGroups(prev => {
-        const next = { ...prev }
-        delete next[original]
-        return next
-      })
+    if (trimmed) {
+      if (key.startsWith('new:')) {
+        const tempId = key.slice('new:'.length)
+        setNewGroups(prev => prev.map(g => (g.tempId === tempId ? { ...g, name: trimmed } : g)))
+      } else {
+        const original = key.slice('existing:'.length)
+        if (trimmed !== original) {
+          setRenamedGroups(prev => ({ ...prev, [original]: trimmed }))
+        } else {
+          setRenamedGroups(prev => {
+            const next = { ...prev }
+            delete next[original]
+            return next
+          })
+        }
+      }
     }
-    setEditingGroup(null)
+    setEditingGroupKey(null)
   }
 
   function startEditCategory(original: string) {
@@ -70,10 +107,10 @@ export default function CategoryOverviewCard({ data, onConfirmed, onCancelled }:
     setEditingCategory(null)
   }
 
-  function submitNewCategory(groupDisplayName: string) {
+  function submitNewCategory(targetKey: string) {
     const trimmed = newCategoryValue.trim()
     if (trimmed) {
-      setNewCategories(prev => [...prev, { name: trimmed, groupName: groupDisplayName }])
+      setNewCategories(prev => [...prev, { tempId: nextTempId(), name: trimmed, targetKey }])
     }
     setNewCategoryValue('')
     setAddingCategoryFor(null)
@@ -82,18 +119,20 @@ export default function CategoryOverviewCard({ data, onConfirmed, onCancelled }:
   function submitNewGroup() {
     const trimmed = newGroupValue.trim()
     if (trimmed) {
-      setNewGroups(prev => [...prev, trimmed])
+      setNewGroups(prev => [...prev, { tempId: nextTempId(), name: trimmed }])
     }
     setNewGroupValue('')
     setAddingGroup(false)
   }
 
-  function removePendingCategory(index: number) {
-    setNewCategories(prev => prev.filter((_, i) => i !== index))
+  function removePendingCategory(tempId: string) {
+    setNewCategories(prev => prev.filter(c => c.tempId !== tempId))
   }
 
-  function removePendingGroup(index: number) {
-    setNewGroups(prev => prev.filter((_, i) => i !== index))
+  function removePendingGroup(tempId: string) {
+    setNewGroups(prev => prev.filter(g => g.tempId !== tempId))
+    // Drop any pending categories that were targeting the removed group.
+    setNewCategories(prev => prev.filter(c => c.targetKey !== `new:${tempId}`))
   }
 
   const hasChanges =
@@ -105,10 +144,14 @@ export default function CategoryOverviewCard({ data, onConfirmed, onCancelled }:
   async function handleSave() {
     setLoading(true)
     try {
+      const groupNameByKey = new Map(displayGroups.map(g => [g.key, g.displayName]))
       const result = await applyCategoryOverview({
-        new_groups: newGroups,
+        new_groups: newGroups.map(g => g.name),
         renamed_groups: renamedGroups,
-        new_categories: newCategories.map(c => ({ name: c.name, group_name: c.groupName })),
+        new_categories: newCategories.map(c => ({
+          name: c.name,
+          group_name: groupNameByKey.get(c.targetKey) ?? c.targetKey,
+        })),
         renamed_categories: renamedCategories,
       })
       onConfirmed(result.message)
@@ -127,91 +170,91 @@ export default function CategoryOverviewCard({ data, onConfirmed, onCancelled }:
       </div>
 
       <div className="max-h-72 overflow-y-auto space-y-3 -mx-1 px-1">
-        {data.groups.map(group => {
-          const groupDisplay = displayGroupName(group.name)
-          return (
-            <div key={group.name}>
-              {editingGroup === group.name ? (
-                <input
-                  autoFocus
-                  value={editValue}
-                  onChange={e => setEditValue(e.target.value)}
-                  onBlur={() => saveEditGroup(group.name)}
-                  onKeyDown={e => { if (e.key === 'Enter') saveEditGroup(group.name); if (e.key === 'Escape') setEditingGroup(null) }}
-                  className="w-full bg-background border border-accent rounded-lg px-2 py-1 text-white text-sm font-medium mb-1 outline-none"
-                />
-              ) : (
+        {displayGroups.map(group => (
+          <div key={group.key}>
+            {editingGroupKey === group.key ? (
+              <input
+                autoFocus
+                value={editValue}
+                onChange={e => setEditValue(e.target.value)}
+                onBlur={() => saveEditGroup(group.key)}
+                onKeyDown={e => { if (e.key === 'Enter') saveEditGroup(group.key); if (e.key === 'Escape') setEditingGroupKey(null) }}
+                className="w-full bg-background border border-accent rounded-lg px-2 py-1 text-white text-sm font-medium mb-1 outline-none"
+              />
+            ) : (
+              <div className="flex items-center justify-between gap-2 mb-1">
                 <button
-                  onClick={() => startEditGroup(group.name)}
-                  className="flex items-center gap-1.5 text-white text-sm font-medium mb-1 hover:text-accent transition-colors"
+                  onClick={() => startEditGroup(group.key, group.displayName)}
+                  className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${
+                    group.key.startsWith('new:') ? 'text-accent' : 'text-white hover:text-accent'
+                  }`}
                 >
-                  {groupDisplay}
+                  {group.displayName}
                   <Pencil size={11} className="opacity-50" />
                 </button>
-              )}
-
-              <div className="pl-3 border-l border-border space-y-1">
-                {group.categories.map(cat => (
-                  <div key={cat.id}>
-                    {editingCategory === cat.name ? (
-                      <input
-                        autoFocus
-                        value={editValue}
-                        onChange={e => setEditValue(e.target.value)}
-                        onBlur={() => saveEditCategory(cat.name)}
-                        onKeyDown={e => { if (e.key === 'Enter') saveEditCategory(cat.name); if (e.key === 'Escape') setEditingCategory(null) }}
-                        className="w-full bg-background border border-accent rounded-lg px-2 py-1 text-white text-sm outline-none"
-                      />
-                    ) : (
-                      <button
-                        onClick={() => startEditCategory(cat.name)}
-                        className="flex items-center gap-1.5 text-muted text-sm hover:text-white transition-colors"
-                      >
-                        {renamedCategories[cat.name] ?? cat.name}
-                        <Pencil size={10} className="opacity-40" />
-                      </button>
-                    )}
-                  </div>
-                ))}
-
-                {newCategories.map((c, i) => c.groupName === groupDisplay && (
-                  <div key={`new-cat-${i}`} className="flex items-center justify-between gap-2 text-sm">
-                    <span className="text-accent">{c.name}</span>
-                    <button onClick={() => removePendingCategory(i)} className="text-muted hover:text-white">
-                      <X size={12} />
-                    </button>
-                  </div>
-                ))}
-
-                {addingCategoryFor === group.name ? (
-                  <input
-                    autoFocus
-                    placeholder="Category name"
-                    value={newCategoryValue}
-                    onChange={e => setNewCategoryValue(e.target.value)}
-                    onBlur={() => submitNewCategory(groupDisplay)}
-                    onKeyDown={e => { if (e.key === 'Enter') submitNewCategory(groupDisplay); if (e.key === 'Escape') { setAddingCategoryFor(null); setNewCategoryValue('') } }}
-                    className="w-full bg-background border border-accent rounded-lg px-2 py-1 text-white text-sm outline-none"
-                  />
-                ) : (
+                {group.key.startsWith('new:') && (
                   <button
-                    onClick={() => setAddingCategoryFor(group.name)}
-                    className="flex items-center gap-1 text-accent text-xs opacity-90 hover:opacity-100"
+                    onClick={() => removePendingGroup(group.key.slice('new:'.length))}
+                    className="text-muted hover:text-white"
                   >
-                    <Plus size={11} /> add category
+                    <X size={12} />
                   </button>
                 )}
               </div>
-            </div>
-          )
-        })}
+            )}
 
-        {newGroups.map((g, i) => (
-          <div key={`new-group-${i}`} className="flex items-center justify-between gap-2">
-            <span className="text-accent text-sm font-medium">{g}</span>
-            <button onClick={() => removePendingGroup(i)} className="text-muted hover:text-white">
-              <X size={12} />
-            </button>
+            <div className="pl-3 border-l border-border space-y-1">
+              {group.existingCategories.map(cat => (
+                <div key={cat.id}>
+                  {editingCategory === cat.name ? (
+                    <input
+                      autoFocus
+                      value={editValue}
+                      onChange={e => setEditValue(e.target.value)}
+                      onBlur={() => saveEditCategory(cat.name)}
+                      onKeyDown={e => { if (e.key === 'Enter') saveEditCategory(cat.name); if (e.key === 'Escape') setEditingCategory(null) }}
+                      className="w-full bg-background border border-accent rounded-lg px-2 py-1 text-white text-sm outline-none"
+                    />
+                  ) : (
+                    <button
+                      onClick={() => startEditCategory(cat.name)}
+                      className="flex items-center gap-1.5 text-muted text-sm hover:text-white transition-colors"
+                    >
+                      {renamedCategories[cat.name] ?? cat.name}
+                      <Pencil size={10} className="opacity-40" />
+                    </button>
+                  )}
+                </div>
+              ))}
+
+              {newCategories.filter(c => c.targetKey === group.key).map(c => (
+                <div key={c.tempId} className="flex items-center justify-between gap-2 text-sm">
+                  <span className="text-accent">{c.name}</span>
+                  <button onClick={() => removePendingCategory(c.tempId)} className="text-muted hover:text-white">
+                    <X size={12} />
+                  </button>
+                </div>
+              ))}
+
+              {addingCategoryFor === group.key ? (
+                <input
+                  autoFocus
+                  placeholder="Category name"
+                  value={newCategoryValue}
+                  onChange={e => setNewCategoryValue(e.target.value)}
+                  onBlur={() => submitNewCategory(group.key)}
+                  onKeyDown={e => { if (e.key === 'Enter') submitNewCategory(group.key); if (e.key === 'Escape') { setAddingCategoryFor(null); setNewCategoryValue('') } }}
+                  className="w-full bg-background border border-accent rounded-lg px-2 py-1 text-white text-sm outline-none"
+                />
+              ) : (
+                <button
+                  onClick={() => setAddingCategoryFor(group.key)}
+                  className="flex items-center gap-1 text-accent text-xs opacity-90 hover:opacity-100"
+                >
+                  <Plus size={11} /> add category
+                </button>
+              )}
+            </div>
           </div>
         ))}
       </div>
