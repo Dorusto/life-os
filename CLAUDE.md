@@ -44,12 +44,12 @@ See `majordom-financiar/PRIVATE_context.md` (gitignored, private) for the comple
 
 ---
 
-## Current priorities (2026-07-03)
+## Current priorities (2026-07-04)
 
 Full prioritized backlog lives on GitHub as Milestones + Labels (`tier-2`, `tier-3`, `intelligence-cluster`, `deferred-local-first`, `deferred-opportunistic`) — not a doc, see `majordom-financiar/CLAUDE.md#priority-tracking`. Example: `gh issue list --label tier-2`.
 
-1. **Just completed** — M5.0 tool domain routing (#98), #137 (chat history bug), #99 audit (found + fixed an unrelated SQLite violation in `pending_review`)
-2. **Next up** — #93 (code audit) → [#138](https://github.com/Dorusto/life-os/issues/138) (extract `vehicle-manager` as independent service) → #79/#134 as its consumers
+1. **Just completed** — #99 (`merchant_mappings` SQLite removed, replaced by Actual Budget's native Rules engine), #93 (code audit), [#138](https://github.com/Dorusto/life-os/issues/138) (extract `vehicle-manager` as independent service)
+2. **Next up** — check `gh issue list --label tier-2` / `tier-3` for the current ready-to-pick-up backlog (this list drifts — GitHub is the source of truth, see `#priority-tracking` above)
 3. **Proactive budget intelligence** (#41, #42, #110-114, #116, #124) — real but medium priority, grouped, picked up once standard-functionality work runs dry
 4. **Deferred to local-first LLM switch-back** — #75, #65, #80/#81/#86 (see `decisions.md#llm-provider`), high priority again once local models are back in active use
 5. **M2.5 goal proposal** — `propose_budget_calibration` tool (budget calibration after 2+ months of data)
