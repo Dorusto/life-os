@@ -256,6 +256,26 @@ Confirmed AB also has a native transfer mechanism usable the same way: every acc
 
 ---
 
+### Card pattern — single-action confirm cards vs. overview/management cards (2026-07-04, not fully settled)
+
+**Date:** 2026-07-04, alongside #78 and the new budget overview card.
+
+**Decision (as implemented, working but not confidently final):** two card shapes now coexist by design, chosen per request type, not per domain:
+- **Single-action confirm card** (`CategoryActionCard` and friends) — for a point ask the LLM already parsed ("set Transport to €150", "rename Food to Groceries"). One field or a few, one confirm.
+- **Overview/management card** (`CategoryOverviewCard`, `BudgetOverviewCard`) — for "show me everything and let me edit it," when the user wants to browse and reorganize a whole collection at once, not name one specific change.
+
+Both exist for categories today (structure via `CategoryOverviewCard`, amounts via `BudgetOverviewCard`) and both exist for budgets (`propose_set_category_budget`'s single card vs. `get_budget_overview`'s full table) — asking for one thing still gets the small card; asking to see/manage everything gets the big one.
+
+**Why this shape:** discussed explicitly before building (see `docs/sessions/2026-W27.md`, 2026-07-04 entries) — budget is month-scoped and category structure isn't, so merging both into one mega-card was rejected as ambiguous. Reusing the single-action pattern for "show me everything" requests would mean one card per category, which doesn't answer "let me see it all."
+
+**Not fully settled:** after using it, the user's own assessment was "it works, but I don't know if it's the best solution" — not a rejection, but not a confident endorsement either. Concretely unresolved:
+- Whether every future "manage a whole collection" need (accounts? vehicles? rules?) should get its own bespoke overview card each time, or whether a more generic reusable "collection manager" component should be extracted once a second/third case shows the same shape repeating (per the root `CLAUDE.md` "extract at the second occurrence" rule — categories + budget is arguably already two, worth watching for a third before abstracting).
+- Whether having *two different card families answer to the same domain* (category structure card + budget card, both about "categories" broadly) is confusing from the user's side, versus feeling natural once they're used to it.
+
+**Revisit when:** a third domain asks for the same "show me everything, let me edit" treatment, or if the user reports the two-card-shapes-per-domain split feels wrong in daily use — don't treat this entry as closed just because it's implemented and working.
+
+---
+
 ### Notifications — red dot only, no banners on Home
 
 **Date:** 2026-05-29
