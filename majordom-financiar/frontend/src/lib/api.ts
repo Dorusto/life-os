@@ -787,6 +787,32 @@ export async function applyCategoryOverview(
   })
 }
 
+// --- Budget overview (full editable budget table) ---
+
+export interface BudgetOverviewData {
+  type: 'budget_overview'
+  month: string
+  groups: {
+    name: string
+    categories: { id: string; name: string; budgeted: number; spent: number; balance: number; carryover: boolean }[]
+  }[]
+}
+
+export interface BudgetOverviewApplyPayload {
+  month: string
+  amounts: Record<string, number>
+  carryover: Record<string, boolean>
+}
+
+export async function applyBudgetOverview(
+  payload: BudgetOverviewApplyPayload
+): Promise<{ message: string }> {
+  return request('/category-actions/budget/apply', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
 export async function proposeSavingsBudget(
   amount: number,
   month?: string

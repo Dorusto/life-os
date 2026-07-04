@@ -447,6 +447,29 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__get_budget_overview",
+            "description": (
+                "Show the full editable budget table for a month (default: current) — every "
+                "expense category grouped, with Budgeted (editable), Spent, Balance, and Rollover "
+                "overspending toggle. Use when the user asks to see, manage, or edit their budget "
+                "(e.g. 'show me my budget', 'let me edit my budget', 'arata-mi bugetul') — not for "
+                "checking status/progress on an existing budget, use finance__get_budget_status for that."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "month": {
+                        "type": "string",
+                        "description": "Target month in YYYY-MM format. Omit for current month.",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "finance__rename_category",
             "description": (
                 "Rename an existing budget category. "
@@ -897,6 +920,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "finance__propose_budget_copy":
         from backend.tools.finance.actual_budget import propose_budget_copy
         return await propose_budget_copy(**arguments)
+
+    if name == "finance__get_budget_overview":
+        from backend.tools.finance.actual_budget import get_budget_overview
+        return await get_budget_overview(**arguments)
 
     if name == "finance__propose_bank_resync":
         from backend.tools.finance.actual_budget import propose_bank_resync

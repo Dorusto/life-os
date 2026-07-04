@@ -880,6 +880,39 @@ async def propose_budget_copy(month: str = "") -> str:
     })
 
 
+async def get_budget_overview(month: str = "") -> str:
+    """Show the full budget table for a month (default: current) — every expense category
+    grouped, with Budgeted (editable), Spent, Balance, and Rollover overspending state.
+    Use when the user asks to see/manage/edit their budget, not just check status."""
+    from datetime import date as _date
+
+    today = _date.today()
+    if month:
+        try:
+            year, m = int(month[:4]), int(month[5:7])
+        except (ValueError, IndexError):
+            year, m = today.year, today.month
+    else:
+        year, m = today.year, today.month
+
+    client = get_provider()
+    rows = await client.get_budget_overview(month=m, year=year)
+
+    by_group: dict[str, list[dict]] = {}
+    for r in rows:
+        by_group.setdefault(r["group_name"], []).append({
+            "id": r["category_id"],
+            "name": r["category_name"],
+            "budgeted": r["budgeted"],
+            "spent": r["spent"],
+            "balance": round(r["budgeted"] - r["spent"], 2),
+            "carryover": r["carryover"],
+        })
+
+    groups = [{"name": name, "categories": cats} for name, cats in by_group.items()]
+    return json.dumps({"type": "budget_overview", "month": f"{year:04d}-{m:02d}", "groups": groups})
+
+
 async def list_categories() -> str:
     """Show all existing category groups and their subcategories as an editable overview card. Use when the user asks to see, manage, organize, or set up categories/groups."""
     client = get_provider()

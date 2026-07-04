@@ -244,6 +244,50 @@ async def apply_category_overview(
     return {"message": message}
 
 
+class BudgetOverviewApply(BaseModel):
+    month: str  # YYYY-MM
+    amounts: dict[str, float] = {}          # category_name -> new budgeted amount
+    carryover: dict[str, bool] = {}          # category_name -> rollover enabled
+
+
+@router.post("/category-actions/budget/apply")
+async def apply_budget_overview(
+    body: BudgetOverviewApply,
+    current_user: str = Depends(get_current_user),
+):
+    """Apply a batch of edits made on the budget overview card — amounts and rollover toggles."""
+    from datetime import date as _date
+
+    client = get_provider()
+    year, m = int(body.month[:4]), int(body.month[5:7])
+    target_month = _date(year, m, 1)
+
+    updated_amounts = 0
+    updated_carryover = 0
+
+    for category_name, amount in body.amounts.items():
+        try:
+            await client.set_budget_amount(category_name=category_name, new_amount=amount, month=target_month)
+            updated_amounts += 1
+        except Exception as e:
+            logger.warning("Failed to set budget for '%s': %s", category_name, e)
+
+    for category_name, enabled in body.carryover.items():
+        try:
+            await client.set_budget_carryover(category_name, target_month, enabled)
+            updated_carryover += 1
+        except Exception as e:
+            logger.warning("Failed to set carryover for '%s': %s", category_name, e)
+
+    parts = []
+    if updated_amounts:
+        parts.append(f"{updated_amounts} categor{'ies' if updated_amounts != 1 else 'y'} budgeted")
+    if updated_carryover:
+        parts.append(f"rollover updated for {updated_carryover} categor{'ies' if updated_carryover != 1 else 'y'}")
+    message = ", ".join(parts) if parts else "No changes made."
+    return {"message": message}
+
+
 @router.post("/category-actions/{action_id}/cancel")
 async def cancel_category_action(
     action_id: str,

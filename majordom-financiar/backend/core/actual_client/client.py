@@ -181,7 +181,9 @@ def _compute_monthly_totals(session, txs) -> dict:
     }
 
 
-def _compute_budget_vs_spent(session, txs, all_cats, target_year: int, target_month: int) -> list[dict]:
+def _compute_budget_vs_spent(
+    session, txs, all_cats, target_year: int, target_month: int, include_zero: bool = False,
+) -> list[dict]:
     """Merge budget allocations with actual spending per category for a month.
 
     Shared by get_budget_status() and get_home_data(). Includes the rollover-aware
@@ -189,12 +191,17 @@ def _compute_budget_vs_spent(session, txs, all_cats, target_year: int, target_mo
     rollover enabled but got no fresh allocation this month — without it, a category
     funded last month and spent this month would show budgeted=0 even though real
     money is still available (e.g. a "Holidays" category funded in June, spent in July).
+
+    `include_zero=True` keeps categories with no budget and no spending yet this
+    month (needed by get_budget_overview() — a full editable budget table must
+    show every category, not just the ones already active).
     """
     from datetime import date as _date
     yyyymm = target_year * 100 + target_month
 
-    # --- 1. Fetch budget allocations from zero_budgets ---
+    # --- 1. Fetch budget allocations (+ rollover flag) from zero_budgets ---
     budget_by_category: dict[str, float] = defaultdict(float)
+    carryover_by_category: dict[str, bool] = {}
 
     try:
         from sqlalchemy import text as _text
@@ -206,26 +213,28 @@ def _compute_budget_vs_spent(session, txs, all_cats, target_year: int, target_mo
         # set_budget_amount() was invisible to this query under the old id-prefix
         # filter despite existing in the table with month=202607.
         rows = session.execute(
-            _text("SELECT category, amount FROM zero_budgets WHERE month = :yyyymm"),
+            _text("SELECT category, amount, carryover FROM zero_budgets WHERE month = :yyyymm"),
             {"yyyymm": yyyymm},
         ).fetchall()
         for row in rows:
             cat_id = str(row[0]) if row[0] else ""
             amount_cents = float(row[1] or 0)
             budget_by_category[cat_id] += amount_cents / 100
+            carryover_by_category[cat_id] = bool(row[2])
         logger.debug("Budget lookup via zero_budgets succeeded: %d rows", len(rows))
     except Exception as e1:
         logger.warning("zero_budgets table not available: %s", e1)
         try:
             from sqlalchemy import text as _text
             rows = session.execute(
-                _text("SELECT category, amount FROM reflect_budgets WHERE month = :yyyymm"),
+                _text("SELECT category, amount, carryover FROM reflect_budgets WHERE month = :yyyymm"),
                 {"yyyymm": yyyymm},
             ).fetchall()
             for row in rows:
                 cat_id = str(row[0]) if row[0] else ""
                 amount_cents = float(row[1] or 0)
                 budget_by_category[cat_id] += amount_cents / 100
+                carryover_by_category[cat_id] = bool(row[2])
             logger.debug("Budget lookup via reflect_budgets succeeded: %d rows", len(rows))
         except Exception as e2:
             logger.warning(
@@ -304,7 +313,7 @@ def _compute_budget_vs_spent(session, txs, all_cats, target_year: int, target_mo
             except Exception:
                 pass
         # Skip system/unbudgeted categories with no activity
-        if budgeted == 0 and spent == 0:
+        if not include_zero and budgeted == 0 and spent == 0:
             continue
         percentage = round(spent / budgeted * 100, 1) if budgeted > 0 else 0.0
         result.append({
@@ -314,6 +323,7 @@ def _compute_budget_vs_spent(session, txs, all_cats, target_year: int, target_mo
             "budgeted": budgeted,
             "spent": spent,
             "percentage": percentage,
+            "carryover": carryover_by_category.get(cat_id, False),
         })
 
     # Sort: over-budget first, then by percentage descending
@@ -527,6 +537,36 @@ class ActualBudgetClient:
                 txs = get_transactions(actual.session, start_date=start, end_date=end)
                 all_cats = get_categories(actual.session)  # non-tombstoned only
                 return _compute_budget_vs_spent(actual.session, txs, all_cats, year, month)
+
+        return await self._run(_get)
+
+    async def get_budget_overview(self, month: int | None = None, year: int | None = None) -> list[dict]:
+        """
+        Full editable budget table for a month — every expense category (even
+        ones with no budget/spending yet), grouped and sorted like Actual
+        Budget's own Budget screen. Each item adds "carryover" (current
+        rollover-overspending state) on top of get_budget_status()'s fields.
+        """
+        today = date.today()
+        month = month or today.month
+        year = year or today.year
+
+        def _get():
+            import calendar
+            from datetime import date as _date
+            from actual.queries import get_transactions, get_categories
+
+            start = _date(year, month, 1)
+            last_day = calendar.monthrange(year, month)[1]
+            end = _date(year, month, last_day)
+
+            with self._get_actual() as actual:
+                actual.download_budget()
+                txs = get_transactions(actual.session, start_date=start, end_date=end)
+                all_cats = [c for c in get_categories(actual.session) if not getattr(c, "is_income", False)]
+                result = _compute_budget_vs_spent(actual.session, txs, all_cats, year, month, include_zero=True)
+                result.sort(key=lambda r: (r["group_name"], r["category_name"]))
+                return result
 
         return await self._run(_get)
 
