@@ -25,6 +25,7 @@ class ReminderOverride(BaseModel):
     interval_months: int | None = None
     last_service_km: float | None = None
     last_service_date: str | None = None
+    required: bool | None = None
 
 
 @router.post("/vehicle-reminder-actions/{action_id}/confirm")
@@ -71,6 +72,12 @@ async def confirm_vehicle_reminder(
             if patch_fields:
                 await client.patch_vehicle(vehicle_id, **patch_fields)
             return {"message": f"{vehicle_name} service interval saved."}
+
+        if action.get("action") == "set_apk_required":
+            required = override.required if override.required is not None else action["required"]
+            await client.patch_vehicle(vehicle_id, apk_required=required)
+            state = "required" if required else "not required"
+            return {"message": f"{vehicle_name} APK/ITP marked as {state}."}
 
         due_date = override.due_date or action["due_date"]
         field = action["field"]

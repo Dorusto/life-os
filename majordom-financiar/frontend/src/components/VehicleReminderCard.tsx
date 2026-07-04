@@ -15,20 +15,24 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
   const [intervalMonths, setIntervalMonths] = useState(String(data.interval_months ?? ''))
   const [lastServiceKm, setLastServiceKm] = useState(String(data.last_service_km ?? ''))
   const [lastServiceDate, setLastServiceDate] = useState(data.last_service_date ?? '')
+  const [required, setRequired] = useState(data.required ?? true)
   const [loading, setLoading] = useState(false)
 
   const isService = data.reminder_type === 'service'
+  const isApkRequired = data.reminder_type === 'apk_required'
 
   async function handleConfirm() {
     setLoading(true)
     try {
-      const override: Record<string, string | number> = {}
+      const override: Record<string, string | number | boolean> = {}
       if (vehicleId !== data.vehicle_id) override.vehicle_id = vehicleId
       if (isService) {
         if (intervalKm) override.interval_km = Number(intervalKm)
         if (intervalMonths) override.interval_months = Number(intervalMonths)
         if (lastServiceKm) override.last_service_km = Number(lastServiceKm)
         if (lastServiceDate) override.last_service_date = lastServiceDate
+      } else if (isApkRequired) {
+        if (required !== data.required) override.required = required
       } else {
         if (dueDate !== data.due_date) override.due_date = dueDate
       }
@@ -55,7 +59,7 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
 
   return (
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 w-[92%] max-w-sm space-y-3">
-      <p className="text-white font-medium">Set {data.label} reminder</p>
+      <p className="text-white font-medium">{isApkRequired ? `Update ${data.label}` : `Set ${data.label} reminder`}</p>
 
       <div className="space-y-2">
         {data.vehicles.length > 1 && (
@@ -119,6 +123,26 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
               </div>
             </div>
           </>
+        ) : isApkRequired ? (
+          <div className="space-y-1">
+            <p className="text-muted text-xs">APK/ITP/MOT applies to this vehicle?</p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setRequired(true)}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${required ? 'bg-accent text-white' : 'bg-background border border-border text-muted'}`}
+              >
+                Required
+              </button>
+              <button
+                type="button"
+                onClick={() => setRequired(false)}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${!required ? 'bg-accent text-white' : 'bg-background border border-border text-muted'}`}
+              >
+                Not required
+              </button>
+            </div>
+          </div>
         ) : (
           <div className="space-y-1">
             <p className="text-muted text-xs">Expiry date</p>
@@ -140,7 +164,7 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
       <div className="flex gap-2">
         <button
           onClick={handleConfirm}
-          disabled={loading || (!isService && !dueDate)}
+          disabled={loading || (!isService && !isApkRequired && !dueDate)}
           className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-50 whitespace-nowrap"
         >
           <Bell size={14} />

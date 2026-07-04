@@ -26,6 +26,7 @@ class VehiclePatchRequest(BaseModel):
     last_service_km: float | None = None
     last_service_date: str | None = None
     active: int | None = None
+    apk_required: bool | None = None
 
 
 class VehicleLogEntry(BaseModel):

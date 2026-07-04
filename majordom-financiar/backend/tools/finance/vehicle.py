@@ -226,6 +226,42 @@ async def set_service_interval(
     })
 
 
+async def set_vehicle_apk_required(vehicle_name: str, required: bool) -> str:
+    """
+    Mark whether a vehicle needs an APK/ITP/MOT inspection at all.
+    Use when the user says APK/ITP/MOT doesn't apply to a vehicle (e.g. some
+    motorcycles are exempt in certain countries), or reverses that.
+    Returns a confirmation card — does NOT write yet.
+    """
+    from backend.tools import vehicle_reminder_actions as action_store
+
+    client = _get_client()
+    vehicles = await client.list_vehicles(active_only=True)
+    matched = next((v for v in vehicles if vehicle_name.lower() in v["name"].lower()), None)
+    if not matched:
+        return f"No vehicle found matching '{vehicle_name}'."
+
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {
+        "action": "set_apk_required",
+        "vehicle_id": matched["id"],
+        "required": required,
+    })
+
+    return json.dumps({
+        "type": "vehicle_reminder",
+        "id": action_id,
+        "vehicle_id": matched["id"],
+        "vehicle_name": matched["name"],
+        "vehicles": vehicles,
+        "reminder_type": "apk_required",
+        "label": "APK/ITP requirement",
+        "required": required,
+        "due_date": "",
+        "days_remaining": 0,
+    })
+
+
 async def get_vehicle_log(vehicle_name: str = "", limit: int = 10) -> str:
     """
     Return the last N refuel entries for a vehicle from vehicle_log.

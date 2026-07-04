@@ -56,6 +56,7 @@ def init_db(db_path: str | None = None) -> None:
                 service_interval_months INTEGER DEFAULT NULL,
                 last_service_km REAL DEFAULT NULL,
                 last_service_date TEXT DEFAULT NULL,
+                apk_required INTEGER DEFAULT 1,
                 created_at TEXT DEFAULT (datetime('now'))
             );
 
@@ -86,6 +87,15 @@ def init_db(db_path: str | None = None) -> None:
             );
         """)
         conn.commit()
+
+        # Existing databases predate apk_required — CREATE TABLE IF NOT EXISTS
+        # above won't add it to an already-created table.
+        existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(vehicles)")}
+        if "apk_required" not in existing_columns:
+            conn.execute("ALTER TABLE vehicles ADD COLUMN apk_required INTEGER DEFAULT 1")
+            conn.commit()
+            logger.info("Migrated: added apk_required column to vehicles")
+
         logger.info("Database initialized: %s", path)
     finally:
         conn.close()
@@ -168,6 +178,7 @@ def patch_vehicle(vehicle_id: int, updates: dict, db_path: str | None = None) ->
         "vehicle_type", "apk_due", "insurance_due",
         "service_interval_km", "service_interval_months",
         "last_service_km", "last_service_date", "active",
+        "apk_required",
     }
     set_clauses = []
     params = []

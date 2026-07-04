@@ -853,7 +853,7 @@ export interface VehicleReminderData {
   vehicle_id: number
   vehicle_name: string
   vehicles: { id: number; name: string }[]
-  reminder_type: 'apk' | 'insurance' | 'service'
+  reminder_type: 'apk' | 'insurance' | 'service' | 'apk_required'
   label: string
   due_date: string
   days_remaining: number
@@ -861,11 +861,12 @@ export interface VehicleReminderData {
   interval_months?: number | null
   last_service_km?: number | null
   last_service_date?: string | null
+  required?: boolean
 }
 
 export async function confirmVehicleReminder(
   id: string,
-  override?: { due_date?: string; vehicle_id?: number }
+  override?: { due_date?: string; vehicle_id?: number; required?: boolean }
 ): Promise<{ message: string }> {
   return request(`/vehicle-reminder-actions/${id}/confirm`, {
     method: 'POST',

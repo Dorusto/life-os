@@ -245,6 +245,8 @@ async def _check_vehicle_reminders(db: MemoryDB, ignore_anti_spam: bool = False)
     for v in vehicles:
         # Expiry reminders
         for reminder_type, field in [("apk", "apk_due"), ("insurance", "insurance_due")]:
+            if reminder_type == "apk" and not v.get("apk_required", 1):
+                continue
             due_str = v.get(field)
             if not due_str:
                 continue
@@ -329,7 +331,7 @@ async def _check_vehicle_reminders(db: MemoryDB, ignore_anti_spam: bool = False)
 
         # Setup nudge for missing APK/insurance dates
         missing = []
-        if not v.get("apk_due"):
+        if v.get("apk_required", 1) and not v.get("apk_due"):
             missing.append("APK/ITP")
         if not v.get("insurance_due"):
             missing.append("insurance")

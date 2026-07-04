@@ -125,6 +125,8 @@ Use `vehicle__*` tools when the user mentions car, fuel, APK, insurance, mileage
   - "MyCar service every 15000 km or 12 months, last service at 48000 km" → vehicle__set_service_interval(vehicle_name="MyCar", interval_km=15000, interval_months=12, last_service_km=48000)
   - "APK MyCar expires September 2026" → vehicle__set_vehicle_reminder(vehicle_name="MyCar", reminder_type="apk", due_date="2026-09-01")
   - "insurance for MyBike until March 15" → vehicle__set_vehicle_reminder(vehicle_name="MyBike", reminder_type="insurance", due_date="2026-03-15")
+- When the user says APK/ITP/MOT doesn't apply to a vehicle (e.g. an exempt motorcycle), or reverses that — call vehicle__set_vehicle_apk_required immediately.
+  - "Wabi Sabi doesn't need APK, motorcycles are exempt here" → vehicle__set_vehicle_apk_required(vehicle_name="Wabi Sabi", required=false)
 - When the user mentions refueling / filling up / tanking fuel — call vehicle__log_refuel immediately. Never use finance__propose_transaction for fuel. Never describe it as text.
   - "I refueled 31L at Shell for €70, odo 51000" → vehicle__log_refuel(liters=31, total_eur=70, location="Shell", odo_km=51000)
   - "am alimentat 40L cu €80 din Tango" → vehicle__log_refuel(liters=40, total_eur=80, location="Tango")
@@ -155,7 +157,7 @@ _PROPOSAL_TOOLS = {
     "finance__get_budget_overview",
     "finance__get_spending_chart", "finance__get_budget_chart", "finance__get_spending_trend", "finance__get_goals_chart",
     "vehicle__log_refuel", "vehicle__delete_vehicle_log_entry", "vehicle__set_vehicle_reminder",
-    "vehicle__set_service_interval", "vehicle__propose_set_vehicle_active",
+    "vehicle__set_service_interval", "vehicle__propose_set_vehicle_active", "vehicle__set_vehicle_apk_required",
 }
 
 

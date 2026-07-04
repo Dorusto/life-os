@@ -633,6 +633,32 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "vehicle__set_vehicle_apk_required",
+            "description": (
+                "Mark whether a vehicle needs an APK/ITP/MOT inspection at all. "
+                "Use when the user says APK/ITP/MOT doesn't apply to a vehicle "
+                "(e.g. some motorcycles are exempt), or reverses that. "
+                "A confirmation card appears — nothing is saved until the user confirms."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "vehicle_name": {
+                        "type": "string",
+                        "description": "Vehicle name or partial name, e.g. 'wabi sabi'.",
+                    },
+                    "required": {
+                        "type": "boolean",
+                        "description": "false if APK/ITP/MOT does not apply to this vehicle, true to reverse that.",
+                    },
+                },
+                "required": ["vehicle_name", "required"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "vehicle__get_vehicle_log",
             "description": (
                 "Return the last N refuel entries for a vehicle from the vehicle log. "
@@ -956,6 +982,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "vehicle__set_service_interval":
         from backend.tools.finance.vehicle import set_service_interval
         return await set_service_interval(**arguments)
+
+    if name == "vehicle__set_vehicle_apk_required":
+        from backend.tools.finance.vehicle import set_vehicle_apk_required
+        return await set_vehicle_apk_required(**arguments)
 
     if name == "vehicle__get_vehicle_log":
         from backend.tools.finance.vehicle import get_vehicle_log
