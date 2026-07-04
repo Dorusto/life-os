@@ -44,7 +44,7 @@ See `majordom-financiar/PRIVATE_context.md` (gitignored, private) for the comple
 
 ---
 
-## Current priorities (2026-07-04)
+## Current priorities (2026-07-05)
 
 Full prioritized backlog lives on GitHub as Milestones + Labels (`tier-2`, `tier-3`, `intelligence-cluster`, `deferred-local-first`, `deferred-opportunistic`) — not a doc, see `majordom-financiar/CLAUDE.md#priority-tracking`. Example: `gh issue list --label tier-2`.
 
@@ -54,3 +54,13 @@ Full prioritized backlog lives on GitHub as Milestones + Labels (`tier-2`, `tier
 4. **Deferred to local-first LLM switch-back** — #75, #65, #80/#81/#86 (see `decisions.md#llm-provider`), high priority again once local models are back in active use
 5. **M2.5 goal proposal** — `propose_budget_calibration` tool (budget calibration after 2+ months of data)
 6. **Sure/Ghostfolio evaluation** — deferred until portfolio tracking becomes a real need (see decisions.md#sure-adoption)
+
+## Open fork: after majordom-financiar stabilizes (raised 2026-07-05, not decided)
+
+Two directions compete for what comes after the core (M0-M4) is stable:
+1. **Package Majordom for others to install/use** — generic setup instead of hardcoded personal config (`PRIVATE_context.md` assumptions), an installer that doesn't require Docker knowledge.
+2. **Keep building new personal capabilities** — e.g. a "digital majordom" that ingests documents (insurance cards, warranties), remembers them via RAG, stores the file in Nextcloud, and retrieves it on request. Also a future wellness domain.
+
+Current leaning: **(1) first** — real usage/adoption matters more right now than additional personal-only features. (2) is also genuinely new, unbuilt territory (RAG) vs. (1) building on ~90%-done work.
+
+**Not a final decision** — revisit in a dedicated planning session once M0-M4 feels stable enough to ask "what's next" for real.
