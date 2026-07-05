@@ -137,6 +137,14 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__get_fire_chart",
+            "description": "Show FIRE (Financial Independence, Retire Early) progress: current portfolio, target, percentage complete, and projected year to reach it. Call when the user asks about FIRE progress, retirement projections, financial independence, or the crossover point.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "system__set_notification_time",
 
             "description": (
@@ -992,6 +1000,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "finance__get_goals_chart":
         from backend.tools.finance.actual_budget import get_goals_chart
         return await get_goals_chart()
+
+    if name == "finance__get_fire_chart":
+        from backend.tools.finance.actual_budget import get_fire_chart
+        return await get_fire_chart()
 
     if name == "finance__propose_transaction":
 

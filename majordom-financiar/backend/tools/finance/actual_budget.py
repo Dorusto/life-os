@@ -526,6 +526,33 @@ async def get_goals_chart() -> str:
     })
 
 
+async def get_fire_chart() -> str:
+    """Return FIRE (Financial Independence, Retire Early) progress as JSON for the frontend."""
+    from backend.core.actual_client.client import FIRE_YEAR
+
+    client = get_provider()
+    fire = await client.get_fire_status()
+
+    status = "On track" if fire["on_track"] else "Behind pace"
+    extra = f"{status} for {FIRE_YEAR} · €{fire['monthly_contribution']:.0f}/month"
+
+    return json.dumps({
+        "type": "chart",
+        "chart_type": "progress_list",
+        "title": "FIRE Progress",
+        "data": {
+            "items": [{
+                "label": "FIRE Progress",
+                "value": fire["fire_portfolio"],
+                "target": fire["fire_target"],
+                "percentage": fire["fire_pct"],
+                "extra": extra,
+            }],
+            "empty_message": "No FIRE data available",
+        },
+    })
+
+
 async def propose_clarification(question: str, options: list[str]) -> str:
 
     """

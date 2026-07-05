@@ -167,6 +167,9 @@ class ActualBudgetProvider:
     async def get_goals(self) -> list[dict]:
         return await self._client().get_goals()
 
+    async def get_fire_status(self) -> dict:
+        return await self._client().get_fire_status()
+
     async def create_payee_rule(
         self, payee_name_prefix: str, category_id: str
     ) -> None:

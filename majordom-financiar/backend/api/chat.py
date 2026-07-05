@@ -113,6 +113,9 @@ Use `finance__*` tools when the user mentions money, budget, transactions, accou
 - To show or edit the full budget table (amounts per category, rollover toggle) — call finance__get_budget_overview. Use this for "show me my budget", "let me edit my budget", "arată-mi bugetul". Different from finance__get_budget_status, which is for checking progress/overspend on an already-set budget, not editing it.
 - To transfer money between accounts: call finance__propose_account_transfer. Never describe it as text. Pass account names EXACTLY as the user stated them — do NOT substitute with known accounts. If an account is not in Actual Budget, the transfer card offers to create it inline.
 - To answer questions about spending, balances, or budget: call the appropriate finance__get_* tool first, then answer based on the result.
+- When the user asks about FIRE progress, financial independence, retirement timeline, or crossover point — call finance__get_fire_chart immediately.
+  - "cum stau cu FIRE-ul?" → finance__get_fire_chart()
+  - "how's my FIRE progress?" → finance__get_fire_chart()
 - When presenting finance__get_uncategorized_groups results: state the command format the user should type FIRST (e.g. "Say 'categorize all X as Y' for any group below"), THEN list the groups. With long lists the instruction gets missed if it's only at the end.
 
 ## Vehicle tools
@@ -156,6 +159,7 @@ _PROPOSAL_TOOLS = {
     "finance__propose_budget_copy", "finance__propose_set_budget_carryover", "finance__propose_bank_resync",
     "finance__get_budget_overview",
     "finance__get_spending_chart", "finance__get_budget_chart", "finance__get_spending_trend", "finance__get_goals_chart",
+    "finance__get_fire_chart",
     "vehicle__log_refuel", "vehicle__delete_vehicle_log_entry", "vehicle__set_vehicle_reminder",
     "vehicle__set_service_interval", "vehicle__propose_set_vehicle_active", "vehicle__set_vehicle_apk_required",
     "vehicle__get_vehicle_consumption_chart", "vehicle__get_vehicle_distance_chart",

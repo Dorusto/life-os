@@ -386,6 +386,49 @@ def _compute_goal_progress(session, accounts) -> list[dict]:
     return result
 
 
+
+# ── Shared FIRE (Financial Independence, Retire Early) helpers ──────────────
+# Extracted from backend/api/home.py so the chat tool (get_fire_chart) and the
+# Home screen widget share the same calculation — see architecture.md rule 20.
+
+FIRE_TARGET = 190_000.0
+MONTHLY_CONTRIBUTION = 820.0
+ANNUAL_RETURN = 0.07
+FIRE_YEAR = 2035
+FIRE_EXCLUDE = ["house", "mortgage", "hypotheek", "hypotheken", "cory", "wabi sabi"]
+
+
+def _fire_portfolio(accounts: list, balance_attr: str = "balance") -> float:
+    return sum(
+        getattr(a, balance_attr) for a in accounts
+        if a.off_budget
+        and not any(p in a.name.lower() for p in FIRE_EXCLUDE)
+    )
+
+
+def _calc_fire(accounts: list) -> dict:
+    """Calculate FIRE progress from an account list (current + previous-month-end balances)."""
+    from datetime import date as _date
+    portfolio = _fire_portfolio(accounts)
+    pct = round(portfolio / FIRE_TARGET * 100, 1) if FIRE_TARGET else 0
+    # Previous month's %% (#77 trend) — same accounts, balance as of end of last month.
+    portfolio_prev = _fire_portfolio(accounts, "balance_prev_month_end")
+    pct_prev = round(portfolio_prev / FIRE_TARGET * 100, 1) if FIRE_TARGET else 0
+    months_left = (FIRE_YEAR - _date.today().year) * 12 - _date.today().month + 1
+    fv = portfolio * (1 + ANNUAL_RETURN) ** (months_left / 12)
+    fv += MONTHLY_CONTRIBUTION * (((1 + ANNUAL_RETURN / 12) ** months_left - 1) / (ANNUAL_RETURN / 12))
+    return {
+        "fire_portfolio": round(portfolio, 2),
+        "fire_target": FIRE_TARGET,
+        "fire_pct": pct,
+        "fire_pct_prev": pct_prev,
+        "months_remaining": max(months_left, 0),
+        "projected_2035": round(fv, 2),
+        "on_track": fv >= FIRE_TARGET,
+        "monthly_contribution": MONTHLY_CONTRIBUTION,
+    }
+
+
 @dataclass
 class Account:
     id: str
@@ -448,6 +491,62 @@ class ActualBudgetClient:
                         off_budget=bool(acc.offbudget),
                     ))
                 return result
+        return await self._run(_get)
+
+
+    async def get_fire_status(self) -> dict:
+        """Fetch accounts fresh and compute FIRE status.
+
+        Own download_budget() + get_accounts(), same pattern as get_goals().
+        Returns the _calc_fire() dict (fire_portfolio, fire_target, fire_pct, etc.).
+        """
+        def _get():
+            from actual.queries import get_accounts, get_transactions
+            from types import SimpleNamespace
+            from datetime import date as _date
+            import calendar
+
+            with self._get_actual() as actual:
+                actual.download_budget()
+
+                # Previous month-end date for balance_prev_month_end
+                today = _date.today()
+                if today.month == 1:
+                    prev_month, prev_year = 12, today.year - 1
+                else:
+                    prev_month, prev_year = today.month - 1, today.year
+                prev_last_day = calendar.monthrange(prev_year, prev_month)[1]
+                prev_end = _date(prev_year, prev_month, prev_last_day)
+                prev_end_int = int(prev_end.strftime("%Y%m%d"))
+
+                accounts_raw = get_accounts(actual.session)
+                accounts_result = []
+                for acc in accounts_raw:
+                    if acc.closed:
+                        continue
+                    txs = get_transactions(actual.session, account=acc)
+                    balance = sum(
+                        float(tx.amount or 0)
+                        for tx in txs
+                        if not tx.tombstone
+                    ) / 100
+                    balance_prev_month_end = sum(
+                        float(tx.amount or 0)
+                        for tx in txs
+                        if not tx.tombstone and tx.date is not None and tx.date <= prev_end_int
+                    ) / 100
+                    accounts_result.append({
+                        "id": str(acc.id),
+                        "name": str(acc.name),
+                        "balance": balance,
+                        "balance_prev_month_end": balance_prev_month_end,
+                        "off_budget": bool(acc.offbudget),
+                    })
+
+                # Build SimpleNamespace objects (same shape home.py used to build)
+                accounts = [SimpleNamespace(**a) for a in accounts_result]
+                return _calc_fire(accounts)
+
         return await self._run(_get)
 
     async def get_today_transactions(self) -> list:
