@@ -29,8 +29,13 @@ check "License plate"              '\b(\d{2}[\s-][A-Z]{2}[\s-][A-Z]{2}|[A-Z]{2}[
 # IBAN
 check "IBAN number"                '\b[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7,}\b'
 
-# VIN — 17 chars, mixed alpha+digits (exclude all-digit sequences)
-check "VIN number"                 '\b(?=[A-HJ-NPR-Z0-9]{17}\b)(?=.*[A-HJ-NPR-Z])(?=.*\d)[A-HJ-NPR-Z0-9]{17}\b'
+# VIN — 17 chars, mixed alpha+digits (exclude all-digit sequences).
+# The letter/digit lookaheads are bounded to the 17-char window itself
+# (0-16 chars + the required class) — an earlier unbounded (?=.*\d) matched
+# any digit anywhere later in the whole line, false-positiving on 17-letter
+# technical terms like "SharedArrayBuffer" whenever a port number followed
+# it later in the same line.
+check "VIN number"                 '\b(?=[A-HJ-NPR-Z0-9]{17}\b)(?=[A-HJ-NPR-Z0-9]{0,16}[A-HJ-NPR-Z])(?=[A-HJ-NPR-Z0-9]{0,16}\d)[A-HJ-NPR-Z0-9]{17}\b'
 
 # Actual Budget Sync ID assigned
 check "Actual Budget Sync ID"      'ACTUAL_BUDGET_SYNC_ID\s*=\s*[a-f0-9]{8}-[a-f0-9]{4}'

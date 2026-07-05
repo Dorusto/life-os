@@ -158,10 +158,16 @@ _DEFAULT_GROUPS: list[tuple[str, list[str]]] = [
 
 
 async def _ensure_default_categories(client: ActualBudgetClient) -> None:
-    existing = await client.get_categories()
-    if existing:
+    # Checking "any categories exist" isn't enough — Actual Budget seeds its own
+    # default template (Food/General/Bills/Bills (Flexible)/Savings) on every new
+    # budget created via its UI, so `existing` is never empty on a fresh install
+    # and Majordom's own 12-category template never got created (#154). Check for
+    # Majordom's own group names specifically instead; leaves AB's defaults in
+    # place if present rather than deleting them.
+    existing_groups = await client.get_category_groups()
+    if any(group_name in existing_groups for group_name, _ in _DEFAULT_GROUPS):
         return
-    logger.info("No categories in AB — creating default 7 groups")
+    logger.info("Majordom category groups not found — creating default 7 groups")
     for group_name, sub_names in _DEFAULT_GROUPS:
         try:
             await client.create_category_group(group_name)

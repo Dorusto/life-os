@@ -54,7 +54,8 @@ You don't learn Actual Budget. You don't configure categories. You don't set up 
 
 - A machine that runs 24/7 (Linux recommended — Raspberry Pi, NAS, home server, VPS)
 - [Docker](https://docs.docker.com/get-docker/) + [Docker Compose](https://docs.docker.com/compose/install/)
-- ~6 GB disk for AI models (downloaded automatically on first start)
+- ~7 GB disk for the AI model (downloaded automatically on first start)
+- 16 GB RAM recommended if running the local Ollama model on CPU (8 GB can be tight)
 - NVIDIA GPU is optional but speeds up receipt scanning (~3s vs ~60s on CPU)
 
 ---
@@ -95,12 +96,12 @@ docker compose --profile ollama-local up -d
 
 This starts:
 - **actual-budget** — open-source budget app (`:5006`)
-- **ollama** — local AI for receipt OCR and chat (downloads models automatically, ~5-6 GB)
+- **ollama** — local AI for receipt OCR and chat (downloads the model automatically, ~7 GB)
 - **majordom-api** — FastAPI backend
 - **majordom-web** — React web app (`:3000` or your `WEB_PORT`)
 - **sqlite-web** — database viewer (`:8888`)
 
-First start takes 5–10 minutes while Ollama downloads the AI models.
+First start takes 5–10 minutes while Ollama downloads the AI model.
 
 Already have an Ollama server running elsewhere on your network (or use OpenRouter/DeepSeek instead)? Set `LLM_BASE_URL` in `.env` to point to it, then start without the profile: `docker compose up -d` — this skips the local Ollama container entirely.
 
@@ -108,16 +109,18 @@ Already have an Ollama server running elsewhere on your network (or use OpenRout
 
 ### 4. Set up Actual Budget
 
-1. Open `http://your-server:5006`
+> **Browser requirement:** Actual Budget runs a full SQLite engine in-browser (WebAssembly), which only works in a *secure context* — `https://` or `localhost`. Opening it via a plain `http://` LAN/server IP (e.g. `http://192.168.1.50:5006`) shows a **"Fatal Error: SharedArrayBuffer"** screen. If you're not already accessing your server over HTTPS or Tailscale, use an SSH tunnel for this step: `ssh -L 5006:localhost:5006 your-server` from your own machine, then open `http://localhost:5006`.
+
+1. Open `http://your-server:5006` (see the note above if this shows a Fatal Error)
 2. Create a new budget file (name doesn't matter)
 3. Go to **Settings → Advanced** → copy the **Sync ID**
 4. Add it to `.env`:
    ```
    ACTUAL_BUDGET_SYNC_ID=paste-your-sync-id-here
    ```
-5. Restart the API:
+5. Apply it — **`restart` does NOT pick up new `.env` values**, only `up -d` recreates the container with them:
    ```bash
-   docker compose restart majordom-api
+   docker compose up -d majordom-api
    ```
 
 ### 5. Open the web app
@@ -200,7 +203,7 @@ majordom-financiar/
 
 The optional `vehicle-manager` service (`--profile vehicle-manager`) lives one level up, at `../tools/vehicle-manager` — it's a sibling directory in the same `life-os` clone, not inside `majordom-financiar/`.
 
-**Tech stack:** Python 3.11 · FastAPI · React 18 · Vite · TypeScript · Tailwind CSS · Ollama (qwen2.5vl:7b + qwen2.5:7b) · Actual Budget · SQLite · Docker Compose
+**Tech stack:** Python 3.11 · FastAPI · React 18 · Vite · TypeScript · Tailwind CSS · Ollama (qwen3.5:9b — vision + chat + reasoning) · Actual Budget · SQLite · Docker Compose
 
 ---
 
@@ -222,7 +225,7 @@ Complete Actual Budget setup (step 4 above) and verify `ACTUAL_BUDGET_SYNC_ID` i
 ```bash
 docker compose logs ollama --tail=50
 ```
-The first start downloads ~5-6 GB. Check your disk space and internet connection.
+The first start downloads ~7 GB. Check your disk space and internet connection. Also make sure the LXC/VM has enough RAM (16 GB recommended) — qwen3.5:9b is noticeably heavier than the older 7B model pair.
 
 **Check service health:**
 ```bash

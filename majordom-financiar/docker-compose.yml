@@ -38,7 +38,10 @@ services:
     networks:
       - majordom-net
     healthcheck:
-      test: ["CMD", "sh", "-c", "ollama list 2>/dev/null | grep -qE 'qwen3|qwen2\\.5'"]
+      # Checks both configured models by name (not a loose regex) — a loose
+      # "any qwen model" match reported healthy as soon as just the vision
+      # model finished pulling, while the chat model was still downloading.
+      test: ["CMD-SHELL", "ollama list 2>/dev/null | grep -qF \"$$LLM_VISION_MODEL\" && ollama list 2>/dev/null | grep -qF \"$$LLM_CHAT_MODEL\""]
       interval: 30s
       timeout: 10s
       retries: 20
