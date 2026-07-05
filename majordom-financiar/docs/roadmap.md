@@ -88,7 +88,7 @@ Backlog (needs dedicated UI tab): mileage log view, moving average consumption, 
 | 4.6 | Vehicle reminders bundled in daily digest | ✅ |
 | 4.7 | Market correction alert (ETF dip) | 🔲 See [#42](https://github.com/Dorusto/life-os/issues/42) |
 | 4.8 | Savings goals progress bars | ✅ |
-| 4.9 | FIRE / Crossover Point Report in chat | 🔲 See [#156](https://github.com/Dorusto/life-os/issues/156) |
+| 4.9 | FIRE / Crossover Point Report in chat | ✅ |
 | 4.10 | Persistent chat history + clear button | ✅ |
 | 4.11 | Daily digest saved to chat history | ✅ |
 | 4.12 | Set category budget amount via chat (`propose_set_category_budget`) | ✅ |
