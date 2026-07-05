@@ -57,7 +57,7 @@ For Actual Budget integration details (split transactions, multi-currency, credi
 ### 🔄 M2.5 — Insights & Analytics
 | # | Feature | Status |
 |---|---------|--------|
-| 2.5 | First goal proposal after 2 months of data (conversational) | 🔲 |
+| 2.5 | First goal proposal after 2 months of data (conversational) | 🔲 See [#155](https://github.com/Dorusto/life-os/issues/155) |
 | 2.6 | FIRE widget on Home screen (off-budget accounts vs target) | ✅ |
 | 2.7 | Charts inline in chat | ✅ |
 
@@ -88,7 +88,7 @@ Backlog (needs dedicated UI tab): mileage log view, moving average consumption, 
 | 4.6 | Vehicle reminders bundled in daily digest | ✅ |
 | 4.7 | Market correction alert (ETF dip) | 🔲 See [#42](https://github.com/Dorusto/life-os/issues/42) |
 | 4.8 | Savings goals progress bars | ✅ |
-| 4.9 | FIRE / Crossover Point Report in chat | 🔲 |
+| 4.9 | FIRE / Crossover Point Report in chat | 🔲 See [#156](https://github.com/Dorusto/life-os/issues/156) |
 | 4.10 | Persistent chat history + clear button | ✅ |
 | 4.11 | Daily digest saved to chat history | ✅ |
 | 4.12 | Set category budget amount via chat (`propose_set_category_budget`) | ✅ |
