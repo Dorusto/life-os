@@ -118,6 +118,8 @@ Found during an external review of `architecture.md`/`decisions.md` for a course
 
 ### Before any implementation (mandatory — Claude or DeepSeek)
 
+**Applies before opening a new GitHub issue too, not just before writing code.** Step 5 (`docs/decisions.md`) especially — #155 was opened as a new "goal proposal" issue without checking decisions.md first, duplicating #110/#111 (which already reframed and split the same idea three days earlier). Cross-check `gh issue list` for existing coverage before creating one.
+
 1. Identify all files the task will touch
 2. Consult the "Task type → what to read" table above and read the relevant `docs/learn/` file
 3. Grep `docs/sessions/` for recent work on the same files — catches gotchas not yet in architecture.md:
