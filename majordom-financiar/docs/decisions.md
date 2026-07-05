@@ -226,6 +226,28 @@ Confirmed AB also has a native transfer mechanism usable the same way: every acc
 
 ---
 
+<a id="143-code-audit"></a>
+### #143 code audit — goal-parsing logic unified, error handling deviation fixed, UI duplication flagged for later
+
+**Date:** 2026-07-05
+
+**Decision:** Second full sweep since #93 (2026-07-03), triggered by #99's `rule_match_prefix` extraction and the scheduled-check issue #149. Found and fixed 3 items directly:
+1. `get_goals()` and `get_home_data()` (`backend/core/actual_client/client.py`) had copy-pasted the same ~35-line goal-parsing loop (regex on account `notes` for `TARGET:`/`DEADLINE:`, balance/percentage/monthly_needed math). Extracted into `_compute_goal_progress(session, accounts)`, added to the shared-helper list in `architecture.md` rule 20. Verified live: both call sites return byte-identical output for the same account.
+2. `receipts.py`'s two "confirm transaction" error handlers (lines ~290 and ~383) leaked raw exception text (`detail=f"Failed to save transaction: {str(e)}"`) instead of the generic-message pattern established in #93. Unified to a fixed friendly message, matching `transactions.py`/`home.py`/`vehicle_proposals.py`.
+3. Found live during testing (not part of the original sweep): `receipt_service.py`'s category list for the receipt-confirm draft (`process_image()`) never carried `group_name`, so `ReceiptCard.tsx` and `FuelReceiptCard.tsx` both rendered a flat, ungrouped category dropdown — same root cause in both, i.e. the same "2+ occurrences" pattern this audit exists to catch. `Category` (backend `receipts.py` + frontend `api.ts`) gained an optional `group_name` field, `receipt_service.py` now passes `cat.group_name` through, and both components render `<optgroup>` per group — same pattern already used by `ProposalCard.tsx`. `BudgetRebalanceCard.tsx` has a visually similar but structurally different category picker (rebalance source/destination, no `group_name` in its data shape at all) — not touched, flagged as a separate, smaller possible follow-up if it turns out to matter in practice.
+
+**Flagged, not fixed here (needs discussion or belongs to another queued session):**
+- `frontend/src/components/BudgetChart.tsx` / `GoalsChart.tsx` — confirmed near-identical progress-list rendering (same wrapper, empty-state, progress-bar row, formatting), differing only in props/fields (month/year+index-color vs. deadline/monthly_needed+threshold-color). Already the explicit trigger for the queued #134 "generic charting system" session (`scripts/prompts/claude/008_134-generic-charting-system.md`) — left untouched here on purpose so #143 and #134 don't do the same work twice or fight over the architecture call.
+- Confirm/Cancel button row duplicated structurally across ~10 chat action-card components (`BalanceAdjustmentCard`, `VehicleStatusCard`, `GoalProposalCard`, `AccountTransferCard`, `BudgetRebalanceCard`, `BudgetCopyCard`, `CategoryActionCard`, `ProposalCard`, `VehicleLogActionCard`, `VehicleReminderCard`). Broader than a quick fix — styling varies per card (colors, opacity) and needs an architecture discussion on the shared component's API before touching 10 files. Opened as new issue #159, prompt saved as `scripts/prompts/claude/010_159-confirm-cancel-button-unification.md`.
+
+**Verified NOT duplicated:** `rule_match_prefix()` (extracted during #99) is still called correctly from all 3 original sites with no new reimplementations found elsewhere.
+
+**Separately found during live testing, not a duplication issue:** chat answers about a named goal's remaining progress are unreliable — DeepSeek correctly answered a plain balance question but then claimed no goal was configured for the same account on a follow-up, despite `get_goals()` returning correct data (confirmed by calling it directly). Root cause not yet identified — no dedicated single-goal chat tool exists, only `finance__get_goals_chart` (chart-payload, not scoped to one account). Opened as **#160**, investigation-first (no fix without reproducing first, per this repo's "ask, don't assume" rule for bugs of unclear cause).
+
+**Why:** Same reasoning as `#93-code-audit` — duplicated logic drifts silently (one copy gets a fix, the others don't) with no error revealing the mismatch. Caught here at the 2nd occurrence, per the "extract at the second occurrence" rule in `CLAUDE.md`.
+
+---
+
 ## Product decisions
 
 ### UI — 2 tabs only (Home + Majordom)

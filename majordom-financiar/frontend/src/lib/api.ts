@@ -69,6 +69,7 @@ export interface Category {
   id: string
   name: string
   emoji: string
+  group_name?: string
 }
 
 export interface AccountOption {

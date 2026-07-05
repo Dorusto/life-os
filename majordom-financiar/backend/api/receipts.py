@@ -53,6 +53,7 @@ class Category(BaseModel):
     id: str    # e.g. "groceries"
     name: str  # e.g. "Alimente & Băuturi"
     emoji: str # e.g. "🛒"
+    group_name: str = ""
 
 
 class AccountOption(BaseModel):
@@ -291,7 +292,7 @@ async def confirm_receipt(
         logger.error("Failed to confirm receipt %s: %s", receipt_id, e)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to save transaction: {str(e)}",
+            detail="Failed to save transaction. Please try again or check the account/category.",
         )
 
     return ConfirmResponse(
@@ -384,7 +385,7 @@ async def confirm_fuel_receipt(
         logger.error("Failed to save fuel transaction %s: %s", receipt_id, e)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to save transaction: {str(e)}",
+            detail="Failed to save transaction. Please try again or check the account/category.",
         )
 
     # Step 3: Insert vehicle_log entry via vehicle-manager

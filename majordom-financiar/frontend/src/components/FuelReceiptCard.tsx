@@ -365,10 +365,21 @@ export default function FuelReceiptCard({
               onChange={e => setCategory(e.target.value)}
               className={inputCls}
             >
-              {categories.map((cat: Category) => (
-                <option key={cat.id} value={cat.id}>
-                  {cat.emoji} {cat.name}
-                </option>
+              {Object.entries(
+                categories.reduce((groups, cat: Category) => {
+                  const g = cat.group_name || 'Other'
+                  if (!groups[g]) groups[g] = []
+                  groups[g].push(cat)
+                  return groups
+                }, {} as Record<string, Category[]>)
+              ).map(([group, cats]) => (
+                <optgroup key={group} label={group}>
+                  {cats.map(cat => (
+                    <option key={cat.id} value={cat.id}>
+                      {cat.emoji} {cat.name}
+                    </option>
+                  ))}
+                </optgroup>
               ))}
             </select>
           ) : (

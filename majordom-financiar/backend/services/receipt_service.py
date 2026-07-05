@@ -133,7 +133,7 @@ class ReceiptService:
             "category_source": source,
             # Fuel receipts override category below after receipt_type is known
             "categories": [
-                {"id": cat.name, "name": cat.name, "emoji": "📦"}
+                {"id": cat.name, "name": cat.name, "emoji": "📦", "group_name": cat.group_name}
                 for cat in ab_categories
             ],
             "accounts": [

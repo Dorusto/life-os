@@ -331,6 +331,61 @@ def _compute_budget_vs_spent(
     return result
 
 
+def _compute_goal_progress(session, accounts) -> list[dict]:
+    """Parse savings goals from account notes and compute progress per account.
+
+    Shared by get_goals() and get_home_data() (#143 audit) — both need the same
+    TARGET:/DEADLINE: note-parsing and balance/percentage/monthly_needed math;
+    previously copy-pasted in both, risking the same kind of silent drift #93
+    already found between get_budget_status()/get_home_data().
+
+    Account note format: "TARGET: 25000" (required), optional "DEADLINE: YYYY-MM".
+    """
+    import re
+    from datetime import date as _date
+    from actual.queries import get_transactions
+
+    result = []
+    for acc in accounts:
+        if acc.closed or acc.tombstone:
+            continue
+        note = acc.notes or ""
+        match = re.search(r'TARGET:\s*([\d]+(?:\.\d+)?)', note, re.IGNORECASE)
+        if not match:
+            continue
+        target = float(match.group(1))
+        txs = get_transactions(session, account=acc)
+        balance = sum(
+            float(tx.amount or 0) for tx in txs if not tx.tombstone
+        ) / 100
+        percentage = round(balance / target * 100, 1) if target > 0 else 0.0
+
+        # Parse optional DEADLINE: YYYY-MM
+        deadline = None
+        monthly_needed = None
+        months_remaining = None
+        dl_match = re.search(r'DEADLINE:\s*(\d{4}-\d{2})', note, re.IGNORECASE)
+        if dl_match:
+            deadline = dl_match.group(1)
+            dl_year, dl_month = map(int, deadline.split("-"))
+            today = _date.today()
+            months_remaining = (dl_year - today.year) * 12 + (dl_month - today.month)
+            if months_remaining > 0:
+                monthly_needed = round((target - balance) / months_remaining, 2)
+
+        result.append({
+            "id": str(acc.id),
+            "name": acc.name,
+            "balance": round(balance, 2),
+            "target": target,
+            "percentage": percentage,
+            "deadline": deadline,
+            "monthly_needed": monthly_needed,
+            "months_remaining": months_remaining,
+        })
+    return result
+
+
 @dataclass
 class Account:
     id: str
@@ -754,51 +809,11 @@ class ActualBudgetClient:
         Returns list of {id, name, balance, target, percentage}.
         """
         def _get():
-            import re
-            from actual.queries import get_accounts, get_transactions
+            from actual.queries import get_accounts
             with self._get_actual() as actual:
                 actual.download_budget()
                 accounts = get_accounts(actual.session)
-                result = []
-                for acc in accounts:
-                    if acc.closed or acc.tombstone:
-                        continue
-                    note = acc.notes or ""
-                    match = re.search(r'TARGET:\s*([\d]+(?:\.\d+)?)', note, re.IGNORECASE)
-                    if not match:
-                        continue
-                    target = float(match.group(1))
-                    txs = get_transactions(actual.session, account=acc)
-                    balance = sum(
-                        float(tx.amount or 0) for tx in txs if not tx.tombstone
-                    ) / 100
-                    percentage = round(balance / target * 100, 1) if target > 0 else 0.0
-
-                    # Parse optional DEADLINE: YYYY-MM
-                    deadline = None
-                    monthly_needed = None
-                    months_remaining = None
-                    dl_match = re.search(r'DEADLINE:\s*(\d{4}-\d{2})', note, re.IGNORECASE)
-                    if dl_match:
-                        from datetime import date as _date
-                        deadline = dl_match.group(1)
-                        dl_year, dl_month = map(int, deadline.split("-"))
-                        today = _date.today()
-                        months_remaining = (dl_year - today.year) * 12 + (dl_month - today.month)
-                        if months_remaining > 0:
-                            monthly_needed = round((target - balance) / months_remaining, 2)
-
-                    result.append({
-                        "id": str(acc.id),
-                        "name": acc.name,
-                        "balance": round(balance, 2),
-                        "target": target,
-                        "percentage": percentage,
-                        "deadline": deadline,
-                        "monthly_needed": monthly_needed,
-                        "months_remaining": months_remaining,
-                    })
-                return result
+                return _compute_goal_progress(actual.session, accounts)
         return await self._run(_get)
 
     async def get_home_data(
@@ -810,7 +825,6 @@ class ActualBudgetClient:
 
         def _get():
             import calendar
-            import re
             from datetime import date as _date
             from actual.queries import get_accounts, get_transactions, get_categories
             from actual.database import Transactions, Accounts
@@ -883,44 +897,8 @@ class ActualBudgetClient:
                     actual.session, txs, all_cats, target_year, target_month,
                 )
 
-                # 4. Goals
-                goals_result = []
-                for acc in accounts_data:
-                    if acc.closed or acc.tombstone:
-                        continue
-                    note = acc.notes or ""
-                    match = re.search(r'TARGET:\s*([\d]+(?:\.\d+)?)', note, re.IGNORECASE)
-                    if not match:
-                        continue
-                    target = float(match.group(1))
-                    txs_acc = get_transactions(actual.session, account=acc)
-                    balance = sum(
-                        float(tx.amount or 0) for tx in txs_acc if not tx.tombstone
-                    ) / 100
-                    percentage = round(balance / target * 100, 1) if target > 0 else 0.0
-
-                    deadline = None
-                    monthly_needed = None
-                    months_remaining = None
-                    dl_match = re.search(r'DEADLINE:\s*(\d{4}-\d{2})', note, re.IGNORECASE)
-                    if dl_match:
-                        deadline = dl_match.group(1)
-                        dl_year, dl_month = map(int, deadline.split("-"))
-                        today = _date.today()
-                        months_remaining = (dl_year - today.year) * 12 + (dl_month - today.month)
-                        if months_remaining > 0:
-                            monthly_needed = round((target - balance) / months_remaining, 2)
-
-                    goals_result.append({
-                        "id": str(acc.id),
-                        "name": acc.name,
-                        "balance": round(balance, 2),
-                        "target": target,
-                        "percentage": percentage,
-                        "deadline": deadline,
-                        "monthly_needed": monthly_needed,
-                        "months_remaining": months_remaining,
-                    })
+                # 4. Goals — same helper as get_goals(), see rule 20 (#143 audit)
+                goals_result = _compute_goal_progress(actual.session, accounts_data)
 
                 # 5. "Needs resolving" counts — surfaced on Home so the user
                 # sees them without digging into chat (issue #130). Global
