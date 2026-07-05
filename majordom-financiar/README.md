@@ -42,7 +42,7 @@ You don't learn Actual Budget. You don't configure categories. You don't set up 
 | 🏦 Automatic bank sync | Enable Banking open-banking connection — tested live with ING NL |
 | 💬 Chat with the assistant | Ask questions about your spending, balances, and categories |
 | 📊 Dashboard | Monthly spending by category (donut chart) + recent transactions |
-| 🚗 Vehicle log | Fuelio replacement — fuel log, refuel from photos, APK/insurance reminders |
+| 🚗 Vehicle log *(optional)* | Fuelio replacement — fuel log, refuel from photos, APK/insurance reminders |
 | 🎯 Savings goals & FIRE | Progress bars, monthly-needed calculation, financial-independence timeline on Home |
 | 🔔 Proactive alerts | Budget overspend, income variance, goal risk — pushed to you, not buried in a dashboard |
 
@@ -90,16 +90,21 @@ Leave Ollama and Actual Budget URLs as-is if running everything with Docker Comp
 ### 3. Start the services
 
 ```bash
-docker compose up -d
+docker compose --profile ollama-local up -d
 ```
 
-This starts four services:
+This starts:
 - **actual-budget** — open-source budget app (`:5006`)
 - **ollama** — local AI for receipt OCR and chat (downloads models automatically, ~5-6 GB)
 - **majordom-api** — FastAPI backend
 - **majordom-web** — React web app (`:3000` or your `WEB_PORT`)
+- **sqlite-web** — database viewer (`:8888`)
 
 First start takes 5–10 minutes while Ollama downloads the AI models.
+
+Already have an Ollama server running elsewhere on your network (or use OpenRouter/DeepSeek instead)? Set `LLM_BASE_URL` in `.env` to point to it, then start without the profile: `docker compose up -d` — this skips the local Ollama container entirely.
+
+**Optional: vehicle/fuel tracking.** Add `--profile vehicle-manager` to the command above to also start the vehicle-manager service (`vehicle-manager` + `vehicle-manager-sqlite-web` on `:8889`) — a Fuelio-replacement companion app. Skip it if you don't need vehicle tracking; the rest of Majordom works fully without it.
 
 ### 4. Set up Actual Budget
 
@@ -192,6 +197,8 @@ majordom-financiar/
 ├── Dockerfile.backend
 └── .env
 ```
+
+The optional `vehicle-manager` service (`--profile vehicle-manager`) lives one level up, at `../tools/vehicle-manager` — it's a sibling directory in the same `life-os` clone, not inside `majordom-financiar/`.
 
 **Tech stack:** Python 3.11 · FastAPI · React 18 · Vite · TypeScript · Tailwind CSS · Ollama (qwen2.5vl:7b + qwen2.5:7b) · Actual Budget · SQLite · Docker Compose
 

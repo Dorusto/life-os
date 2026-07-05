@@ -57,8 +57,6 @@ services:
     depends_on:
       actual-budget:
         condition: service_healthy
-      vehicle-manager:
-        condition: service_healthy
     networks:
       - majordom-net
     # majordom-api is NOT exposed directly to the host.
@@ -87,7 +85,11 @@ services:
     networks:
       - majordom-net
 
+  # --- Vehicle Manager (optional — use profile vehicle-manager to enable fuel/vehicle tracking) ---
+  # majordom-api works fine without it; vehicle-related tools/routes just error out
+  # if called while it's not running.
   vehicle-manager-sqlite-web:
+    profiles: ["vehicle-manager"]
     image: coleifer/sqlite-web
     container_name: vehicle-manager-sqlite-web
     restart: unless-stopped
@@ -100,6 +102,7 @@ services:
       - majordom-net
 
   vehicle-manager:
+    profiles: ["vehicle-manager"]
     build:
       context: ../tools/vehicle-manager
       dockerfile: Dockerfile
