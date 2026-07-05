@@ -2,6 +2,8 @@
 
 > Append-only. Each entry explains what was decided, why, and what was rejected.
 > Read this before refactoring or contradicting existing patterns.
+>
+> **Immutable entries (ADR-style, added 2026-07-04):** once written, an entry is never edited to reflect a later change of mind. A changed decision gets a NEW entry instead — the old one only ever gets a one-line `**Superseded by:** [new entry name/link]` marker added at its top, nothing else. This keeps the history of what was believed *at the time* intact instead of blurring it with retroactive rewrites. See the "Category system" entry below for the pattern. (Doesn't apply to genuine typo fixes.)
 
 ---
 
