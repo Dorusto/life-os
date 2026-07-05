@@ -237,7 +237,7 @@ All services should show `healthy` before the app works correctly.
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for the full roadmap with implementation details, database schemas, and priorities.
+See [docs/roadmap.md](docs/roadmap.md) for the full roadmap with implementation details, database schemas, and priorities.
 
 Short version of what's coming:
 - Document Management — scan invoices, warranties, vehicle docs, insurance policies

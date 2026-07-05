@@ -596,6 +596,35 @@ export default function Chat({ messages, setMessages }: ChatProps) {
               </div>
 
               <div>
+                <p className="text-white font-medium mb-2">Budget & goals</p>
+                <ul className="space-y-1.5 text-muted">
+                  <li className="flex gap-2"><span className="text-accent">→</span> "Show me my budget for this month"</li>
+                  <li className="flex gap-2"><span className="text-accent">→</span> "Set my Restaurants budget to €150"</li>
+                  <li className="flex gap-2"><span className="text-accent">→</span> "Set a €5000 savings goal on my Car account by 2028"</li>
+                  <li className="flex gap-2"><span className="text-accent">→</span> "Copy last month's budget to this month"</li>
+                </ul>
+              </div>
+
+              <div>
+                <p className="text-white font-medium mb-2">Categories & rules</p>
+                <ul className="space-y-1.5 text-muted">
+                  <li className="flex gap-2"><span className="text-accent">→</span> "Create a category called Hobbies"</li>
+                  <li className="flex gap-2"><span className="text-accent">→</span> "Always categorize Albert Heijn as Groceries"</li>
+                  <li className="flex gap-2"><span className="text-accent">→</span> "Show me my uncategorized transactions"</li>
+                </ul>
+              </div>
+
+              <div>
+                <p className="text-white font-medium mb-2">Vehicle tracking <span className="text-muted font-normal">(if you've enabled the vehicle module)</span></p>
+                <ul className="space-y-1.5 text-muted">
+                  <li className="flex gap-2"><span className="text-accent">→</span> Photograph a gas station receipt — Majordom detects it's fuel and logs the refuel to the right vehicle automatically</li>
+                  <li className="flex gap-2"><span className="text-accent">→</span> "Log a refuel — 45 liters, €78"</li>
+                  <li className="flex gap-2"><span className="text-accent">→</span> "How many km until my next service?"</li>
+                  <li className="flex gap-2"><span className="text-accent">→</span> "Remind me before my APK expires"</li>
+                </ul>
+              </div>
+
+              <div>
                 <p className="text-white font-medium mb-2">Import bank transactions</p>
                 <p className="text-muted leading-relaxed">Tap <span className="text-white font-medium">+</span> in the input bar to:</p>
                 <ul className="space-y-1 text-muted mt-1">
@@ -610,6 +639,7 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                   <li className="flex gap-2"><span className="text-accent">→</span> Majordom learns your merchants — categories improve over time</li>
                   <li className="flex gap-2"><span className="text-accent">→</span> Always review transactions marked with <span className="text-yellow-500 font-medium">?</span> before importing</li>
                   <li className="flex gap-2"><span className="text-accent">→</span> Income and transfers need to be named once — Majordom remembers them</li>
+                  <li className="flex gap-2"><span className="text-accent">→</span> Ask "when's my next backup?" or "notify me at 8pm instead" to check or adjust alerts</li>
                 </ul>
               </div>
             </div>
