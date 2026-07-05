@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Check, X } from 'lucide-react'
 import { applyBudgetOverview, type BudgetOverviewData } from '../lib/api'
+import ActionCardButtons from './ActionCardButtons'
 
 interface Props {
   data: BudgetOverviewData
@@ -107,24 +107,14 @@ export default function BudgetOverviewCard({ data, onConfirmed, onCancelled }: P
         ))}
       </div>
 
-      <div className="flex gap-2 pt-1">
-        <button
-          onClick={onCancelled}
-          disabled={loading}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border text-muted hover:text-white hover:bg-surface-hover text-sm transition-colors disabled:opacity-40"
-        >
-          <X size={14} />
-          Close
-        </button>
-        <button
-          onClick={handleSave}
-          disabled={loading || !hasChanges}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
-        >
-          <Check size={14} />
-          Save changes
-        </button>
-      </div>
+      <ActionCardButtons
+        onConfirm={handleSave}
+        onCancel={onCancelled}
+        loading={loading}
+        confirmDisabled={!hasChanges}
+        confirmLabel="Save changes"
+        cancelLabel="Close"
+      />
     </div>
   )
 }

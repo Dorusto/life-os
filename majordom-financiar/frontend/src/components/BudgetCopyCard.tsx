@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Check, X, AlertCircle } from 'lucide-react'
+import { AlertCircle } from 'lucide-react'
 import { confirmCategoryAction, cancelCategoryAction, type CategoryActionData } from '../lib/api'
+import ActionCardButtons from './ActionCardButtons'
 
 interface Props {
   data: CategoryActionData
@@ -87,24 +88,13 @@ export default function BudgetCopyCard({ data, onConfirmed, onCancelled }: Props
         ))}
       </div>
 
-      <div className="flex gap-2 pt-1">
-        <button
-          onClick={handleCancel}
-          disabled={loading}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border text-muted hover:text-white hover:bg-surface-hover text-sm transition-colors disabled:opacity-40"
-        >
-          <X size={14} />
-          Cancel
-        </button>
-        <button
-          onClick={handleConfirm}
-          disabled={loading || categories.length === 0}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
-        >
-          <Check size={14} />
-          Apply
-        </button>
-      </div>
+      <ActionCardButtons
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+        loading={loading}
+        confirmDisabled={categories.length === 0}
+        confirmLabel="Apply"
+      />
     </div>
   )
 }

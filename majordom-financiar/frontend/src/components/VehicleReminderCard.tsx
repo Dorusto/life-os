@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Bell, Check, X } from 'lucide-react'
+import { Bell, Check } from 'lucide-react'
 import { confirmVehicleReminder, cancelVehicleReminder, type VehicleReminderData } from '../lib/api'
+import ActionCardButtons from './ActionCardButtons'
 
 interface Props {
   data: VehicleReminderData
@@ -161,24 +162,14 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
         )}
       </div>
 
-      <div className="flex gap-2">
-        <button
-          onClick={handleConfirm}
-          disabled={loading || (!isService && !isApkRequired && !dueDate)}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-50 whitespace-nowrap"
-        >
-          {isApkRequired ? <Check size={14} /> : <Bell size={14} />}
-          {isApkRequired ? 'Save' : 'Set reminder'}
-        </button>
-        <button
-          onClick={handleCancel}
-          disabled={loading}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-surface-2 border border-border text-muted hover:text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-50 whitespace-nowrap"
-        >
-          <X size={14} />
-          Cancel
-        </button>
-      </div>
+      <ActionCardButtons
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+        loading={loading}
+        confirmDisabled={!isService && !isApkRequired && !dueDate}
+        confirmIcon={isApkRequired ? Check : Bell}
+        confirmLabel={isApkRequired ? 'Save' : 'Set reminder'}
+      />
     </div>
   )
 }

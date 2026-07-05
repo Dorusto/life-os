@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Trash2, X } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { confirmVehicleLogAction, cancelVehicleLogAction, type VehicleLogActionData } from '../lib/api'
+import ActionCardButtons from './ActionCardButtons'
 
 interface Props {
   data: VehicleLogActionData
@@ -48,24 +49,14 @@ export default function VehicleLogActionCard({ data, onConfirmed, onCancelled }:
         )}
       </div>
 
-      <div className="flex gap-2">
-        <button
-          onClick={handleConfirm}
-          disabled={loading}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
-        >
-          <Trash2 size={14} />
-          Delete
-        </button>
-        <button
-          onClick={handleCancel}
-          disabled={loading}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-surface-2 border border-border text-muted hover:text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
-        >
-          <X size={14} />
-          Cancel
-        </button>
-      </div>
+      <ActionCardButtons
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+        loading={loading}
+        variant="danger"
+        confirmIcon={Trash2}
+        confirmLabel="Delete"
+      />
     </div>
   )
 }

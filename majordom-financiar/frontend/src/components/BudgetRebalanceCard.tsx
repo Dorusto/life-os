@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react'
-import { Check, X } from 'lucide-react'
 import { confirmBudgetRebalance, type BudgetRebalanceData } from '../lib/api'
+import ActionCardButtons from './ActionCardButtons'
 
 interface Props {
   data: BudgetRebalanceData
@@ -108,24 +108,13 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
         </div>
       </div>
 
-      <div className="flex gap-2">
-        <button
-          onClick={handleConfirm}
-          disabled={loading || selectedSource === selectedDest}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-40"
-        >
-          <Check size={14} />
-          {loading ? 'Saving…' : 'Confirm'}
-        </button>
-        <button
-          onClick={onCancelled}
-          disabled={loading}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-surface-2 hover:bg-surface-hover border border-border text-muted hover:text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-40"
-        >
-          <X size={14} />
-          Cancel
-        </button>
-      </div>
+      <ActionCardButtons
+        onConfirm={handleConfirm}
+        onCancel={onCancelled}
+        loading={loading}
+        confirmDisabled={selectedSource === selectedDest}
+        confirmLabel={loading ? 'Saving…' : 'Confirm'}
+      />
     </div>
   )
 }

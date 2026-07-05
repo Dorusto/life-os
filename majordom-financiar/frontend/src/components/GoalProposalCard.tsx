@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Check, X } from 'lucide-react'
 import { confirmCategoryAction, cancelCategoryAction } from '../lib/api'
+import ActionCardButtons from './ActionCardButtons'
 
 export interface GoalProposalData {
   id: string
@@ -75,24 +75,7 @@ export default function GoalProposalCard({ data, onConfirmed, onCancelled }: Pro
         />
       </div>
 
-      <div className="flex gap-2">
-        <button
-          onClick={handleConfirm}
-          disabled={loading || !target}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
-        >
-          <Check size={14} />
-          Confirm
-        </button>
-        <button
-          onClick={handleCancel}
-          disabled={loading}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-surface-2 border border-border text-muted hover:text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
-        >
-          <X size={14} />
-          Cancel
-        </button>
-      </div>
+      <ActionCardButtons onConfirm={handleConfirm} onCancel={handleCancel} loading={loading} confirmDisabled={!target} />
     </div>
   )
 }

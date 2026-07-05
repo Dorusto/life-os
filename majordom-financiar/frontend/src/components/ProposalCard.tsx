@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Check, X } from 'lucide-react'
 import { confirmProposal, cancelProposal, getCategories, getAccounts, type CategoryItem, type Account } from '../lib/api'
+import ActionCardButtons from './ActionCardButtons'
 
 export interface ProposalData {
   id: string
@@ -26,6 +26,7 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
   const [selectedAccountId, setSelectedAccountId] = useState(proposal.account_id)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [createRule, setCreateRule] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     getCategories().then(allCats => {
@@ -47,6 +48,7 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
   }, [])
 
   async function handleConfirm() {
+    setLoading(true)
     try {
       const result = await confirmProposal(proposal.id, selectedCategory, selectedAccountId, createRule)
       if (result.message.toLowerCase().includes('duplicate') || result.message.toLowerCase().includes('already exists')) {
@@ -57,10 +59,13 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
       onConfirmed(`Error: could not add transaction (${msg}). Try again via chat.`)
+    } finally {
+      setLoading(false)
     }
   }
 
   async function handleCancel() {
+    setLoading(true)
     try {
       await cancelProposal(proposal.id)
     } catch {}
@@ -132,22 +137,7 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
         </select>
       )}
 
-      <div className="flex gap-2">
-        <button
-          onClick={handleConfirm}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors active:scale-95"
-        >
-          <Check size={14} />
-          Confirm
-        </button>
-        <button
-          onClick={handleCancel}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-surface-2 hover:bg-surface-hover border border-border text-muted hover:text-white text-sm font-medium transition-colors active:scale-95"
-        >
-          <X size={14} />
-          Cancel
-        </button>
-      </div>
+      <ActionCardButtons onConfirm={handleConfirm} onCancel={handleCancel} loading={loading} />
     </div>
   )
 }

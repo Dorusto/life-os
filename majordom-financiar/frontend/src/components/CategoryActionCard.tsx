@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Check, X } from 'lucide-react'
 import { confirmCategoryAction, cancelCategoryAction, type CategoryActionData } from '../lib/api'
+import ActionCardButtons from './ActionCardButtons'
 
 interface Props {
   data: CategoryActionData
@@ -220,26 +220,14 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         </div>
       )}
 
-      <div className="flex gap-2">
-        <button
-          onClick={handleConfirm}
-          disabled={loading || (isCreate && !categoryName) || (isSetBudget && !budgetAmount) || (isCategorizeWithRule && (!payee || !selectedCategory))}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-50 ${
-            isDelete ? 'bg-red-600 hover:bg-red-700' : 'bg-accent hover:bg-accent-hover'
-          }`}
-        >
-          <Check size={14} />
-          {isDelete ? 'Delete' : isCreate ? 'Create' : isSetBudget ? 'Set budget' : isCategorizeWithRule ? 'Categorize' : isSetBudgetCarryover || isBankResync ? 'Confirm' : 'Rename'}
-        </button>
-        <button
-          onClick={handleCancel}
-          disabled={loading}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl bg-surface-2 border border-border text-muted hover:text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-50"
-        >
-          <X size={14} />
-          Cancel
-        </button>
-      </div>
+      <ActionCardButtons
+        onConfirm={handleConfirm}
+        onCancel={handleCancel}
+        loading={loading}
+        variant={isDelete ? 'danger' : 'default'}
+        confirmDisabled={(isCreate && !categoryName) || (isSetBudget && !budgetAmount) || (isCategorizeWithRule && (!payee || !selectedCategory))}
+        confirmLabel={isDelete ? 'Delete' : isCreate ? 'Create' : isSetBudget ? 'Set budget' : isCategorizeWithRule ? 'Categorize' : isSetBudgetCarryover || isBankResync ? 'Confirm' : 'Rename'}
+      />
     </div>
   )
 }
