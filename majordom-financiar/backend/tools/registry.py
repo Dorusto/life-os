@@ -98,7 +98,14 @@ TOOLS: list[dict] = [
         "function": {
             "name": "finance__get_budget_chart",
             "description": "Show a visual chart comparing budget vs actual spending per category. Call when user asks to see budget performance, how they're tracking against budget, or wants a budget overview chart.",
-            "parameters": {"type": "object", "properties": {}, "required": []},
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "month": {"type": "integer", "description": "Month number 1-12. Omit for current month."},
+                    "year": {"type": "integer", "description": "Year e.g. 2026. Omit for current year."},
+                },
+                "required": [],
+            },
         },
     },
     {
@@ -109,7 +116,11 @@ TOOLS: list[dict] = [
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "months": {"type": "integer", "description": "Number of months to show (default 6, max 12)"},
+                    "months": {"type": "integer", "description": "Number of months to show (default 6, max 12). Ignored if start/end are given."},
+                    "start_month": {"type": "integer", "description": "Custom range start month (1-12). Provide together with start_year/end_month/end_year."},
+                    "start_year": {"type": "integer", "description": "Custom range start year, e.g. 2025."},
+                    "end_month": {"type": "integer", "description": "Custom range end month (1-12), inclusive."},
+                    "end_year": {"type": "integer", "description": "Custom range end year, e.g. 2026."},
                 },
                 "required": [],
             },
@@ -521,7 +532,9 @@ TOOLS: list[dict] = [
                 "Get full vehicle profile and operational statistics: plate number, make, model, year, "
                 "fuel type, APK/insurance due dates, service interval, fuel consumption, cost per km. "
                 "Use when the user asks about ANY vehicle info — plate number, registration, profile, "
-                "stats, average consumption, spending on fuel or maintenance, or a vehicle summary."
+                "stats, average consumption, spending on fuel or maintenance, or a vehicle summary. "
+                "If the user instead wants a visual chart, graph, or trend of consumption over time "
+                "(e.g. 'grafic de consum', 'consumption chart'), use vehicle__get_vehicle_consumption_chart instead."
             ),
             "parameters": {
                 "type": "object",
@@ -533,6 +546,84 @@ TOOLS: list[dict] = [
                     "period": {
                         "type": "string",
                         "description": "Time period: 'YYYY-MM' for a specific month, 'YYYY' for a year, or empty for all time.",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "vehicle__get_vehicle_consumption_chart",
+            "description": (
+                "Show a visual line chart of fuel consumption (L/100km) trend over time, one point per fill-up. "
+                "Call this — not vehicle__get_vehicle_stats — whenever the user explicitly asks for a chart, "
+                "graph, or visual/'grafic' of consumption, or how their fuel efficiency has changed over recent fill-ups. "
+                "Only use vehicle__get_vehicle_stats if the user wants a single-number summary instead of a visual trend."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "vehicle_name": {
+                        "type": "string",
+                        "description": "Vehicle name or partial name, e.g. 'kia', 'suzuki'. Leave empty if user has one vehicle.",
+                    },
+                    "months": {
+                        "type": "integer",
+                        "description": (
+                            "How far back to plot, in months (default 12 = last year). "
+                            "Use 60 for 'last 5 years', 24 for 'last 2 years', 0 for all time. "
+                            "Measured back from the vehicle's most recent fill-up. Ignored if "
+                            "start_date/end_date are given."
+                        ),
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "description": "Custom range start, YYYY-MM-DD. Provide together with end_date, e.g. for 'from September to December 2023'.",
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "description": "Custom range end, YYYY-MM-DD. Provide together with start_date.",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "vehicle__get_vehicle_distance_chart",
+            "description": (
+                "Show a visual line chart of distance driven (km) between fill-ups over time. "
+                "Call this when the user asks for a chart/graph of distance, km driven, or "
+                "'grafic de km parcurși' — NOT vehicle__get_vehicle_consumption_chart, which "
+                "plots L/100km efficiency instead of raw distance."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "vehicle_name": {
+                        "type": "string",
+                        "description": "Vehicle name or partial name, e.g. 'kia', 'suzuki'. Leave empty if user has one vehicle.",
+                    },
+                    "months": {
+                        "type": "integer",
+                        "description": (
+                            "How far back to plot, in months (default 12 = last year). "
+                            "Use 60 for 'last 5 years', 24 for 'last 2 years', 0 for all time. "
+                            "Measured back from the vehicle's most recent fill-up. Ignored if "
+                            "start_date/end_date are given."
+                        ),
+                    },
+                    "start_date": {
+                        "type": "string",
+                        "description": "Custom range start, YYYY-MM-DD. Provide together with end_date, e.g. for 'from September to December 2023'.",
+                    },
+                    "end_date": {
+                        "type": "string",
+                        "description": "Custom range end, YYYY-MM-DD. Provide together with start_date.",
                     },
                 },
                 "required": [],
@@ -892,7 +983,7 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
 
     if name == "finance__get_budget_chart":
         from backend.tools.finance.actual_budget import get_budget_chart
-        return await get_budget_chart()
+        return await get_budget_chart(**arguments)
 
     if name == "finance__get_spending_trend":
         from backend.tools.finance.actual_budget import get_spending_trend
@@ -970,6 +1061,14 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "vehicle__get_vehicle_stats":
         from backend.tools.finance.vehicle import get_vehicle_stats
         return await get_vehicle_stats(**arguments)
+
+    if name == "vehicle__get_vehicle_consumption_chart":
+        from backend.tools.finance.vehicle import get_vehicle_consumption_chart
+        return await get_vehicle_consumption_chart(**arguments)
+
+    if name == "vehicle__get_vehicle_distance_chart":
+        from backend.tools.finance.vehicle import get_vehicle_distance_chart
+        return await get_vehicle_distance_chart(**arguments)
 
     if name == "vehicle__log_refuel":
         from backend.tools.finance.vehicle import log_refuel

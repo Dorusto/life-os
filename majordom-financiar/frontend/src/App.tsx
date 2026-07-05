@@ -32,6 +32,10 @@ function Layout() {
   const location = useLocation()
   const showNav = !HIDE_NAV_ON.some(p => location.pathname.startsWith(p))
   const [chatMessages, setChatMessages] = useState<Message[]>(INITIAL_MESSAGES)
+  // Lifted above <Chat/> (rather than local state there) so a half-typed message
+  // survives navigating away and back — <Chat/> only mounts on the /chat route,
+  // so component-local state would otherwise reset every time.
+  const [chatInput, setChatInput] = useState('')
   const chatMessagesRef = useRef(chatMessages)
   useEffect(() => { chatMessagesRef.current = chatMessages }, [chatMessages])
 
@@ -52,7 +56,17 @@ function Layout() {
     if (hasActiveCards) return
     getChatHistory().then(msgs => {
       if (msgs.length > 0) {
-        setChatMessages(msgs.map(m => ({ role: m.role as Message['role'], content: m.content, ts: m.ts, _synced: true })))
+        setChatMessages(msgs.map(m => {
+          if (m.role === 'chart') {
+            try {
+              return { role: 'chart' as const, content: '', chart: JSON.parse(m.content), ts: m.ts, _synced: true }
+            } catch {
+              // Malformed/legacy stored payload — fall through to plain text so
+              // the message doesn't just disappear.
+            }
+          }
+          return { role: m.role as Message['role'], content: m.content, ts: m.ts, _synced: true }
+        }))
       }
     }).catch(() => {})
   }
@@ -97,7 +111,7 @@ function Layout() {
           path="/chat"
           element={
             <ProtectedRoute>
-              <Chat messages={chatMessages} setMessages={setChatMessages} />
+              <Chat messages={chatMessages} setMessages={setChatMessages} input={chatInput} setInput={setChatInput} />
             </ProtectedRoute>
           }
         />

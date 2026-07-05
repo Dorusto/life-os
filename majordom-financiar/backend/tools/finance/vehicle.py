@@ -23,6 +23,30 @@ def _get_actual_client():
     )
 
 
+async def _resolve_vehicle(client: VehicleClient, vehicle_name: str = "") -> tuple[dict | None, str | None]:
+    """
+    Resolve a vehicle by (optional) name. Returns (vehicle, None) on success or (None, error_message).
+
+    An explicit name may refer to a retired/inactive vehicle — search all of them so past
+    data stays reachable for analysis. No name given means "which of my current cars",
+    so that stays active-only.
+    """
+    if vehicle_name:
+        vehicles = await client.list_vehicles(active_only=False)
+        matched = next((v for v in vehicles if vehicle_name.lower() in v["name"].lower()), None)
+        if not matched:
+            return None, f"No vehicle found matching '{vehicle_name}'."
+        return matched, None
+
+    vehicles = await client.list_vehicles(active_only=True)
+    if not vehicles:
+        return None, "No vehicles found. Import your Fuelio history first."
+    if len(vehicles) > 1:
+        names = ", ".join(v["name"] for v in vehicles)
+        return None, f"Multiple vehicles found: {names}. Specify which one."
+    return vehicles[0], None
+
+
 async def log_refuel(
     liters: float,
     total_eur: float,
@@ -269,26 +293,11 @@ async def get_vehicle_log(vehicle_name: str = "", limit: int = 10) -> str:
     """
     client = _get_client()
 
-    # An explicit name may refer to a retired/inactive vehicle — search all of
-    # them so past data stays reachable for analysis. No name given means
-    # "which of my current cars", so that stays active-only.
-    if vehicle_name:
-        vehicles = await client.list_vehicles(active_only=False)
-        matched = next((v for v in vehicles if vehicle_name.lower() in v["name"].lower()), None)
-        if not matched:
-            return f"No vehicle found matching '{vehicle_name}'."
-        display_name = matched["name"]
-        vehicle_id = matched["id"]
-    else:
-        vehicles = await client.list_vehicles(active_only=True)
-        if not vehicles:
-            return "No vehicles found."
-        if len(vehicles) > 1:
-            names = ", ".join(v["name"] for v in vehicles)
-            return f"Multiple vehicles: {names}. Specify which one."
-        matched = vehicles[0]
-        display_name = matched["name"]
-        vehicle_id = matched["id"]
+    matched, error = await _resolve_vehicle(client, vehicle_name)
+    if error:
+        return error
+    display_name = matched["name"]
+    vehicle_id = matched["id"]
 
     rows = await client.get_log(vehicle_id, limit=limit, entry_type="fuel")
     if not rows:
@@ -345,25 +354,9 @@ async def get_vehicle_stats(vehicle_name: str = "", period: str = "") -> str:
     """
     client = _get_client()
 
-    # An explicit name may refer to a retired/inactive vehicle — search all of
-    # them so past data stays reachable for analysis. No name given means
-    # "which of my current cars", so that stays active-only.
-    if vehicle_name:
-        vehicles = await client.list_vehicles(active_only=False)
-        if not vehicles:
-            return "No vehicles found. Import your Fuelio history first."
-        matched = next((v for v in vehicles if vehicle_name.lower() in v["name"].lower()), None)
-        if not matched:
-            return f"No vehicle found matching '{vehicle_name}'."
-    else:
-        vehicles = await client.list_vehicles(active_only=True)
-        if not vehicles:
-            return "No vehicles found. Import your Fuelio history first."
-        if len(vehicles) > 1:
-            names = ", ".join(v["name"] for v in vehicles)
-            return f"Multiple vehicles found: {names}. Specify which one."
-        matched = vehicles[0]
-
+    matched, error = await _resolve_vehicle(client, vehicle_name)
+    if error:
+        return error
     vehicle_id = matched["id"]
     display_name = matched["name"]
 
@@ -441,6 +434,162 @@ async def get_vehicle_stats(vehicle_name: str = "", period: str = "") -> str:
         lines.append(f"- **Total vehicle cost: €{total_cost:.2f}**")
 
     return "\n".join(lines)
+
+
+async def _get_fuel_intervals(
+    client: VehicleClient,
+    vehicle_id: int,
+    months: int,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> list[dict]:
+    """
+    Return one entry per full-tank-to-full-tank fill-up interval:
+    {"date": iso date of the later fill-up, "distance_km": float,
+     "liters": float, "consumption": L/100km float}.
+
+    Shared by get_vehicle_consumption_chart and get_vehicle_distance_chart — both
+    plot the same underlying intervals, just a different field on the y-axis.
+
+    Consumption/distance are only meaningful between two consecutive full-tank
+    fill-ups (partial fill-ups don't reflect the tank's true starting point), so
+    partial entries are skipped — same convention Fuelio uses.
+
+    months: how far back to include (12 = last year, 60 = last 5 years, 0 = all
+    time). Measured back from the vehicle's most recent fill-up, not today's
+    date, so the window is meaningful even for a vehicle logged infrequently.
+    Ignored if start_date/end_date are given (explicit custom range instead).
+    """
+    from datetime import timedelta
+
+    # Fetch generously (fill-ups are roughly biweekly, so 5 years is at most ~150
+    # entries) — vehicle-manager's /log endpoint has no date-range filter, so we
+    # over-fetch and filter client-side instead.
+    rows = await client.get_log(vehicle_id, limit=500, entry_type="fuel")
+    full_tank_rows = sorted(
+        (r for r in rows if r.get("fuel_full_tank") and r.get("odo_km") and r.get("fuel_liters")),
+        key=lambda r: r.get("date") or "",
+    )
+
+    if start_date or end_date:
+        cutoff_start, cutoff_end = start_date, end_date
+    else:
+        cutoff_start, cutoff_end = None, None
+        if months > 0 and full_tank_rows:
+            latest = (full_tank_rows[-1].get("date") or "")[:10]
+            if latest:
+                cutoff_start = (_date.fromisoformat(latest) - timedelta(days=months * 30)).isoformat()
+
+    intervals = []
+    for prev, curr in zip(full_tank_rows, full_tank_rows[1:]):
+        distance = curr["odo_km"] - prev["odo_km"]
+        if distance <= 0:
+            continue
+        x = (curr.get("date") or "")[:10]
+        if cutoff_start and x < cutoff_start:
+            continue
+        if cutoff_end and x > cutoff_end:
+            continue
+        intervals.append({
+            "date": x,
+            "distance_km": distance,
+            "liters": curr["fuel_liters"],
+            "consumption": curr["fuel_liters"] / distance * 100,
+        })
+    return intervals
+
+
+def _vehicle_line_chart_refetch(endpoint: str, display_name: str, months: int, points: list[dict]) -> dict:
+    """
+    Shared refetch config for the per-vehicle line charts: preset period buttons,
+    plus the actual date range of what's currently shown (so the frontend's
+    custom start/end date picker can be pre-filled with something meaningful).
+    """
+    return {
+        "mode": "period_buttons",
+        "endpoint": endpoint,
+        "params": {"vehicle_name": display_name},
+        "period_param": "months",
+        "periods": [
+            {"label": "3M", "value": 3},
+            {"label": "1Y", "value": 12},
+            {"label": "5Y", "value": 60},
+            {"label": "All", "value": 0},
+        ],
+        "current": months,
+        "range": {"start": points[0]["x"], "end": points[-1]["x"]} if points else None,
+    }
+
+
+async def get_vehicle_consumption_chart(
+    vehicle_name: str = "",
+    months: int = 12,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> str:
+    """
+    Return fuel consumption trend as JSON for the frontend to render as a line chart.
+    See _get_fuel_intervals for the full-tank-interval convention, months, and the
+    start_date/end_date custom-range override.
+    """
+    client = _get_client()
+
+    matched, error = await _resolve_vehicle(client, vehicle_name)
+    if error:
+        return json.dumps({"type": "error", "message": error})
+    display_name = matched["name"]
+    vehicle_id = matched["id"]
+
+    intervals = await _get_fuel_intervals(client, vehicle_id, months, start_date, end_date)
+    points = [{"x": iv["date"], "y": round(iv["consumption"], 1)} for iv in intervals]
+
+    return json.dumps({
+        "type": "chart",
+        "chart_type": "line",
+        "title": f"Fuel Consumption — {display_name.title()}",
+        "data": {
+            "series": [{"label": "L/100km", "color": "#6366F1", "points": points}],
+            "empty_message": "Not enough full-tank fill-ups yet to calculate a consumption trend (need at least 2).",
+        },
+        # Lets the frontend switch the period in place (a GET against this REST
+        # endpoint) instead of round-tripping through the LLM for a deterministic
+        # parameter change — see backend/api/vehicle_charts.py.
+        "refetch": _vehicle_line_chart_refetch("/vehicle/consumption-chart", display_name, months, points),
+    })
+
+
+async def get_vehicle_distance_chart(
+    vehicle_name: str = "",
+    months: int = 12,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> str:
+    """
+    Return distance-driven-between-fill-ups trend as JSON for the frontend to render
+    as a line chart. Same full-tank intervals as get_vehicle_consumption_chart (see
+    _get_fuel_intervals) — this plots km driven instead of L/100km.
+    """
+    client = _get_client()
+
+    matched, error = await _resolve_vehicle(client, vehicle_name)
+    if error:
+        return json.dumps({"type": "error", "message": error})
+    display_name = matched["name"]
+    vehicle_id = matched["id"]
+
+    intervals = await _get_fuel_intervals(client, vehicle_id, months, start_date, end_date)
+    points = [{"x": iv["date"], "y": round(iv["distance_km"], 0)} for iv in intervals]
+
+    return json.dumps({
+        "type": "chart",
+        "chart_type": "line",
+        "title": f"Distance Between Fill-ups — {display_name.title()}",
+        "data": {
+            "series": [{"label": "km", "color": "#22C55E", "points": points}],
+            "empty_message": "Not enough full-tank fill-ups yet to calculate a distance trend (need at least 2).",
+        },
+        "refetch": _vehicle_line_chart_refetch("/vehicle/distance-chart", display_name, months, points),
+    })
 
 
 async def set_vehicle_type(vehicle_name: str, vehicle_type: str) -> str:

@@ -334,84 +334,156 @@ async def get_spending_history(months: int = 3) -> str:
     return "\n".join(lines)
 
 
+def _month_nav_refetch(endpoint: str, month: int, year: int) -> dict:
+    """Shared refetch config for single-month charts (prev/next month arrows)."""
+    return {
+        "mode": "month_nav",
+        "endpoint": endpoint,
+        "params": {},
+        "month": month,
+        "year": year,
+    }
+
+
 async def get_spending_chart(month: int | None = None, year: int | None = None) -> str:
     """Return spending data as JSON for the frontend to render as a donut chart."""
+    import calendar
+
     client = get_provider()
     data = await client.get_monthly_stats(month=month, year=year)
     total = data["total"]
-    cats = sorted([
+    segments = sorted([
         {
             "name": v["name"],
-            "total": round(v["total"], 2),
-            "count": v["count"],
+            "value": round(v["total"], 2),
             "percentage": round(v["total"] / total * 100, 1) if total > 0 else 0,
         }
         for v in data["categories"].values()
-    ], key=lambda x: x["total"], reverse=True)
+    ], key=lambda x: x["value"], reverse=True)
+    title = f"{calendar.month_name[data['month']]} {data['year']}"
     return json.dumps({
-        "type": "spending_chart",
-        "month": data["month"],
-        "year": data["year"],
-        "total": round(total, 2),
-        "income": round(data.get("income", 0.0), 2),
-        "count": data["count"],
-        "categories": cats,
+        "type": "chart",
+        "chart_type": "pie",
+        "title": title,
+        "data": {
+            "total": round(total, 2),
+            "income": round(data.get("income", 0.0), 2),
+            "count": data["count"],
+            "segments": segments,
+        },
+        "refetch": _month_nav_refetch("/finance/spending-chart", data["month"], data["year"]),
     })
 
 
-async def get_budget_chart() -> str:
-    """Return budget vs actual data as JSON for the frontend to render as a horizontal bar chart."""
+async def get_budget_chart(month: int | None = None, year: int | None = None) -> str:
+    """Return budget vs actual data as JSON for the frontend to render as a progress-list chart."""
+    import calendar
+
     client = get_provider()
     today = _date.today()
-    items = await client.get_budget_status()
+    month = month or today.month
+    year = year or today.year
+    items = await client.get_budget_status(month=month, year=year)
     # Filter: keep only entries where budgeted > 0 OR spent > 0
     filtered = [item for item in items if item["budgeted"] > 0 or item["spent"] > 0]
     # Sort by spent descending
     filtered.sort(key=lambda x: x["spent"], reverse=True)
-    categories = []
+    result_items = []
     for item in filtered:
         budgeted = item["budgeted"]
         spent = item["spent"]
         pct = round(spent / budgeted * 100, 1) if budgeted > 0 else 0
-        categories.append({
-            "name": item["category_name"],
-            "budgeted": budgeted,
-            "spent": spent,
+        result_items.append({
+            "label": item["category_name"],
+            "value": spent,
+            "target": budgeted,
             "percentage": pct,
+            # Over-budget is bad here (unlike goals, where exceeding the target is good) —
+            # the tool computes the color since the two progress_list use cases have
+            # opposite exceed-target semantics; the frontend just paints what it's told.
+            "color": "#FF2D2D" if pct > 100 else None,
         })
+    title = f"Budget vs Actual — {calendar.month_name[month]} {year}"
     return json.dumps({
-        "type": "budget_chart",
-        "month": today.month,
-        "year": today.year,
-        "categories": categories,
+        "type": "chart",
+        "chart_type": "progress_list",
+        "title": title,
+        "refetch": _month_nav_refetch("/finance/budget-chart", month, year),
+        "data": {
+            "items": result_items,
+            "empty_message": "No budget data for this month",
+        },
     })
 
 
-async def get_spending_trend(months: int = 6) -> str:
-    """Return multi-month spending and income data as JSON for the frontend trend chart."""
+async def get_spending_trend(
+    months: int = 6,
+    start_month: int | None = None,
+    start_year: int | None = None,
+    end_month: int | None = None,
+    end_year: int | None = None,
+) -> str:
+    """
+    Return multi-month spending and income data as JSON for the frontend trend chart.
+
+    Default: last `months` months up to and including the current one. Pass all
+    four of start_month/start_year/end_month/end_year for an explicit custom range
+    instead (e.g. the frontend's date-range picker).
+    """
     client = get_provider()
     today = _date.today()
     month_abbrs = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-    result = []
-    # Loop from months-1 down to 0 to build chronological list (oldest first)
-    for i in range(months - 1, -1, -1):
-        m = today.month - i
-        y = today.year
-        if m <= 0:
-            m += 12
-            y -= 1
+
+    if start_month and start_year and end_month and end_year:
+        months_list = []
+        m, y = start_month, start_year
+        while (y, m) <= (end_year, end_month) and len(months_list) < 240:
+            months_list.append((m, y))
+            m += 1
+            if m > 12:
+                m = 1
+                y += 1
+    else:
+        # Loop from months-1 down to 0 to build chronological list (oldest first)
+        months_list = []
+        for i in range(months - 1, -1, -1):
+            m = today.month - i
+            y = today.year
+            if m <= 0:
+                m += 12
+                y -= 1
+            months_list.append((m, y))
+
+    points = []
+    for m, y in months_list:
         stats = await client.get_monthly_stats(month=m, year=y)
         label = f"{month_abbrs[m - 1]}-{str(y)[-2:]}"
-        result.append({
-            "month": stats["month"],
-            "year": stats["year"],
-            "label": label,
-            "total": stats["total"],
-            "income": stats.get("income", 0.0),
+        points.append({
+            "x": label,
+            "values": [round(stats["total"], 2), round(stats.get("income", 0.0), 2)],
         })
+
+    first_m, first_y = months_list[0]
+    last_m, last_y = months_list[-1]
+
     return json.dumps({
-        "type": "spending_trend",
-        "months": result,
+        "type": "chart",
+        "chart_type": "bar",
+        "title": "",
+        "data": {
+            "series": [
+                {"label": "Spending", "color": "#6366F1"},
+                {"label": "Income", "color": "#22C55E"},
+            ],
+            "points": points,
+        },
+        "refetch": {
+            "mode": "month_range",
+            "endpoint": "/finance/spending-trend",
+            "params": {},
+            "start": f"{first_y:04d}-{first_m:02d}",
+            "end": f"{last_y:04d}-{last_m:02d}",
+        },
     })
 
 
@@ -419,9 +491,39 @@ async def get_goals_chart() -> str:
     """Return savings goals progress data as JSON for the frontend."""
     client = get_provider()
     goals = await client.get_goals()
-    if not goals:
-        return json.dumps({"type": "goals_chart", "goals": []})
-    return json.dumps({"type": "goals_chart", "goals": goals})
+
+    def goal_color(pct: float) -> str:
+        if pct >= 100:
+            return "#6366F1"  # indigo — completed
+        if pct >= 80:
+            return "#F59E0B"  # amber — close
+        return "#22C55E"      # green — in progress
+
+    items = []
+    for g in goals:
+        extra_parts = []
+        if g.get("deadline") and g.get("months_remaining") is not None:
+            extra_parts.append(f"{g['deadline']} ({g['months_remaining']} months)")
+        if g.get("monthly_needed") is not None:
+            extra_parts.append(f"Need €{g['monthly_needed']:.2f}/month")
+        items.append({
+            "label": g["name"],
+            "value": g["balance"],
+            "target": g["target"],
+            "percentage": g["percentage"],
+            "color": goal_color(g["percentage"]),
+            "extra": " · ".join(extra_parts) if extra_parts else None,
+        })
+
+    return json.dumps({
+        "type": "chart",
+        "chart_type": "progress_list",
+        "title": "Savings Goals",
+        "data": {
+            "items": items,
+            "empty_message": "No savings goals set. Add TARGET: amount to an account's notes in Actual Budget.",
+        },
+    })
 
 
 async def propose_clarification(question: str, options: list[str]) -> str:

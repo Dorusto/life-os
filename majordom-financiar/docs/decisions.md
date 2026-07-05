@@ -346,6 +346,8 @@ Both exist for categories today (structure via `CategoryOverviewCard`, amounts v
 
 ### Charts inline in chat (issue #30)
 
+**Superseded by:** "Generic chart system + refetch (#134)" (below) — the "one tool per chart type" decision below was reversed once `BudgetChart`/`GoalsChart` duplication (flagged by the #143 audit) made the cost of *not* generalizing concrete rather than hypothetical.
+
 **Question:** Library choice (SVG/div vs Recharts), tool architecture (one tool per type vs generic dispatcher).
 
 **Decision (2026-06-21):** Pure SVG/div for current chart types. One tool per chart type. No external library.
@@ -479,3 +481,25 @@ life-os/
 **Rejected:** Full split into fully independent, separately-installable services (checkbox-style installer choosing majordom-finance and/or vehicle-manager, either without requiring the other) — that's the real shape of the "life-os as modular platform" direction (#150), which is explicitly undecided and needs its own planning session. This decision is a stopgap that unblocks #154 without pre-empting #150.
 
 **Trigger to revisit:** when #150 (naming/architecture) gets its dedicated planning session — fold this decision into whatever the full modular-service split ends up looking like.
+
+---
+
+### Generic chart system + refetch (#134)
+
+**Date:** 2026-07-05
+
+**Supersedes:** "Charts inline in chat (issue #30)" — specifically its "one tool per chart type" call.
+
+**Question:** Keep one bespoke tool + one bespoke React component per chart type (as #30 decided), or move to a generic `{"type": "chart", "chart_type": ..., "data": {...}}` contract with one dispatcher component?
+
+**Decision:** Generic contract, 4 `chart_type`s (`pie`, `bar`, `line`, `progress_list`). All 4 existing chart tools migrated (not left on the old format) — `SpendingChart`/`BudgetChart`/`GoalsChart`/`TrendChart` deleted, replaced by one `frontend/src/components/Chart.tsx`. The *tool* (backend) decides `chart_type`, never the LLM — confirmed with Doru before implementation, since letting the LLM pick a chart type for data it doesn't structurally understand risks a mismatched visual with no error to reveal it.
+
+**Why now, not when #30 was written:** #30's "beyond 6 chart types → refactor" threshold hadn't been hit, but the #143 audit (2026-07-05) found `BudgetChart`/`GoalsChart` were already ~90% duplicate code — the real trigger was duplication, not type count. Building a 5th bespoke component (vehicle consumption chart, this session's original ask) on top of already-duplicated ones would have made a future migration only more expensive, not less.
+
+**Full migration vs. generic-for-new-only:** chose full migration. Trade-off discussed with Doru upfront — more short-term risk (4 tools + 4 components retested in one session) vs. leaving the real `BudgetChart`/`GoalsChart` duplication unresolved. Doru chose full migration.
+
+**In-card period refetch (added mid-session, not in original scope):** once the vehicle consumption chart shipped with fixed preset buttons (3M/1Y/5Y/All), Doru asked to change the period *from the chart itself* rather than by typing a new chat message, and then to extend the same idea to the other charts (budget/spending: prev/next month; spending trend: custom month range; vehicle charts: custom date range, additive to the existing buttons). Implemented as a `refetch` block or REST GET endpoint that bypasses the chat/LLM round-trip entirely — a period change is a deterministic parameter, not a new question. Three modes (`period_buttons`/`month_nav`/`month_range`) because "period" genuinely means different things per chart: budget/spending are bound to one Actual Budget calendar month (can't take an arbitrary range), spending trend is already multi-month (range makes sense), vehicle logs are day-granular (free date range makes sense in addition to presets). See `docs/architecture.md` rule 23 for the technical shape.
+
+**Rejected:** having period-switcher buttons re-send a synthetic chat message (e.g. "last 5 years") instead of a dedicated REST endpoint — would've needed zero new backend routes, but costs an LLM call and a visible new chat bubble for what the user experiences as a simple in-place UI control.
+
+**Not done this session:** distance/consumption custom range is day-level for vehicle charts specifically because fill-ups are logged at arbitrary dates; budget/spending intentionally stayed month-level rather than being generalized to day-level too, since Actual Budget's own budgeting model is monthly — a day-range picker there would imply a precision the underlying data doesn't have.

@@ -22,16 +22,12 @@ import GoalProposalCard, { GoalProposalData } from '../components/GoalProposalCa
 import VehicleLogActionCard from '../components/VehicleLogActionCard'
 import VehicleReminderCard from '../components/VehicleReminderCard'
 import VehicleStatusCard from '../components/VehicleStatusCard'
-import SpendingChart from '../components/SpendingChart'
-import BudgetChart from '../components/BudgetChart'
-import TrendChart from '../components/TrendChart'
-import GoalsChart from '../components/GoalsChart'
+import Chart from '../components/Chart'
 import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from '../lib/api'
-import type { MonthlyStats } from '../lib/api'
 
 
 export interface Message {
-  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'fuelio_import' | 'income_source' | 'receipt' | 'category_action' | 'category_overview' | 'budget_overview' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder' | 'vehicle_status' | 'spending_chart' | 'budget_chart' | 'spending_trend' | 'goals_chart'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'csv_import' | 'fuelio_import' | 'income_source' | 'receipt' | 'category_action' | 'category_overview' | 'budget_overview' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder' | 'vehicle_status' | 'chart'
 
   content: string
   ts?: number
@@ -41,7 +37,7 @@ export interface Message {
    *  its resolution is persisted directly (with this text) instead of re-anchoring to the original
    *  user message, which would otherwise duplicate it in server history (see architecture.md rule 17). */
   chainedOfferText?: string
-  chartData?: MonthlyStats
+  chart?: { chart_type: 'pie' | 'bar' | 'line' | 'progress_list'; title: string; data: any }
   proposal?: ProposalData
   budgetRebalance?: BudgetRebalanceData
   clarification?: ClarificationData
@@ -67,9 +63,6 @@ export interface Message {
   vehicleLogAction?: VehicleLogActionData
   vehicleReminder?: VehicleReminderData
   vehicleStatus?: VehicleStatusData
-  budgetChartData?: { categories: {name: string, budgeted: number, spent: number, percentage: number}[], month: number, year: number }
-  trendData?: { months: {month: number, year: number, label: string, total: number, income: number}[] }
-  goalsChartData?: { goals: any[] }
 }
 
 
@@ -87,12 +80,13 @@ const starterSuggestions = [
 interface ChatProps {
   messages: Message[]
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>
+  input: string
+  setInput: React.Dispatch<React.SetStateAction<string>>
 }
 
-export default function Chat({ messages, setMessages }: ChatProps) {
+export default function Chat({ messages, setMessages, input, setInput }: ChatProps) {
   const location = useLocation()
   const navigate = useNavigate()
-  const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [sentHistory, setSentHistory] = useState<string[]>([])
   const [historyIndex, setHistoryIndex] = useState(-1)
@@ -450,20 +444,22 @@ export default function Chat({ messages, setMessages }: ChatProps) {
           setMessages(prev => [...prev, { role: 'vehicle_status' as const, content: '', vehicleStatus: parsed as VehicleStatusData }])
           return
         }
-        if (parsed.type === 'spending_chart') {
-          setMessages(prev => [...prev, { role: 'spending_chart' as const, content: '', chartData: parsed as MonthlyStats }])
-          return
-        }
-        if (parsed.type === 'budget_chart') {
-          setMessages(prev => [...prev, { role: 'budget_chart' as const, content: '', budgetChartData: parsed }])
-          return
-        }
-        if (parsed.type === 'spending_trend') {
-          setMessages(prev => [...prev, { role: 'spending_trend' as const, content: '', trendData: parsed }])
-          return
-        }
-        if (parsed.type === 'goals_chart') {
-          setMessages(prev => [...prev, { role: 'goals_chart' as const, content: '', goalsChartData: parsed }])
+        if (parsed.type === 'chart') {
+          setMessages(prev => {
+            // Charts are read-only display data (unlike proposal cards), so it's safe
+            // to persist them verbatim — restores correctly after a refresh or
+            // navigating away and back, instead of vanishing like other unresolved
+            // cards (see the persistedStatusRef comment above for the same problem
+            // affecting status cards).
+            const lastUser = [...prev].reverse().find(m => m.role === 'user')
+            if (lastUser) {
+              saveChatHistory([
+                { role: 'user', content: lastUser.content },
+                { role: 'chart', content: JSON.stringify(parsed) },
+              ]).catch(() => {})
+            }
+            return [...prev, { role: 'chart' as const, content: '', chart: parsed }]
+          })
           return
         }
 
@@ -954,14 +950,8 @@ export default function Chat({ messages, setMessages }: ChatProps) {
                   )
                 }}
               />
-            ) : msg.role === 'spending_chart' && msg.chartData ? (
-              <SpendingChart stats={msg.chartData} />
-            ) : msg.role === 'budget_chart' && msg.budgetChartData ? (
-              <BudgetChart {...msg.budgetChartData} />
-            ) : msg.role === 'spending_trend' && msg.trendData ? (
-              <TrendChart months={msg.trendData.months} />
-            ) : msg.role === 'goals_chart' && msg.goalsChartData ? (
-              <GoalsChart goals={msg.goalsChartData.goals} />
+            ) : msg.role === 'chart' && msg.chart ? (
+              <Chart {...msg.chart} />
             ) : msg.role === 'fuelio_import' && msg.fuelioImport ? (
 
               <FuelioImportCard data={msg.fuelioImport} />
