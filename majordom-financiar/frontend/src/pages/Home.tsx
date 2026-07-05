@@ -30,6 +30,7 @@ export default function Home() {
   const stats = homeData?.stats
   const goals = homeData?.goals
   const fireData = homeData?.fire
+  const accountCount = homeData?.account_count
   const cashflow = stats ? stats.income - stats.total : null
   const cashflowTrend = stats && stats.prev_cashflow !== undefined ? cashflow! - stats.prev_cashflow : null
 
@@ -183,42 +184,73 @@ export default function Home() {
         </div>
       )}
 
-      {/* Key metrics row */}
-      <section className="px-5 pt-4 pb-2">
-        <div className="grid grid-cols-2 gap-3">
-          <MetricCard
-            label="Cashflow"
-            sublabel={monthName}
-            value={cashflow}
-            format="currency"
-            highlight={cashflow !== null ? (cashflow >= 0 ? 'positive' : 'negative') : 'neutral'}
-            trend={cashflowTrend}
-          />
-          <FireWidget data={fireData ?? null} />
-        </div>
-      </section>
-
-      {/* Goals section — individual cards with colored borders */}
-      {goals && goals.length > 0 && (
-        <section className="px-5 pb-2">
-          <p className="text-xs tracking-[0.2em] uppercase text-muted mb-4">Financial Goals</p>
-          <div className="space-y-3">
-            {goals.map((goal, idx) => (
-              <GoalCard key={goal.id} goal={goal} color={GOAL_COLORS[idx % GOAL_COLORS.length]} />
-            ))}
+      {/* Empty state (brand-new install) or normal dashboard */}
+      {homeData && accountCount === 0 ? (
+        <section className="px-5 pt-4 pb-24">
+          <div className="bg-surface border border-border rounded-2xl px-5 py-6">
+            <h2 className="font-display text-xl font-bold text-white mb-4">Let's get started</h2>
+            <ul className="space-y-2 text-muted mb-5">
+              <li className="flex gap-2">
+                <span className="text-accent">→</span>
+                Upload a CSV export from your bank
+              </li>
+              <li className="flex gap-2">
+                <span className="text-accent">→</span>
+                Take a photo of a receipt
+              </li>
+              <li className="flex gap-2">
+                <span className="text-accent">→</span>
+                Just ask a question — "How much did I spend on groceries?"
+              </li>
+            </ul>
+            <button
+              onClick={() => navigate('/chat')}
+              className="w-full py-3 rounded-xl bg-accent text-white font-semibold hover:opacity-90 transition-opacity"
+            >
+              Go to Chat
+            </button>
           </div>
         </section>
-      )}
+      ) : (
+        <>
+          {/* Key metrics row */}
+          <section className="px-5 pt-4 pb-2">
+            <div className="grid grid-cols-2 gap-3">
+              <MetricCard
+                label="Cashflow"
+                sublabel={monthName}
+                value={cashflow}
+                format="currency"
+                highlight={cashflow !== null ? (cashflow >= 0 ? 'positive' : 'negative') : 'neutral'}
+                trend={cashflowTrend}
+              />
+              <FireWidget data={fireData ?? null} />
+            </div>
+          </section>
 
-      {/* Budget dashboard */}
-      {budgetStatus && budgetStatus.length > 0 && (
-        <section className="px-5 pb-24">
-          <BudgetDashboard
-            categories={budgetStatus}
-            month={now.getMonth() + 1}
-            year={now.getFullYear()}
-          />
-        </section>
+          {/* Goals section — individual cards with colored borders */}
+          {goals && goals.length > 0 && (
+            <section className="px-5 pb-2">
+              <p className="text-xs tracking-[0.2em] uppercase text-muted mb-4">Financial Goals</p>
+              <div className="space-y-3">
+                {goals.map((goal, idx) => (
+                  <GoalCard key={goal.id} goal={goal} color={GOAL_COLORS[idx % GOAL_COLORS.length]} />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Budget dashboard */}
+          {budgetStatus && budgetStatus.length > 0 && (
+            <section className="px-5 pb-24">
+              <BudgetDashboard
+                categories={budgetStatus}
+                month={now.getMonth() + 1}
+                year={now.getFullYear()}
+              />
+            </section>
+          )}
+        </>
       )}
 
     </div>

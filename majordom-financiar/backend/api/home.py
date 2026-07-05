@@ -46,6 +46,7 @@ async def get_home(
     return {
         **data,
         "fire": _calc_fire(accounts),
+        "account_count": len(accounts_raw),
     }
 
 

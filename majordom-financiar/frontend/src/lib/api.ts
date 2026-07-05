@@ -545,6 +545,7 @@ export interface HomeData {
   fire: FireData
   uncategorized_count: number
   unreconciled_count: number
+  account_count: number
 }
 
 export async function getHomeData(month?: number, year?: number): Promise<HomeData> {
