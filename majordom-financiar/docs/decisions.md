@@ -443,3 +443,17 @@ life-os/
 **Why:** Doru is currently the only user of Majordom. A broken commit reaching production instantly only affects him, in the same session where he'd notice and fix it — the risk #96 protects against doesn't really exist yet with a single user.
 
 **Trigger to revisit:** the moment a second person starts actually using Majordom (partner, family member, anyone besides Doru). Claude should proactively bring this back up if that comes up in a future conversation, rather than waiting to be asked.
+
+---
+
+### vehicle-manager as opt-in Docker Compose profile (stopgap ahead of #150)
+
+**Date:** 2026-07-05
+
+**Decision:** `vehicle-manager` (+ its `vehicle-manager-sqlite-web` viewer) moved behind an opt-in `vehicle-manager` Compose profile, same mechanism already used for `ollama-local`. `majordom-api`'s hard `depends_on: vehicle-manager: condition: service_healthy` removed — verified no code path actually needs it at startup (all vehicle-manager calls in `backend/api/vehicle_*.py`/`backend/tools/finance/vehicle.py` are lazy, user-triggered; `lifespan()` in `main.py` never pings it).
+
+**Why:** Found while cold-testing the README install flow (#154) — anyone installing Majordom who doesn't care about vehicle tracking got an unexplained extra container building/running, with no way to opt out, contradicting the "package Majordom for others" direction (root `CLAUDE.md`, "Open fork").
+
+**Rejected:** Full split into fully independent, separately-installable services (checkbox-style installer choosing majordom-finance and/or vehicle-manager, either without requiring the other) — that's the real shape of the "life-os as modular platform" direction (#150), which is explicitly undecided and needs its own planning session. This decision is a stopgap that unblocks #154 without pre-empting #150.
+
+**Trigger to revisit:** when #150 (naming/architecture) gets its dedicated planning session — fold this decision into whatever the full modular-service split ends up looking like.
