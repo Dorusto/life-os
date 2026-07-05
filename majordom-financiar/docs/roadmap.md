@@ -57,7 +57,7 @@ For Actual Budget integration details (split transactions, multi-currency, credi
 ### 🔄 M2.5 — Insights & Analytics
 | # | Feature | Status |
 |---|---------|--------|
-| 2.5 | First goal proposal after 2 months of data (conversational) | 🔲 See [#155](https://github.com/Dorusto/life-os/issues/155) |
+| 2.5 | Budget calibration (reframed from "goal proposal" — see `docs/decisions.md#budget-calibration`): compare real spending vs. budget, propose corrections + sinking funds | 🔲 See [#110](https://github.com/Dorusto/life-os/issues/110), [#111](https://github.com/Dorusto/life-os/issues/111) |
 | 2.6 | FIRE widget on Home screen (off-budget accounts vs target) | ✅ |
 | 2.7 | Charts inline in chat | ✅ |
 
