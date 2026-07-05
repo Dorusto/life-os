@@ -52,8 +52,8 @@ Full prioritized backlog lives on GitHub as Milestones + Labels (`tier-2`, `tier
 2. **Next up** — check `gh issue list --label tier-2` / `tier-3` for the current ready-to-pick-up backlog (this list drifts — GitHub is the source of truth, see `#priority-tracking` above)
 3. **Proactive budget intelligence** (#41, #42, #110-114, #116, #124) — real but medium priority, grouped, picked up once standard-functionality work runs dry
 4. **Deferred to local-first LLM switch-back** — #75, #65, #80/#81/#86 (see `decisions.md#llm-provider`), high priority again once local models are back in active use
-5. **M2.5 goal proposal** — `propose_budget_calibration` tool (budget calibration after 2+ months of data)
-6. **Sure/Ghostfolio evaluation** — deferred until portfolio tracking becomes a real need (see decisions.md#sure-adoption)
+5. **M2.5 budget calibration** — reframed from "goal proposal", tracked as [#110](https://github.com/Dorusto/life-os/issues/110)/[#111](https://github.com/Dorusto/life-os/issues/111) (see `majordom-financiar/docs/decisions.md#budget-calibration`)
+6. **Sure/Ghostfolio evaluation** — migration trigger fired 2026-07-05 (portfolio tracking became an active need); MCP-server evaluation queued next (`majordom-financiar/scripts/prompts/claude/009_m5-sure-mcp-evaluation.md`), not yet a migration decision — user also wants to test Ghostfolio in parallel (see decisions.md#sure-adoption)
 
 ## Open fork: after majordom-financiar stabilizes (raised 2026-07-05, not decided)
 
