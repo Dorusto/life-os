@@ -90,20 +90,31 @@ Leave Ollama and Actual Budget URLs as-is if running everything with Docker Comp
 
 ### 3. Start the services
 
+**First, decide how you want to run the LLM** — this determines which command to use below:
+
+- **Local AI (Ollama, runs on your own server)** — no API key, no per-request cost, but needs the ~7 GB model download and enough RAM/CPU (see Prerequisites). Use this if `LLM_BASE_URL` in `.env` is left as the default `http://ollama:11434`.
+- **Cloud API (OpenRouter, DeepSeek, or any OpenAI-compatible provider)** — no local model download, works on modest hardware, but costs per request and sends data to a third party. Use this if you already set `LLM_BASE_URL`/`LLM_API_KEY` in `.env` to a provider (see the "LLM Provider" section in `.env.example`).
+
+If you're using a cloud API, **do not** add `--profile ollama-local` below — it would download and start Ollama for nothing:
+
 ```bash
+# Local Ollama:
 docker compose --profile ollama-local up -d
+
+# Cloud API (OpenRouter / DeepSeek / external Ollama):
+docker compose up -d
 ```
 
-This starts:
+With the `ollama-local` profile, this starts:
 - **actual-budget** — open-source budget app (`:5006`)
 - **ollama** — local AI for receipt OCR and chat (downloads the model automatically, ~7 GB)
 - **majordom-api** — FastAPI backend
 - **majordom-web** — React web app (`:3000` or your `WEB_PORT`)
 - **sqlite-web** — database viewer (`:8888`)
 
-First start takes 5–10 minutes while Ollama downloads the AI model.
+Without the profile, the **ollama** container is skipped entirely — the rest of the list still starts.
 
-Already have an Ollama server running elsewhere on your network (or use OpenRouter/DeepSeek instead)? Set `LLM_BASE_URL` in `.env` to point to it, then start without the profile: `docker compose up -d` — this skips the local Ollama container entirely.
+First start takes 5–10 minutes while Ollama downloads the AI model (local profile only).
 
 **Optional: vehicle/fuel tracking.** Add `--profile vehicle-manager` to the command above to also start the vehicle-manager service (`vehicle-manager` + `vehicle-manager-sqlite-web` on `:8889`) — a Fuelio-replacement companion app. Skip it if you don't need vehicle tracking; the rest of Majordom works fully without it.
 
