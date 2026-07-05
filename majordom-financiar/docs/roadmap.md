@@ -134,8 +134,8 @@ Tool layer decoupled from ActualBudgetClient via Protocol. `FINANCE_BACKEND=sure
 Sure test checklist (before any integration work):
 - [x] Deploy Sure on LXC via Docker — Majordom LXC 10.10.1.40:3001, `sure.dorulian.eu`
 - [x] Test Enable Banking NL — ING NL syncing live transactions
-- [ ] Test budget allocation — verify parity with AB categories
-- [ ] Evaluate MCP server (`github.com/we-promise/sure-mcp-server`)
+- [x] Test budget allocation — verify parity with AB categories — tested live 2026-07-05 against a separate Sure test instance (10.10.1.41:3000), partial parity only, see `docs/decisions.md#sure-budget-parity-evaluation`
+- [x] Evaluate MCP server (`github.com/we-promise/sure-mcp-server`) — evaluated 2026-07-05, no integration value, see `docs/decisions.md#sure-mcp-evaluation`
 
 | # | Feature | Status |
 |---|---------|--------|

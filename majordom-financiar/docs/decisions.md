@@ -143,6 +143,73 @@ Sure checklist (budget allocation parity, MCP server) is deferred until the eval
 
 ---
 
+<a id="sure-mcp-evaluation"></a>
+### Sure MCP server evaluation — no integration value
+
+**Date:** 2026-07-05
+
+**Decision:** `sure-mcp-server` (`github.com/we-promise/sure-mcp-server`) is not worth consuming or building on. Checklist item closed with a negative result — this does not change the migration trigger status in `docs/decisions.md#sure-adoption`.
+
+**What it actually is:** a thin, third-party, Claude-Desktop-oriented wrapper around Sure's own REST API. 17 tools total: auth/connection checks, `get/create/update/delete_transaction`, `get_accounts`, `get_categories`, `sync_accounts`, `get_usage`, and a proxy to Sure's internal AI chat (`list/create/get/send_message/delete_chat`). No portfolio-specific tool exists — no holdings, positions, securities, or market data. Last commit 2026-03-06 (an auth-header fix), 10 stars, 4 forks — small, not actively developed.
+
+**Why no benefit for Majordom specifically:** the prior `FinanceProvider abstraction` entry above already rejected MCP-client calls for Majordom's outbound integrations in favor of direct REST, specifically because MCP adds protocol overhead for what are simple HTTP calls. This evaluation doesn't change that calculus — it confirms there was never a hidden capability in the MCP layer that REST couldn't reach anyway. A future `SureProvider` would call Sure's REST API directly, same as `ActualBudgetProvider` calls actualpy directly.
+
+**New information found (relevant to a future `SureProvider`, not to this MCP server):** Sure's own REST API does expose a read-only `GET /v1/holdings` endpoint (qty, price, amount, cost basis, avg_cost, gain/loss) — so portfolio data is reachable via Sure's REST API even though this MCP wrapper never implemented it. The gap is the third-party wrapper being stale, not a platform limitation.
+
+**Ghostfolio comparison (requested alongside this evaluation, since the user is testing both in parallel):** Ghostfolio also has a third-party MCP server (`mhajder/ghostfolio-mcp`, 15 stars, last pushed 2026-06-22 — more recently maintained than Sure's). Unlike Sure's, it has genuine portfolio-first tools: `get_portfolio_performance`, `get_portfolio_holdings`, `get_position`, `get_investments`, `get_dividends`, plus market-data tools (`get_historical_data`, `get_asset_profile`, `lookup_symbols`). This is a weak signal that Ghostfolio's own data model treats portfolio/holdings as a first-class concept more maturely than Sure's, though it isn't proof by itself (Sure's holdings endpoint may simply be newer than this MCP wrapper). Since Majordom won't consume either MCP server directly (REST-only outbound, per the decision above), this doesn't directly change Majordom's integration plan — it's a data point for the ongoing Sure vs. Ghostfolio evaluation itself, not for the MCP question.
+
+**Conclusion for the M5 checklist:** both MCP-related checklist items are now resolved with actionable answers — this one is closed negative (no integration value); "Test budget allocation parity" remains open and unrelated to this finding.
+
+**Rejected:** Building a Majordom integration on top of `sure-mcp-server` — would add an extra hop (Majordom → third-party MCP wrapper → Sure REST API) with no capability gain over calling Sure's REST API directly, and the wrapper is unmaintained enough to lag behind Sure's own API surface.
+
+---
+
+<a id="sure-budget-parity-evaluation"></a>
+### Sure budget allocation parity — tested live, partial parity only
+
+**Date:** 2026-07-05
+
+**Decision:** "Sure reaches budget allocation parity with AB" (migration trigger in `docs/decisions.md#sure-adoption`) is **not met**. Tested live against real AB category/budget data (read-only, via `actualpy` on the production LXC) and Sure's real REST API (`10.10.1.41:3000`, using a Sure API key, read + reversible test writes — categories created and deleted, no real Sure data existed to risk).
+
+**What matches:**
+- **Category structure:** full parity. Sure supports the same 2-level nesting as AB (group→category). Confirmed empirically: created a category, then a subcategory under it, then a third level — Sure rejected it ("Parent can't have more than 2 levels of subcategories"), matching AB's own two-tier model exactly. Creatable via Sure's public API (`POST /api/v1/categories`).
+
+**What doesn't:**
+- **Per-category budget amount via API — read-only.** Sure's `budget_categories` resource (`config/routes.rb`) exposes only `index`/`show` at the API level; `create`/`update` exist only in the web controller, not the public API. A human can set a category's budget from Sure's UI; a `SureProvider` integration could not do it programmatically today.
+- **Rollover/carryover — no equivalent found.** AB's real budget (read from production) has multiple categories with `carryover=True` — unspent amounts genuinely roll into the next month, actively used. Sure has a feature called "rollover" (PR #1100, `we-promise/sure`), but it's a different mechanic: it copies the *budgeted amount* from the previous month into an uninitialized budget — it does not carry forward unspent balance. No carryover-equivalent field exists on Sure's `budget_categories` schema.
+- **Goals (target amount + date, used on AB's own Savings-group categories) — UI-only.** Sure has a `goals` feature (`resources :goals` + `goal_pledges` in `config/routes.rb`) but no `goals_controller.rb` exists under `app/controllers/api/v1/` — not reachable via the public API at all.
+
+**Why this matters:** category *structure* migrates cleanly, but budget *behavior* does not — specifically the rollover semantics AB is actively relied on for, and the inability to automate budget/goal writes via Sure's current API. Both are blockers for any future `SureProvider` implementation, independent of the category-structure question.
+
+**Rejected:** Treating "categories are structurally compatible" as sufficient evidence of parity — the checklist item is about *budget allocation* behavior, not just category shape, and the two diverge here.
+
+---
+
+<a id="ghostfolio-vs-sure-portfolio-comparison"></a>
+### Ghostfolio vs Sure — portfolio feature comparison + concrete migration criteria
+
+**Date:** 2026-07-05
+
+**Decision:** Stay on **AB + Ghostfolio** for now (AB for budgeting, Ghostfolio for portfolio) rather than moving toward unified Sure. Not a final/permanent decision — Sure's migration trigger conditions in `docs/decisions.md#sure-adoption` are tracked going forward with concrete, checkable criteria (below) instead of re-evaluated ad hoc.
+
+**Portfolio comparison (Ghostfolio vs Sure's own API, tested live against real synced XTB/ING/Revolut data on the Sure test instance):**
+- **Activity/maturity:** comparable — Sure 8,883 GitHub stars, Ghostfolio 8,901, both pushed same-day, similar community size. Not a differentiator.
+- **Investment data model:** both solid. Sure's `trades` API is full CRUD (buy/sell/dividend/deposit/withdrawal/interest — confirmed via `trades_controller.rb`), `holdings` are read-only computed snapshots (qty, price, cost basis, avg_cost), `securities`/`security_prices` read-only. Ghostfolio's equivalent additionally allows *writing* market data / asset profiles via API (`add_market_data_points`, `upsert_asset_profile` per its MCP tool list) — useful for manually-tracked/illiquid assets, a small edge over Sure.
+- **Performance metrics — the clearest gap.** Ghostfolio natively computes and exposes return metrics (Today/WTD/MTD/YTD/1Y/5Y/Max, normalized performance). Sure's API has no equivalent — only `balance_sheet` (net worth/assets/liabilities) and raw holdings a consumer would have to derive returns from manually. If "seeing your investments" means performance over time (not just current value), Ghostfolio delivers this out of the box today; Sure does not yet.
+- **Budgeting:** Ghostfolio has none at all — it only ever replaces the portfolio side, AB stays regardless if Ghostfolio is kept. Sure's pitch is the opposite: one platform for both, which is exactly why its budget-parity gap (see `#sure-budget-parity-evaluation` above) matters so much to the overall decision.
+
+**Concrete migration trigger criteria (replaces the vague bullets in `#sure-adoption` with checkable, scriptable conditions found during this evaluation):**
+1. `we-promise/sure` `config/routes.rb`: `resources :budget_categories` includes `:create`/`:update` (currently `index, show` only)
+2. `we-promise/sure` exposes a `goals` (or equivalent) controller under `app/controllers/api/v1/` (currently absent — goals exist in the web UI only)
+3. Sure's `budget_categories` data model gains a true carryover/rollover field (unspent balance rolls to next month — distinct from the existing "copy previous month's budgeted amount" feature, PR #1100)
+4. (Nice-to-have, not blocking) Sure's API exposes a performance/returns endpoint comparable to Ghostfolio's ROAI metrics
+
+**Why criteria instead of a vague trigger:** "Sure reaches budget allocation parity with AB" and "Sure MCP server is production-ready" (original bullets) aren't checkable without redoing this whole research session. Criteria 1-3 are single `gh api` calls against Sure's own public repo — cheap to automate. Criterion 4 (MCP server) is dropped as a trigger entirely per `#sure-mcp-evaluation` — Majordom will never consume Sure via MCP regardless of the wrapper's maturity, so it was never actually a meaningful gate.
+
+**Rejected:** Manually re-checking Sure's changelog periodically — error-prone and easy to let slip for months (same failure mode as the "architecture audits triggered by symptom, not schedule" process gap fixed 2026-07-04 for a different area). A scheduled automated check against the criteria above is the follow-up (see session notes).
+
+---
+
 ### FinanceProvider abstraction — REST API, not direct library calls
 
 **Date:** 2026-06-03

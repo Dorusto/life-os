@@ -5,7 +5,7 @@ Majordom is a personal AI orchestrator — conversational UI + MCP server + proa
 The user talks to Majordom in natural language. Majordom calls the right service, executes the action, and asks for confirmation. The user never interacts with the underlying services directly.
 
 **Active development:** `majordom-financiar/` → target: `majordom-finance/` (see #150 — naming convention still being decided, not the old single-`majordom/` target)
-**Finance platform:** Actual Budget (current) → Sure (conditional — deferred until Ghostfolio vs Sure evaluation)
+**Finance platform:** Actual Budget + Ghostfolio (current, decided 2026-07-05 — see `majordom-financiar/docs/decisions.md#ghostfolio-vs-sure-portfolio-comparison`) → Sure (conditional, re-evaluate if the monthly `sure-migration` GitHub-issue tripwire fires)
 **Architecture target:** `life-os/` as modular monorepo and platform brand — each service independent, named `majordom-<domain>` (e.g. `majordom-finance`, `majordom-garage`) — see #150
 
 Full architecture + target structure: `majordom-financiar/docs/architecture.md`
@@ -53,7 +53,7 @@ Full prioritized backlog lives on GitHub as Milestones + Labels (`tier-2`, `tier
 3. **Proactive budget intelligence** (#41, #42, #110-114, #116, #124) — real but medium priority, grouped, picked up once standard-functionality work runs dry
 4. **Deferred to local-first LLM switch-back** — #75, #65, #80/#81/#86 (see `decisions.md#llm-provider`), high priority again once local models are back in active use
 5. **M2.5 budget calibration** — reframed from "goal proposal", tracked as [#110](https://github.com/Dorusto/life-os/issues/110)/[#111](https://github.com/Dorusto/life-os/issues/111) (see `majordom-financiar/docs/decisions.md#budget-calibration`)
-6. **Sure/Ghostfolio evaluation** — migration trigger fired 2026-07-05 (portfolio tracking became an active need); MCP-server evaluation queued next (`majordom-financiar/scripts/prompts/claude/009_m5-sure-mcp-evaluation.md`), not yet a migration decision — user also wants to test Ghostfolio in parallel (see decisions.md#sure-adoption)
+6. **Sure/Ghostfolio evaluation — done, decided 2026-07-05.** All 4 M5 checklist items resolved (MCP server, budget parity, portfolio comparison, all tested live). Decision: stay on AB + Ghostfolio — Sure lacks true budget carryover and API-level budget/goal writes; Ghostfolio computes portfolio performance natively, Sure's API doesn't yet. A monthly cloud routine (`sure-migration-trigger-check`) auto-opens a `sure-migration`-labeled GitHub issue if Sure closes the gap — no manual re-checking needed. See `majordom-financiar/docs/decisions.md#ghostfolio-vs-sure-portfolio-comparison` and `#sure-budget-parity-evaluation`.
 
 ## Open fork: after majordom-financiar stabilizes (raised 2026-07-05, not decided)
 
