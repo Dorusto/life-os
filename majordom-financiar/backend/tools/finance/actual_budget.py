@@ -632,6 +632,28 @@ async def propose_account_transfer(
     })
 
 
+def _match_account(accounts: list, account_name: str):
+    """
+    Resolve a user-provided account name to an Account: exact (case-insensitive)
+    first, then partial substring. Retries after stripping a trailing " account"
+    word — LLMs often pass the whole phrase ("test account") when the account is
+    just named "test". Returns the matched Account or None.
+    """
+    queries = [account_name.lower().strip()]
+    if queries[0].endswith(" account"):
+        queries.append(queries[0][: -len(" account")].strip())
+    for q in queries:
+        if not q:
+            continue
+        matched = next((a for a in accounts if a.name.lower() == q), None)
+        if matched:
+            return matched
+        matched = next((a for a in accounts if q in a.name.lower()), None)
+        if matched:
+            return matched
+    return None
+
+
 async def propose_balance_adjustment(account_name: str, real_balance: float) -> str:
     """
     Propose adjusting an account balance to match the real bank balance.
@@ -644,10 +666,7 @@ async def propose_balance_adjustment(account_name: str, real_balance: float) -> 
     client = get_provider()
     accounts = await client.get_accounts()
 
-    # match by exact name first, then partial (case-insensitive)
-    matched = next((a for a in accounts if a.name.lower() == account_name.lower()), None)
-    if not matched:
-        matched = next((a for a in accounts if account_name.lower() in a.name.lower()), None)
+    matched = _match_account(accounts, account_name)
     if not matched:
         names = ", ".join(a.name for a in accounts)
         return json.dumps({"type": "error", "message": f"Account '{account_name}' not found. Available: {names}"})
@@ -682,10 +701,7 @@ async def propose_close_account(account_name: str) -> str:
     client = get_provider()
     accounts = await client.get_accounts()
 
-    # match by exact name first, then partial (case-insensitive)
-    matched = next((a for a in accounts if a.name.lower() == account_name.lower()), None)
-    if not matched:
-        matched = next((a for a in accounts if account_name.lower() in a.name.lower()), None)
+    matched = _match_account(accounts, account_name)
     if not matched:
         names = ", ".join(a.name for a in accounts)
         return json.dumps({"type": "error", "message": f"Account '{account_name}' not found. Available: {names}"})

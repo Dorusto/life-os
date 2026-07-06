@@ -296,6 +296,16 @@ Each REST endpoint (`backend/api/vehicle_charts.py`, `backend/api/finance_charts
 
 ---
 
+### 24. Closing an account (`close_account`) does NOT move its money — must be empty first (#69, partial)
+
+`ActualBudgetClient.close_account()` just sets `Accounts.closed = True`. It does **not** replicate Actual Budget's native close flow, which refuses to close an account with a non-zero balance and forces you to transfer/categorize the money first. Verified empirically: closing a €1175 account hides those €1175 from all visible balances and from the budget's "to budget" pool, while the transactions stay in the DB — reopening (`closed = False`) restores the money intact. So the money isn't lost, but it silently leaves the budget, which is exactly the confusing state AB prevents.
+
+**Consequence: only close accounts with a balance of 0.** `propose_close_account`'s card shows a yellow warning when balance ≠ 0 but still lets the user proceed — an interim state, not the final design. The proper fix (tracked in #69, left open) is a card that, when balance ≠ 0, requires a destination account and does transfer + close atomically on confirm, reusing the existing `propose_account_transfer` / `create_transfer` mechanism (no new money-movement code needed).
+
+Account-name matching for `propose_close_account` and `propose_balance_adjustment` shares `_match_account()` (`backend/tools/finance/actual_budget.py`): exact → partial substring, retried after stripping a trailing " account" word, because LLMs pass the whole phrase ("test account") when the account is just named "test".
+
+---
+
 ## Main Flows
 
 ### Receipt photo (web)
