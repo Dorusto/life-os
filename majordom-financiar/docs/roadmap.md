@@ -129,15 +129,7 @@ Tool layer decoupled from ActualBudgetClient via Protocol. `FINANCE_BACKEND=sure
 
 ### 🔲 M5 — Integrations (Ghostfolio + Portfolio)
 
-**Platform decision (2026-07-05, supersedes the 2026-06-03 "Sure replaces Ghostfolio" call):** stay on **AB + Ghostfolio** — AB remains the budgeting source of truth, Ghostfolio handles investment portfolio tracking. Sure was evaluated live and not adopted: budget allocation is only partially at parity (no rollover/carryover equivalent, no API-level budget/goal writes), while Ghostfolio natively computes performance/return metrics Sure's API doesn't yet expose. See `docs/decisions.md#ghostfolio-vs-sure-portfolio-comparison`.
-
-Not a permanent close-out — Sure isn't ruled out forever. A monthly automated routine (`sure-migration-trigger-check`) checks 3 concrete, scriptable criteria against `we-promise/sure`'s public repo (budget_categories `create`/`update` API, a `goals` API controller, a true carryover field) and only opens a `sure-migration`-labeled GitHub issue if the count of met criteria changes — no manual re-checking needed. See `docs/decisions.md#ghostfolio-vs-sure-portfolio-comparison` for the exact criteria.
-
-M5 evaluation checklist — done:
-- [x] Deploy Sure on LXC via Docker — Majordom LXC 10.10.1.40:3001, `sure.dorulian.eu` (kept as the monitored comparison instance, not adopted)
-- [x] Test Enable Banking NL — ING NL syncing live transactions
-- [x] Test budget allocation — verify parity with AB categories — tested live 2026-07-05, partial parity only, see `docs/decisions.md#sure-budget-parity-evaluation`
-- [x] Evaluate MCP servers (Sure's and Ghostfolio's) — Sure's has no integration value, Ghostfolio's has genuine portfolio-first tools, but Majordom won't consume either (REST-only outbound, per `docs/decisions.md#majordom-as-mcp-server`) — see `docs/decisions.md#sure-mcp-evaluation`
+**Platform decision (2026-07-05, supersedes the 2026-06-03 "Sure replaces Ghostfolio" call):** stay on **AB + Ghostfolio** — AB is the budgeting source of truth, Ghostfolio handles portfolio tracking. Sure was evaluated live and not adopted (partial budget parity, no API-level budget/goal writes). Not a permanent close-out — a monthly routine re-checks Sure against concrete criteria and opens a `sure-migration` issue only if the gap closes. Full rationale, evaluation results, and criteria: `docs/decisions.md#ghostfolio-vs-sure-portfolio-comparison`.
 
 | # | Feature | Status |
 |---|---------|--------|

@@ -46,6 +46,15 @@ check "Real Telegram user ID"      'TELEGRAM_ALLOWED_USER_IDS\s*=\s*(?!1{9}|2{9}
 # Credentials with real values (not placeholders or config references)
 check "Real credential value"      '(PASSWORD|BOT_TOKEN|API_KEY|JWT_SECRET)\s*=\s*(?!your_|paste_|change_|example|\.\.\.|\*+|""|settings\.|cfg\.)[^\s]{10,}'
 
+# Personal domain — any subdomain of the owner's real domain (leaks infra + is an
+# attack vector). The @dorulian brand handles (YouTube/Substack) have no ".eu", so
+# they don't match. Use generic placeholders (example.com, your-domain) instead.
+check "Personal domain"            '\bdorulian\.eu\b'
+
+# Internal homelab IPs (10.10.x.x — the owner's private LAN topology). Generic
+# doc examples use 192.168.x.x, which is intentionally not matched here.
+check "Internal homelab IP"        '\b10\.10\.\d{1,3}\.\d{1,3}\b'
+
 if [[ $ERRORS -gt 0 ]]; then
     echo ""
     echo -e "${YELLOW}⚠️  Commit blocked — $ERRORS sensitive pattern(s) found above.${NC}"

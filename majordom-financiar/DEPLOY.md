@@ -247,21 +247,21 @@ archive to the Synology NAS by hand after each backup run.
 
 **Easiest — Dolphin (or any SFTP/SMB-capable file manager):**
 
-1. Open a new location in Dolphin: `sftp://doru@10.10.1.40/home/doru/life-os/majordom-financiar/backups/` — reuses the LXC's existing SSH server, nothing new to enable there
-2. Open a second location for the NAS's existing SMB share (e.g. `smb://10.10.1.11/...`)
+1. Open a new location in Dolphin: `sftp://you@your-server/home/you/life-os/majordom-financiar/backups/` — reuses the server's existing SSH server, nothing new to enable there
+2. Open a second location for the NAS's existing SMB share (e.g. `smb://your-nas/...`)
 3. Drag the newest `majordom-*.tar.gz` from one to the other
 
 **Command line alternative:**
 
 ```bash
 # From your desktop — pull the newest archive down from the server
-LATEST=$(ssh doru@10.10.1.40 'ls -t ~/life-os/majordom-financiar/backups/*.tar.gz | head -1')
-scp "doru@10.10.1.40:$LATEST" ~/Downloads/
+LATEST=$(ssh you@your-server 'ls -t ~/life-os/majordom-financiar/backups/*.tar.gz | head -1')
+scp "you@your-server:$LATEST" ~/Downloads/
 ```
 
 Then upload it to the NAS via its web UI (no SMB share handy):
 
-1. Open `https://10.10.1.11:5001` (DSM) in a browser, log in
+1. Open `https://your-nas:5001` (DSM) in a browser, log in
 2. **File Station** → open (or create) a `Backups/majordom` folder
 3. Upload the file from `~/Downloads/`
 

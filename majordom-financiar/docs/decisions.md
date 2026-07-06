@@ -169,7 +169,7 @@ Sure checklist (budget allocation parity, MCP server) is deferred until the eval
 
 **Date:** 2026-07-05
 
-**Decision:** "Sure reaches budget allocation parity with AB" (migration trigger in `docs/decisions.md#sure-adoption`) is **not met**. Tested live against real AB category/budget data (read-only, via `actualpy` on the production LXC) and Sure's real REST API (`10.10.1.41:3000`, using a Sure API key, read + reversible test writes — categories created and deleted, no real Sure data existed to risk).
+**Decision:** "Sure reaches budget allocation parity with AB" (migration trigger in `docs/decisions.md#sure-adoption`) is **not met**. Tested live against real AB category/budget data (read-only, via `actualpy` on the production server) and Sure's real REST API on a separate test instance (using a Sure API key, read + reversible test writes — categories created and deleted, no real Sure data existed to risk).
 
 **What matches:**
 - **Category structure:** full parity. Sure supports the same 2-level nesting as AB (group→category). Confirmed empirically: created a category, then a subcategory under it, then a third level — Sure rejected it ("Parent can't have more than 2 levels of subcategories"), matching AB's own two-tier model exactly. Creatable via Sure's public API (`POST /api/v1/categories`).

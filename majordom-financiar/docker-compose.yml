@@ -126,6 +126,10 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # Public Actual Budget URL linked from the Home menu. Leave empty to
+        # fall back to the current host on AB's default port (5006).
+        VITE_ACTUAL_BUDGET_URL: ${ACTUAL_BUDGET_PUBLIC_URL:-}
     container_name: majordom-web
     restart: unless-stopped
     ports:

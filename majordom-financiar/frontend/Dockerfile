@@ -14,6 +14,10 @@ RUN npm install --silent
 
 # Copy source and build
 COPY . .
+# Vite inlines VITE_* vars at build time — pass the public Actual Budget URL
+# through as a build arg so it isn't hardcoded in the source.
+ARG VITE_ACTUAL_BUDGET_URL
+ENV VITE_ACTUAL_BUDGET_URL=$VITE_ACTUAL_BUDGET_URL
 RUN npm run build
 # Output: /app/dist/ (Vite default)
 

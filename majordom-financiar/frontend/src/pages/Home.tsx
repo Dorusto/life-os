@@ -53,6 +53,9 @@ export default function Home() {
   }, [])
 
   const origin = `${window.location.protocol}//${window.location.hostname}`
+  // Public Actual Budget URL — set VITE_ACTUAL_BUDGET_URL at build time for a
+  // custom domain; otherwise falls back to this host on AB's default port.
+  const actualBudgetUrl = import.meta.env.VITE_ACTUAL_BUDGET_URL || `${origin}:5006`
 
   const username = getUsername()
   const greeting = getGreeting()
@@ -91,7 +94,7 @@ export default function Home() {
           {menuOpen && (
             <div className="absolute right-0 top-full mt-1 w-48 rounded-xl bg-surface border border-border shadow-lg z-50 overflow-hidden">
               <a
-                href="https://ab.dorulian.eu"
+                href={actualBudgetUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={() => setMenuOpen(false)}
