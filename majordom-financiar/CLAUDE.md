@@ -43,6 +43,20 @@ Full details in `docs/architecture.md`. Summary:
 
 ---
 
+## New dev machine setup
+
+Cloning the repo is not enough on its own — these don't come with `git clone`:
+
+1. **Git auth** — this repo is cloned over HTTPS; the stored credential is per-machine. Run `gh auth login` (or add a fresh token) before the first push from a new machine.
+2. **`.env`** — gitignored, never in the repo. Copy `.env.example` → `.env` and fill in credentials (full list in `DEPLOY.md#environment-variable-reference`). For a second dev stack, generate fresh test values rather than copying real ones.
+3. **Docker & Docker Compose** — required to run the local stack (`docker compose up -d`). Same `docker-compose.yml` as production — use fixture/test data on a dev machine, and never point `ACTUAL_BUDGET_URL` at the LXC.
+4. **Ollama or remote LLM** — either start with `--profile ollama-local` on the new machine, or point `LLM_BASE_URL` at an existing Ollama server reachable over Tailscale.
+5. **Local-only files don't transfer** — `.claude/settings.local.json`, and `PLANNING.md` / `PRIVATE_context.md` if they exist, are gitignored. Copy them manually if their content matters on the new machine.
+
+Full deployment steps (LXC / plain Docker / Coolify): see `DEPLOY.md`.
+
+---
+
 ## Second Brain sync
 
 La finalizarea oricărui milestone (M complet sau feature major), actualizează **ambele** locații:
