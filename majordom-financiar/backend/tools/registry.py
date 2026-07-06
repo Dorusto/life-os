@@ -535,6 +535,23 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__propose_close_account",
+            "description": "Propose closing an Actual Budget account. This is a DESTRUCTIVE action requiring user confirmation via a card. Use when the user asks to close, remove, or archive an account.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "account_name": {
+                        "type": "string",
+                        "description": "The name of the account to close, e.g. 'ING savings' or 'Revolut'.",
+                    },
+                },
+                "required": ["account_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "vehicle__get_vehicle_stats",
             "description": (
                 "Get full vehicle profile and operational statistics: plate number, make, model, year, "
@@ -1025,6 +1042,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "finance__propose_balance_adjustment":
         from backend.tools.finance.actual_budget import propose_balance_adjustment
         return await propose_balance_adjustment(**arguments)
+
+    if name == "finance__propose_close_account":
+        from backend.tools.finance.actual_budget import propose_close_account
+        return await propose_close_account(**arguments)
 
     if name == "finance__set_account_goal":
         from backend.tools.finance.actual_budget import set_account_goal

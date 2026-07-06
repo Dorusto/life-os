@@ -852,6 +852,27 @@ class ActualBudgetClient:
                 return True
         return await self._run(_update)
 
+    async def close_account(self, account_id: str) -> str:
+        """
+        Mark an account as closed in Actual Budget. Returns the account name.
+        """
+        def _close():
+            from actual.database import Accounts
+
+            with self._get_actual() as actual:
+                actual.download_budget()
+
+                acc = actual.session.query(Accounts).filter(
+                    Accounts.id == account_id, Accounts.tombstone == 0
+                ).first()
+                if not acc:
+                    raise ValueError(f"Account not found: {account_id}")
+
+                acc.closed = True
+                actual.commit()
+                return acc.name
+        return await self._run(_close)
+
     async def adjust_account_balance(self, account_id: str, target_balance: float) -> float:
         """
         Create a balance adjustment transaction so the account's balance matches

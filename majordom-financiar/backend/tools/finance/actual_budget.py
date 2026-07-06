@@ -670,6 +670,41 @@ async def propose_balance_adjustment(account_name: str, real_balance: float) -> 
     })
 
 
+async def propose_close_account(account_name: str) -> str:
+    """
+    Propose closing an Actual Budget account.
+    Returns a JSON string with type='close_account' for the frontend to render as a card.
+    """
+    import json
+    import uuid
+    from backend.tools import close_account as close_store
+
+    client = get_provider()
+    accounts = await client.get_accounts()
+
+    # match by exact name first, then partial (case-insensitive)
+    matched = next((a for a in accounts if a.name.lower() == account_name.lower()), None)
+    if not matched:
+        matched = next((a for a in accounts if account_name.lower() in a.name.lower()), None)
+    if not matched:
+        names = ", ".join(a.name for a in accounts)
+        return json.dumps({"type": "error", "message": f"Account '{account_name}' not found. Available: {names}"})
+
+    proposal_id = uuid.uuid4().hex[:8]
+    close_store.store(proposal_id, {
+        "account_id": matched.id,
+        "account_name": matched.name,
+        "balance": matched.balance,
+    })
+
+    return json.dumps({
+        "type": "close_account",
+        "id": proposal_id,
+        "account_name": matched.name,
+        "balance": matched.balance,
+    })
+
+
 async def complete_setup(balances: list[dict]) -> str:
     """
     Adjust account balances in AB to match user-provided real values.

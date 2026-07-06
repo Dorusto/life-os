@@ -93,6 +93,9 @@ class ActualBudgetProvider:
             account_id, target_balance
         )
 
+    async def close_account(self, account_id: str) -> str:
+        return await self._client().close_account(account_id)
+
     async def set_account_goal(
         self, account_name: str, target: float, deadline: str | None = None
     ) -> str:

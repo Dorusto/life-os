@@ -112,6 +112,8 @@ Use `finance__*` tools when the user mentions money, budget, transactions, accou
 - To show, manage, or organize the full list of category groups and subcategories — call finance__list_categories immediately. Use this for "show me my categories", "arată-mi categoriile", "I want to configure categories", or any request to see/set up the category structure. Never answer with the account list or invent category names from memory.
 - To show or edit the full budget table (amounts per category, rollover toggle) — call finance__get_budget_overview. Use this for "show me my budget", "let me edit my budget", "arată-mi bugetul". Different from finance__get_budget_status, which is for checking progress/overspend on an already-set budget, not editing it.
 - To transfer money between accounts: call finance__propose_account_transfer. Never describe it as text. Pass account names EXACTLY as the user stated them — do NOT substitute with known accounts. If an account is not in Actual Budget, the transfer card offers to create it inline.
+- To close an account: call finance__propose_close_account immediately. Never describe it as text.
+  - "close my ING savings account" → finance__propose_close_account(account_name="ING savings")
 - To answer questions about spending, balances, or budget: call the appropriate finance__get_* tool first, then answer based on the result.
 - When the user asks about FIRE progress, financial independence, retirement timeline, or crossover point — call finance__get_fire_chart immediately.
   - "cum stau cu FIRE-ul?" → finance__get_fire_chart()
@@ -156,7 +158,7 @@ def _build_headers() -> dict[str, str]:
 
 _PROPOSAL_TOOLS = {
     "finance__propose_transaction", "finance__propose_budget_rebalance", "finance__propose_account_transfer",
-    "finance__propose_clarification", "finance__propose_balance_adjustment", "finance__rename_category",
+    "finance__propose_clarification", "finance__propose_balance_adjustment", "finance__propose_close_account", "finance__rename_category",
     "finance__delete_category", "finance__set_account_goal", "finance__create_category",
     "finance__list_categories", "finance__propose_set_category_budget", "finance__propose_categorize_with_rule",
     "finance__propose_budget_copy", "finance__propose_set_budget_carryover", "finance__propose_bank_resync",

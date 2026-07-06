@@ -718,6 +718,23 @@ export async function cancelBalanceAdjustment(id: string): Promise<void> {
   return request<void>(`/balance-adjustments/${id}/cancel`, { method: 'POST' })
 }
 
+// --- Close Account ---
+
+export interface CloseAccountData {
+  type: 'close_account'
+  id: string
+  account_name: string
+  balance: number
+}
+
+export async function confirmCloseAccount(id: string): Promise<{ message: string }> {
+  return request(`/close-account/${id}/confirm`, { method: 'POST' })
+}
+
+export async function cancelCloseAccount(id: string): Promise<void> {
+  return request<void>(`/close-account/${id}/cancel`, { method: 'POST' })
+}
+
 
 // --- Category actions ---
 
