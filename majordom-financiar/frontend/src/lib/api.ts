@@ -725,10 +725,15 @@ export interface CloseAccountData {
   id: string
   account_name: string
   balance: number
+  accounts?: { id: string; name: string; balance: number }[]
 }
 
-export async function confirmCloseAccount(id: string): Promise<{ message: string }> {
-  return request(`/close-account/${id}/confirm`, { method: 'POST' })
+export async function confirmCloseAccount(id: string, destinationAccountId?: string): Promise<{ message: string }> {
+  return request(`/close-account/${id}/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ destination_account_id: destinationAccountId ?? null }),
+  })
 }
 
 export async function cancelCloseAccount(id: string): Promise<void> {

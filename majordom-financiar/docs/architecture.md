@@ -296,11 +296,15 @@ Each REST endpoint (`backend/api/vehicle_charts.py`, `backend/api/finance_charts
 
 ---
 
-### 24. Closing an account (`close_account`) does NOT move its money — must be empty first (#69, partial)
+### 24. Closing an account with a non-zero balance requires a destination account (#69, resolved)
 
-`ActualBudgetClient.close_account()` just sets `Accounts.closed = True`. It does **not** replicate Actual Budget's native close flow, which refuses to close an account with a non-zero balance and forces you to transfer/categorize the money first. Verified empirically: closing a €1175 account hides those €1175 from all visible balances and from the budget's "to budget" pool, while the transactions stay in the DB — reopening (`closed = False`) restores the money intact. So the money isn't lost, but it silently leaves the budget, which is exactly the confusing state AB prevents.
+`ActualBudgetClient.close_account()` just sets `Accounts.closed = True` — it does not move money. Actual Budget's native close flow refuses to close an account with a non-zero balance and forces a transfer first; replicating that natively would silently hide the money from the budget's "to budget" pool while leaving the transactions in the DB (reopening restores it, but nothing tells the user that's what's happening).
 
-**Consequence: only close accounts with a balance of 0.** `propose_close_account`'s card shows a yellow warning when balance ≠ 0 but still lets the user proceed — an interim state, not the final design. The proper fix (tracked in #69, left open) is a card that, when balance ≠ 0, requires a destination account and does transfer + close atomically on confirm, reusing the existing `propose_account_transfer` / `create_transfer` mechanism (no new money-movement code needed).
+**Fix:** `client.close_account_with_transfer(account_id, destination_account_id)` does the transfer + close in a single `_get_actual()`/`commit()` (atomic — can't leave a half-done state where the transfer happened but the close didn't, or vice versa). Direction depends on the sign of the balance: if positive, money moves out of the closing account into the destination; if negative (a debt), the destination account pays it off into the closing account, zeroing it either way. Reuses the existing transfer-payee mechanism (`_get_or_create_transfer_payee`, shared with `create_transfer()`) — no new money-movement code.
+
+`propose_close_account` now includes the full accounts list in its payload (like `propose_account_transfer` already did), and `CloseAccountCard.tsx` shows a destination-account selector when balance ≠ 0, blocking confirm until one is picked. The confirm endpoint (`backend/api/close_account.py`) requires `destination_account_id` in the body whenever the proposal's balance is non-zero (HTTP 400 otherwise, proposal stays alive so the user can retry) and routes to `close_account_with_transfer` instead of the plain `close_account`.
+
+Account-name matching for `propose_close_account` and `propose_balance_adjustment` shares `_match_account()` (`backend/tools/finance/actual_budget.py`): exact → partial substring, retried after stripping a trailing " account" word, because LLMs pass the whole phrase ("test account") when the account is just named "test".
 
 Account-name matching for `propose_close_account` and `propose_balance_adjustment` shares `_match_account()` (`backend/tools/finance/actual_budget.py`): exact → partial substring, retried after stripping a trailing " account" word, because LLMs pass the whole phrase ("test account") when the account is just named "test".
 

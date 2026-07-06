@@ -6,6 +6,7 @@ POST /api/close-account/{id}/cancel   → discard proposal
 """
 import logging
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
 from backend.tools import close_account as close_store
@@ -24,9 +25,14 @@ def _get_client() -> ActualBudgetClient:
     )
 
 
+class ConfirmCloseAccountRequest(BaseModel):
+    destination_account_id: str | None = None
+
+
 @router.post("/close-account/{proposal_id}/confirm")
 async def confirm_close_account(
     proposal_id: str,
+    body: ConfirmCloseAccountRequest | None = None,
     current_user: str = Depends(get_current_user),
 ):
     proposal = close_store.get(proposal_id)
@@ -34,10 +40,18 @@ async def confirm_close_account(
         raise HTTPException(status_code=404, detail="Close-account proposal not found or already confirmed")
 
     account_id = proposal["account_id"]
+    balance = proposal["balance"]
+    destination_account_id = body.destination_account_id if body else None
+
+    if abs(balance) >= 0.01 and not destination_account_id:
+        raise HTTPException(status_code=400, detail="Destination account is required to close an account with a non-zero balance")
 
     try:
         client = _get_client()
-        account_name = await client.close_account(account_id)
+        if destination_account_id:
+            account_name = await client.close_account_with_transfer(account_id, destination_account_id)
+        else:
+            account_name = await client.close_account(account_id)
     except Exception as e:
         logger.error("Failed to confirm close account %s: %s", proposal_id, e)
         raise HTTPException(status_code=500, detail="Failed to close account")

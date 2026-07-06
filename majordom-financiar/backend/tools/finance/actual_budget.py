@@ -713,11 +713,14 @@ async def propose_close_account(account_name: str) -> str:
         "balance": matched.balance,
     })
 
+    other_accounts = [{"id": a.id, "name": a.name, "balance": a.balance} for a in accounts if a.id != matched.id]
+
     return json.dumps({
         "type": "close_account",
         "id": proposal_id,
         "account_name": matched.name,
         "balance": matched.balance,
+        "accounts": other_accounts,
     })
 
 

@@ -873,6 +873,64 @@ class ActualBudgetClient:
                 return acc.name
         return await self._run(_close)
 
+    async def close_account_with_transfer(self, account_id: str, destination_account_id: str) -> str:
+        """
+        Zero out an account's balance by transferring it to destination_account_id,
+        then close it — both in the same commit so the two steps can't split
+        (transfer succeeds but close fails, or vice versa).
+
+        Reuses the transfer-payee mechanism from create_transfer(): if balance > 0,
+        the money moves out of the account being closed; if balance < 0 (a debt),
+        the destination account pays it off instead. Returns the account name.
+        """
+        def _close_with_transfer():
+            from decimal import Decimal
+            from datetime import date as _date
+            from actual.database import Accounts
+            from actual.queries import create_transaction, get_account, get_transactions
+
+            with self._get_actual() as actual:
+                actual.download_budget()
+
+                acc = get_account(actual.session, account_id)
+                if not acc or acc.tombstone:
+                    raise ValueError(f"Account not found: {account_id}")
+                dest_acct = get_account(actual.session, destination_account_id)
+                if not dest_acct or dest_acct.tombstone:
+                    raise ValueError(f"Destination account not found: {destination_account_id}")
+                if dest_acct.closed:
+                    raise ValueError(f"Destination account is closed: {dest_acct.name}")
+
+                balance = sum(
+                    float(tx.amount or 0)
+                    for tx in get_transactions(actual.session, account=acc)
+                    if not tx.tombstone
+                ) / 100
+
+                if abs(balance) >= 0.01:
+                    # balance > 0: money leaves the closing account into destination.
+                    # balance < 0 (debt): destination pays it off into the closing account.
+                    from_acct, to_acct = (acc, dest_acct) if balance > 0 else (dest_acct, acc)
+                    transfer_payee = self._get_or_create_transfer_payee(actual.session, to_acct)
+                    create_transaction(
+                        actual.session,
+                        date=_date.today(),
+                        account=from_acct,
+                        payee=transfer_payee,
+                        notes="[Transfer] Account closure",
+                        amount=-abs(Decimal(str(balance))),
+                        category=None,
+                        cleared=True,
+                    )
+
+                closing_acc = actual.session.query(Accounts).filter(
+                    Accounts.id == account_id, Accounts.tombstone == 0
+                ).first()
+                closing_acc.closed = True
+                actual.commit()
+                return acc.name
+        return await self._run(_close_with_transfer)
+
     async def adjust_account_balance(self, account_id: str, target_balance: float) -> float:
         """
         Create a balance adjustment transaction so the account's balance matches
