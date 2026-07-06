@@ -127,30 +127,30 @@ Tool layer decoupled from ActualBudgetClient via Protocol. `FINANCE_BACKEND=sure
 
 ---
 
-### 🔲 M5 — Integrations (Sure + Portfolio)
+### 🔲 M5 — Integrations (Ghostfolio + Portfolio)
 
-**Platform decision (2026-06-03):** Sure replaces Ghostfolio. Sure will eventually replace AB. See `docs/decisions.md#sure-adoption`.
+**Platform decision (2026-07-05, supersedes the 2026-06-03 "Sure replaces Ghostfolio" call):** stay on **AB + Ghostfolio** — AB remains the budgeting source of truth, Ghostfolio handles investment portfolio tracking. Sure was evaluated live and not adopted: budget allocation is only partially at parity (no rollover/carryover equivalent, no API-level budget/goal writes), while Ghostfolio natively computes performance/return metrics Sure's API doesn't yet expose. See `docs/decisions.md#ghostfolio-vs-sure-portfolio-comparison`.
 
-Sure test checklist (before any integration work):
-- [x] Deploy Sure on LXC via Docker — Majordom LXC 10.10.1.40:3001, `sure.dorulian.eu`
+Not a permanent close-out — Sure isn't ruled out forever. A monthly automated routine (`sure-migration-trigger-check`) checks 3 concrete, scriptable criteria against `we-promise/sure`'s public repo (budget_categories `create`/`update` API, a `goals` API controller, a true carryover field) and only opens a `sure-migration`-labeled GitHub issue if the count of met criteria changes — no manual re-checking needed. See `docs/decisions.md#ghostfolio-vs-sure-portfolio-comparison` for the exact criteria.
+
+M5 evaluation checklist — done:
+- [x] Deploy Sure on LXC via Docker — Majordom LXC 10.10.1.40:3001, `sure.dorulian.eu` (kept as the monitored comparison instance, not adopted)
 - [x] Test Enable Banking NL — ING NL syncing live transactions
-- [x] Test budget allocation — verify parity with AB categories — tested live 2026-07-05 against a separate Sure test instance (10.10.1.41:3000), partial parity only, see `docs/decisions.md#sure-budget-parity-evaluation`
-- [x] Evaluate MCP server (`github.com/we-promise/sure-mcp-server`) — evaluated 2026-07-05, no integration value, see `docs/decisions.md#sure-mcp-evaluation`
+- [x] Test budget allocation — verify parity with AB categories — tested live 2026-07-05, partial parity only, see `docs/decisions.md#sure-budget-parity-evaluation`
+- [x] Evaluate MCP servers (Sure's and Ghostfolio's) — Sure's has no integration value, Ghostfolio's has genuine portfolio-first tools, but Majordom won't consume either (REST-only outbound, per `docs/decisions.md#majordom-as-mcp-server`) — see `docs/decisions.md#sure-mcp-evaluation`
 
 | # | Feature | Status |
 |---|---------|--------|
-| 5.1 | portfolio-bridge: Bitvavo → Sure | 🔲 |
+| 5.1 | portfolio-bridge: Bitvavo → Ghostfolio | 🔲 See [#4](https://github.com/Dorusto/life-os/issues/4) — blocked on Ghostfolio homelab deploy (infra step, not yet done) |
 | 5.2 | FinanceProvider abstraction in Majordom | ✅ |
-| 5.3 | Switch Majordom → Sure backend | 🔲 |
-| 5.4 | Crypto tracker with sell alert | 🔲 |
-| 5.5 | Trading 212 sync | 🔲 |
-| 5.6 | XTB sync | 🔲 |
-| 5.7 | MCP server endpoint for Majordom | 🔲 See [#58](https://github.com/Dorusto/life-os/issues/58) |
-| 5.8 | Child portfolio dashboard | 🔲 |
-| 5.9 | Freelance / ZZP dashboard | 🔲 See [#126](https://github.com/Dorusto/life-os/issues/126) |
-| 5.10 | Joint / couple budget | 🔲 |
-
-~~Ghostfolio~~ — on hold, replaced by Sure. Removed from active roadmap.
+| 5.3 | ~~Switch Majordom → Sure backend~~ | ⛔ not pursued for now — AB stays source of truth, see platform decision above |
+| 5.4 | Crypto tracker with sell alert | 🔲 See [#44](https://github.com/Dorusto/life-os/issues/44) |
+| 5.5 | Trading 212 sync (→ Ghostfolio) | 🔲 |
+| 5.6 | XTB sync (→ Ghostfolio) | 🔲 |
+| 5.7 | MCP server endpoint for Majordom (inbound, for OpenClaw/external agents — unrelated to Sure/Ghostfolio) | 🔲 See [#58](https://github.com/Dorusto/life-os/issues/58) |
+| 5.8 | Child portfolio dashboard | 🔲 See [#45](https://github.com/Dorusto/life-os/issues/45) |
+| 5.9 | Freelance / ZZP dashboard | ✅ Done 2026-07-03, see [#126](https://github.com/Dorusto/life-os/issues/126) |
+| 5.10 | Joint / couple budget | 🔲 See [#46](https://github.com/Dorusto/life-os/issues/46) |
 
 ---
 
