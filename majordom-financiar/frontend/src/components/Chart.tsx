@@ -121,7 +121,11 @@ type ChartProps =
   | { chart_type: 'pie'; title: string; data: PieData; refetch?: RefetchConfig }
   | { chart_type: 'progress_list'; title: string; data: ProgressListData; refetch?: RefetchConfig }
   | { chart_type: 'bar'; title: string; data: BarData; refetch?: RefetchConfig }
-  | { chart_type: 'line'; title: string; data: LineData; refetch?: RefetchConfig }
+  // `bare` drops the chart's own bg-surface/rounded/padding wrapper, for a
+  // caller that already places it inside its own card (e.g. the Budget card's
+  // 3M/6M/12M trend view, embedded alongside the period nav in one shared card
+  // instead of two stacked cards).
+  | { chart_type: 'line'; title: string; data: LineData; refetch?: RefetchConfig; bare?: boolean }
 
 export default function Chart(props: ChartProps) {
   switch (props.chart_type) {
@@ -132,7 +136,7 @@ export default function Chart(props: ChartProps) {
     case 'bar':
       return <BarChart title={props.title} data={props.data} refetch={props.refetch} />
     case 'line':
-      return <LineChart title={props.title} data={props.data} refetch={props.refetch} />
+      return <LineChart title={props.title} data={props.data} refetch={props.refetch} bare={props.bare} />
     default:
       return null
   }
@@ -649,16 +653,19 @@ function LineChart({
   title,
   data,
   refetch: initialRefetch,
+  bare,
 }: {
   title: string
   data: LineData
   refetch?: RefetchConfig
+  bare?: boolean
 }) {
   const { title: liveTitle, data: chartData, refetch, loading, error, refetchWith } = useChartRefetch(
     title,
     data,
     initialRefetch
   )
+  const wrapperClass = bare ? 'p-4' : 'bg-surface rounded-2xl p-4'
 
   function handlePeriodSelect(value: number) {
     if (refetch?.mode === 'period_buttons') refetchWith({ [refetch.period_param]: value })
@@ -668,7 +675,7 @@ function LineChart({
 
   if (allPoints.length < 2) {
     return (
-      <div className="bg-surface rounded-2xl p-4">
+      <div className={wrapperClass}>
         <p className="text-xs text-muted uppercase tracking-wide mb-2">{liveTitle}</p>
         {refetch?.mode === 'period_buttons' && (
           <PeriodSwitcher refetch={refetch} loading={loading} onSelect={handlePeriodSelect} />
@@ -694,7 +701,7 @@ function LineChart({
   const scaleY = (y: number) => height - padY - ((y - minY + yPad) / (rangeY + yPad * 2)) * (height - padY * 2)
 
   return (
-    <div className="bg-surface rounded-2xl p-4">
+    <div className={wrapperClass}>
       <p className="text-xs text-muted uppercase tracking-wide mb-2">{liveTitle}</p>
       {refetch?.mode === 'period_buttons' && (
         <>

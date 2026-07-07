@@ -1,6 +1,6 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { BudgetCategory } from '../lib/api'
-import Card from './Card'
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -54,12 +54,16 @@ function fmt(n: number): string {
 }
 
 export default function BudgetDashboard({ categories, month, year }: Props) {
+  const navigate = useNavigate()
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
+  const [detailsOpen, setDetailsOpen] = useState(false)
 
   const totalSpent = categories.reduce((sum, c) => sum + c.spent, 0)
   const totalBudgeted = categories.reduce((sum, c) => sum + c.budgeted, 0)
   const budgetBalance = totalBudgeted - totalSpent
   const isOver = budgetBalance < 0
+  const pct = totalBudgeted > 0 ? Math.round((totalSpent / totalBudgeted) * 100) : 0
+  const summaryColor = isOver ? '#FF2D2D' : '#22C55E'
 
   // Group categories — skip Income and zero-activity entries
   const spendingCats = categories.filter(
@@ -89,79 +93,98 @@ export default function BudgetDashboard({ categories, month, year }: Props) {
     })
   }
 
+  function openCategoryChat(category: BudgetCategory) {
+    const monthLabel = `${MONTH_NAMES[month - 1]} ${year}`
+    navigate('/chat', {
+      state: { prefill: `Show me my ${category.category_name} transactions for ${monthLabel}.` },
+    })
+  }
+
   return (
-    <Card variant="accordion">
-    <div className="p-4">
-      {/* Header */}
-      <div className="flex items-start justify-between mb-4">
+    <>
+      {/* Summary toggle — tap to reveal the group/category breakdown below */}
+      <button
+        onClick={() => setDetailsOpen(o => !o)}
+        className="w-full flex items-center justify-between gap-3 px-4 py-4 text-left"
+      >
         <div className="min-w-0 flex-1">
-          <p className="text-xs tracking-widest uppercase text-muted">
-            {MONTH_NAMES[month - 1]} {year}
+          <p className="text-white font-semibold text-[15px]">
+            {totalBudgeted > 0 ? (
+              <>€{fmt(totalSpent)} of €{fmt(totalBudgeted)}</>
+            ) : (
+              <>€{fmt(totalSpent)} spent</>
+            )}
           </p>
-          <div className="flex items-baseline gap-3 mt-1">
-            <p className="text-white font-semibold text-base">Budget</p>
-          </div>
-          <p className="text-muted text-xs mt-1 font-mono tabular-nums">
-            €{fmt(totalSpent)} / €{fmt(totalBudgeted)} spent
-          </p>
-        </div>
-        <div className="text-right shrink-0 pl-3">
           {totalBudgeted > 0 && (
             <>
-              <p
-                className="font-display text-xl font-bold whitespace-nowrap"
-                style={{ color: isOver ? '#FF2D2D' : '#22C55E' }}
-              >
-                {isOver ? '−' : '+'}€{fmt(Math.abs(budgetBalance))}
+              <div className="h-[3px] bg-border/40 rounded-full overflow-hidden mt-2.5 max-w-[180px]">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: summaryColor }}
+                />
+              </div>
+              <p className="text-muted text-xs mt-1.5">
+                {isOver ? `−€${fmt(Math.abs(budgetBalance))} over` : `+€${fmt(budgetBalance)} left`} this month
               </p>
-              <p className="text-xs text-muted">{isOver ? 'over budget' : 'remaining'}</p>
             </>
           )}
         </div>
-      </div>
+        {totalBudgeted > 0 && (
+          <div className="text-right shrink-0 pl-2">
+            <p className="font-display text-xl font-bold whitespace-nowrap" style={{ color: summaryColor }}>
+              {pct}%
+            </p>
+            <p className="text-muted text-xs mt-1">{detailsOpen ? '▴' : '▾'} details</p>
+          </div>
+        )}
+      </button>
 
       {/* Group rows */}
-      {orderedGroups.length === 0 ? (
-        <p className="text-muted text-sm text-center py-2">No budget data this month</p>
-      ) : (
-        <div>
-          {orderedGroups.map((groupName, idx) => {
-            const cats = groupMap[groupName]
-            const groupBudgeted = cats.reduce((s, c) => s + c.budgeted, 0)
-            const groupSpent = cats.reduce((s, c) => s + c.spent, 0)
-            const groupPct = groupBudgeted > 0 ? Math.round(groupSpent / groupBudgeted * 100) : 0
-            const isExpanded = expandedGroups.has(groupName)
-            const isLast = idx === orderedGroups.length - 1
+      {detailsOpen && (
+        <div className="border-t border-border/40 px-4 pb-2">
+          {orderedGroups.length === 0 ? (
+            <p className="text-muted text-sm text-center py-4">No budget data this month</p>
+          ) : (
+            <div>
+              {orderedGroups.map((groupName, idx) => {
+                const cats = groupMap[groupName]
+                const groupBudgeted = cats.reduce((s, c) => s + c.budgeted, 0)
+                const groupSpent = cats.reduce((s, c) => s + c.spent, 0)
+                const groupPct = groupBudgeted > 0 ? Math.round(groupSpent / groupBudgeted * 100) : 0
+                const isExpanded = expandedGroups.has(groupName)
+                const isLast = idx === orderedGroups.length - 1
 
-            return (
-              <div key={groupName} className={isLast ? '' : 'border-b border-border/20'}>
-                <GroupRow
-                  name={groupName}
-                  emoji={getGroupEmoji(groupName)}
-                  budgeted={groupBudgeted}
-                  spent={groupSpent}
-                  percentage={groupPct}
-                  isExpanded={isExpanded}
-                  onToggle={() => toggleGroup(groupName)}
-                />
-                {isExpanded && (
-                  <div className="ml-4 mb-1">
-                    {cats.map((cat, catIdx) => (
-                      <SubcategoryRow
-                        key={cat.category_id}
-                        category={cat}
-                        isLast={catIdx === cats.length - 1}
-                      />
-                    ))}
+                return (
+                  <div key={groupName} className={isLast ? '' : 'border-b border-border/20'}>
+                    <GroupRow
+                      name={groupName}
+                      emoji={getGroupEmoji(groupName)}
+                      budgeted={groupBudgeted}
+                      spent={groupSpent}
+                      percentage={groupPct}
+                      isExpanded={isExpanded}
+                      onToggle={() => toggleGroup(groupName)}
+                    />
+                    {isExpanded && (
+                      <div className="ml-4 mb-1">
+                        {cats.map((cat, catIdx) => (
+                          <SubcategoryRow
+                            key={cat.category_id}
+                            category={cat}
+                            isLast={catIdx === cats.length - 1}
+                            onClick={() => openCategoryChat(cat)}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            )
-          })}
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
-    </div>
-    </Card>
+    </>
   )
 }
 
@@ -222,13 +245,19 @@ function GroupRow({
   )
 }
 
-function SubcategoryRow({ category, isLast }: { category: BudgetCategory; isLast: boolean }) {
+function SubcategoryRow({
+  category, isLast, onClick,
+}: {
+  category: BudgetCategory
+  isLast: boolean
+  onClick: () => void
+}) {
   const { category_name, budgeted, spent, percentage } = category
   const color = getColor(percentage, budgeted)
   const hasBudget = budgeted > 0
 
   return (
-    <div className={`py-2 ${isLast ? '' : 'border-b border-border/10'}`}>
+    <button onClick={onClick} className={`w-full text-left py-2 ${isLast ? '' : 'border-b border-border/10'}`}>
       <div className="flex items-center justify-between mb-1">
         <div className="flex items-center gap-2 min-w-0">
           <span
@@ -265,6 +294,6 @@ function SubcategoryRow({ category, isLast }: { category: BudgetCategory; isLast
           />
         </div>
       )}
-    </div>
+    </button>
   )
 }
