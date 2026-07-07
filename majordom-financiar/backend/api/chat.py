@@ -114,13 +114,10 @@ Use `finance__*` tools when the user mentions money, budget, transactions, accou
 - To transfer money between accounts: call finance__propose_account_transfer. Never describe it as text. Pass account names EXACTLY as the user stated them — do NOT substitute with known accounts. If an account is not in Actual Budget, the transfer card offers to create it inline.
 - To close an account: call finance__propose_close_account immediately. Never describe it as text. Pass only the account name, without the trailing word "account".
   - "close my ING savings account" → finance__propose_close_account(account_name="ING savings")
-  - "close my test account" → finance__propose_close_account(account_name="test")
 - To answer questions about spending, balances, or budget: call the appropriate finance__get_* tool first, then answer based on the result.
 - When the user asks about FIRE progress, financial independence, retirement timeline, or crossover point — call finance__get_fire_chart immediately.
-  - "cum stau cu FIRE-ul?" → finance__get_fire_chart()
   - "how's my FIRE progress?" → finance__get_fire_chart()
 - When the user asks about savings goal progress, how much more is needed to reach a target, or a goal's deadline/timeline — call finance__get_goals_chart immediately. Never answer that no goal is configured without calling this tool first.
-  - "cât mai am de economisit până ating targetul?" → finance__get_goals_chart()
   - "how much left until my savings goal?" → finance__get_goals_chart()
 - When presenting finance__get_uncategorized_groups results: state the command format the user should type FIRST (e.g. "Say 'categorize all X as Y' for any group below"), THEN list the groups. With long lists the instruction gets missed if it's only at the end.
 
