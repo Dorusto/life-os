@@ -214,17 +214,22 @@ export default function Home() {
       ) : (
         <>
           {/* Financial Goals — Portfolio Independence (from FIRE data) first, then user goals */}
-          {(fireData || (goals && goals.length > 0)) && (
-            <section className="px-5 pt-4 pb-2">
-              <p className="text-xs tracking-[0.2em] uppercase text-muted mb-4">Financial Goals</p>
-              <div className="space-y-3">
-                {fireData && <PortfolioIndependenceCard data={fireData} />}
-                {goals?.map((goal, idx) => (
-                  <GoalCard key={goal.id} goal={goal} color={GOAL_COLORS[idx % GOAL_COLORS.length]} />
-                ))}
-              </div>
-            </section>
-          )}
+          <section className="px-5 pt-4 pb-2">
+            <p className="text-xs tracking-[0.2em] uppercase text-muted mb-4">Financial Goals</p>
+            <div className="space-y-3">
+              {fireData && <PortfolioIndependenceCard data={fireData} />}
+              {goals && goals.length > 0 ? (
+                <>
+                  {goals.map((goal, idx) => (
+                    <GoalCard key={goal.id} goal={goal} color={GOAL_COLORS[idx % GOAL_COLORS.length]} />
+                  ))}
+                  <AddAnotherGoalRow navigate={navigate} />
+                </>
+              ) : (
+                <EmptyGoalsCard navigate={navigate} />
+              )}
+            </div>
+          </section>
 
           {/* Budget dashboard */}
           {budgetStatus && budgetStatus.length > 0 && (
@@ -384,6 +389,57 @@ function PortfolioIndependenceCard({ data }: { data: FireData }) {
         )}
       </div>
     </Card>
+  )
+}
+
+type NavigateFn = ReturnType<typeof useNavigate>
+
+const GOAL_CHIPS: { label: string; colorClass: string; prefill: string }[] = [
+  {
+    label: 'Expense Coverage',
+    colorClass: 'bg-positive-dim text-positive',
+    prefill: 'I want to set up an Expense Coverage goal — how does that work?',
+  },
+  {
+    label: 'FIRE',
+    colorClass: 'bg-positive-dim text-positive',
+    prefill: 'I want to check my FIRE / Portfolio Independence assumptions.',
+  },
+  {
+    label: 'Custom goal',
+    colorClass: 'bg-attention-dim text-attention',
+    prefill: 'I want to create a new savings goal.',
+  },
+]
+
+function EmptyGoalsCard({ navigate }: { navigate: NavigateFn }) {
+  return (
+    <Card className="!border-dashed text-center">
+      <p className="text-xl text-muted-2 mb-1.5">+</p>
+      <p className="text-white font-semibold text-[15px] mb-2.5">Create your first goal</p>
+      <div className="flex items-center justify-center gap-2 flex-wrap">
+        {GOAL_CHIPS.map(chip => (
+          <button
+            key={chip.label}
+            onClick={() => navigate('/chat', { state: { prefill: chip.prefill } })}
+            className={`text-[11px] font-bold px-2.5 py-1 rounded-lg ${chip.colorClass}`}
+          >
+            {chip.label}
+          </button>
+        ))}
+      </div>
+    </Card>
+  )
+}
+
+function AddAnotherGoalRow({ navigate }: { navigate: NavigateFn }) {
+  return (
+    <button
+      onClick={() => navigate('/chat', { state: { prefill: 'I want to create a new savings goal.' } })}
+      className="w-full py-2.5 rounded-xl border border-dashed border-border text-muted text-xs text-center hover:border-accent hover:text-white transition-colors"
+    >
+      + Add another goal
+    </button>
   )
 }
 
