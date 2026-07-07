@@ -528,13 +528,14 @@ async def get_goals_chart() -> str:
 
 async def get_fire_chart() -> str:
     """Return FIRE (Financial Independence, Retire Early) progress as JSON for the frontend."""
-    from backend.core.actual_client.client import FIRE_YEAR
-
     client = get_provider()
     fire = await client.get_fire_status()
 
-    status = "On track" if fire["on_track"] else "Behind pace"
-    extra = f"{status} for {FIRE_YEAR} · €{fire['monthly_contribution']:.0f}/month"
+    extra = (
+        f"Est. {fire['estimated_year']} · €{fire['monthly_contribution']:.0f}/month"
+        if fire["estimated_year"] is not None
+        else f"€{fire['monthly_contribution']:.0f}/month · not reaching target within 100 years at current pace"
+    )
 
     return json.dumps({
         "type": "chart",
@@ -961,6 +962,59 @@ async def propose_set_budget_carryover(category_name: str, enabled: bool, month:
         "category_name": resolved,
         "enabled": enabled,
         "month": target_month.strftime("%Y-%m"),
+    })
+
+
+async def propose_set_fire_model(
+    years_to_transition: float | None = None,
+    years_in_retirement: float | None = None,
+    monthly_contribution: float | None = None,
+    accumulation_return: float | None = None,
+    decumulation_return: float | None = None,
+    desired_monthly_spend: float | None = None,
+) -> str:
+    """
+    Propose updating FIRE / retirement planning assumptions (return rates,
+    horizon, target retirement spend). All params optional — the LLM passes
+    only what the user actually mentioned. Returns a confirmation card with
+    all 6 current values and the proposed new values — does NOT write yet.
+    """
+    import json
+    import uuid
+    from backend.tools import category_actions as action_store
+    from backend.core.actual_client.client import _load_fire_model
+
+    current = _load_fire_model()
+    # Remove the is_default_assumptions flag — it's metadata, not a stored value
+    current.pop("is_default_assumptions", None)
+
+    new = dict(current)
+    if years_to_transition is not None:
+        new["years_to_transition"] = years_to_transition
+    if years_in_retirement is not None:
+        new["years_in_retirement"] = years_in_retirement
+    if monthly_contribution is not None:
+        new["monthly_contribution"] = monthly_contribution
+    if accumulation_return is not None:
+        new["accumulation_return"] = accumulation_return
+    if decumulation_return is not None:
+        new["decumulation_return"] = decumulation_return
+    if desired_monthly_spend is not None:
+        new["desired_monthly_spend"] = desired_monthly_spend
+
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {
+        "action": "set_fire_model",
+        "current": current,
+        "new": new,
+    })
+
+    return json.dumps({
+        "type": "category_action",
+        "action": "set_fire_model",
+        "id": action_id,
+        "current": current,
+        "new": new,
     })
 
 

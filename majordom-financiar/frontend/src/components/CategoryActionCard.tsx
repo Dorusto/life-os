@@ -19,6 +19,15 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const [createRule, setCreateRule] = useState(data.is_consistent ?? true)
   const [loading, setLoading] = useState(false)
 
+  // FIRE model editable fields
+  const fireNew = data.new ?? data.current
+  const [fireYearsToTransition, setFireYearsToTransition] = useState(String(fireNew?.years_to_transition ?? ''))
+  const [fireYearsInRetirement, setFireYearsInRetirement] = useState(String(fireNew?.years_in_retirement ?? ''))
+  const [fireMonthlyContribution, setFireMonthlyContribution] = useState(String(fireNew?.monthly_contribution ?? ''))
+  const [fireAccumulationReturn, setFireAccumulationReturn] = useState(String(fireNew ? (fireNew.accumulation_return * 100).toFixed(1) : ''))
+  const [fireDecumulationReturn, setFireDecumulationReturn] = useState(String(fireNew ? (fireNew.decumulation_return * 100).toFixed(1) : ''))
+  const [fireDesiredMonthlySpend, setFireDesiredMonthlySpend] = useState(String(fireNew?.desired_monthly_spend ?? ''))
+
   async function handleConfirm() {
     setLoading(true)
     try {
@@ -29,6 +38,15 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         overrides = { amount: parseFloat(budgetAmount) || data.new_amount }
       } else if (data.action === 'categorize_with_rule') {
         overrides = { payee: payee || data.payee, category_name: selectedCategory || data.category_name, create_rule: createRule }
+      } else if (data.action === 'set_fire_model') {
+        overrides = {
+          years_to_transition: parseFloat(fireYearsToTransition),
+          years_in_retirement: parseFloat(fireYearsInRetirement),
+          monthly_contribution: parseFloat(fireMonthlyContribution),
+          accumulation_return: parseFloat(fireAccumulationReturn) / 100,
+          decumulation_return: parseFloat(fireDecumulationReturn) / 100,
+          desired_monthly_spend: parseFloat(fireDesiredMonthlySpend),
+        }
       }
       const result = await confirmCategoryAction(data.id, overrides as any)
       onConfirmed(result.message)
@@ -51,12 +69,13 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const isCategorizeWithRule = data.action === 'categorize_with_rule'
   const isSetBudgetCarryover = data.action === 'set_budget_carryover'
   const isBankResync = data.action === 'bank_resync'
+  const isSetFireModel = data.action === 'set_fire_model'
 
   return (
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
       <div>
         <p className="text-white font-medium">
-          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetBudget ? 'Set budget amount?' : isCategorizeWithRule ? 'Categorize transactions?' : isSetBudgetCarryover ? `${data.enabled ? 'Enable' : 'Disable'} rollover overspending?` : isBankResync ? 'Resync bank account?' : 'Rename category?'}
+          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetBudget ? 'Set budget amount?' : isCategorizeWithRule ? 'Categorize transactions?' : isSetBudgetCarryover ? `${data.enabled ? 'Enable' : 'Disable'} rollover overspending?` : isBankResync ? 'Resync bank account?' : isSetFireModel ? 'Update FIRE assumptions?' : 'Rename category?'}
         </p>
         {isSetBudgetCarryover && (
           <p className="text-muted text-sm mt-0.5">
@@ -98,7 +117,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
             ))}
           </div>
         )}
-        {!isDelete && !isCreate && !isSetBudget && !isCategorizeWithRule && !isSetBudgetCarryover && !isBankResync && (
+        {!isDelete && !isCreate && !isSetBudget && !isCategorizeWithRule && !isSetBudgetCarryover && !isBankResync && !isSetFireModel && (
           <p className="text-muted text-sm mt-0.5">
             <span className="text-white">{data.category_name}</span>
             {' → '}
@@ -220,13 +239,75 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         </div>
       )}
 
+      {isSetFireModel && data.current && data.new && (
+        <div className="space-y-3">
+          <p className="text-muted text-xs">All values are editable — change any before confirming.</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <p className="text-muted text-xs">Years to transition</p>
+              <input
+                type="number" min="0" step="0.5"
+                value={fireYearsToTransition}
+                onChange={e => setFireYearsToTransition(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              />
+            </div>
+            <div className="space-y-1">
+              <p className="text-muted text-xs">Years in retirement</p>
+              <input
+                type="number" min="0" step="0.5"
+                value={fireYearsInRetirement}
+                onChange={e => setFireYearsInRetirement(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              />
+            </div>
+            <div className="space-y-1">
+              <p className="text-muted text-xs">Monthly contribution (€)</p>
+              <input
+                type="number" min="0" step="10"
+                value={fireMonthlyContribution}
+                onChange={e => setFireMonthlyContribution(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              />
+            </div>
+            <div className="space-y-1">
+              <p className="text-muted text-xs">Desired monthly spend (€)</p>
+              <input
+                type="number" min="0" step="50"
+                value={fireDesiredMonthlySpend}
+                onChange={e => setFireDesiredMonthlySpend(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              />
+            </div>
+            <div className="space-y-1">
+              <p className="text-muted text-xs">Accumulation return (%)</p>
+              <input
+                type="number" min="0" max="100" step="0.1"
+                value={fireAccumulationReturn}
+                onChange={e => setFireAccumulationReturn(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              />
+            </div>
+            <div className="space-y-1">
+              <p className="text-muted text-xs">Decumulation return (%)</p>
+              <input
+                type="number" min="0" max="100" step="0.1"
+                value={fireDecumulationReturn}
+                onChange={e => setFireDecumulationReturn(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <ActionCardButtons
         onConfirm={handleConfirm}
         onCancel={handleCancel}
         loading={loading}
         variant={isDelete ? 'danger' : 'default'}
         confirmDisabled={(isCreate && !categoryName) || (isSetBudget && !budgetAmount) || (isCategorizeWithRule && (!payee || !selectedCategory))}
-        confirmLabel={isDelete ? 'Delete' : isCreate ? 'Create' : isSetBudget ? 'Set budget' : isCategorizeWithRule ? 'Categorize' : isSetBudgetCarryover || isBankResync ? 'Confirm' : 'Rename'}
+        confirmLabel={isDelete ? 'Delete' : isCreate ? 'Create' : isSetBudget ? 'Set budget' : isCategorizeWithRule ? 'Categorize' : isSetBudgetCarryover || isBankResync || isSetFireModel ? 'Confirm' : 'Rename'}
       />
     </div>
   )

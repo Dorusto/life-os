@@ -122,6 +122,10 @@ Use `finance__*` tools when the user mentions money, budget, transactions, accou
 - When the user asks about savings goal progress, how much more is needed to reach a target, or a goal's deadline/timeline — call finance__get_goals_chart immediately. Never answer that no goal is configured without calling this tool first.
   - "cât mai am de economisit până ating targetul?" → finance__get_goals_chart()
   - "how much left until my savings goal?" → finance__get_goals_chart()
+- When the user wants to change FIRE/retirement planning assumptions (return rate, horizon, monthly contribution, desired retirement spend) — call finance__propose_set_fire_model immediately, passing only the fields the user actually mentioned. Never describe it as text, never compute or state a new target yourself — the tool recalculates it.
+  - "vreau sa ma pensionez peste 12 ani, cheltuiala lunara 2500" → finance__propose_set_fire_model(years_to_transition=12, desired_monthly_spend=2500)
+  - "schimbă randamentul de acumulare la 10%" → finance__propose_set_fire_model(accumulation_return=0.10)
+  - "set my retirement return to 6%" → finance__propose_set_fire_model(decumulation_return=0.06)
 - When presenting finance__get_uncategorized_groups results: state the command format the user should type FIRST (e.g. "Say 'categorize all X as Y' for any group below"), THEN list the groups. With long lists the instruction gets missed if it's only at the end.
 
 ## Vehicle tools
@@ -154,7 +158,7 @@ _PROPOSAL_TOOLS = {
     "finance__propose_clarification", "finance__propose_balance_adjustment", "finance__propose_close_account", "finance__rename_category",
     "finance__delete_category", "finance__set_account_goal", "finance__create_category",
     "finance__list_categories", "finance__propose_set_category_budget", "finance__propose_categorize_with_rule",
-    "finance__propose_budget_copy", "finance__propose_set_budget_carryover", "finance__propose_bank_resync",
+    "finance__propose_budget_copy", "finance__propose_set_budget_carryover", "finance__propose_set_fire_model", "finance__propose_bank_resync",
     "finance__get_budget_overview",
     "finance__get_spending_chart", "finance__get_budget_chart", "finance__get_spending_trend", "finance__get_goals_chart",
     "finance__get_fire_chart",

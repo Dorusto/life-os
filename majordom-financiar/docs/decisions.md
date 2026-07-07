@@ -383,7 +383,35 @@ Both exist for categories today (structure via `CategoryOverviewCard`, amounts v
 
 ### FIRE % on Home
 
+**Superseded by:** "FIRE / Portfolio Independence — yield source" and the 2026-07-07 Home redesign issues (#163/#164, formula-rewrite issue tracked separately).
+
 **Decision (implemented):** v1 via AB off-budget accounts — sum of off-budget accounts excluding real estate/mortgage. Hardcoded target and contribution for now. Revisit when Sure investment data is available (M5).
+
+---
+
+### FIRE / Portfolio Independence — yield source
+
+**Date:** 2026-07-07
+
+**Question:** should the return rate used in the FIRE/Portfolio Independence projection be (1) a pure user-set hypothetical, (2) derived from the user's own historical realized portfolio performance, or (3) a forward-looking projection per ETF/asset class the way brokers/robo-advisors do it (published Capital Market Assumptions)?
+
+**Decision:** hybrid of (1) and (2). The rate used in any projection is always a user-editable input — never silently substituted. The *default/suggested* starting value is seeded from the user's own historical realized performance via Ghostfolio (which already computes portfolio performance natively, per the M5 Ghostfolio decision) once that data is wired in; until then, a generic illustrative default is used and clearly presented as such.
+
+**Rejected:** option (3), forward-looking per-ETF/asset-class projections. Predicting specific securities' future returns crosses into regulated investment-advice territory and contradicts the "coach, not consultant" principle (see that entry above) — also requires an external Capital Market Assumptions data source that goes stale and needs continuous upkeep, disproportionate for a personal tool.
+
+**Applies to:** the FIRE formula rewrite (2-phase accumulation/decumulation, glide path) issue, and the existing `_calc_fire()` in `backend/core/actual_client/client.py`.
+
+---
+
+### Income classification (passive/semi-passive/active) — granularity
+
+**Date:** 2026-07-07
+
+**Decision:** classified per **income category** (e.g. "Rental Income"), stored the same way as goal metadata — a parsed tag in Actual Budget's `Categories.notes` field (`actualpy`'s `Categories` model has a native `notes` field; `Payees` does not, ruling out a per-payee approach without a new mechanism). No SQLite table, no per-payee granularity for now — matches the existing `TARGET:`/`DEADLINE:` note-parsing pattern used for goals (`_compute_goal_progress()`).
+
+**Why not per-payee:** `Payees` has no `notes` field in `actualpy`, and per-payee granularity isn't needed yet — confirmed with Doru. Revisit only if a real case appears where one category mixes clearly passive and clearly active income sources.
+
+**Applies to:** the Expense Coverage (Coast/Barista FIRE) issue.
 
 ---
 
@@ -570,3 +598,44 @@ life-os/
 **Rejected:** having period-switcher buttons re-send a synthetic chat message (e.g. "last 5 years") instead of a dedicated REST endpoint — would've needed zero new backend routes, but costs an LLM call and a visible new chat bubble for what the user experiences as a simple in-place UI control.
 
 **Not done this session:** distance/consumption custom range is day-level for vehicle charts specifically because fill-ups are logged at arbitrary dates; budget/spending intentionally stayed month-level rather than being generalized to day-level too, since Actual Budget's own budgeting model is monthly — a day-range picker there would imply a precision the underlying data doesn't have.
+
+---
+
+### Coach, not consultant — principle for the intelligence module
+
+**Date:** 2026-07-07
+
+**Decision:** Any feature that projects or infers something about the user's financial future (FIRE/Portfolio Independence projections, Expense Coverage, budget calibration, goal proposals) presents itself as a hypothesis computed from the user's own explicit inputs and assumptions ("with your current assumptions, projection shows X") — never as investment advice or a recommended strategy. Applies to every `intelligence-cluster`-labeled issue, present and future — check this entry before writing any projection/recommendation logic.
+
+**Why:** Majordom is a personal tool, not a licensed financial advisor. Recommending specific strategies or predicting returns per instrument crosses into regulated advice territory and risks false confidence in numbers that are fundamentally assumptions. Surfaced concretely in the 2026-07-07 Home redesign discussion (Claude web, brought into Claude Code for implementation) around the Portfolio Independence projected-return question: is the yield hypothetical, user-set, derived from the user's own historical performance, or a forward-looking per-ETF projection (the way brokers/robo-advisors do it via published Capital Market Assumptions)? Landed on: always a user-editable input, optionally seeded from the user's own realized performance, never a forward-looking prediction tied to specific securities — that's deliberately out of scope.
+
+**Mechanism, for any new intelligence-cluster issue:**
+1. Any numeric assumption used in a projection (return rate, inflation, retirement age) is a user-editable input — never silently computed or injected without the user seeing/adjusting it.
+2. A shown default/suggested value must be sourced from the user's own historical/observed data (e.g. Ghostfolio's realized portfolio performance, once available) or clearly flagged as a generic illustrative default — never a forward-looking claim about specific securities/ETFs.
+3. The underlying questions (horizon, inheritance intent, risk comfort, income classification) are asked conversationally, spread across multiple natural sessions — never as a single upfront form (consistent with the already-rejected M2 onboarding wizard).
+
+**Applies to:** all `intelligence-cluster`-labeled issues.
+
+---
+
+### Public demo — architecture (VPS, separate from personal instance)
+
+**Date:** 2026-07-07
+
+**Decision:** a public demo instance is a fully separate deployment, not a mode flag on the personal instance:
+- **Own LXC/VPS** — external VPS (not the home LXC), own dedicated demo domain, kept off the existing personal domain. Isolates network/bandwidth risk from the home setup and doubles as a demonstration of the already-planned VPS consulting service.
+- **Actual Budget fully invisible, technically, not just in the UI** — AB and the Majordom backend talk only over the internal Docker network; no AB port is ever exposed publicly.
+- **Fictitious persona/data**, never Doru's real data (see "confidentiality directive" below — applies to docs too, not just the demo).
+- **Concurrent visitors:** writes/confirmations in the demo are visually confirmed only, never actually persisted — per-visitor isolation was considered and rejected as too complex. Chat itself stays real (reads the fictitious seed data), only the write/confirm step is faked.
+- **Reset:** nightly Btrfs snapshot restore (simple, matches existing backup mechanism) rather than a separate "fake write" storage layer.
+- **Model:** Gemini 2.5 Flash Lite via Google Vertex EU — cheaper (~3x) than MiniMax M3, already proven in production, EU data processing (simpler sovereignty story for the target audience). Explicitly not an OpenRouter `:free` model (throttling risk exactly at traffic peaks). MiniMax stays for private empirical testing only, not the public demo.
+- **EnableBanking fully disabled** in the demo (no real bank connections, ever).
+- **Rate limiting:** Cloudflare, same pattern already used for EnableBanking.
+- **Mandatory disclaimer**, shown before any input: data goes to a named public AI model, not processed locally — explicit "don't enter real data" warning.
+- **Access:** Cloudflare Access Service Tokens for the Majordom PWA itself (non-interactive, no login popup loop); interactive email/OTP Access stays fine for occasional browser-only access (e.g. Proxmox).
+- **Mobile:** PWA is already responsive: receipt photos from phone work without extra effort.
+- **"Bonuri NL vs. audiență RO" framing:** works with receipts in any language/format — a selling point, not a weakness to hide.
+
+**Why now, documented but not yet built:** captured during the 2026-07-07 Home redesign session so the architecture isn't re-derived later; actual build is deliberately sequenced after Ghostfolio (#4) and the Home redesign issues (#163-#167) land — the demo should show the finished product, not an in-progress one.
+
+**Trigger to build:** see the "Public demo on a VPS" GitHub issue — blocked on Ghostfolio (#4) and the Home redesign batch.

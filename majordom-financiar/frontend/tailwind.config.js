@@ -19,6 +19,20 @@ export default {
         'muted-2':  '#52525B',   // even more muted
         success:    '#22C55E',   // green-500
         danger:     '#EF4444',   // red-500
+
+        // Semantic Card-system tokens (2026-07-07 Home redesign) — one role per
+        // color, used by the shared <Card>/<InfoIcon> system and anything built
+        // against the Financial Goals mockup. `accent`/`success` above are the
+        // pre-existing app-wide colors (buttons, links, etc.) and are intentionally
+        // left untouched for now rather than mass-renamed — see docs/decisions.md.
+        positive:        '#22C55E', // motivational/positive (on-track, goal progress)
+        'positive-dim':  '#1D3D2C',
+        attention:       '#E8A838', // attention/warning (near-limit, behind schedule)
+        'attention-dim': '#3D3320',
+        info:            '#4F8EF7', // informational/neutral metric
+        'info-dim':      '#1C2C47',
+        interactive:     '#8B7BF0', // chat/CTA/active-tab accent for the new Card system
+        'interactive-dim': '#241F47',
       },
       fontFamily: {
         // System font stack — no web font download, fast, looks native on iOS/Android

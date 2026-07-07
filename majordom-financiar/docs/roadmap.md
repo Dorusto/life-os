@@ -60,8 +60,11 @@ For Actual Budget integration details (split transactions, multi-currency, credi
 | 2.5 | Budget calibration (reframed from "goal proposal" — see `docs/decisions.md#budget-calibration`): compare real spending vs. budget, propose corrections + sinking funds | 🔲 See [#110](https://github.com/Dorusto/life-os/issues/110), [#111](https://github.com/Dorusto/life-os/issues/111) |
 | 2.6 | FIRE widget on Home screen (off-budget accounts vs target) | ✅ |
 | 2.7 | Charts inline in chat | ✅ |
-
-Home screen pending (after M2.5): FIRE % as 3rd metric card, Obligations section (needs decision first — see [docs/decisions.md](decisions.md)).
+| 2.8 | Home redesign: design tokens + `<Card>`/`<InfoIcon>` | ✅ See [#163](https://github.com/Dorusto/life-os/issues/163) |
+| 2.9 | Home redesign: Portfolio Independence card | ✅ See [#164](https://github.com/Dorusto/life-os/issues/164) |
+| 2.10 | Home redesign: FIRE model rewrite (2-phase, chat-editable) | ✅ See [#166](https://github.com/Dorusto/life-os/issues/166) |
+| 2.11 | Home redesign: Home polish (empty states, sync icon, budget period nav) | 🔲 See [#165](https://github.com/Dorusto/life-os/issues/165) |
+| 2.12 | Home redesign: Expense Coverage (Coast/Barista FIRE) | 🔲 See [#167](https://github.com/Dorusto/life-os/issues/167) |
 
 ### ✅ M3 — Vehicle Management (Fuelio replacement)
 | # | Feature | Status |
@@ -129,13 +132,13 @@ Tool layer decoupled from ActualBudgetClient via Protocol. `FINANCE_BACKEND=sure
 
 ### 🔲 M5 — Integrations (Ghostfolio + Portfolio)
 
-**Platform decision (2026-07-05, supersedes the 2026-06-03 "Sure replaces Ghostfolio" call):** stay on **AB + Ghostfolio** — AB is the budgeting source of truth, Ghostfolio handles portfolio tracking. Sure was evaluated live and not adopted (partial budget parity, no API-level budget/goal writes). Not a permanent close-out — a monthly routine re-checks Sure against concrete criteria and opens a `sure-migration` issue only if the gap closes. Full rationale, evaluation results, and criteria: `docs/decisions.md#ghostfolio-vs-sure-portfolio-comparison`.
+Platform: AB + Ghostfolio — see `docs/decisions.md#ghostfolio-vs-sure-portfolio-comparison`.
 
 | # | Feature | Status |
 |---|---------|--------|
 | 5.1 | portfolio-bridge: Bitvavo → Ghostfolio | 🔲 See [#4](https://github.com/Dorusto/life-os/issues/4) — blocked on Ghostfolio homelab deploy (infra step, not yet done) |
 | 5.2 | FinanceProvider abstraction in Majordom | ✅ |
-| 5.3 | ~~Switch Majordom → Sure backend~~ | ⛔ not pursued for now — AB stays source of truth, see platform decision above |
+| 5.3 | ~~Switch Majordom → Sure backend~~ | ⛔ not pursued for now — see `docs/decisions.md#ghostfolio-vs-sure-portfolio-comparison` |
 | 5.4 | Crypto tracker with sell alert | 🔲 See [#44](https://github.com/Dorusto/life-os/issues/44) |
 | 5.5 | Trading 212 sync (→ Ghostfolio) | 🔲 |
 | 5.6 | XTB sync (→ Ghostfolio) | 🔲 |
@@ -143,6 +146,7 @@ Tool layer decoupled from ActualBudgetClient via Protocol. `FINANCE_BACKEND=sure
 | 5.8 | Child portfolio dashboard | 🔲 See [#45](https://github.com/Dorusto/life-os/issues/45) |
 | 5.9 | Freelance / ZZP dashboard | ✅ Done 2026-07-03, see [#126](https://github.com/Dorusto/life-os/issues/126) |
 | 5.10 | Joint / couple budget | 🔲 See [#46](https://github.com/Dorusto/life-os/issues/46) |
+| 5.11 | Public demo on a VPS | 🔲 See [#168](https://github.com/Dorusto/life-os/issues/168) |
 
 ---
 

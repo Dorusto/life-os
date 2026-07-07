@@ -254,10 +254,15 @@ export interface FireData {
   fire_target: number
   fire_pct: number
   fire_pct_prev: number
-  months_remaining: number
-  projected_2035: number
-  on_track: boolean
   monthly_contribution: number
+  estimated_year: number | null
+  trend_months: number | null
+  accumulation_return: number
+  decumulation_return: number
+  years_to_transition: number
+  years_in_retirement: number
+  desired_monthly_spend: number
+  is_default_assumptions: boolean
 }
 
 // --- Stats ---
@@ -743,9 +748,18 @@ export async function cancelCloseAccount(id: string): Promise<void> {
 
 // --- Category actions ---
 
+export interface FireModelValues {
+  years_to_transition: number
+  years_in_retirement: number
+  monthly_contribution: number
+  accumulation_return: number
+  decumulation_return: number
+  desired_monthly_spend: number
+}
+
 export interface CategoryActionData {
   id: string
-  action: 'rename' | 'delete' | 'create' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'bank_resync'
+  action: 'rename' | 'delete' | 'create' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'bank_resync' | 'set_fire_model'
   category_name: string
   new_name?: string
   group_name?: string
@@ -772,11 +786,19 @@ export interface CategoryActionData {
   // bank_resync fields:
   account_name?: string
   last_sync?: string | null
+  // set_fire_model fields:
+  current?: FireModelValues
+  new?: FireModelValues
 }
 
 export async function confirmCategoryAction(
   id: string,
-  override?: { target?: number; deadline?: string | null; category_name?: string; group_name?: string; amount?: number; payee?: string; create_rule?: boolean; category_amounts?: Record<string, number> }
+  override?: {
+    target?: number; deadline?: string | null; category_name?: string; group_name?: string;
+    amount?: number; payee?: string; create_rule?: boolean; category_amounts?: Record<string, number>;
+    years_to_transition?: number; years_in_retirement?: number; monthly_contribution?: number;
+    accumulation_return?: number; decumulation_return?: number; desired_monthly_spend?: number;
+  }
 ): Promise<{ message: string; monthly_needed?: number | null }> {
   return request(`/category-actions/${id}/confirm`, {
     method: 'POST',

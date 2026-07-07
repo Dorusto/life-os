@@ -421,6 +421,43 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__propose_set_fire_model",
+            "description": "Update FIRE/retirement planning assumptions (return rates, horizon, contribution, desired retirement spend). All parameters optional — pass only what the user mentioned. Shows a confirmation card with all current assumptions before writing anything.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "years_to_transition": {
+                        "type": "number",
+                        "description": "Years until retirement / financial independence (accumulation phase).",
+                    },
+                    "years_in_retirement": {
+                        "type": "number",
+                        "description": "Expected years in retirement (decumulation phase).",
+                    },
+                    "monthly_contribution": {
+                        "type": "number",
+                        "description": "Monthly contribution to investment portfolio in EUR.",
+                    },
+                    "accumulation_return": {
+                        "type": "number",
+                        "description": "Expected annual return during accumulation phase, as a decimal (e.g. 8% = 0.08).",
+                    },
+                    "decumulation_return": {
+                        "type": "number",
+                        "description": "Expected annual return during decumulation/retirement phase, as a decimal (e.g. 6% = 0.06).",
+                    },
+                    "desired_monthly_spend": {
+                        "type": "number",
+                        "description": "Desired monthly spending in retirement in EUR.",
+                    },
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "finance__propose_bank_resync",
             "description": (
                 "Propose triggering a live bank re-sync for an account that has a real bank "
@@ -1082,6 +1119,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "finance__propose_set_budget_carryover":
         from backend.tools.finance.actual_budget import propose_set_budget_carryover
         return await propose_set_budget_carryover(**arguments)
+
+    if name == "finance__propose_set_fire_model":
+        from backend.tools.finance.actual_budget import propose_set_fire_model
+        return await propose_set_fire_model(**arguments)
 
     if name == "finance__rename_category":
         from backend.tools.finance.actual_budget import rename_category

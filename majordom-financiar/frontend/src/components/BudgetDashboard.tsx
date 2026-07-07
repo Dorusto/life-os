@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { BudgetCategory } from '../lib/api'
+import Card from './Card'
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -89,10 +90,7 @@ export default function BudgetDashboard({ categories, month, year }: Props) {
   }
 
   return (
-    <div
-      className="bg-surface border border-border rounded-2xl overflow-hidden"
-      style={{ borderTopColor: '#6366F1', borderTopWidth: '3px' }}
-    >
+    <Card variant="accordion">
     <div className="p-4">
       {/* Header */}
       <div className="flex items-start justify-between mb-4">
@@ -163,7 +161,7 @@ export default function BudgetDashboard({ categories, month, year }: Props) {
         </div>
       )}
     </div>
-    </div>
+    </Card>
   )
 }
 

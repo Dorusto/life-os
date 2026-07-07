@@ -25,6 +25,13 @@ class GoalOverride(BaseModel):
     payee: str | None = None
     create_rule: bool | None = None
     category_amounts: dict[str, float] | None = None  # budget_copy: category_id -> edited amount
+    # FIRE model overrides
+    years_to_transition: float | None = None
+    years_in_retirement: float | None = None
+    monthly_contribution: float | None = None
+    accumulation_return: float | None = None
+    decumulation_return: float | None = None
+    desired_monthly_spend: float | None = None
 
 
 @router.post("/category-actions/{action_id}/confirm")
@@ -148,6 +155,52 @@ async def confirm_category_action(
             acc_name = action["account_name"]
             count = await client.run_bank_resync(acc_name)
             message = f"Resynced '{acc_name}' — {count} new transaction{'s' if count != 1 else ''} imported."
+        elif action["action"] == "set_fire_model":
+            import json
+            from backend.core.config import settings
+            from backend.core.memory.database import MemoryDB
+
+            # Merge override values onto the proposed "new" values
+            merged = dict(action["new"])
+            if override.years_to_transition is not None:
+                merged["years_to_transition"] = override.years_to_transition
+            if override.years_in_retirement is not None:
+                merged["years_in_retirement"] = override.years_in_retirement
+            if override.monthly_contribution is not None:
+                merged["monthly_contribution"] = override.monthly_contribution
+            if override.accumulation_return is not None:
+                merged["accumulation_return"] = override.accumulation_return
+            if override.decumulation_return is not None:
+                merged["decumulation_return"] = override.decumulation_return
+            if override.desired_monthly_spend is not None:
+                merged["desired_monthly_spend"] = override.desired_monthly_spend
+
+            db = MemoryDB(settings.memory.db_path)
+            db.set_preference("fire_model", json.dumps(merged))
+
+            # Build a summary of what changed
+            current = action["current"]
+            changed_parts = []
+            for key in ("years_to_transition", "years_in_retirement", "monthly_contribution",
+                        "accumulation_return", "decumulation_return", "desired_monthly_spend"):
+                old_val = current.get(key)
+                new_val = merged[key]
+                if old_val != new_val:
+                    if key in ("accumulation_return", "decumulation_return"):
+                        changed_parts.append(f"{key.replace('_', ' ')} {old_val*100:.0f}% → {new_val*100:.0f}%")
+                    elif key == "desired_monthly_spend":
+                        changed_parts.append(f"desired monthly spend €{old_val:.0f} → €{new_val:.0f}")
+                    elif key == "monthly_contribution":
+                        changed_parts.append(f"monthly contribution €{old_val:.0f} → €{new_val:.0f}")
+                    elif key == "years_to_transition":
+                        changed_parts.append(f"horizon {old_val:.0f}y → {new_val:.0f}y")
+                    elif key == "years_in_retirement":
+                        changed_parts.append(f"retirement {old_val:.0f}y → {new_val:.0f}y")
+
+            if changed_parts:
+                message = "FIRE assumptions updated: " + ", ".join(changed_parts) + "."
+            else:
+                message = "No changes made."
         else:
             raise HTTPException(status_code=400, detail=f"Unknown action: {action['action']}")
     except ValueError as e:

@@ -8,6 +8,12 @@ NC='\033[0m'
 
 ERRORS=0
 STAGED=$(git diff --cached -U0 | grep '^+' | grep -v '^+++')
+# Ad-hoc self-check (not just the pre-commit gate): if nothing is staged yet,
+# fall back to the unstaged working-tree diff so this is runnable mid-session,
+# right after editing a tracked doc, before it's ever staged or committed.
+if [[ -z "$STAGED" ]]; then
+    STAGED=$(git diff -U0 | grep '^+' | grep -v '^+++')
+fi
 
 check() {
     local description="$1"
@@ -23,7 +29,21 @@ check() {
 
 echo "🔍 Scanning staged changes for private data..."
 
-# License plates — Dutch and Romanian formats, hyphen or space separator
+# License plates — Dutch and Romanian formats, hyphen or space separator.
+# Known false-positive patterns (don't reach for --no-verify, rephrase the
+# triggering text instead — see docs/sessions/2026-W27.md and 2026-W28.md):
+#   - ordinary English text shaped like "<2 digits> for <1 digit>" (a decimal
+#     fraction spelled out next to its percentage, for instance) — matches
+#     the 3rd alternative below (digit-pair + 3-letter word + digit).
+#   - Tailwind classes where a short letter-only class sits next to a
+#     numeric-width class next to another letter-only class.
+#   - Romanian text with diacritics (î/ă/ș/ț) piped through `echo | grep -P`
+#     (not read from a file) can shift multi-byte UTF-8 boundaries and
+#     produce a match that doesn't reproduce when testing the same text
+#     via a file — confirmed 2026-07-07, root cause not fully understood,
+#     but real license plates never carry diacritics, so rephrasing the
+#     surrounding text (or dropping diacritics from illustrative examples)
+#     is a safe, low-cost workaround.
 check "License plate"              '\b(\d{2}[\s-][A-Z]{2}[\s-][A-Z]{2}|[A-Z]{2}[\s-]\d{3}[\s-][A-Z]|\d{2}[\s-][A-Z]{3}[\s-]\d|\d[\s-][A-Z]{3}[\s-]\d{2}|[A-Z][\s-]\d{3}[\s-][A-Z]{2}|[A-Z]{1,2}[\s-]\d{2,3}[\s-][A-Z]{2,3})\b'
 
 # IBAN

@@ -1,11 +1,12 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { LogOut, Bell, MoreVertical, Wallet, Database, Car, AlertCircle, ChevronRight } from 'lucide-react'
-import { getHomeData, getHomePending } from '../lib/api'
+import { getHomeData, getHomePending, type FireData } from '../lib/api'
 import { getUsername, clearAuth } from '../lib/auth'
 import { requestAndSubscribe } from '../lib/push'
 import BudgetDashboard from '../components/BudgetDashboard'
-import FireWidget from '../components/FireWidget'
+import Card from '../components/Card'
+import InfoIcon from '../components/InfoIcon'
 import { useState, useEffect, useRef } from 'react'
 
 const GOAL_COLORS = ['#F59E0B', '#3B82F6', '#22C55E', '#8B5CF6', '#EC4899']
@@ -27,12 +28,9 @@ export default function Home() {
   const [pendingExpanded, setPendingExpanded] = useState(false)
 
   const budgetStatus = homeData?.budget
-  const stats = homeData?.stats
   const goals = homeData?.goals
   const fireData = homeData?.fire
   const accountCount = homeData?.account_count
-  const cashflow = stats ? stats.income - stats.total : null
-  const cashflowTrend = stats && stats.prev_cashflow !== undefined ? cashflow! - stats.prev_cashflow : null
 
   function handleLogout() {
     clearAuth()
@@ -73,7 +71,6 @@ export default function Home() {
   }
 
   const now = new Date()
-  const monthName = now.toLocaleString('default', { month: 'long' })
 
   return (
     <div className="min-h-dvh bg-background flex flex-col overflow-y-auto">
@@ -216,27 +213,13 @@ export default function Home() {
         </section>
       ) : (
         <>
-          {/* Key metrics row */}
-          <section className="px-5 pt-4 pb-2">
-            <div className="grid grid-cols-2 gap-3">
-              <MetricCard
-                label="Cashflow"
-                sublabel={monthName}
-                value={cashflow}
-                format="currency"
-                highlight={cashflow !== null ? (cashflow >= 0 ? 'positive' : 'negative') : 'neutral'}
-                trend={cashflowTrend}
-              />
-              <FireWidget data={fireData ?? null} />
-            </div>
-          </section>
-
-          {/* Goals section — individual cards with colored borders */}
-          {goals && goals.length > 0 && (
-            <section className="px-5 pb-2">
+          {/* Financial Goals — Portfolio Independence (from FIRE data) first, then user goals */}
+          {(fireData || (goals && goals.length > 0)) && (
+            <section className="px-5 pt-4 pb-2">
               <p className="text-xs tracking-[0.2em] uppercase text-muted mb-4">Financial Goals</p>
               <div className="space-y-3">
-                {goals.map((goal, idx) => (
+                {fireData && <PortfolioIndependenceCard data={fireData} />}
+                {goals?.map((goal, idx) => (
                   <GoalCard key={goal.id} goal={goal} color={GOAL_COLORS[idx % GOAL_COLORS.length]} />
                 ))}
               </div>
@@ -288,115 +271,120 @@ function formatDeadline(deadline: string): string {
 
 function GoalCard({ goal, color }: GoalCardProps) {
   return (
-    <div
-      className="bg-surface border border-border rounded-2xl overflow-hidden"
-      style={{ borderTopColor: color, borderTopWidth: '3px' }}
-    >
-      <div className="px-4 pt-4 pb-3">
+    <Card accentColor={color} accentSide="left" className="!p-0">
+      <div className="px-4 py-4">
         {/* Row 1: name | target */}
-        <div className="flex items-start justify-between mb-1">
-          <p className="text-white font-semibold text-base">{goal.name}</p>
-          <div className="text-right">
-            <p className="font-display font-bold text-xl" style={{ color }}>
-              €{formatGoalAmount(goal.target)}
-            </p>
-            <p className="text-muted text-xs">
-              €{formatGoalAmount(goal.balance)} saved
-            </p>
-          </div>
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-white font-semibold text-[15px]">{goal.name}</p>
+          <p className="font-display font-bold text-lg tabular-nums flex-shrink-0" style={{ color }}>
+            €{formatGoalAmount(goal.target)}
+          </p>
         </div>
 
-        {/* Progress bar */}
-        <div className="relative w-full h-px bg-border/40 rounded-full overflow-hidden mt-3">
+        {/* Row 2: progress bar — hairline (3px), per Home redesign design system */}
+        <div className="relative w-full h-px bg-border/40 rounded-full overflow-hidden mt-3 mb-2.5">
           <div
             className="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
-            style={{
-              width: `${Math.min(goal.percentage, 100)}%`,
-              backgroundColor: color,
-            }}
+            style={{ width: `${Math.min(goal.percentage, 100)}%`, backgroundColor: color }}
           />
         </div>
 
-        {/* Bottom row: remaining | deadline/monthly */}
-        <div className="flex items-center justify-between mt-2">
-          <p className="text-muted text-xs">
-            Remaining{' '}
-            <span className="text-white font-mono tabular-nums">
-              €{formatGoalAmount(goal.target - goal.balance)}
-            </span>
-          </p>
-          <div className="text-right">
-            {goal.deadline && (
-              <p className="text-muted text-xs">
-                by <span className="text-white">{formatDeadline(goal.deadline)}</span>
-              </p>
-            )}
-            {goal.monthly_needed != null && goal.monthly_needed > 0 && (
-              <p className="text-xs font-mono tabular-nums" style={{ color }}>
-                €{formatGoalAmount(goal.monthly_needed)}/mo
-              </p>
-            )}
-            {(!goal.deadline) && (
-              <p className="text-xs font-mono tabular-nums" style={{ color }}>
-                {goal.percentage.toFixed(0)}%
-              </p>
-            )}
-          </div>
+        {/* Row 3: saved | monthly contribution */}
+        <div className="flex items-center justify-between text-xs text-muted">
+          <span>€{formatGoalAmount(goal.balance)} saved</span>
+          {goal.monthly_needed != null && goal.monthly_needed > 0 && (
+            <span>€{formatGoalAmount(goal.monthly_needed)}/mo</span>
+          )}
+        </div>
+
+        {/* Row 4: target date, or percentage if no deadline is set */}
+        <div className="text-right text-[11px] text-muted-2 mt-1.5">
+          {goal.deadline ? `target: ${formatDeadline(goal.deadline)}` : `${goal.percentage.toFixed(0)}%`}
         </div>
       </div>
-    </div>
+    </Card>
   )
 }
 
-interface MetricCardProps {
-  label: string
-  sublabel: string
-  value: number | null
-  format: 'currency' | 'percent'
-  highlight: 'positive' | 'negative' | 'neutral'
-  trend?: number | null
+function fmtK(n: number): string {
+  if (n >= 1000) return `€${Math.round(n / 1000)}k`
+  return `€${Math.round(n)}`
 }
 
-function MetricCard({ label, sublabel, value, format, highlight, trend }: MetricCardProps) {
-  const formatted = value === null
-    ? '—'
-    : format === 'currency'
-      ? formatCurrency(value)
-      : `${value.toFixed(1)}%`
-
-  const valueClass =
-    highlight === 'positive' ? 'text-emerald-400' :
-    highlight === 'negative' ? 'text-red-400' :
-    'text-white'
-
-  const topColor =
-    highlight === 'positive' ? '#22C55E' :
-    highlight === 'negative' ? '#EF4444' :
-    '#3B82F6'
+function PortfolioIndependenceCard({ data }: { data: FireData }) {
+  const color = '#4F8EF7' // info
+  const trend = data.trend_months
 
   return (
-    <div
-      className="bg-surface border border-border rounded-2xl px-4 py-4 overflow-hidden"
-      style={{ borderTopColor: topColor, borderTopWidth: '3px' }}
-    >
-      <p className={`font-display text-2xl font-bold tabular-nums ${valueClass}`}>{formatted}</p>
-      <p className="text-white text-sm font-medium mt-1">{label}</p>
-      <p className="text-muted text-xs">{sublabel}</p>
-      {trend !== null && trend !== undefined && (
-        <p className={`text-xs mt-1 ${trend > 0 ? 'text-emerald-400' : trend < 0 ? 'text-red-400' : 'text-muted'}`}>
-          {trend > 0 ? '↑' : trend < 0 ? '↓' : '→'} {formatCurrency(Math.abs(trend))} vs last month
-        </p>
-      )}
-    </div>
-  )
-}
+    <Card accentColor={color} accentSide="left" className="!p-0">
+      <div className="px-4 py-4">
+        {/* Row 1: name + info | percentage */}
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-white font-semibold text-[15px]">
+            Portfolio Independence
+            <InfoIcon title="Portfolio Independence">
+              <p className="mb-2">
+                Money saved to eventually live off investments alone, for a long stretch of time — not
+                forever, but for the years you've planned.
+              </p>
+              <p className="mb-2">
+                Counts your off-budget accounts (savings, brokerage, crypto) — your home and any mortgage
+                are excluded. Assumes a {(data.accumulation_return * 100).toFixed(0)}% return during
+                accumulation, {(data.decumulation_return * 100).toFixed(0)}% during retirement, and your
+                current {fmtK(data.monthly_contribution)}/mo contribution.
+              </p>
+              <p>
+                Target ({fmtK(data.fire_target)}) is the principal needed today to fund{' '}
+                {fmtK(data.desired_monthly_spend)}/mo for {data.years_in_retirement} years at{' '}
+                {(data.decumulation_return * 100).toFixed(0)}% return.
+              </p>
+              {data.is_default_assumptions && (
+                <p className="mt-2 text-yellow-400">
+                  These are placeholder assumptions — tell Majordom your real numbers in Chat to personalize this.
+                </p>
+              )}
+            </InfoIcon>
+          </p>
+          <p className="font-display font-bold text-lg tabular-nums flex-shrink-0" style={{ color }}>
+            {data.fire_pct.toFixed(0)}%
+          </p>
+        </div>
 
-function formatCurrency(value: number): string {
-  const abs = Math.abs(value)
-  const sign = value < 0 ? '−' : ''
-  if (abs >= 1_000_000) return `${sign}€${(abs / 1_000_000).toFixed(1)}M`
-  if (abs >= 1_000) return `${sign}€${(abs / 1_000).toFixed(1)}k`
-  return `${sign}€${abs.toFixed(0)}`
+        {/* Row 2: progress bar */}
+        <div className="relative w-full h-px bg-border/40 rounded-full overflow-hidden mt-3 mb-2.5">
+          <div
+            className="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
+            style={{ width: `${Math.min(data.fire_pct, 100)}%`, backgroundColor: color }}
+          />
+        </div>
+
+        {/* Row 3: saved | monthly contribution */}
+        <div className="flex items-center justify-between text-xs text-muted">
+          <span>{fmtK(data.fire_portfolio)} saved</span>
+          <span>{fmtK(data.monthly_contribution)}/mo</span>
+        </div>
+
+        {/* Row 4: target | estimated year + trend vs last month */}
+        <div className="flex items-center justify-between text-[11px] text-muted-2 mt-1.5">
+          <span>target ~{fmtK(data.fire_target)}</span>
+          <span>
+            {data.estimated_year ? `est. ${data.estimated_year}` : '—'}
+            {trend != null && trend !== 0 && (
+              <span className={`font-bold ml-1 ${trend > 0 ? 'text-positive' : 'text-danger'}`}>
+                {trend > 0 ? '▲' : '▼'}{Math.abs(trend)}mo
+              </span>
+            )}
+          </span>
+        </div>
+
+        {data.is_default_assumptions && (
+          <p className="text-[10px] text-yellow-500/70 mt-2 text-center">
+            Placeholder assumptions — set your real numbers in Chat
+          </p>
+        )}
+      </div>
+    </Card>
+  )
 }
 
 function getGreeting(): string {

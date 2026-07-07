@@ -22,7 +22,8 @@ Issue priority: GitHub Milestones + Labels, not a doc — see `majordom-financia
 - **One feature at a time**
 - **Do not store financial data in SQLite** — Actual Budget is the source of truth
 - **GitHub issues, commit messages, code comments** → English only
-- **No real names, license plates, Telegram IDs, or personal locations** in any public file
+- **No real names, license plates, Telegram IDs, personal locations, or personal domains/hostnames/IPs** in any tracked file (docs, decisions, GitHub issues) — this category has leaked into docs twice already (see `docs/sessions/` and git history for both incidents; deliberately not naming the actual leaked value again here — that would just recreate the same problem in the rule meant to prevent it). Illustrative examples in any doc must be generic/hypothetical, never the user's real data — the real data already lives in Actual Budget/`memory.db`/private config, it should never be duplicated into docs. When in doubt, genericize ("the personal domain", "the home LXC") instead of naming the real value.
+  - **Mechanism, not just a warning:** `scripts/check-private-data.sh` already exists as a pre-commit hook (`.git/hooks/pre-commit`) with a regex per known-sensitive pattern, and works as an ad-hoc self-check too (falls back to the unstaged working-tree diff when nothing is staged yet, added 2026-07-07 — the previous gap was that it only ever ran at commit time, after a leak was already visible mid-session). Run `bash scripts/check-private-data.sh` right after editing any tracked doc (`docs/decisions.md`, `docs/roadmap.md`, any `CLAUDE.md`, GitHub issue bodies before `gh issue create`/`edit`) — don't wait for the commit gate to catch it. If a new leak category is found, add a `check` line to that script rather than writing a separate one-off check — one scanner, not several.
 
 ---
 
