@@ -11,6 +11,8 @@ import BudgetDashboard from '../components/BudgetDashboard'
 import Chart, { type LineData } from '../components/Chart'
 import Card from '../components/Card'
 import InfoIcon from '../components/InfoIcon'
+import PageHeader from '../components/PageHeader'
+import IconButton from '../components/IconButton'
 import { useState, useEffect, useRef } from 'react'
 
 const GOAL_COLORS = ['#F59E0B', '#3B82F6', '#22C55E', '#8B5CF6', '#EC4899']
@@ -93,76 +95,67 @@ export default function Home() {
   return (
     <div className="min-h-dvh bg-background flex flex-col overflow-y-auto">
       {/* Header */}
-      <header className="flex items-center justify-between px-5 pt-14 pb-2 flex-shrink-0">
-        <div>
-          <p className="text-xs tracking-widest uppercase text-muted">{greeting}</p>
-          <h1 className="font-display text-3xl font-bold text-white capitalize">{username}</h1>
-        </div>
-        <div className="flex items-center">
-          <button
-            onClick={handleSync}
-            disabled={syncState === 'syncing'}
-            className="relative p-2 rounded-xl text-muted hover:text-white hover:bg-surface transition-colors disabled:opacity-60"
-            aria-label="Sync accounts"
-          >
-            <RefreshCw size={18} className={syncState === 'syncing' ? 'animate-spin' : ''} />
-            {syncState === 'failed' && (
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-danger" />
-            )}
-          </button>
-          <div className="relative ml-2" ref={menuRef}>
-            <button
-              onClick={() => setMenuOpen(o => !o)}
-              className="p-2 rounded-xl text-muted hover:text-white hover:bg-surface transition-colors"
-              aria-label="Menu"
-            >
-              <MoreVertical size={20} />
-            </button>
-            {menuOpen && (
-              <div className="absolute right-0 top-full mt-1 w-48 rounded-xl bg-surface border border-border shadow-lg z-50 overflow-hidden">
-                <a
-                  href={actualBudgetUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/5 transition-colors"
-                >
-                  <Wallet size={16} className="text-muted flex-shrink-0" />
-                  Actual Budget
-                </a>
-                <a
-                  href={`${origin}:8888`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/5 transition-colors"
-                >
-                  <Database size={16} className="text-muted flex-shrink-0" />
-                  Majordom Memory
-                </a>
-                <a
-                  href={`${origin}:8889`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={() => setMenuOpen(false)}
-                  className="flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/5 transition-colors"
-                >
-                  <Car size={16} className="text-muted flex-shrink-0" />
-                  Vehicle Manager
-                </a>
-                <div className="border-t border-border" />
-                <button
-                  onClick={handleLogout}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-white/5 transition-colors"
-                >
-                  <LogOut size={16} className="flex-shrink-0" />
-                  Log out
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
+      <PageHeader
+        label={greeting}
+        title={username ?? ''}
+        actions={
+          <>
+            <IconButton
+              icon={RefreshCw}
+              onClick={handleSync}
+              label="Sync accounts"
+              disabled={syncState === 'syncing'}
+              iconClassName={syncState === 'syncing' ? 'animate-spin' : ''}
+              badge={syncState === 'failed' ? <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-danger" /> : undefined}
+            />
+            <div className="relative" ref={menuRef}>
+              <IconButton icon={MoreVertical} onClick={() => setMenuOpen(o => !o)} label="Menu" />
+              {menuOpen && (
+                <div className="absolute right-0 top-full mt-1 w-48 rounded-xl bg-surface border border-border shadow-lg z-50 overflow-hidden">
+                  <a
+                    href={actualBudgetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/5 transition-colors"
+                  >
+                    <Wallet size={16} className="text-muted flex-shrink-0" />
+                    Actual Budget
+                  </a>
+                  <a
+                    href={`${origin}:8888`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/5 transition-colors"
+                  >
+                    <Database size={16} className="text-muted flex-shrink-0" />
+                    Majordom Memory
+                  </a>
+                  <a
+                    href={`${origin}:8889`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => setMenuOpen(false)}
+                    className="flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/5 transition-colors"
+                  >
+                    <Car size={16} className="text-muted flex-shrink-0" />
+                    Vehicle Manager
+                  </a>
+                  <div className="border-t border-border" />
+                  <button
+                    onClick={handleLogout}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-white/5 transition-colors"
+                  >
+                    <LogOut size={16} className="flex-shrink-0" />
+                    Log out
+                  </button>
+                </div>
+              )}
+            </div>
+          </>
+        }
+      />
 
       {/* Notification permission banner */}
       {notifState === 'default' && (

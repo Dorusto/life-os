@@ -308,6 +308,10 @@ Account-name matching for `propose_close_account` and `propose_balance_adjustmen
 
 Account-name matching for `propose_close_account` and `propose_balance_adjustment` shares `_match_account()` (`backend/tools/finance/actual_budget.py`): exact → partial substring, retried after stripping a trailing " account" word, because LLMs pass the whole phrase ("test account") when the account is just named "test".
 
+### 25. Shared `PageHeader`/`IconButton` — every page header, not a per-page reinvention
+
+Home, Chat, and ImportPage each hand-rolled their own `<header>` (different icon sizes — 18/20/22 —, different hover styles — rounded background vs. plain color change —, different alignment, different title typography) until Doru noticed the drift by comparing screenshots side by side. `frontend/src/components/PageHeader.tsx` (label + title + a right-aligned actions slot, optional `bordered`) and `frontend/src/components/IconButton.tsx` (one icon-button style — size, padding, rounded hover background, optional danger variant, optional badge overlay) are now the only way to build a page header. **Any new page header, or new icon-only button anywhere in the header, uses these two components — never a bespoke `<button>` with its own ad-hoc classes.** If a real need doesn't fit (e.g. a genuinely different size class), extend the shared component with a prop rather than opting out of it.
+
 ---
 
 ## Main Flows

@@ -9,6 +9,7 @@ import {
   type ImportResult,
 } from '../lib/api'
 import { matchAccountBySource } from '../lib/csvImportUtils'
+import PageHeader from '../components/PageHeader'
 
 // --- Types ---
 
@@ -176,10 +177,7 @@ export default function ImportPage({ initialFile, onDone }: ImportPageProps) {
   return (
     <div className="min-h-dvh bg-background flex flex-col pb-16">
       {/* Header */}
-      <header className="px-5 pt-14 pb-4 border-b border-border flex-shrink-0">
-        <p className="text-muted text-sm">Bank statements</p>
-        <h1 className="text-white text-xl font-semibold mt-0.5">Import CSV</h1>
-      </header>
+      <PageHeader label="Bank statements" title="Import CSV" bordered />
 
       {/* Step indicator */}
       {step < 4 && <StepIndicator current={step} />}

@@ -24,6 +24,8 @@ import VehicleLogActionCard from '../components/VehicleLogActionCard'
 import VehicleReminderCard from '../components/VehicleReminderCard'
 import VehicleStatusCard from '../components/VehicleStatusCard'
 import Chart from '../components/Chart'
+import PageHeader from '../components/PageHeader'
+import IconButton from '../components/IconButton'
 import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from '../lib/api'
 
 
@@ -543,28 +545,17 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
   return (
     <div className="h-dvh pb-16 bg-background flex flex-col">
       {/* Header */}
-      <header className="px-5 pt-[56px] pb-3 border-b border-border flex-shrink-0 flex items-end justify-between">
-        <div>
-          <p className="text-xs tracking-widest uppercase text-muted">Your financial advisor</p>
-          <h1 className="font-display text-3xl font-bold text-white mt-0.5 pb-1">Majordom</h1>
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleClearHistory}
-            className="text-muted hover:text-red-400 transition-colors p-1"
-            title="Clear chat history"
-          >
-            <Trash2 size={22} />
-          </button>
-          <button
-            onClick={() => setShowHelp(true)}
-            className="text-muted hover:text-white transition-colors p-1"
-            title="How to use Majordom"
-          >
-            <HelpCircle size={22} />
-          </button>
-        </div>
-      </header>
+      <PageHeader
+        label="Your financial advisor"
+        title="Majordom"
+        bordered
+        actions={
+          <>
+            <IconButton icon={Trash2} onClick={handleClearHistory} label="Clear chat history" variant="danger" />
+            <IconButton icon={HelpCircle} onClick={() => setShowHelp(true)} label="How to use Majordom" />
+          </>
+        }
+      />
 
       {/* Help modal */}
       {showHelp && (
