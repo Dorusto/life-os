@@ -777,8 +777,14 @@ def calc_monthly_needed(target: float, balance: float, deadline: str | None) -> 
     return round((target - balance) / months_remaining, 2)
 
 
-async def set_account_goal(account_name: str, target: float, deadline: str | None = None, note: str | None = None) -> str:
-    """Propose setting a savings goal. Returns a confirmation card — does NOT write yet."""
+async def set_account_goal(
+    account_name: str, target: float | None = None, deadline: str | None = None, note: str | None = None,
+) -> str:
+    """
+    Propose setting a savings goal, or updating one field (deadline/note) on an
+    existing goal without restating the target. Returns a confirmation card —
+    does NOT write yet.
+    """
     import uuid
     from difflib import get_close_matches
     from backend.tools import category_actions as action_store
@@ -789,6 +795,25 @@ async def set_account_goal(account_name: str, target: float, deadline: str | Non
     resolved = exact or (get_close_matches(account_name, all_names, n=1, cutoff=0.6) or [None])[0]
     if not resolved:
         return json.dumps({"type": "error", "message": f"Account not found: {account_name!r}. Available: {', '.join(all_names)}"})
+
+    # No target given (e.g. "just set the description") — fall back to the
+    # existing goal's target/deadline/note for whichever fields weren't passed,
+    # so a note-only update doesn't require restating the amount. Fixes a real
+    # crash found live: the LLM omitted target for a note-only request and the
+    # tool required it unconditionally.
+    if target is None:
+        existing = next((g for g in await client.get_goals() if g["name"] == resolved), None)
+        if not existing:
+            return json.dumps({
+                "type": "error",
+                "message": f"'{resolved}' has no goal set yet — a target amount is required to create one.",
+            })
+        target = existing["target"]
+        if deadline is None:
+            deadline = existing.get("deadline")
+        if note is None:
+            note = existing.get("note")
+
     balance = next(a.balance for a in accounts if a.name == resolved)
     monthly_needed = calc_monthly_needed(target, balance, deadline)
     action_id = uuid.uuid4().hex[:8]

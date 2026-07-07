@@ -297,6 +297,8 @@ TOOLS: list[dict] = [
                 "Propose setting or updating a savings goal for an account. "
                 "Use when the user says they want to save a target amount in an account, "
                 "e.g. 'set goal for ING Savings to €25,000' or 'I want to save €10k in Revolut by 2030'. "
+                "Also use to update just the deadline or description on an EXISTING goal — omit target "
+                "in that case, it carries over from the current goal automatically. "
                 "Returns a confirmation card — nothing is written until the user confirms."
             ),
             "parameters": {
@@ -308,7 +310,7 @@ TOOLS: list[dict] = [
                     },
                     "target": {
                         "type": "number",
-                        "description": "Target amount in EUR, always positive, e.g. 25000.",
+                        "description": "Target amount in EUR, always positive, e.g. 25000. Omit when only updating deadline/note on an existing goal.",
                     },
                     "deadline": {
                         "type": "string",
@@ -319,7 +321,7 @@ TOOLS: list[dict] = [
                         "description": "Optional short free-text purpose for the goal, e.g. 'trip to Scandinavia' or 'replace the car in ~5 years'. Shown in the goal card's info popup.",
                     },
                 },
-                "required": ["account_name", "target"],
+                "required": ["account_name"],
             },
         },
     },

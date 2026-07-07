@@ -117,7 +117,7 @@ export default function BudgetDashboard({ categories, month, year }: Props) {
           </p>
           {totalBudgeted > 0 && (
             <>
-              <div className="h-[3px] bg-border/40 rounded-full overflow-hidden mt-2.5 max-w-[180px]">
+              <div className="h-px bg-border/40 rounded-full overflow-hidden mt-2.5 max-w-[180px]">
                 <div
                   className="h-full rounded-full transition-all duration-500"
                   style={{ width: `${Math.min(pct, 100)}%`, backgroundColor: summaryColor }}

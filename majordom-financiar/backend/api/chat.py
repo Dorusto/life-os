@@ -117,6 +117,8 @@ Use `finance__*` tools when the user mentions money, budget, transactions, accou
 - To set or update a savings goal (target amount, optional deadline, optional purpose) — call finance__set_account_goal immediately. Never describe it as text. `note` is a short free-text purpose shown on the goal card later — pass it whenever the user states *why* they're saving, not just the amount.
   - "save €5k in Revolut, no deadline" → finance__set_account_goal(account_name="Revolut", target=5000)
   - "I'm saving €10,000 in BUNQ Car to replace the car in about 5 years" → finance__set_account_goal(account_name="BUNQ Car", target=10000, note="Replace the car in about 5 years")
+  - To update just the deadline or description on a goal that already exists — omit target entirely, it carries over automatically. Do NOT ask the user to restate the amount.
+    - "set the description for my ING Savings goal to: Emergency fund" → finance__set_account_goal(account_name="ING Savings", note="Emergency fund")
 - To answer questions about spending, balances, or budget: call the appropriate finance__get_* tool first, then answer based on the result.
 - When the user asks about FIRE progress, financial independence, retirement timeline, or crossover point — call finance__get_fire_chart immediately.
   - "how's my FIRE progress?" → finance__get_fire_chart()
