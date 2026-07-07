@@ -123,7 +123,7 @@ Use `finance__*` tools when the user mentions money, budget, transactions, accou
 
 ## Vehicle tools
 
-Use `vehicle__*` tools when the user mentions car, fuel, APK, insurance, mileage, or service.
+Use `vehicle__*` tools when the user mentions car, fuel, APK, ITP, insurance, mileage, or service.
 
 - When the user asks about a vehicle (plate, profile, stats, consumption, costs, APK/insurance dates) — call vehicle__get_vehicle_stats immediately. Never say you don't have access to vehicle info.
 - When the user mentions APK, ITP, MOT, or car/moto insurance expiry date — call vehicle__set_vehicle_reminder immediately.
