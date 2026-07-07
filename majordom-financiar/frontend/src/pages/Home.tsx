@@ -248,11 +248,11 @@ export default function Home() {
           <section className="px-5 pt-4 pb-2">
             <p className="text-xs tracking-[0.2em] uppercase text-muted mb-4">Financial Goals</p>
             <div className="space-y-3">
-              {fireData && <PortfolioIndependenceCard data={fireData} />}
+              {fireData && <PortfolioIndependenceCard data={fireData} navigate={navigate} />}
               {goals && goals.length > 0 ? (
                 <>
                   {goals.map((goal, idx) => (
-                    <GoalCard key={goal.id} goal={goal} color={GOAL_COLORS[idx % GOAL_COLORS.length]} />
+                    <GoalCard key={goal.id} goal={goal} color={GOAL_COLORS[idx % GOAL_COLORS.length]} navigate={navigate} />
                   ))}
                   <AddAnotherGoalRow navigate={navigate} />
                 </>
@@ -295,8 +295,10 @@ interface GoalCardProps {
     deadline?: string | null
     monthly_needed?: number | null
     months_remaining?: number | null
+    note?: string | null
   }
   color: string
+  navigate: NavigateFn
 }
 
 function formatDeadline(deadline: string): string {
@@ -305,13 +307,32 @@ function formatDeadline(deadline: string): string {
   return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
 }
 
-function GoalCard({ goal, color }: GoalCardProps) {
+function GoalCard({ goal, color, navigate }: GoalCardProps) {
   return (
     <Card accentColor={color} accentSide="left" className="!p-0">
       <div className="px-4 py-4">
-        {/* Row 1: name | target */}
+        {/* Row 1: name + info | target */}
         <div className="flex items-baseline justify-between gap-2">
-          <p className="text-white font-semibold text-[15px]">{goal.name}</p>
+          <p className="text-white font-semibold text-[15px]">
+            {goal.name}
+            <InfoIcon title={goal.name}>
+              {goal.note ? (
+                <p>{goal.note}</p>
+              ) : (
+                <>
+                  <p>No description set for this goal yet.</p>
+                  <button
+                    onClick={() => navigate('/chat', {
+                      state: { prefill: `Set the description for my ${goal.name} goal to: ` },
+                    })}
+                    className="mt-1.5 underline underline-offset-2 font-medium text-white"
+                  >
+                    Set a description →
+                  </button>
+                </>
+              )}
+            </InfoIcon>
+          </p>
           <p className="font-display font-bold text-lg tabular-nums flex-shrink-0" style={{ color }}>
             €{formatGoalAmount(goal.target)}
           </p>
@@ -347,7 +368,9 @@ function fmtK(n: number): string {
   return `€${Math.round(n)}`
 }
 
-function PortfolioIndependenceCard({ data }: { data: FireData }) {
+const FIRE_ASSUMPTIONS_PREFILL = 'I want to set my real retirement assumptions — timeline, monthly spend, and contribution.'
+
+function PortfolioIndependenceCard({ data, navigate }: { data: FireData; navigate: NavigateFn }) {
   const color = '#4F8EF7' // info
   const trend = data.trend_months
 
@@ -375,12 +398,19 @@ function PortfolioIndependenceCard({ data }: { data: FireData }) {
                 {(data.decumulation_return * 100).toFixed(0)}% return.
               </p>
               {data.is_default_assumptions && (
-                <p className="mt-2 text-yellow-400">
-                  "Placeholder" means these numbers aren't yours yet — they're generic defaults so the
-                  card has something to show before you've told Majordom your real plans. Say something
-                  like this in Chat to replace them: "I want to retire in 15 years, spending €2,500/month,
-                  contributing €600/month" — Majordom updates this card from whatever you mention.
-                </p>
+                <div className="mt-2 text-yellow-400">
+                  <p>
+                    "Placeholder" means these numbers aren't yours yet — they're generic defaults so the
+                    card has something to show before you've told Majordom your real plans. Tap below to
+                    open Chat and set your real timeline, monthly spend, and contribution.
+                  </p>
+                  <button
+                    onClick={() => navigate('/chat', { state: { prefill: FIRE_ASSUMPTIONS_PREFILL } })}
+                    className="mt-1.5 underline underline-offset-2 font-medium"
+                  >
+                    Set my real numbers →
+                  </button>
+                </div>
               )}
             </InfoIcon>
           </p>
@@ -417,9 +447,12 @@ function PortfolioIndependenceCard({ data }: { data: FireData }) {
         </div>
 
         {data.is_default_assumptions && (
-          <p className="text-[10px] text-yellow-500/70 mt-2 text-center">
+          <button
+            onClick={() => navigate('/chat', { state: { prefill: FIRE_ASSUMPTIONS_PREFILL } })}
+            className="w-full text-[10px] text-yellow-500/70 hover:text-yellow-400 mt-2 text-center underline underline-offset-2"
+          >
             Placeholder assumptions — set your real numbers in Chat
-          </p>
+          </button>
         )}
       </div>
     </Card>

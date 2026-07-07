@@ -19,6 +19,7 @@ router = APIRouter()
 class GoalOverride(BaseModel):
     target: float | None = None
     deadline: str | None = None
+    note: str | None = None
     category_name: str | None = None
     group_name: str | None = None
     amount: float | None = None
@@ -62,10 +63,12 @@ async def confirm_category_action(
 
             target = override.target if override.target is not None else action["target"]
             deadline = override.deadline if override.deadline is not None else action.get("deadline")
+            note = override.note if override.note is not None else action.get("note")
             await client.set_account_goal(
                 account_name=action["account_name"],
                 target=target,
                 deadline=deadline,
+                goal_note=note,
             )
             message = f"Goal set: {action['account_name']} → €{target:,.0f}"
             if deadline:

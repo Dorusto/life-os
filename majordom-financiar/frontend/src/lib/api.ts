@@ -540,6 +540,7 @@ export interface Goal {
   deadline?: string | null
   monthly_needed?: number | null
   months_remaining?: number | null
+  note?: string | null
 }
 
 // --- Home (unified endpoint) ---
@@ -836,6 +837,7 @@ export async function confirmCategoryAction(
     amount?: number; payee?: string; create_rule?: boolean; category_amounts?: Record<string, number>;
     years_to_transition?: number; years_in_retirement?: number; monthly_contribution?: number;
     accumulation_return?: number; decumulation_return?: number; desired_monthly_spend?: number;
+    note?: string | null;
   }
 ): Promise<{ message: string; monthly_needed?: number | null }> {
   return request(`/category-actions/${id}/confirm`, {

@@ -294,10 +294,10 @@ TOOLS: list[dict] = [
         "function": {
             "name": "finance__set_account_goal",
             "description": (
-                "Set or update a savings goal for an account. "
+                "Propose setting or updating a savings goal for an account. "
                 "Use when the user says they want to save a target amount in an account, "
                 "e.g. 'set goal for ING Savings to €25,000' or 'I want to save €10k in Revolut by 2030'. "
-                "Executes immediately — no confirmation needed."
+                "Returns a confirmation card — nothing is written until the user confirms."
             ),
             "parameters": {
                 "type": "object",
@@ -313,6 +313,10 @@ TOOLS: list[dict] = [
                     "deadline": {
                         "type": "string",
                         "description": "Optional deadline in YYYY-MM format, e.g. '2031-05'. Derive from user's stated timeframe.",
+                    },
+                    "note": {
+                        "type": "string",
+                        "description": "Optional short free-text purpose for the goal, e.g. 'trip to Scandinavia' or 'replace the car in ~5 years'. Shown in the goal card's info popup.",
                     },
                 },
                 "required": ["account_name", "target"],

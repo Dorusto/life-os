@@ -26,7 +26,12 @@ export default function InfoIcon({ title, children }: InfoIconProps) {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-end bg-black/60"
+          // Stacking index bumped a level above the bottom tab bar's own
+          // (equal, before this change): the tab bar sits later in the DOM,
+          // so at a tied stacking index it painted on top and intercepted
+          // taps on anything near the bottom of this sheet — found live
+          // while adding a tappable CTA near the bottom of this popup.
+          className="fixed inset-0 z-[60] flex items-end bg-black/60"
           style={{ touchAction: 'none' }}
           onClick={() => setOpen(false)}
         >
@@ -35,7 +40,7 @@ export default function InfoIcon({ title, children }: InfoIconProps) {
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-white font-semibold text-base">{title}</h2>
+              <h2 className="text-white font-semibold text-base">💡 What does this card mean?</h2>
               <button onClick={() => setOpen(false)} className="text-muted hover:text-white transition-colors">
                 <X size={18} />
               </button>

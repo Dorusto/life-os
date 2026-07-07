@@ -8,6 +8,7 @@ export interface GoalProposalData {
   target: number
   deadline?: string | null
   monthly_needed?: number | null
+  note?: string | null
 }
 
 interface Props {
@@ -19,6 +20,7 @@ interface Props {
 export default function GoalProposalCard({ data, onConfirmed, onCancelled }: Props) {
   const [target, setTarget] = useState(String(data.target))
   const [deadline, setDeadline] = useState(data.deadline ?? '')
+  const [note, setNote] = useState(data.note ?? '')
   const [loading, setLoading] = useState(false)
 
   async function handleConfirm() {
@@ -27,6 +29,7 @@ export default function GoalProposalCard({ data, onConfirmed, onCancelled }: Pro
       const result = await confirmCategoryAction(data.id, {
         target: parseFloat(target) || data.target,
         deadline: deadline || null,
+        note: note || null,
       })
       onConfirmed(result.message, result.monthly_needed)
     } catch (err) {
@@ -72,6 +75,18 @@ export default function GoalProposalCard({ data, onConfirmed, onCancelled }: Pro
           value={deadline}
           onChange={e => setDeadline(e.target.value)}
           className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm font-mono outline-none focus:border-accent"
+        />
+      </div>
+
+      {/* Editable purpose — shown later in the goal card's (i) info popup */}
+      <div className="space-y-1">
+        <p className="text-muted text-xs">Description <span className="text-muted/60">(optional)</span></p>
+        <input
+          type="text"
+          value={note}
+          onChange={e => setNote(e.target.value)}
+          placeholder="e.g. trip to Scandinavia"
+          className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
         />
       </div>
 

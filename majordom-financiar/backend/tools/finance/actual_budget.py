@@ -777,7 +777,7 @@ def calc_monthly_needed(target: float, balance: float, deadline: str | None) -> 
     return round((target - balance) / months_remaining, 2)
 
 
-async def set_account_goal(account_name: str, target: float, deadline: str | None = None) -> str:
+async def set_account_goal(account_name: str, target: float, deadline: str | None = None, note: str | None = None) -> str:
     """Propose setting a savings goal. Returns a confirmation card — does NOT write yet."""
     import uuid
     from difflib import get_close_matches
@@ -792,10 +792,10 @@ async def set_account_goal(account_name: str, target: float, deadline: str | Non
     balance = next(a.balance for a in accounts if a.name == resolved)
     monthly_needed = calc_monthly_needed(target, balance, deadline)
     action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {"action": "set_goal", "account_name": resolved, "target": target, "deadline": deadline})
+    action_store.store(action_id, {"action": "set_goal", "account_name": resolved, "target": target, "deadline": deadline, "note": note})
     return json.dumps({
         "type": "goal_proposal", "id": action_id, "account_name": resolved,
-        "target": target, "deadline": deadline, "monthly_needed": monthly_needed,
+        "target": target, "deadline": deadline, "monthly_needed": monthly_needed, "note": note,
     })
 
 

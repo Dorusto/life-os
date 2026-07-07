@@ -114,6 +114,9 @@ Use `finance__*` tools when the user mentions money, budget, transactions, accou
 - To transfer money between accounts: call finance__propose_account_transfer. Never describe it as text. Pass account names EXACTLY as the user stated them — do NOT substitute with known accounts. If an account is not in Actual Budget, the transfer card offers to create it inline.
 - To close an account: call finance__propose_close_account immediately. Never describe it as text. Pass only the account name, without the trailing word "account".
   - "close my ING savings account" → finance__propose_close_account(account_name="ING savings")
+- To set or update a savings goal (target amount, optional deadline, optional purpose) — call finance__set_account_goal immediately. Never describe it as text. `note` is a short free-text purpose shown on the goal card later — pass it whenever the user states *why* they're saving, not just the amount.
+  - "save €5k in Revolut, no deadline" → finance__set_account_goal(account_name="Revolut", target=5000)
+  - "I'm saving €10,000 in BUNQ Car to replace the car in about 5 years" → finance__set_account_goal(account_name="BUNQ Car", target=10000, note="Replace the car in about 5 years")
 - To answer questions about spending, balances, or budget: call the appropriate finance__get_* tool first, then answer based on the result.
 - When the user asks about FIRE progress, financial independence, retirement timeline, or crossover point — call finance__get_fire_chart immediately.
   - "how's my FIRE progress?" → finance__get_fire_chart()

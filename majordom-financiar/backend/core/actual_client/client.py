@@ -373,6 +373,12 @@ def _compute_goal_progress(session, accounts) -> list[dict]:
             if months_remaining > 0:
                 monthly_needed = round((target - balance) / months_remaining, 2)
 
+        # Parse optional NOTE: <free-text purpose>, shown in the goal card's info popup
+        goal_note = None
+        note_match = re.search(r'NOTE:\s*(.+)', note, re.IGNORECASE)
+        if note_match:
+            goal_note = note_match.group(1).strip()
+
         result.append({
             "id": str(acc.id),
             "name": acc.name,
@@ -382,6 +388,7 @@ def _compute_goal_progress(session, accounts) -> list[dict]:
             "deadline": deadline,
             "monthly_needed": monthly_needed,
             "months_remaining": months_remaining,
+            "note": goal_note,
         })
     return result
 
@@ -1241,10 +1248,12 @@ class ActualBudgetClient:
 
         return await self._run(_get)
 
-    async def set_account_goal(self, account_name: str, target: float, deadline: str | None = None) -> str:
+    async def set_account_goal(
+        self, account_name: str, target: float, deadline: str | None = None, goal_note: str | None = None,
+    ) -> str:
         """
-        Write or update TARGET: <amount> (and optionally DEADLINE: YYYY-MM) in the account note.
-        Returns the account name on success.
+        Write or update TARGET: <amount> (and optionally DEADLINE: YYYY-MM, NOTE: <purpose>)
+        in the account note. Returns the account name on success.
         """
         def _set():
             import re
@@ -1270,6 +1279,14 @@ class ActualBudgetClient:
                         note = re.sub(r'DEADLINE:\s*\d{4}-\d{2}', dl_tag, note, flags=re.IGNORECASE)
                     else:
                         note = (note.strip() + "\n" + dl_tag).strip()
+                if goal_note:
+                    # Single-line tag — strip newlines so it can't swallow a
+                    # later TARGET:/DEADLINE: line or itself be swallowed by them.
+                    note_tag = f"NOTE: {goal_note.strip().replace(chr(10), ' ')}"
+                    if re.search(r'NOTE:\s*.+', note, re.IGNORECASE):
+                        note = re.sub(r'NOTE:\s*.+', note_tag, note, flags=re.IGNORECASE)
+                    else:
+                        note = (note.strip() + "\n" + note_tag).strip()
                 acc.notes = note
                 actual.commit()
                 return acc.name

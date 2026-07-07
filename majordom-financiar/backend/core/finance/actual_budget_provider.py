@@ -104,10 +104,10 @@ class ActualBudgetProvider:
         )
 
     async def set_account_goal(
-        self, account_name: str, target: float, deadline: str | None = None
+        self, account_name: str, target: float, deadline: str | None = None, goal_note: str | None = None
     ) -> str:
         return await self._client().set_account_goal(
-            account_name, target, deadline
+            account_name, target, deadline, goal_note
         )
 
     async def create_category(self, name: str, group_name: str) -> object:
