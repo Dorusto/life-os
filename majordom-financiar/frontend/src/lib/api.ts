@@ -572,6 +572,16 @@ export async function getHomePending(): Promise<PendingItem[]> {
   return result.items
 }
 
+export interface SyncResult {
+  synced_accounts: number
+  new_transactions: number
+  failed: string[]
+}
+
+export async function syncAccounts(): Promise<SyncResult> {
+  return request<SyncResult>('/home/sync', { method: 'POST' })
+}
+
 // --- Budget ---
 
 export interface BudgetCategory {

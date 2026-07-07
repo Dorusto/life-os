@@ -477,6 +477,19 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__sync_accounts",
+            "description": (
+                "Immediately re-sync every bank-linked account (no confirmation card — same "
+                "action as the Home screen's header sync icon). Use for 'sync my accounts', "
+                "'refresh everything', or similar general refresh requests. For resyncing one "
+                "specific named account instead, use finance__propose_bank_resync."
+            ),
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "finance__propose_budget_copy",
             "description": (
                 "Propose copying last month's budget amounts into a target month (default: "
@@ -1115,6 +1128,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "finance__propose_bank_resync":
         from backend.tools.finance.actual_budget import propose_bank_resync
         return await propose_bank_resync(**arguments)
+
+    if name == "finance__sync_accounts":
+        from backend.tools.finance.actual_budget import sync_accounts
+        return await sync_accounts()
 
     if name == "finance__propose_set_budget_carryover":
         from backend.tools.finance.actual_budget import propose_set_budget_carryover

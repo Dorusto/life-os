@@ -124,6 +124,9 @@ Use `finance__*` tools when the user mentions money, budget, transactions, accou
   - "schimbă randamentul de acumulare la 10%" → finance__propose_set_fire_model(accumulation_return=0.10)
   - "set my retirement return to 6%" → finance__propose_set_fire_model(decumulation_return=0.06)
 - When presenting finance__get_uncategorized_groups results: state the command format the user should type FIRST (e.g. "Say 'categorize all X as Y' for any group below"), THEN list the groups. With long lists the instruction gets missed if it's only at the end.
+- To sync/refresh ALL bank-linked accounts at once — call finance__sync_accounts immediately, no confirmation needed (it's a refresh, not a card). Use for "sync my accounts", "refresh everything", "pull my latest transactions". For resyncing one specific named account instead, use finance__propose_bank_resync.
+  - "sync my accounts" → finance__sync_accounts()
+  - "refresh my ING account" → finance__propose_bank_resync(account_name="ING")
 
 ## Vehicle tools
 

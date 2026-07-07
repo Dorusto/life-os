@@ -1765,6 +1765,34 @@ class ActualBudgetClient:
                 return len(new_txs)
         return await self._run(_sync)
 
+    async def run_bank_resync_all(self) -> dict:
+        """
+        Re-sync every open account with a live bank link (gocardless/simplefin)
+        in one pass — the header sync icon and the `sync_accounts` chat tool
+        both call this, one commit for all accounts instead of one per account.
+        A single account's sync failure doesn't stop the others.
+        """
+        def _sync():
+            from actual.queries import get_accounts
+            with self._get_actual() as actual:
+                actual.download_budget()
+                accounts = [a for a in get_accounts(actual.session) if not a.closed and a.account_sync_source]
+                new_transactions = 0
+                failed: list[str] = []
+                for acc in accounts:
+                    try:
+                        new_transactions += len(actual.run_bank_sync(account=acc))
+                    except Exception as e:
+                        logger.warning("Bank resync failed for account %s: %s", acc.name, e)
+                        failed.append(acc.name)
+                actual.commit()
+                return {
+                    "synced_accounts": len(accounts) - len(failed),
+                    "new_transactions": new_transactions,
+                    "failed": failed,
+                }
+        return await self._run(_sync)
+
     async def count_uncategorized_by_payee(self, payee: str, notes_contains: str = "") -> int:
         """
         Count uncategorized transactions whose payee matches `payee` (case-insensitive

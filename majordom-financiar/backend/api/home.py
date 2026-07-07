@@ -55,3 +55,18 @@ async def get_home_pending(current_user: str = Depends(get_current_user)):
     """Live 'needs resolving' list for the Home widget dropdown."""
     from backend.services.notification_service import get_pending_items
     return {"items": await get_pending_items()}
+
+
+@router.post("/home/sync")
+async def sync_accounts(current_user: str = Depends(get_current_user)):
+    """
+    Re-sync every bank-linked account in one pass — the header sync icon's
+    entry point. Same underlying action as the `finance__sync_accounts`
+    chat tool (backend/tools/finance/actual_budget.py).
+    """
+    client = _get_client()
+    try:
+        return await client.run_bank_resync_all()
+    except Exception as e:
+        logger.error("Bank resync-all failed: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Sync failed")

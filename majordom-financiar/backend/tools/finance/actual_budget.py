@@ -1061,6 +1061,23 @@ async def propose_bank_resync(account_name: str) -> str:
     })
 
 
+async def sync_accounts() -> str:
+    """
+    Re-sync every bank-linked account immediately — no confirmation card,
+    same underlying action as the header sync icon (POST /api/home/sync).
+    Unlike propose_bank_resync (single account, needs confirmation), this
+    is a refresh action with no user-editable outcome, so it executes directly.
+    """
+    client = get_provider()
+    result = await client.run_bank_resync_all()
+    if result["synced_accounts"] == 0 and not result["failed"]:
+        return "No accounts with a live bank link to sync."
+    message = f"Synced {result['synced_accounts']} account(s) — {result['new_transactions']} new transaction(s) imported."
+    if result["failed"]:
+        message += f" Failed: {', '.join(result['failed'])}."
+    return message
+
+
 async def propose_budget_copy(month: str = "") -> str:
     """
     Propose copying last month's budget amounts into the target month

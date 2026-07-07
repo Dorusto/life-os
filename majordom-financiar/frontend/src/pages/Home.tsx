@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { LogOut, Bell, MoreVertical, Wallet, Database, Car, AlertCircle, ChevronRight } from 'lucide-react'
-import { getHomeData, getHomePending, type FireData } from '../lib/api'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { LogOut, Bell, MoreVertical, RefreshCw, Wallet, Database, Car, AlertCircle, ChevronRight } from 'lucide-react'
+import { getHomeData, getHomePending, syncAccounts, type FireData } from '../lib/api'
 import { getUsername, clearAuth } from '../lib/auth'
 import { requestAndSubscribe } from '../lib/push'
 import BudgetDashboard from '../components/BudgetDashboard'
@@ -13,6 +13,7 @@ const GOAL_COLORS = ['#F59E0B', '#3B82F6', '#22C55E', '#8B5CF6', '#EC4899']
 
 export default function Home() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const { data: homeData } = useQuery({
     queryKey: ['home'],
@@ -39,6 +40,19 @@ export default function Home() {
 
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  const [syncState, setSyncState] = useState<'idle' | 'syncing' | 'failed'>('idle')
+
+  async function handleSync() {
+    setSyncState('syncing')
+    try {
+      await syncAccounts()
+      await queryClient.invalidateQueries({ queryKey: ['home'] })
+      setSyncState('idle')
+    } catch {
+      setSyncState('failed')
+    }
+  }
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -80,56 +94,69 @@ export default function Home() {
           <p className="text-xs tracking-widest uppercase text-muted">{greeting}</p>
           <h1 className="font-display text-3xl font-bold text-white capitalize">{username}</h1>
         </div>
-        <div className="relative" ref={menuRef}>
+        <div className="flex items-center">
           <button
-            onClick={() => setMenuOpen(o => !o)}
-            className="p-2 rounded-xl text-muted hover:text-white hover:bg-surface transition-colors"
-            aria-label="Menu"
+            onClick={handleSync}
+            disabled={syncState === 'syncing'}
+            className="relative p-2 rounded-xl text-muted hover:text-white hover:bg-surface transition-colors disabled:opacity-60"
+            aria-label="Sync accounts"
           >
-            <MoreVertical size={20} />
+            <RefreshCw size={18} className={syncState === 'syncing' ? 'animate-spin' : ''} />
+            {syncState === 'failed' && (
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-danger" />
+            )}
           </button>
-          {menuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-48 rounded-xl bg-surface border border-border shadow-lg z-50 overflow-hidden">
-              <a
-                href={actualBudgetUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/5 transition-colors"
-              >
-                <Wallet size={16} className="text-muted flex-shrink-0" />
-                Actual Budget
-              </a>
-              <a
-                href={`${origin}:8888`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/5 transition-colors"
-              >
-                <Database size={16} className="text-muted flex-shrink-0" />
-                Majordom Memory
-              </a>
-              <a
-                href={`${origin}:8889`}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setMenuOpen(false)}
-                className="flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/5 transition-colors"
-              >
-                <Car size={16} className="text-muted flex-shrink-0" />
-                Vehicle Manager
-              </a>
-              <div className="border-t border-border" />
-              <button
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-white/5 transition-colors"
-              >
-                <LogOut size={16} className="flex-shrink-0" />
-                Log out
-              </button>
-            </div>
-          )}
+          <div className="relative ml-2" ref={menuRef}>
+            <button
+              onClick={() => setMenuOpen(o => !o)}
+              className="p-2 rounded-xl text-muted hover:text-white hover:bg-surface transition-colors"
+              aria-label="Menu"
+            >
+              <MoreVertical size={20} />
+            </button>
+            {menuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-48 rounded-xl bg-surface border border-border shadow-lg z-50 overflow-hidden">
+                <a
+                  href={actualBudgetUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/5 transition-colors"
+                >
+                  <Wallet size={16} className="text-muted flex-shrink-0" />
+                  Actual Budget
+                </a>
+                <a
+                  href={`${origin}:8888`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/5 transition-colors"
+                >
+                  <Database size={16} className="text-muted flex-shrink-0" />
+                  Majordom Memory
+                </a>
+                <a
+                  href={`${origin}:8889`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-white/5 transition-colors"
+                >
+                  <Car size={16} className="text-muted flex-shrink-0" />
+                  Vehicle Manager
+                </a>
+                <div className="border-t border-border" />
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-400 hover:bg-white/5 transition-colors"
+                >
+                  <LogOut size={16} className="flex-shrink-0" />
+                  Log out
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
