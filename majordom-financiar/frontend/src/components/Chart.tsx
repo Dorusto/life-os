@@ -76,7 +76,7 @@ interface LineSeriesData {
   points: LinePoint[]
 }
 
-interface LineData {
+export interface LineData {
   series: LineSeriesData[]
   empty_message?: string
 }

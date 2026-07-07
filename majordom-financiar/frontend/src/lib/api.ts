@@ -8,6 +8,7 @@
  */
 
 import { getToken, clearAuth } from './auth'
+import type { LineData } from '../components/Chart'
 
 // In production, API calls go to /api/* (same origin, proxied by Nginx).
 // In local dev (npm run dev), Vite proxies /api/* to localhost:8000.
@@ -580,6 +581,33 @@ export interface SyncResult {
 
 export async function syncAccounts(): Promise<SyncResult> {
   return request<SyncResult>('/home/sync', { method: 'POST' })
+}
+
+export type BudgetPeriod = 'month' | '3m' | '6m' | '12m'
+
+export interface BudgetPeriodMonth {
+  mode: 'month'
+  month: number
+  year: number
+  categories: BudgetCategory[]
+}
+
+export interface BudgetPeriodTrend {
+  mode: 'trend'
+  month: number
+  year: number
+  range_label: string
+  title: string
+  data: LineData
+}
+
+export async function getBudgetPeriod(
+  period: BudgetPeriod,
+  month: number,
+  year: number
+): Promise<BudgetPeriodMonth | BudgetPeriodTrend> {
+  const qs = new URLSearchParams({ period, month: String(month), year: String(year) })
+  return request(`/home/budget-period?${qs}`)
 }
 
 // --- Budget ---

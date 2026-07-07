@@ -1,10 +1,14 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { LogOut, Bell, MoreVertical, RefreshCw, Wallet, Database, Car, AlertCircle, ChevronRight } from 'lucide-react'
-import { getHomeData, getHomePending, syncAccounts, type FireData } from '../lib/api'
+import {
+  getHomeData, getHomePending, syncAccounts, getBudgetPeriod,
+  type FireData, type BudgetCategory, type BudgetPeriod,
+} from '../lib/api'
 import { getUsername, clearAuth } from '../lib/auth'
 import { requestAndSubscribe } from '../lib/push'
 import BudgetDashboard from '../components/BudgetDashboard'
+import Chart, { type LineData } from '../components/Chart'
 import Card from '../components/Card'
 import InfoIcon from '../components/InfoIcon'
 import { useState, useEffect, useRef } from 'react'
@@ -261,10 +265,10 @@ export default function Home() {
           {/* Budget dashboard */}
           {budgetStatus && budgetStatus.length > 0 && (
             <section className="px-5 pb-24">
-              <BudgetDashboard
-                categories={budgetStatus}
-                month={now.getMonth() + 1}
-                year={now.getFullYear()}
+              <BudgetPeriodCard
+                initialCategories={budgetStatus}
+                initialMonth={now.getMonth() + 1}
+                initialYear={now.getFullYear()}
               />
             </section>
           )}
@@ -467,6 +471,134 @@ function AddAnotherGoalRow({ navigate }: { navigate: NavigateFn }) {
     >
       + Add another goal
     </button>
+  )
+}
+
+const PERIOD_OPTIONS: { value: BudgetPeriod; label: string }[] = [
+  { value: 'month', label: '1M' },
+  { value: '3m', label: '3M' },
+  { value: '6m', label: '6M' },
+  { value: '12m', label: '12M' },
+]
+
+const PERIOD_MONTHS: Record<BudgetPeriod, number> = { month: 1, '3m': 3, '6m': 6, '12m': 12 }
+
+const MONTH_NAMES_FULL = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+]
+
+function BudgetPeriodCard({
+  initialCategories, initialMonth, initialYear,
+}: {
+  initialCategories: BudgetCategory[]
+  initialMonth: number
+  initialYear: number
+}) {
+  const [period, setPeriod] = useState<BudgetPeriod>('month')
+  const [month, setMonth] = useState(initialMonth)
+  const [year, setYear] = useState(initialYear)
+  const [loading, setLoading] = useState(false)
+  const [monthCategories, setMonthCategories] = useState(initialCategories)
+  const [trend, setTrend] = useState<{ range_label: string; title: string; data: LineData; requestId: number } | null>(null)
+
+  // Every load() bumps this; a response only gets applied if it's still the
+  // most recent request. Actual Budget serializes requests through one lock
+  // backend-side, so a fast click sequence (period switch right after a nav
+  // shift) can leave an earlier request still in flight — without this guard
+  // it can resolve after the newer one and overwrite the screen with stale
+  // data (verified live: nav label updated to the new window, chart didn't).
+  const requestIdRef = useRef(0)
+
+  async function load(p: BudgetPeriod, m: number, y: number) {
+    const requestId = ++requestIdRef.current
+    setLoading(true)
+    try {
+      const result = await getBudgetPeriod(p, m, y)
+      if (requestId !== requestIdRef.current) return
+      setMonth(result.month)
+      setYear(result.year)
+      if (result.mode === 'month') {
+        setMonthCategories(result.categories)
+        setTrend(null)
+      } else {
+        setTrend({ range_label: result.range_label, title: result.title, data: result.data, requestId })
+      }
+    } finally {
+      if (requestId === requestIdRef.current) setLoading(false)
+    }
+  }
+
+  function selectPeriod(p: BudgetPeriod) {
+    if (p === period) return
+    setPeriod(p)
+    load(p, month, year)
+  }
+
+  function shift(delta: number) {
+    const step = PERIOD_MONTHS[period]
+    let m = month + delta * step
+    let y = year
+    while (m > 12) { m -= 12; y += 1 }
+    while (m < 1) { m += 12; y -= 1 }
+    load(period, m, y)
+  }
+
+  const navLabel = period === 'month' ? `${MONTH_NAMES_FULL[month - 1]} ${year}` : trend?.range_label ?? ''
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-1 bg-surface rounded-full p-1 border border-border">
+          {PERIOD_OPTIONS.map(p => (
+            <button
+              key={p.value}
+              onClick={() => selectPeriod(p.value)}
+              disabled={loading}
+              className={`text-[11px] font-semibold px-2.5 py-1 rounded-full transition-colors disabled:opacity-50 ${
+                period === p.value ? 'bg-accent text-white' : 'text-muted hover:text-white'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            onClick={() => shift(-1)}
+            disabled={loading}
+            className="w-6 h-6 rounded-full bg-surface border border-border text-muted hover:text-white disabled:opacity-50 flex items-center justify-center text-xs"
+            aria-label="Previous period"
+          >
+            ‹
+          </button>
+          <span className="text-[11px] text-muted-2 min-w-[6rem] text-center">{navLabel}</span>
+          <button
+            onClick={() => shift(1)}
+            disabled={loading}
+            className="w-6 h-6 rounded-full bg-surface border border-border text-muted hover:text-white disabled:opacity-50 flex items-center justify-center text-xs"
+            aria-label="Next period"
+          >
+            ›
+          </button>
+        </div>
+      </div>
+
+      {period === 'month' ? (
+        <BudgetDashboard categories={monthCategories} month={month} year={year} />
+      ) : trend ? (
+        // Chart.tsx's internal state only takes title/data as an initial value
+        // (for its own in-card refetch), so it needs a `key` change to pick up
+        // fresh data. Keying on period/month/year looked right but isn't: those
+        // update one render *before* the new trend data lands (setPeriod fires
+        // immediately, setTrend only after the fetch resolves), so the remount
+        // happens too early and the later props-only update gets ignored by
+        // Chart's internal state — verified live (nav label updated, chart
+        // didn't). requestId only changes in the same state update as the data
+        // itself, so the key and the data it's keying always land together.
+        <Chart key={trend.requestId} chart_type="line" title={trend.title} data={trend.data} />
+      ) : null}
+    </div>
   )
 }
 

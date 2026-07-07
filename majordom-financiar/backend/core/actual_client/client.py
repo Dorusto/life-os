@@ -705,6 +705,37 @@ class ActualBudgetClient:
 
         return await self._run(_get)
 
+    async def get_monthly_totals_batch(self, months: list[tuple[int, int]]) -> list[dict]:
+        """
+        Same per-month totals as get_monthly_stats(), for an arbitrary list of
+        (month, year) tuples, but in ONE download_budget() session instead of one
+        per month. get_monthly_stats() called in a loop (the original #165 budget-
+        trend and the pre-existing get_spending_trend chat tool both did this)
+        logs in to Actual Budget once per month — for a 12-month window that's
+        12 logins in quick succession, which reliably trips Actual Budget's own
+        login rate limit (verified live: a 12M request 429'd, then locked out
+        every other request for the cooldown period). This is the shared fix —
+        get_spending_trend should move onto it too next time it's touched.
+        """
+        def _get():
+            import calendar
+            from actual.queries import get_transactions
+            from datetime import date as _date
+
+            with self._get_actual() as actual:
+                actual.download_budget()
+                results = []
+                for month, year in months:
+                    start = _date(year, month, 1)
+                    last_day = calendar.monthrange(year, month)[1]
+                    end = _date(year, month, last_day)
+                    txs = get_transactions(actual.session, start_date=start, end_date=end)
+                    totals = _compute_monthly_totals(actual.session, txs)
+                    results.append({"month": month, "year": year, **totals})
+                return results
+
+        return await self._run(_get)
+
     async def add_transaction(
         self,
         account_id: str,
