@@ -16,6 +16,8 @@ import re
 
 import aiohttp
 
+from backend.core.config import build_llm_headers
+
 from .profiles import CsvProfile
 
 logger = logging.getLogger(__name__)
@@ -64,12 +66,6 @@ class CsvProfileDetector:
         self.llm_url = llm_url.rstrip("/")
         self.llm_model = llm_model
         self.api_key = api_key
-
-    def _build_headers(self) -> dict[str, str]:
-        headers = {"Content-Type": "application/json"}
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
-        return headers
 
     def header_signature(self, headers: list[str]) -> str:
         """MD5 on sorted and lowercased headers — stable format fingerprint."""
@@ -126,7 +122,7 @@ class CsvProfileDetector:
                 async with session.post(
                     f"{self.llm_url}/v1/chat/completions",
                     json=payload,
-                    headers=self._build_headers(),
+                    headers=build_llm_headers(self.api_key),
                     timeout=aiohttp.ClientTimeout(total=90),
                 ) as resp:
                     if resp.status != 200:

@@ -17,7 +17,7 @@ from datetime import date, datetime
 
 import httpx
 
-from backend.core.config import settings
+from backend.core.config import settings, build_llm_headers
 from backend.core.finance.provider import get_provider
 from backend.core.memory.database import MemoryDB
 from backend.core.vehicle_client import VehicleClient
@@ -69,14 +69,6 @@ _FINANCIAL_SYSTEM_PROMPT = (
 )
 
 
-def _build_headers() -> dict[str, str]:
-    """Build HTTP headers with optional Authorization for cloud APIs."""
-    headers = {"Content-Type": "application/json"}
-    if settings.ollama.api_key:
-        headers["Authorization"] = f"Bearer {settings.ollama.api_key}"
-    return headers
-
-
 # ---------------------------------------------------------------------------
 # Private checkers — return a short alert string or None (no side effects)
 # ---------------------------------------------------------------------------
@@ -119,7 +111,7 @@ async def _check_financial_summary(db: MemoryDB) -> str | None:
             "stream": False,
             "options": {"temperature": 0.7, "num_predict": 150},
         }
-        headers = _build_headers()
+        headers = build_llm_headers(settings.ollama.api_key)
         async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as http_client:
             resp = await http_client.post(
                 f"{settings.ollama.base_url}/v1/chat/completions",

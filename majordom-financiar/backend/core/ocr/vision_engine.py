@@ -20,6 +20,7 @@ from pathlib import Path
 import aiohttp
 from PIL import Image
 
+from backend.core.config import build_llm_headers
 from backend.core.ocr.parser import ReceiptData, ReceiptItem
 
 logger = logging.getLogger(__name__)
@@ -72,12 +73,6 @@ class VisionEngine:
         self.llm_url = llm_url.rstrip("/")
         self.model = model
         self.api_key = api_key
-
-    def _build_headers(self) -> dict[str, str]:
-        headers = {"Content-Type": "application/json"}
-        if self.api_key:
-            headers["Authorization"] = f"Bearer {self.api_key}"
-        return headers
 
     async def extract_from_path(self, image_path: str | Path) -> ReceiptData:
         """Extract data from an image file."""
@@ -137,7 +132,7 @@ class VisionEngine:
                 async with session.post(
                     f"{self.llm_url}/v1/chat/completions",
                     json=payload,
-                    headers=self._build_headers(),
+                    headers=build_llm_headers(self.api_key),
                     timeout=aiohttp.ClientTimeout(total=300),
                 ) as resp:
                     if resp.status != 200:
@@ -270,7 +265,7 @@ class VisionEngine:
                 # Try OpenAI-compatible endpoint first
                 async with session.get(
                     f"{self.llm_url}/v1/models",
-                    headers=self._build_headers(),
+                    headers=build_llm_headers(self.api_key),
                     timeout=aiohttp.ClientTimeout(total=5),
                 ) as resp:
                     if resp.status == 200:
@@ -282,7 +277,7 @@ class VisionEngine:
             async with aiohttp.ClientSession() as session:
                 async with session.get(
                     f"{self.llm_url}/api/tags",
-                    headers=self._build_headers(),
+                    headers=build_llm_headers(self.api_key),
                     timeout=aiohttp.ClientTimeout(total=5),
                 ) as resp:
                     if resp.status != 200:

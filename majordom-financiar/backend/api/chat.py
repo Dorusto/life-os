@@ -17,7 +17,7 @@ from pydantic import BaseModel
 import httpx
 
 from backend.api.auth import get_current_user
-from backend.core.config import settings
+from backend.core.config import settings, build_llm_headers
 from backend.tools.registry import TOOLS, execute_tool
 
 logger = logging.getLogger(__name__)
@@ -149,14 +149,6 @@ Today's date: {date.today().isoformat()}
 """
 
 
-def _build_headers() -> dict[str, str]:
-    """Build HTTP headers with optional Authorization for cloud APIs."""
-    headers = {"Content-Type": "application/json"}
-    if settings.ollama.api_key:
-        headers["Authorization"] = f"Bearer {settings.ollama.api_key}"
-    return headers
-
-
 _PROPOSAL_TOOLS = {
     "finance__propose_transaction", "finance__propose_budget_rebalance", "finance__propose_account_transfer",
     "finance__propose_clarification", "finance__propose_balance_adjustment", "finance__propose_close_account", "finance__rename_category",
@@ -200,7 +192,7 @@ async def _stream_with_tools(
             "tools": TOOLS,
             "tool_choice": "auto",
         }
-        headers = _build_headers()
+        headers = build_llm_headers(settings.ollama.api_key)
 
         async with httpx.AsyncClient(timeout=httpx.Timeout(300.0)) as client:
             try:

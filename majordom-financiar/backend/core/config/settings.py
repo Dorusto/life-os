@@ -30,6 +30,21 @@ class LLMConfig:
         return self.vision_model
 
 
+def build_llm_headers(api_key: str = "") -> dict[str, str]:
+    """HTTP headers for any LLM call. HTTP-Referer/X-Title are OpenRouter's
+    app-attribution headers (https://openrouter.ai/docs) — without them,
+    OpenRouter's dashboard groups all usage under "Unknown" in Top Apps.
+    Ignored by Ollama, so safe to send unconditionally."""
+    headers = {
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://github.com/Dorusto/life-os",
+        "X-Title": "Majordom",
+    }
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+    return headers
+
+
 @dataclass
 class ActualBudgetConfig:
     url: str = ""

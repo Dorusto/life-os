@@ -36,7 +36,7 @@ from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
 from backend.core.actual_client import ActualBudgetClient
-from backend.core.config import settings
+from backend.core.config import settings, build_llm_headers
 from backend.core.csv_importer import CsvNormalizer, CsvProfileDetector
 from backend.core.memory import MemoryDB, SmartCategorizer
 
@@ -389,9 +389,7 @@ async def _suggest_categories_llm(
         "options": {"temperature": 0.0, "num_predict": 400},
     }
 
-    headers = {"Content-Type": "application/json"}
-    if api_key:
-        headers["Authorization"] = f"Bearer {api_key}"
+    headers = build_llm_headers(api_key)
 
     try:
         timeout = aiohttp.ClientTimeout(total=180)
