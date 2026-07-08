@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Send, Plus, Camera, Image, FileText, HelpCircle, X, Trash2 } from 'lucide-react'
+import { Send, Plus, Camera, Image, FileText, HelpCircle, Trash2 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, saveChatHistory, clearChatHistory, proposeSavingsBudget, type SetupAccount, type BalanceAdjustmentData, type CloseAccountData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type CategoryOverviewData, type BudgetOverviewData, type FuelConfirmResponse, type VehicleLogActionData, type VehicleReminderData, type VehicleStatusData } from '../lib/api'
 import CsvImportCard from '../components/CsvImportCard'
@@ -26,6 +26,7 @@ import VehicleStatusCard from '../components/VehicleStatusCard'
 import Chart from '../components/Chart'
 import PageHeader from '../components/PageHeader'
 import IconButton from '../components/IconButton'
+import BottomSheet from '../components/BottomSheet'
 import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from '../lib/api'
 
 
@@ -98,13 +99,14 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
   const [showMediaMenu, setShowMediaMenu] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
+  // BottomSheet already locks document.body on open — this only needs to
+  // additionally freeze the nested scrollable message list, which has its
+  // own overflow-y-auto and would otherwise keep scrolling under the sheet.
   useEffect(() => {
-    document.body.style.overflow = showHelp ? 'hidden' : ''
     if (messagesContainerRef.current) {
       messagesContainerRef.current.style.overflow = showHelp ? 'hidden' : ''
     }
     return () => {
-      document.body.style.overflow = ''
       if (messagesContainerRef.current) {
         messagesContainerRef.current.style.overflow = ''
       }
@@ -558,19 +560,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
       />
 
       {/* Help modal */}
-      {showHelp && (
-        <div className="fixed inset-0 z-50 flex items-end" style={{ touchAction: 'none' }} onClick={() => setShowHelp(false)}>
-          <div
-            className="w-full bg-surface border-t border-border rounded-t-2xl px-6 pt-5 pb-24 space-y-5 max-h-[80vh] overflow-y-auto overscroll-contain"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between">
-              <h2 className="text-white font-semibold text-base">How to use Majordom</h2>
-              <button onClick={() => setShowHelp(false)} className="text-muted hover:text-white transition-colors">
-                <X size={18} />
-              </button>
-            </div>
-
+      <BottomSheet open={showHelp} onClose={() => setShowHelp(false)} title="How to use Majordom">
             <div className="space-y-4 text-sm">
               <div>
                 <p className="text-white font-medium mb-1">What is Majordom?</p>
@@ -636,9 +626,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
                 </ul>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+      </BottomSheet>
 
       {/* Message list */}
       <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">

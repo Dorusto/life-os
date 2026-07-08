@@ -312,6 +312,10 @@ Account-name matching for `propose_close_account` and `propose_balance_adjustmen
 
 Home, Chat, and ImportPage each hand-rolled their own `<header>` (different icon sizes — 18/20/22 —, different hover styles — rounded background vs. plain color change —, different alignment, different title typography) until Doru noticed the drift by comparing screenshots side by side. `frontend/src/components/PageHeader.tsx` (label + title + a right-aligned actions slot, optional `bordered`) and `frontend/src/components/IconButton.tsx` (one icon-button style — size, padding, rounded hover background, optional danger variant, optional badge overlay) are now the only way to build a page header. **Any new page header, or new icon-only button anywhere in the header, uses these two components — never a bespoke `<button>` with its own ad-hoc classes.** If a real need doesn't fit (e.g. a genuinely different size class), extend the shared component with a prop rather than opting out of it.
 
+### 26. Shared `BottomSheet` — every bottom-sheet overlay, same reasoning as rule 25
+
+`InfoIcon`'s popup and Chat's help modal were the same overlay/sheet shell (dark backdrop, slide-up panel, header + close button) implemented twice and already drifted (`InfoIcon` had a backdrop and `z-[60]`, Chat's help modal had neither and used a different bottom padding) — found while adding a third caller (Home's Needs Resolving popup, #165) that needed the identical shape. `frontend/src/components/BottomSheet.tsx` (`open`/`onClose`/`title`/children, owns the backdrop, z-index, and `document.body` scroll-lock) is now the only way to build one. **Any new bottom-sheet/modal overlay uses it — never a bespoke `fixed inset-0 ... flex items-end` div.**
+
 ---
 
 ## Main Flows

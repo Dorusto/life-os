@@ -13,9 +13,21 @@ import Card from '../components/Card'
 import InfoIcon from '../components/InfoIcon'
 import PageHeader from '../components/PageHeader'
 import IconButton from '../components/IconButton'
+import BottomSheet from '../components/BottomSheet'
 import { useState, useEffect, useRef } from 'react'
 
 const GOAL_COLORS = ['#F59E0B', '#3B82F6', '#22C55E', '#8B5CF6', '#EC4899']
+
+// Maps a pending item's backend `type` to the tag shown in the Needs
+// Resolving sheet — unknown/future types fall back to the "finance" look
+// rather than showing nothing.
+const PENDING_TAGS: Record<string, { label: string; className: string }> = {
+  uncategorized: { label: 'finance', className: 'bg-info-dim text-info' },
+  unreconciled: { label: 'finance', className: 'bg-info-dim text-info' },
+  over_budget: { label: 'finance', className: 'bg-info-dim text-info' },
+  vehicle_reminder: { label: 'vehicle', className: 'bg-attention-dim text-attention' },
+}
+const DEFAULT_PENDING_TAG = { label: 'finance', className: 'bg-info-dim text-info' }
 
 export default function Home() {
   const navigate = useNavigate()
@@ -32,7 +44,7 @@ export default function Home() {
     queryFn: () => getHomePending(),
     staleTime: 120_000,
   })
-  const [pendingExpanded, setPendingExpanded] = useState(false)
+  const [pendingSheetOpen, setPendingSheetOpen] = useState(false)
 
   const budgetStatus = homeData?.budget
   const goals = homeData?.goals
@@ -100,6 +112,18 @@ export default function Home() {
         title={username ?? ''}
         actions={
           <>
+            {pendingItems && pendingItems.length > 0 && (
+              <IconButton
+                icon={AlertCircle}
+                onClick={() => setPendingSheetOpen(true)}
+                label="Needs resolving"
+                badge={
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-attention text-background text-[10px] font-bold flex items-center justify-center">
+                    {pendingItems.length}
+                  </span>
+                }
+              />
+            )}
             <IconButton
               icon={RefreshCw}
               onClick={handleSync}
@@ -108,7 +132,7 @@ export default function Home() {
               iconClassName={syncState === 'syncing' ? 'animate-spin' : ''}
               badge={syncState === 'failed' ? <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-danger" /> : undefined}
             />
-            <div className="relative" ref={menuRef}>
+            <div className="relative ml-1" ref={menuRef}>
               <IconButton icon={MoreVertical} onClick={() => setMenuOpen(o => !o)} label="Menu" />
               {menuOpen && (
                 <div className="absolute right-0 top-full mt-1 w-48 rounded-xl bg-surface border border-border shadow-lg z-50 overflow-hidden">
@@ -171,41 +195,40 @@ export default function Home() {
         </button>
       )}
 
-      {/* Needs resolving — all pending digest items, expandable, each item
-          taps through to chat with a pre-filled starting prompt (#130) */}
+      {/* Needs resolving — badge in the header opens this sheet; each row taps
+          through to chat with a pre-filled starting prompt (#130, moved from
+          an inline expandable banner to a popup behind the badge for #165) */}
       {pendingItems && pendingItems.length > 0 && (
-        <div className="mx-5 mt-3 rounded-xl bg-surface border border-yellow-500/30 overflow-hidden">
-          <button
-            onClick={() => setPendingExpanded(o => !o)}
-            className="w-full flex items-center gap-3 px-4 py-3 text-left"
-          >
-            <AlertCircle size={18} className="text-yellow-500 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-white text-sm font-medium">Needs resolving</p>
-              <p className="text-muted text-xs">
-                {pendingItems.length} thing{pendingItems.length !== 1 ? 's' : ''} to look at
-              </p>
-            </div>
-            <ChevronRight
-              size={16}
-              className={`text-muted flex-shrink-0 transition-transform ${pendingExpanded ? 'rotate-90' : ''}`}
-            />
-          </button>
-          {pendingExpanded && (
-            <div className="border-t border-border divide-y divide-border">
-              {pendingItems.map((item, i) => (
+        <BottomSheet
+          open={pendingSheetOpen}
+          onClose={() => setPendingSheetOpen(false)}
+          title="⚠️ Needs resolving"
+        >
+          <p className="text-muted text-xs mb-3">
+            {pendingItems.length} thing{pendingItems.length !== 1 ? 's' : ''} to check
+          </p>
+          <div className="-mx-6 border-t border-border divide-y divide-border">
+            {pendingItems.map((item, i) => {
+              const tag = PENDING_TAGS[item.type] ?? DEFAULT_PENDING_TAG
+              return (
                 <button
                   key={i}
-                  onClick={() => navigate('/chat', { state: { prefill: item.prompt } })}
-                  className="w-full flex items-center justify-between gap-2 px-4 py-2.5 text-left hover:bg-white/5 transition-colors"
+                  onClick={() => {
+                    setPendingSheetOpen(false)
+                    navigate('/chat', { state: { prefill: item.prompt } })
+                  }}
+                  className="w-full flex items-center justify-between gap-2 px-6 py-3 text-left hover:bg-white/5 transition-colors"
                 >
-                  <span className="text-white text-sm">{item.text}</span>
+                  <span className="text-white text-sm">
+                    {item.text}{' '}
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${tag.className}`}>{tag.label}</span>
+                  </span>
                   <ChevronRight size={14} className="text-muted flex-shrink-0" />
                 </button>
-              ))}
-            </div>
-          )}
-        </div>
+              )
+            })}
+          </div>
+        </BottomSheet>
       )}
 
       {/* Empty state (brand-new install) or normal dashboard */}
