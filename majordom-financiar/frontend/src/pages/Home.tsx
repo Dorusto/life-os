@@ -116,7 +116,7 @@ export default function Home() {
               <IconButton
                 icon={AlertCircle}
                 onClick={() => setPendingSheetOpen(true)}
-                label="Needs resolving"
+                label="Needs attention"
                 badge={
                   <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-attention text-background text-[10px] font-bold flex items-center justify-center">
                     {pendingItems.length}
@@ -195,14 +195,14 @@ export default function Home() {
         </button>
       )}
 
-      {/* Needs resolving — badge in the header opens this sheet; each row taps
+      {/* Needs attention — badge in the header opens this sheet; each row taps
           through to chat with a pre-filled starting prompt (#130, moved from
           an inline expandable banner to a popup behind the badge for #165) */}
       {pendingItems && pendingItems.length > 0 && (
         <BottomSheet
           open={pendingSheetOpen}
           onClose={() => setPendingSheetOpen(false)}
-          title="⚠️ Needs resolving"
+          title="⚠️ Needs attention"
         >
           <p className="text-muted text-xs mb-3">
             {pendingItems.length} thing{pendingItems.length !== 1 ? 's' : ''} to check

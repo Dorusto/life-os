@@ -730,23 +730,43 @@ function LineChart({
           new Set([0, Math.round(lastIdx / 3), Math.round((lastIdx * 2) / 3), lastIdx])
         ).sort((a, b) => a - b)
 
+        const seriesMin = Math.min(...s.points.map((p) => p.y))
+        const seriesMax = Math.max(...s.points.map((p) => p.y))
+
         return (
           <div key={s.label} className="mb-2">
             <div className="flex items-center justify-between text-xs text-muted mb-1">
               <span>{s.label}</span>
               <span>
-                min {Math.min(...s.points.map((p) => p.y))} · max {Math.max(...s.points.map((p) => p.y))}
+                min {seriesMin} · max {seriesMax}
               </span>
             </div>
             <p className="text-[10px] text-muted mb-1">
               {formatDateFull(s.points[0].x)} – {formatDateFull(s.points[lastIdx].x)}
             </p>
-            <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} preserveAspectRatio="none">
-              <path d={path} fill="none" stroke={s.color} strokeWidth={2} vectorEffect="non-scaling-stroke" />
-              {s.points.map((p, i) => (
-                <circle key={i} cx={scaleX(i)} cy={scaleY(p.y)} r={2.5} fill={s.color} />
-              ))}
-            </svg>
+            {/* Y-axis reference values — an HTML overlay, not SVG <text>, since
+                the SVG below uses preserveAspectRatio="none" (stretches to the
+                container width) and would visibly skew any text drawn inside it. */}
+            <div className="relative">
+              <span
+                className="absolute left-0.5 text-[9px] text-muted-2 -translate-y-1/2 bg-surface/80 px-0.5 rounded"
+                style={{ top: `${(scaleY(seriesMax) / height) * 100}%` }}
+              >
+                {Math.round(seriesMax).toLocaleString()}
+              </span>
+              <span
+                className="absolute left-0.5 text-[9px] text-muted-2 -translate-y-1/2 bg-surface/80 px-0.5 rounded"
+                style={{ top: `${(scaleY(seriesMin) / height) * 100}%` }}
+              >
+                {Math.round(seriesMin).toLocaleString()}
+              </span>
+              <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} preserveAspectRatio="none">
+                <path d={path} fill="none" stroke={s.color} strokeWidth={2} vectorEffect="non-scaling-stroke" />
+                {s.points.map((p, i) => (
+                  <circle key={i} cx={scaleX(i)} cy={scaleY(p.y)} r={2.5} fill={s.color} />
+                ))}
+              </svg>
+            </div>
             <div className="relative h-4 mt-1 text-[10px] text-muted">
               {labelIndices.map((i) => {
                 const pct = (scaleX(i) / width) * 100

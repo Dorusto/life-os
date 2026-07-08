@@ -113,7 +113,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
     }
   }, [showHelp])
   // Pre-fill the input from a "prefill" prompt passed via navigation state
-  // (e.g. tapping a "Needs resolving" item on Home) — never auto-sent, the
+  // (e.g. tapping a "Needs attention" item on Home) — never auto-sent, the
   // user reviews/edits before confirming, same as any other write action.
   useEffect(() => {
     const prefill = (location.state as { prefill?: string } | null)?.prefill
