@@ -1655,9 +1655,14 @@ class ActualBudgetClient:
 
         return await self._run(_get)
 
-    async def get_recent_transactions(self, limit: int = 20) -> list[dict]:
+    async def get_recent_transactions(
+        self, limit: int = 20, start_date: date | None = None, end_date: date | None = None,
+    ) -> list[dict]:
         """
         Return the most recent transactions from Actual Budget, sorted by date descending.
+        Optional start_date/end_date narrow to a range (e.g. one calendar month) before
+        sorting/limiting — same actualpy start_date/end_date params get_monthly_stats()
+        and get_budget_status() already use, see #171.
 
         Returns plain dicts (not dataclasses) because the caller needs flexible
         access to fields that may or may not be set (category, payee, etc.).
@@ -1670,7 +1675,7 @@ class ActualBudgetClient:
             from actual.queries import get_transactions
             with self._get_actual() as actual:
                 actual.download_budget()
-                all_txs = get_transactions(actual.session)
+                all_txs = get_transactions(actual.session, start_date=start_date, end_date=end_date)
 
                 result = []
                 for tx in all_txs:

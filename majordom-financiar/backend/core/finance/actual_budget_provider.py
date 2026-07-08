@@ -60,8 +60,10 @@ class ActualBudgetProvider:
     ) -> list[dict]:
         return await self._client().get_budget_overview(month=month, year=year)
 
-    async def get_recent_transactions(self, limit: int = 20) -> list[dict]:
-        return await self._client().get_recent_transactions(limit=limit)
+    async def get_recent_transactions(
+        self, limit: int = 20, start_date: date | None = None, end_date: date | None = None,
+    ) -> list[dict]:
+        return await self._client().get_recent_transactions(limit=limit, start_date=start_date, end_date=end_date)
 
     async def get_spending_history(self, months: int = 3) -> list[dict]:
         return await self._client().get_spending_history(months=months)

@@ -120,6 +120,9 @@ Use `finance__*` tools when the user mentions money, budget, transactions, accou
   - To update just the deadline or description on a goal that already exists — omit target entirely, it carries over automatically. Do NOT ask the user to restate the amount.
     - "set the description for my ING Savings goal to: Emergency fund" → finance__set_account_goal(account_name="ING Savings", note="Emergency fund")
 - To answer questions about spending, balances, or budget: call the appropriate finance__get_* tool first, then answer based on the result.
+- To list a category's or account's transactions — call finance__get_transactions immediately, passing month+year whenever a month is mentioned (e.g. "for June", "in July 2026") — the tool filters by date natively, never filter/guess yourself from an un-scoped call. `category` is for a BUDGET CATEGORY (e.g. "Groceries", "Housing"); `account` is only for a BANK ACCOUNT name — never pass a category name as `account` or vice versa.
+  - "Show me my Groceries transactions for July 2026" → finance__get_transactions(category="Groceries", month=7, year=2026)
+  - "what did I spend from ING this month" → finance__get_transactions(account="ING", month=<current>, year=<current>)
 - When the user asks about FIRE progress, financial independence, retirement timeline, or crossover point — call finance__get_fire_chart immediately.
   - "how's my FIRE progress?" → finance__get_fire_chart()
 - When the user asks about savings goal progress, how much more is needed to reach a target, or a goal's deadline/timeline — call finance__get_goals_chart immediately. Never answer that no goal is configured without calling this tool first.

@@ -298,10 +298,24 @@ async def get_budget_status(month: int | None = None, year: int | None = None) -
     return "\n".join(lines)
 
 
-async def get_transactions(category: str | None = None, account: str | None = None, limit: int = 20) -> str:
-    """Return recent transactions, optionally filtered by category or account name."""
+async def get_transactions(
+    category: str | None = None, account: str | None = None, limit: int = 20,
+    month: int | None = None, year: int | None = None,
+) -> str:
+    """
+    Return recent transactions, optionally filtered by category or account name
+    and/or scoped to one calendar month (#171 — previously always "most recent
+    N regardless of date", so a request like "for June" silently ignored the
+    month and returned unrelated transactions).
+    """
+    import calendar
+
     client = get_provider()
-    all_txs = await client.get_recent_transactions(limit=limit * 4)
+    start_date = end_date = None
+    if month and year:
+        start_date = _date(year, month, 1)
+        end_date = _date(year, month, calendar.monthrange(year, month)[1])
+    all_txs = await client.get_recent_transactions(limit=limit * 4, start_date=start_date, end_date=end_date)
     result = []
     for tx in all_txs:
         if category and (tx.get("category_name") or "").lower() != category.lower():

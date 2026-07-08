@@ -52,13 +52,15 @@ TOOLS: list[dict] = [
         "type": "function",
         "function": {
             "name": "finance__get_transactions",
-            "description": "Get recent transactions, optionally filtered by category or account. Call this when the user asks to see their transactions or spending in a specific category.",
+            "description": "Get recent transactions, optionally filtered by category or account, and/or scoped to one calendar month. Call this when the user asks to see their transactions or spending in a specific category or account.",
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "category": {"type": "string", "description": "Filter by category name, e.g. 'Groceries'."},
-                    "account": {"type": "string", "description": "Filter by account name, e.g. 'ING'."},
+                    "category": {"type": "string", "description": "Filter by category name, e.g. 'Groceries'. Use this for a budget category — NOT account."},
+                    "account": {"type": "string", "description": "Filter by account name, e.g. 'ING'. Only use when the user names a bank account, not a budget category."},
                     "limit": {"type": "integer", "description": "Max number of transactions to return (default 20)."},
+                    "month": {"type": "integer", "description": "Optional month (1-12) to scope results to, e.g. from 'transactions for June'."},
+                    "year": {"type": "integer", "description": "Optional year — required together with month if either is given."},
                 },
                 "required": [],
             },
