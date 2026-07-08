@@ -63,7 +63,7 @@ For Actual Budget integration details (split transactions, multi-currency, credi
 | 2.8 | Home redesign: design tokens + `<Card>`/`<InfoIcon>` | ✅ See [#163](https://github.com/Dorusto/life-os/issues/163) |
 | 2.9 | Home redesign: Portfolio Independence card | ✅ See [#164](https://github.com/Dorusto/life-os/issues/164) |
 | 2.10 | Home redesign: FIRE model rewrite (2-phase, chat-editable) | ✅ See [#166](https://github.com/Dorusto/life-os/issues/166) |
-| 2.11 | Home redesign: Home polish (empty states, sync icon, budget period nav) | 🔲 See [#165](https://github.com/Dorusto/life-os/issues/165) |
+| 2.11 | Home redesign: Home polish (empty states, sync icon, budget period nav) | ✅ See [#165](https://github.com/Dorusto/life-os/issues/165) |
 | 2.12 | Home redesign: Expense Coverage (Coast/Barista FIRE) | 🔲 See [#167](https://github.com/Dorusto/life-os/issues/167) |
 
 ### ✅ M3 — Vehicle Management (Fuelio replacement)
