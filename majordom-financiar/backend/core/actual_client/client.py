@@ -2225,6 +2225,13 @@ class ActualBudgetClient:
                         imported_description=cand.get("payee") or "",
                         notes=cand.get("notes") or "",
                     )
+                    # actualpy's Condition.run() unconditionally calls
+                    # transaction._object_session() — a transient (unattached)
+                    # instance raises "Transactions is not attached to a session"
+                    # as soon as any rule exists. session.add() only attaches it
+                    # in-memory; nothing is committed/synced (commit() is never
+                    # called here), so this stays a pure read-only check.
+                    actual.session.add(tx)
                     match = None
                     for rule in ruleset.rules:
                         if not rule.evaluate(tx):
