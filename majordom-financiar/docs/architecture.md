@@ -316,6 +316,12 @@ Home, Chat, and ImportPage each hand-rolled their own `<header>` (different icon
 
 `InfoIcon`'s popup and Chat's help modal were the same overlay/sheet shell (dark backdrop, slide-up panel, header + close button) implemented twice and already drifted (`InfoIcon` had a backdrop and `z-[60]`, Chat's help modal had neither and used a different bottom padding) — found while adding a third caller (Home's Needs Resolving popup, #165) that needed the identical shape. `frontend/src/components/BottomSheet.tsx` (`open`/`onClose`/`title`/children, owns the backdrop, z-index, and `document.body` scroll-lock) is now the only way to build one. **Any new bottom-sheet/modal overlay uses it — never a bespoke `fixed inset-0 ... flex items-end` div.**
 
+### 27. actualpy — a transient `Transactions`/`Payees`/etc. object must be `session.add()`-ed before evaluating rules on it
+
+`actualpy`'s `Condition.run()` (used by `Rule.evaluate()`) unconditionally calls `transaction._object_session()`, regardless of which field the condition checks — for a transient object (constructed but never added to any SQLAlchemy session) this always raises `ValueError("... is not attached to a session")`, the instant there's at least one rule to evaluate. `ActualBudgetClient.match_existing_rules()` builds exactly such a throwaway object to test rules in-memory without touching real data — it crashed on every receipt upload the moment the budget had ≥1 rule (#173), masked until then by an early-return guard on an empty ruleset.
+
+**Fix pattern:** `actual.session.add(tx)` right after constructing the transient object, before calling `rule.evaluate(tx)`. This only attaches it in-memory — as long as `.commit()` is never called (it isn't, in this read-only check), nothing is written or synced. Any future code that builds a throwaway actualpy model instance just to evaluate rule conditions against it needs this same `session.add()`.
+
 ---
 
 ## Main Flows
