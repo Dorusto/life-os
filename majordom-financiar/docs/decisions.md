@@ -639,3 +639,59 @@ life-os/
 **Why now, documented but not yet built:** captured during the 2026-07-07 Home redesign session so the architecture isn't re-derived later; actual build is deliberately sequenced after Ghostfolio (#4) and the Home redesign issues (#163-#167) land — the demo should show the finished product, not an in-progress one.
 
 **Trigger to build:** see the "Public demo on a VPS" GitHub issue — blocked on Ghostfolio (#4) and the Home redesign batch.
+
+---
+
+<a id="ab-stays-not-moneymatter-not-firefly"></a>
+### AB stays as finance engine — not MoneyMatter, not Firefly III, not a custom engine
+
+**Date:** 2026-08-17
+
+**Decision:** Actual Budget (AB) remains the finance engine. Closed — do not reopen without a new, concrete trigger (not just "found an app that looks simpler").
+
+**Why not MoneyMatter:** Enable Banking NL sync confirmed working on their side, but switching engines doesn't fix the real problems observed (partial misunderstanding of rollover/carryover, deduplication bugs on import) — those are usage/implementation issues on the current engine, not AB limitations, and would follow to any new engine.
+
+**Why not Firefly III:** incompatible data model — Firefly is double-entry bookkeeping (business accounting), AB is envelope budgeting (YNAB-style, with rollover on savings categories). Migrating would mean rebuilding the budgeting logic from scratch around new accounting concepts. No native bank sync (CSV or paid importers only). AB already handles the shared-budget case (Doru + partner) without manual reconciliation — a real advantage for the current use case.
+
+**Why not a custom engine:** disproportionate risk for the benefit, especially without a programming background — double-entry correctness, reconciliation, and bank sync are exactly the areas where mistakes are expensive and hard to debug. Sure (the long-term successor candidate already tracked in this repo, see `#ghostfolio-vs-sure-portfolio-comparison`) confirms the right model: a mature engine + an external conversational layer, not an engine built from scratch.
+
+**Rejected: forking MoneyMatter.** Reintroduces full AGPL exposure (the whole project would need to become AGPL) without removing the real complexity of a finance engine. Generalizable principle: if AGPL-licensed code is ever adopted, it stays isolated as a separate self-hosted microservice consumed over REST (the same pattern as `VehicleClient`, see `#vehicle-manager`) — never adapted directly into this codebase.
+
+**Reconfirmed as the project's central principle, independent of this decision:** `_PROPOSAL_TOOLS` — nothing writes to AB without explicit user confirmation — is what Majordom actually is, not an implementation detail that varies with the backend engine.
+
+**Still open, not blocking this decision:** import deduplication bug (exact symptom not yet pinned down), new Home charts (recharts) — see `docs/roadmap.md` backlog.
+
+---
+
+<a id="self-host-only-no-saas-tier"></a>
+### Self-host only — no hosted SaaS tier
+
+**Date:** 2026-08-17
+
+**Decision:** Majordom stays self-hosted only. No tier where Doru hosts other users' financial data. The public demo stays an isolated, non-persistent showcase, not an alternative way to use the product.
+
+**Why it came up:** real setup friction connecting to AB (blind `base_url`/`password`/`file` entry) suggested a hosted tier as a way around it, following MoneyMatter's self-host-or-cloud model.
+
+**Why rejected:**
+- Doesn't solve the actual problem — self-host users still enter AB credentials; a SaaS tier just gives some users a way to skip the step entirely, it doesn't remove it.
+- Business-model shift, not a technical one: hosting other people's financial data is direct GDPR liability as a data controller for sensitive third-party data — a different category from "sell setup consulting on the client's own server" (the current model).
+- AB has no safe native multi-tenancy (one server password, not isolated accounts) — correct hosting would still need one AB instance per client, technically identical to the existing VPS-setup-as-a-service, just with Doru holding final access instead of the client.
+- Contradicts DEPPSiT's positioning (digital sovereignty — your data, your server); a tier where Doru hosts other people's money is the opposite of that message.
+
+**The real friction gets solved by a setup wizard instead** — see `docs/specs/ab-setup-wizard.md` — credentials entered once, validated live, encrypted at rest.
+
+**Demo, confirmed unaffected by this decision:** separate VPS, own subdomain, AB unreachable from the public internet, write actions confirmed visually but not persisted for demo visitors, Gemini Flash Lite via Google Vertex EU, Cloudflare Access with Service Tokens.
+
+**Rejected:** hosted SaaS tier, even offered optionally alongside self-host.
+
+---
+
+### Every proposed action needs verifiable proof, not just a success message
+
+**Date:** 2026-08-02
+
+**Decision:** any action Majordom proposes (categorization, rule, transfer, budget change) must show the user proof they can check — a clear preview of affected transactions before confirmation, and an easy-to-verify summary after — not just a "done" message.
+
+**Why:** direct user quote — "often I can't tell if what it did is correct, and I don't trust it, so I end up going into AB to check anyway." That defeats the point of delegating: if the user re-verifies manually every time, Majordom adds a step instead of saving time.
+
+**Applies to:** every `_PROPOSAL_TOOLS` flow, present and future — check this entry before writing any action that changes AB state. Same spirit as the "Coach, not consultant" principle above, applied to trust instead of scope.

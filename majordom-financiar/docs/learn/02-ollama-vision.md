@@ -56,3 +56,11 @@ LLM_VISION_MODEL=qwen2.5vl:7b
 The code is provider-agnostic — uses OpenAI-compatible `/v1/chat/completions` endpoint for both.
 
 **Note:** `LLM_BASE_URL` must NOT end with `/v1` — the code appends `/v1/chat/completions` automatically.
+
+## Accuracy — photo OCR has a universal ceiling, not a Gemini-specific weakness
+
+External benchmark (Chompass, a calorie tracker with public labeled-data accuracy testing, `docs/ACCURACY.md`): text-description input is close to solved (~90% of estimates within ±20%, 5.7% WMAPE), but photo input is hard for *every* model tested, including the best paid ones (~50% within ±20%, 32.3% WMAPE).
+
+**Implication:** a receipt misread by Gemini Flash Lite (e.g. total/merchant confusion on a non-standard layout) is expected behavior for vision models on photos in general, not a defect specific to this model or prompt. The fix is a fast, low-friction correction UI (see `docs/specs/add-review-transaction.md`), not chasing a "perfect" OCR prompt.
+
+**Idea, not yet built:** a small labeled test set of real misread receipts (starting with whatever gets corrected in practice) would let future model swaps (MiniMax, DeepSeek vision, etc.) be compared against a baseline instead of judged anecdotally.

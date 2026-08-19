@@ -72,3 +72,18 @@ If a transfer is imported as an expense (not detected):
 | Off-budget transfer | Needs a category on the on-budget side |
 | `transfer_acct` on payee | actualpy creates the second transaction automatically |
 | Pair matching (future) | Cross-account match after import: same amount, opposite signs, ±3 days |
+
+## Rule-based transfer linking (bank sync, not CSV import)
+
+Different mechanism than the CSV `Code=GT` detection above — applies to bank-synced accounts. AB links a transfer when a transaction's **payee** becomes the other account's name (AB auto-creates one payee per account, not a category). Each side needs its own rule. Rules only auto-apply to transactions imported after the rule exists — the rule editor's "Apply actions" button retroactively applies to already-matching transactions.
+
+**Gotchas, from live reconciliation sessions:**
+- Any rule setting payee → account name goes on stage **Post**, always. Don't rely on AB's implicit specificity ordering between Default/Pre rules.
+- Before adding a rule on a payee, check it doesn't already have a conflicting rule (can be auto-created by an earlier payee merge) — a more specific Post rule wins over it, doesn't replace it.
+- Retroactive "Apply actions" on a previously-untouched sub-account is a real write — check the balance delta looks sane before/after, don't assume a correct target account guarantees a correct result (has produced an unexplained balance swing in practice).
+- If one payee text genuinely maps to multiple real destinations (context-dependent self-transfers), don't force a single rule — leave as manual per-transaction judgment.
+- Same payee can bill for different owned assets (e.g. one tax collector, car + motorcycle) — disambiguate via a second stable signal in the notes/description field, not payee alone.
+
+**`cleared` is not a uniform trust signal.** Bank-synced account: uncleared ≈ likely a manual placeholder duplicate. Manually-administered account: uncleared just means "never checked off" — a real transaction. Never bulk-act on an "uncleared" filter without checking which regime applies per account.
+
+**Duplicate placeholder pattern:** initiating a transfer conversationally often leaves a manual placeholder (to see the budget update immediately); days later bank sync brings the real transaction in as a new entry, placeholder never removed — same amount, both accounts silently misaligned vs. real bank balance. Any transfer-creation flow should avoid the separate placeholder, or mark it and offer to reconcile once the synced pair arrives.
