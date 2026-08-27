@@ -1,18 +1,22 @@
 import { NavLink } from 'react-router-dom'
-import { Home, MessageCircle } from 'lucide-react'
+import { LayoutGrid, Layers, Table2, MessageCircle, BarChart3 } from 'lucide-react'
 
 /**
- * Bottom navigation bar — visible on all main pages (Home, Chat).
+ * Bottom navigation bar — 5 persistent tabs (decisions.md#nav-five-tabs),
+ * replacing the earlier 2-tab (Home + Majordom) structure.
  * Hidden on /login and /receipt (full-screen flows).
- * CSV import is accessed via the + button in the Chat input bar.
+ * CSV import and Photo capture are reached via the + Add button in headers.
  *
  * Uses NavLink so the active tab is highlighted automatically.
  * `pb-safe` ensures the bar clears the iOS home indicator on notched phones.
  */
 
 const tabs = [
-  { to: '/', icon: Home, label: 'Home' },
-  { to: '/chat', icon: MessageCircle, label: 'Chat' },
+  { to: '/', icon: LayoutGrid, label: 'Dashboard' },
+  { to: '/accounts', icon: Layers, label: 'Accounts' },
+  { to: '/transactions', icon: Table2, label: 'Transactions' },
+  { to: '/chat', icon: MessageCircle, label: 'Majordom' },
+  { to: '/analytics', icon: BarChart3, label: 'Analytics' },
 ]
 
 export default function BottomNav() {
@@ -30,13 +34,13 @@ export default function BottomNav() {
           end
           className={({ isActive }) => `
             flex-1 flex flex-col items-center justify-center gap-1 py-3
-            text-xs font-medium transition-colors
+            text-[10px] font-medium transition-colors
             ${isActive ? 'text-accent' : 'text-muted hover:text-white'}
           `}
         >
           {({ isActive }) => (
             <>
-              <Icon size={22} strokeWidth={isActive ? 2.5 : 1.75} />
+              <Icon size={20} strokeWidth={isActive ? 2.5 : 1.75} />
               {label}
             </>
           )}
