@@ -109,18 +109,7 @@ Found during an external review of `architecture.md`/`decisions.md` for a course
 
 ## End-of-task protocol
 
-When user confirms something works:
-
-**If task was implemented by Claude directly — self-check before commit:**
-1. Re-read the rules found in the pre-implementation steps (architecture.md + decisions.md + sessions/)
-2. Verify each rule was applied in the written code — check explicitly, not by assumption
-3. If a rule was missed: fix before proceeding
-
-**If task was implemented by DeepSeek — audit diff first (before commit):**
-1. Re-read `## Critical Rules` from the DeepSeek prompt
-2. Verify each rule was respected in the diff — check explicitly, not by assumption
-3. If a rule was violated: fix directly or send back to DeepSeek with the specific observation
-4. Only after audit passes → proceed to commit
+When user confirms something works, before committing: run the `pre-commit-review` subagent (`.claude/agents/pre-commit-review.md`) on the diff — pass it the DeepSeek prompt file path too if the task was implemented by DeepSeek. If it reports a violation: fix directly (Claude-implemented) or send back to DeepSeek with the specific observation (DeepSeek-implemented). Only after it reports "safe to commit" → proceed.
 
 **Always — do NOT report task as done until all steps below are checked:**
 1. Commit with correct timestamp
@@ -128,9 +117,10 @@ When user confirms something works:
 3. Update `docs/roadmap.md` if it's a milestone item (mark ✅ done); closing the GitHub issue already updates its priority tracking (label/milestone) automatically — no separate doc to touch. If feature has a spec in `docs/specs/`, update it too
 4. Add entry to `docs/sessions/YYYY-WNN.md` (current week's file)
 5. Update `docs/sessions/INDEX.md` — add row for the session
-6. Check if docs need updating:
+6. Check if the setup itself needs updating:
    - New technical pattern or unexpected quirk found → add to `docs/architecture.md#critical-technical-rules`
    - Design decision made during session → add to `docs/decisions.md`
+   - **Hit friction this session that a rule/skill/hook would have caught or avoided → implement that setup change now** (new `.claude/rules/` entry, skill update, or GitHub issue if it's bigger than one session), not just a session-log note. The setup should get measurably better every session, not just document what happened (2026-08-28).
    - Rule already documented → no action
 7. Fix any outdated notes in this file (CLAUDE.md)
 
