@@ -2,6 +2,7 @@
 GET /api/home — all Home screen data in one AB session.
 """
 import logging
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 
@@ -70,6 +71,61 @@ async def sync_accounts(current_user: str = Depends(get_current_user)):
     except Exception as e:
         logger.error("Bank resync-all failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Sync failed")
+
+
+@router.get("/home/duplicates/months")
+async def get_duplicate_months(current_user: str = Depends(get_current_user)):
+    """
+    List months with suspected duplicate (manual-entry vs. bank-sync) pairs,
+    newest first, zero-count months excluded — feeds the Home header badge +
+    the review screen's month list.
+    """
+    from backend.core.finance.provider import get_provider
+    try:
+        by_month = await get_provider().get_duplicate_transactions_by_month()
+    except Exception as e:
+        logger.error("Failed to fetch duplicate months: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Could not fetch duplicates")
+    months = [
+        {"month": m, "count": len(pairs)}
+        for m, pairs in by_month.items()
+        if pairs
+    ]
+    months.sort(key=lambda x: x["month"], reverse=True)  # newest first (YYYY-MM sorts lexically)
+    return {"months": months}
+
+
+@router.get("/home/duplicates/months/{month}")
+async def get_duplicate_pairs(month: str, current_user: str = Depends(get_current_user)):
+    """
+    Full pair list for one month. Each pair is wrapped in a merge action via the
+    shared proposal store so the existing /api/category-actions/{id}/confirm and
+    /cancel endpoints can drive it — returns the `action_id` so the frontend can
+    reference it without duplicating any proposal-store logic.
+    """
+    from backend.core.finance.provider import get_provider
+    from backend.tools import category_actions as action_store
+    # Basic shape guard — keep it lightweight, matching the existing plain-dict
+    # convention in category_actions' confirm dispatch (no Pydantic validation).
+    if len(month) != 7 or month[4] != "-":
+        raise HTTPException(status_code=400, detail=f"Invalid month: {month!r}")
+    try:
+        by_month = await get_provider().get_duplicate_transactions_by_month()
+    except Exception as e:
+        logger.error("Failed to fetch duplicate pairs for %s: %s", month, e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Could not fetch duplicates")
+    pairs = by_month.get(month, [])
+    result = []
+    for pair in pairs:
+        action_id = uuid4().hex[:8]
+        action_store.store(action_id, {
+            "action": "merge_duplicate",
+            "manual_id": pair["manual"]["id"],
+            "synced_id": pair["synced"]["id"],
+        })
+        result.append({"action_id": action_id, **pair})
+    result.sort(key=lambda p: p["synced"]["date"], reverse=True)
+    return {"month": month, "pairs": result}
 
 
 _PERIOD_MONTHS = {"3m": 3, "6m": 6, "12m": 12}

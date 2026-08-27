@@ -324,6 +324,14 @@ Home, Chat, and ImportPage each hand-rolled their own `<header>` (different icon
 
 ---
 
+### 28. `Transactions.financial_id` is `None` for anything entered directly in the Actual Budget UI — never use it as a general transaction identifier
+
+`financial_id` is only populated for bank-synced/imported transactions (the bank's own id) or ones created via Majordom's own `add_transaction()` (which generates and passes `imported_id` explicitly, see `client.py`'s `add_transaction`). A transaction added by hand in the Actual Budget app itself gets `financial_id = None` — confirmed live on the dev fixture: 15 of 234 transactions in a single account. Filtering or looking up `Transactions.financial_id == <value>` when `<value>` can be `None` (or when the row you're targeting might be one of the null ones) risks matching an arbitrary row instead of the intended one, since SQL equality against `None` behaves unlike a normal value match at the ORM level and multiple rows can share it.
+
+Found while building #181 (duplicate-transaction merge) — the first draft identified both sides of a duplicate pair by `financial_id` and would have soft-deleted an unpredictable transaction whenever the "manual" side was one of the null-`financial_id` rows. Fixed by keying on the row's own `id` (the actualpy/SQLModel primary key, always present) instead, everywhere the code needs to reliably reference one specific transaction — reserve `financial_id` for its actual purpose: matching against bank-import data (see #121's `find_near_duplicate_transaction`, which only ever reads it off transactions that are already confirmed bank-synced).
+
+---
+
 ## Main Flows
 
 ### Receipt photo (web)

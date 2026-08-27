@@ -584,6 +584,41 @@ export async function syncAccounts(): Promise<SyncResult> {
   return request<SyncResult>('/home/sync', { method: 'POST' })
 }
 
+// --- Duplicate (manual-entry vs. bank-sync) review (#181) ---
+
+export interface DuplicateMonth {
+  month: string   // "YYYY-MM"
+  count: number
+}
+
+export interface DuplicateTransactionSide {
+  id: string
+  date: string
+  amount: number
+  payee: string
+  category_id: string
+  category_name: string
+  notes: string
+}
+
+export interface DuplicatePair {
+  action_id: string
+  manual: DuplicateTransactionSide
+  synced: DuplicateTransactionSide
+}
+
+export async function getDuplicateMonths(): Promise<DuplicateMonth[]> {
+  const res = await request<{ months: DuplicateMonth[] }>('/home/duplicates/months')
+  return res.months
+}
+
+export async function getDuplicatePairs(month: string): Promise<DuplicatePair[]> {
+  const res = await request<{ month: string; pairs: DuplicatePair[] }>(
+    `/home/duplicates/months/${month}`
+  )
+  return res.pairs
+}
+
 export type BudgetPeriod = 'month' | '3m' | '6m' | '12m'
 
 export interface BudgetPeriodMonth {

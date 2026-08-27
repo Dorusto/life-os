@@ -6,6 +6,7 @@ import Login from './pages/Login'
 import Home from './pages/Home'
 import ReceiptFlow from './pages/ReceiptFlow'
 import ImportPage from './pages/ImportPage'
+import DuplicatesReviewPage from './pages/DuplicatesReviewPage'
 import Chat, { type Message, INITIAL_MESSAGES } from './pages/Chat'
 import { getChatHistory } from './lib/api'
 import BottomNav from './components/BottomNav'
@@ -104,6 +105,14 @@ function Layout() {
           element={
             <ProtectedRoute>
               <ImportPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/duplicates"
+          element={
+            <ProtectedRoute>
+              <DuplicatesReviewPage />
             </ProtectedRoute>
           }
         />

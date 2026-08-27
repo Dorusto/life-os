@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { LogOut, Bell, MoreVertical, RefreshCw, Wallet, Database, Car, AlertCircle, ChevronRight } from 'lucide-react'
+import { LogOut, Bell, MoreVertical, RefreshCw, Wallet, Database, Car, AlertCircle, ChevronRight, Copy } from 'lucide-react'
 import {
-  getHomeData, getHomePending, syncAccounts, getBudgetPeriod,
+  getHomeData, getHomePending, syncAccounts, getBudgetPeriod, getDuplicateMonths,
   type FireData, type BudgetCategory, type BudgetPeriod,
 } from '../lib/api'
 import { getUsername, clearAuth } from '../lib/auth'
@@ -45,6 +45,16 @@ export default function Home() {
     staleTime: 120_000,
   })
   const [pendingSheetOpen, setPendingSheetOpen] = useState(false)
+
+  // Suspected manual-entry vs. bank-sync duplicates (#181) — total across all
+  // months, shown as the badge on the new review-screen icon. Same query shape
+  // as `pendingItems` above (queryKey ['duplicates','months'], getDuplicateMonths).
+  const { data: duplicateMonths } = useQuery({
+    queryKey: ['duplicates', 'months'],
+    queryFn: () => getDuplicateMonths(),
+    staleTime: 120_000,
+  })
+  const duplicateCount = duplicateMonths?.reduce((sum, m) => sum + m.count, 0) ?? 0
 
   const budgetStatus = homeData?.budget
   const goals = homeData?.goals
@@ -132,6 +142,18 @@ export default function Home() {
               iconClassName={syncState === 'syncing' ? 'animate-spin' : ''}
               badge={syncState === 'failed' ? <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-danger" /> : undefined}
             />
+            {duplicateCount > 0 && (
+              <IconButton
+                icon={Copy}
+                onClick={() => navigate('/duplicates')}
+                label="Review duplicates"
+                badge={
+                  <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-attention text-background text-[10px] font-bold flex items-center justify-center">
+                    {duplicateCount}
+                  </span>
+                }
+              />
+            )}
             <div className="relative ml-1" ref={menuRef}>
               <IconButton icon={MoreVertical} onClick={() => setMenuOpen(o => !o)} label="Menu" />
               {menuOpen && (

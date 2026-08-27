@@ -158,6 +158,16 @@ class ActualBudgetProvider:
     async def run_bank_resync_all(self) -> dict:
         return await self._client().run_bank_resync_all()
 
+    async def get_duplicate_transactions_by_month(self) -> dict[str, list[dict]]:
+        return await self._client().get_duplicate_transactions_by_month()
+
+    async def merge_duplicate_transaction(
+        self, manual_id: str, synced_id: str
+    ) -> bool:
+        return await self._client().merge_duplicate_transaction(
+            manual_id, synced_id
+        )
+
     async def count_uncategorized_by_payee(self, payee: str, notes_contains: str = "") -> int:
         return await self._client().count_uncategorized_by_payee(payee, notes_contains)
 

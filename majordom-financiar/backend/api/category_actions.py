@@ -204,6 +204,17 @@ async def confirm_category_action(
                 message = "FIRE assumptions updated: " + ", ".join(changed_parts) + "."
             else:
                 message = "No changes made."
+        elif action["action"] == "merge_duplicate":
+            merged = await client.merge_duplicate_transaction(
+                action["manual_id"],
+                action["synced_id"],
+            )
+            if not merged:
+                raise HTTPException(
+                    status_code=404,
+                    detail="One side of the duplicate pair is missing — it may already have been merged."
+                )
+            message = "Merged duplicate — kept the bank-synced transaction, removed the manual entry."
         else:
             raise HTTPException(status_code=400, detail=f"Unknown action: {action['action']}")
     except ValueError as e:

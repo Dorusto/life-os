@@ -77,6 +77,83 @@ def _safe_get_or_create_payee(session, name: str):
     return payee
 
 
+def _tx_side_dict(tx) -> dict:
+    """Serialize one side of a duplicate pair for display/review (#181).
+
+    Fields intentionally mirror the shared pair shape used by the review screen.
+    Raw ``Transactions.amount`` is in cents — convert to a EUR float for the UI
+    (divide by one hundred) — same convention as the existing
+    ``find_near_duplicate_transaction``/``count_uncategorized_by_payee`` queries.
+
+    Uses the row's own ``id`` (always present), not ``financial_id`` — that
+    field is only populated for bank-synced/imported transactions or ones
+    created via Majordom's own `add_transaction` (which sets `imported_id`);
+    anything entered directly in the Actual Budget UI has `financial_id = None`
+    (confirmed live: 15/234 transactions in one fixture account), which would
+    make `Transactions.financial_id == None` match arbitrarily many rows.
+    """
+    cat = tx.category
+    cat_name = cat.name if (cat and cat.name) else ""
+    return {
+        "id": tx.id,
+        "date": tx.get_date().isoformat(),
+        "amount": abs(float(tx.amount or 0)) / 100,
+        "payee": tx.payee.name if tx.payee else "",
+        "category_id": str(tx.category_id) if tx.category_id else "",
+        "category_name": cat_name,
+        "notes": tx.notes or "",
+    }
+
+
+def _find_duplicate_candidates(
+    session, account, newly_synced_ids: set[str] | None = None,
+) -> list[dict]:
+    """Find suspected manual-entry vs. bank-sync duplicate pairs in one account.
+
+    Matching rule (#181): same account, exact amount match (both sides describe the
+    same real payment — no tolerance, unlike #121's OCR-vs-card-auth matcher), one
+    side ``cleared == False`` (manual placeholder) and one side ``cleared == True``
+    (bank-synced). No date window — a bank-linked account's uncleared pool stays small
+    on its own, and a bad match is only a dismissible suggestion, never an automatic
+    action. The "manual" side is the uncleared one, the "synced" side the cleared one.
+
+    When ``newly_synced_ids`` is provided, only pairs whose synced side's
+    ``financial_id`` is in that set are returned (used at sync time to restrict
+    results to transactions this sync just imported).
+
+    Returns a list of ``{"manual": {...}, "synced": {...}}`` dicts.
+    """
+    from actual.database import Transactions
+    txs = (
+        session.query(Transactions)
+        .filter(
+            Transactions.acct == account.id,
+            Transactions.tombstone == 0,
+            Transactions.is_parent == 0,
+        )
+        .all()
+    )
+    by_amount: dict[int, list] = defaultdict(list)
+    for tx in txs:
+        if tx.amount is None or tx.amount == 0:
+            continue
+        # Signed, not abs() — same real payment has the same sign in the same
+        # account; an expense and an unrelated income of equal magnitude must
+        # never be treated as a candidate pair.
+        by_amount[int(tx.amount)].append(tx)
+
+    pairs = []
+    for group in by_amount.values():
+        manuals = [t for t in group if not t.cleared]
+        synceds = [t for t in group if t.cleared]
+        for m in manuals:
+            for s in synceds:
+                if newly_synced_ids is not None and s.financial_id not in newly_synced_ids:
+                    continue
+                pairs.append({"manual": _tx_side_dict(m), "synced": _tx_side_dict(s)})
+    return pairs
+
+
 def _tombstoned_category_remap(session, all_cats) -> tuple[dict[str, str], dict[str, str]]:
     """Fuzzy-match tombstoned (deleted) category ids to a living category id.
 
@@ -1832,9 +1909,21 @@ class ActualBudgetClient:
                 accounts = [a for a in get_accounts(actual.session) if not a.closed and a.account_sync_source]
                 new_transactions = 0
                 failed: list[str] = []
+                duplicate_candidates: list[dict] = []
                 for acc in accounts:
                     try:
-                        new_transactions += len(actual.run_bank_sync(account=acc))
+                        new_txs = actual.run_bank_sync(account=acc)
+                        # run_bank_sync returns the freshly-imported transactions
+                        # (same model as get_transactions) — keep the length for the
+                        # existing `new_transactions` counter AND the ids to restrict
+                        # the duplicate scan to just this sync's imports.
+                        new_ids = {tx.financial_id for tx in new_txs if getattr(tx, "financial_id", None)}
+                        new_transactions += len(new_txs)
+                        duplicate_candidates.extend(
+                            _find_duplicate_candidates(
+                                actual.session, acc, newly_synced_ids=new_ids,
+                            )
+                        )
                     except Exception as e:
                         logger.warning("Bank resync failed for account %s: %s", acc.name, e)
                         failed.append(acc.name)
@@ -1843,8 +1932,83 @@ class ActualBudgetClient:
                     "synced_accounts": len(accounts) - len(failed),
                     "new_transactions": new_transactions,
                     "failed": failed,
+                    "duplicate_candidates": duplicate_candidates,
                 }
         return await self._run(_sync)
+
+    async def get_duplicate_transactions_by_month(self) -> dict[str, list[dict]]:
+        """
+        Historical batch scan for manual-entry vs. bank-sync duplicate pairs.
+
+        Read-only, across all bank-linked accounts (the same `account_sync_source`
+        filter `run_bank_resync_all()` applies), grouped by the bank-synced side's
+        month as ``"YYYY-MM"`` keys. Used by the review screen to catch duplicates
+        that predate the sync-time check — like the 3 already found live on prod.
+        """
+        def _get() -> dict[str, list[dict]]:
+            from actual.queries import get_accounts
+            with self._get_actual() as actual:
+                actual.download_budget()
+                accounts = [a for a in get_accounts(actual.session) if not a.closed and a.account_sync_source]
+                by_month: dict[str, list[dict]] = {}
+                for acc in accounts:
+                    for pair in _find_duplicate_candidates(actual.session, acc):
+                        month_key = pair["synced"]["date"][:7]  # "YYYY-MM"
+                        by_month.setdefault(month_key, []).append(pair)
+                return by_month
+        return await self._run(_get)
+
+    async def merge_duplicate_transaction(
+        self, manual_id: str, synced_id: str
+    ) -> bool:
+        """
+        Merge a confirmed duplicate pair (#181) in one atomic commit.
+
+        Not a blind delete: the manual entry may carry a category/notes the user
+        already set; the bank-synced transaction is typically uncategorized fresh
+        off the bank. Copy the manual side's `category_id` and `notes` onto the
+        synced side only if the synced side lacks them (never overwrite), then
+        soft-delete the manual side (tombstone=1). Everything runs in one
+        `_get_actual()`/`commit()` block. Returns False if either side couldn't
+        be found (e.g. already handled).
+
+        Looks up by the row's own `id`, not `financial_id` — `financial_id` is
+        None for anything entered directly in the Actual Budget UI, and matching
+        on it could hit an arbitrary row instead of the intended one.
+        """
+        def _merge() -> bool:
+            from actual.database import Transactions
+            with self._get_actual() as actual:
+                actual.download_budget()
+                manual = actual.session.query(Transactions).filter(
+                    Transactions.id == manual_id,
+                    Transactions.tombstone == 0,
+                ).first()
+                synced = actual.session.query(Transactions).filter(
+                    Transactions.id == synced_id,
+                    Transactions.tombstone == 0,
+                ).first()
+                if not manual or not synced:
+                    logger.warning(
+                        "Duplicate merge failed — one side missing: manual=%s synced=%s",
+                        manual_id, synced_id,
+                    )
+                    return False
+                # Copy category/notes from the manual side only when the synced side
+                # doesn't already have them — the bank-synced txn may be one the user
+                # later categorized/annotated, which must win.
+                if (not synced.category_id) and manual.category_id:
+                    synced.category_id = manual.category_id
+                if (not synced.notes) and manual.notes:
+                    synced.notes = manual.notes
+                manual.tombstone = 1
+                actual.commit()
+                logger.info(
+                    "Merged duplicate transaction — kept %s, removed manual %s",
+                    synced_id, manual_id,
+                )
+                return True
+        return await self._run(_merge)
 
     async def count_uncategorized_by_payee(self, payee: str, notes_contains: str = "") -> int:
         """
