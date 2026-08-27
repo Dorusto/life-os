@@ -41,8 +41,6 @@ class FinanceProvider(Protocol):
         self, limit: int = 20, start_date: date | None = None, end_date: date | None = None,
     ) -> list[dict]: ...
 
-    async def get_spending_history(self, months: int = 3) -> list[dict]: ...
-
     async def add_transaction(
         self,
         account_id: str,

@@ -471,7 +471,8 @@ async def preview_csv(
         text_content = raw.decode(enc)
         auto_delimiter = normalizer.detect_delimiter(text_content)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Cannot parse CSV: {e}")
+        logger.error("Failed to parse CSV %s: %s", filename, e)
+        raise HTTPException(status_code=400, detail="Could not parse CSV file — check the encoding and delimiter")
 
     db = MemoryDB(db_path=settings.memory.db_path)
     detector = CsvProfileDetector(

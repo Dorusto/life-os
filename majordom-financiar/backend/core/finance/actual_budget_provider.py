@@ -65,9 +65,6 @@ class ActualBudgetProvider:
     ) -> list[dict]:
         return await self._client().get_recent_transactions(limit=limit, start_date=start_date, end_date=end_date)
 
-    async def get_spending_history(self, months: int = 3) -> list[dict]:
-        return await self._client().get_spending_history(months=months)
-
     async def add_transaction(
         self,
         account_id: str,
