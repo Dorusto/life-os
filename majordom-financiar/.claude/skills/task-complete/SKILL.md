@@ -1,6 +1,6 @@
 ---
 name: task-complete
-description: Runs the mandatory end-of-task protocol for majordom-financiar once the user confirms a change works — pre-commit review subagent, commit, close the GitHub issue, update roadmap/session logs, and check whether the setup itself needs a fix. Use this whenever a task is confirmed working, before reporting it as done. Invoke explicitly as /task-complete.
+description: Runs the mandatory end-of-task protocol for majordom-financiar once the user confirms a change works — pre-commit review subagent, commit, close the GitHub issue, update roadmap/session logs, check whether the setup itself needs a fix, and (unless context is light and the next step is just architecture/delegation) hand off with a next-session kickoff prompt. Use this whenever a task is confirmed working, before reporting it as done. Invoke explicitly as /task-complete.
 ---
 
 # Task Complete — end-of-task protocol for Majordom
@@ -24,6 +24,13 @@ Run the `pre-commit-review` subagent (`.claude/agents/pre-commit-review.md`) on 
    - **Hit friction this session that a rule/skill/hook would have caught or avoided → implement that setup change now** (new `.claude/rules/` entry, skill update, or GitHub issue if it's bigger than one session), not just a session-log note. The setup should get measurably better every session, not just document what happened.
    - Rule already documented → no action.
 7. Fix any outdated notes in `CLAUDE.md`.
+
+## 3 — When reporting the task as done: summary + next-session kickoff prompt
+
+After the summary of what was done, decide whether to also hand off to a fresh session:
+
+- **Default:** give a kickoff prompt for the next session, written to paste directly into a new chat here — never saved to a file (same reasoning as the DeepSeek-prompt-file rule under "Collaboration rules": nothing downstream consumes it). Base it on what actually makes sense to pick up next (open issues, the roadmap, anything flagged `Unresolved` in this session's log entry). Take into account whatever delegation tooling is available now (e.g. `/delegate-by-complexity` for parallel opencode/DeepSeek/qwen-local dispatch) when the next task is a good fit for it — name it in the prompt if so.
+- **Exception:** if this session's context isn't heavily loaded yet and the next step is purely architecture discussion + delegation dispatch (no heavy file-reading or implementation work), skip the new-session suggestion — say so, and just continue in the current chat instead. Established 2026-08-28, at Doru's explicit request, as the default going forward — not a one-time note in a session log; codified here since majordom-financiar's own "no auto-memory" rule means workflow preferences live in this file, not `~/.claude/projects/.../memory/`.
 
 ## Sessions log format
 
