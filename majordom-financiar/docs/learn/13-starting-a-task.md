@@ -8,7 +8,7 @@ A practical guide for opening a new Claude session and getting to work efficient
 
 Open `docs/roadmap.md`. Find the **current milestone** (the first one without ✅). Within that milestone, pick the first unfinished item. If everything in the milestone is done, the milestone is complete — move to the next.
 
-For day-to-day issue-level work (most sessions in practice), check GitHub instead: `gh issue list --label tier-2` (or `tier-3`) — the tactical, frequently-reprioritized list, organized by actual priority rather than milestone order. See `CLAUDE.md#priority-tracking` for the full label scheme.
+For day-to-day issue-level work (most sessions in practice), check GitHub instead: `gh issue list --label tier-2` (or `tier-3`) — the tactical, frequently-reprioritized list, organized by actual priority rather than milestone order. See `.claude/rules/priority-tracking.md` for the full label scheme.
 
 If you have a bug reported or something broken: that takes priority over roadmap items.
 

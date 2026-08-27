@@ -167,7 +167,7 @@ Extract each service from Majordom into an independent HTTP service with its own
 
 ## Backlog
 
-Issue-level priority lives natively on GitHub (2026-07-03) — not in a hand-maintained doc. See `CLAUDE.md#priority-tracking` for the full rule and query examples.
+Issue-level priority lives natively on GitHub (2026-07-03) — not in a hand-maintained doc. See `.claude/rules/priority-tracking.md` for the full rule and query examples.
 
 Quick reference:
 - `gh issue list --label tier-2` / `tier-3` — ready to pick up, ordered by effort

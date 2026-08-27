@@ -19,7 +19,7 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 | Task | Read |
 |------|------|
 | Bug in backend/api/ or core/ | `docs/architecture.md#critical-technical-rules` + `docs/sessions/` (grep topic) |
-| New feature | `docs/roadmap.md` (current milestone) + GitHub labels for issue priority (`#priority-tracking` below) + `docs/architecture.md#main-flows` |
+| New feature | `docs/roadmap.md` (current milestone) + GitHub labels for issue priority (`.claude/rules/priority-tracking.md`) + `docs/architecture.md#main-flows` |
 | Refactor | `docs/decisions.md` + `docs/architecture.md` |
 | Chat / tool calling | `docs/learn/10-chat-tools.md` + `docs/architecture.md#critical-technical-rules` |
 | CSV import | `docs/learn/07-csv-import.md` |
@@ -45,15 +45,7 @@ Full details in `docs/architecture.md`. Summary:
 
 ## New dev machine setup
 
-Cloning the repo is not enough on its own — these don't come with `git clone`:
-
-1. **Git auth** — this repo is cloned over HTTPS; the stored credential is per-machine. Run `gh auth login` (or add a fresh token) before the first push from a new machine.
-2. **`.env`** — gitignored, never in the repo. Copy `.env.example` → `.env` and fill in credentials (full list in `DEPLOY.md#environment-variable-reference`). For a second dev stack, generate fresh test values rather than copying real ones.
-3. **Docker & Docker Compose** — required to run the local stack (`docker compose up -d`). Same `docker-compose.yml` as production — use fixture/test data on a dev machine, and never point `ACTUAL_BUDGET_URL` at the LXC.
-4. **Ollama or remote LLM** — either start with `--profile ollama-local` on the new machine, or point `LLM_BASE_URL` at an existing Ollama server reachable over Tailscale.
-5. **Local-only files don't transfer** — `.claude/settings.local.json`, and `PLANNING.md` / `PRIVATE_context.md` if they exist, are gitignored. Copy them manually if their content matters on the new machine.
-
-Full deployment steps (LXC / plain Docker / Coolify): see `DEPLOY.md`.
+Cloning the repo is not enough on its own — git auth, `.env`, Docker, Ollama/LLM endpoint, and local-only gitignored files (`.claude/settings.local.json`, `PLANNING.md`, `PRIVATE_context.md`) all need separate setup. Deployment steps (LXC / plain Docker / Coolify): see `DEPLOY.md`.
 
 ---
 
@@ -67,40 +59,11 @@ Fără acest pas, Second Brain rămâne out of sync și sesiunile de strategie Y
 
 ---
 
-## Priority tracking
+## Priority tracking & duplication prevention
 
-**Rule (2026-07-03, do not violate):** issue priority/status lives ONLY on GitHub — never in a hand-maintained markdown file. Two separate incidents the same day (`docs/roadmap.md`'s milestone table and `docs/backlog.md` both independently tracking #41/#42/#138's status and disagreeing; before that, the root `CLAUDE.md` "Current priorities" list drifting from reality for weeks) are why: any doc that duplicates what an issue's own state already says WILL go stale, because nothing forces the two to update together.
-
-**Mechanism:**
-- **GitHub Milestones** — big phases (M0-M6, matching `docs/roadmap.md`'s themes). Assign an issue to a milestone when it maps to a specific roadmap phase.
-- **GitHub Labels** — tactical priority: `tier-2`, `tier-3` (ready to pick up, by effort), `intelligence-cluster` (proactive budget intelligence, medium priority, after standard functionality), `deferred-local-first` (blocked on switching back to local LLM), `deferred-opportunistic` (not scheduled).
-
-**Query examples:**
-```
-gh issue list --label tier-2
-gh issue list --label intelligence-cluster
-gh issue list --milestone "M4 — Smart Alerts"
-```
-
-**What CAN live in docs:**
-- Narrative that doesn't fit a label — sequencing rationale, "why these are grouped" — goes in the issue's own body/comments, not a separate tracking table.
-- `docs/roadmap.md` stays narrative-only: milestone themes, what "done" looks like. No per-item status tables for anything with a live GitHub issue — link to the issue instead (see 4.5/4.7/5.7/5.9/6.1 in the M4/M5/M6 tables for the pattern).
-- `docs/feature-ideas.md` is for ideas that AREN'T issues yet. The moment one becomes actionable, open an issue (with the right label/milestone) and remove it from that list.
-
-**Before adding any new priority/status list to a doc:** stop — it almost certainly belongs as a GitHub label or milestone instead.
-
----
-
-## Duplication & dead-code prevention
-
-**Rule (2026-07-03, do not violate):** when a new flow replaces an old one, delete the old one in the *same task* — not later, not "once things settle." The #93 audit found 4 dead PWA endpoints (`/api/stats`, `/api/budget`, `/api/accounts/goals`, `/api/stats/fire`) that `/api/home` had fully superseded, and 3 near-identical calculation loops copy-pasted across `get_monthly_stats`/`get_budget_status`/`get_home_data` in `client.py`. This wasn't just clutter: one copy (`get_home_data`) silently gained a rollover-aware budget-balance fix that the other two never received, so the chat tool and the Home screen showed different numbers for the same category with no error anywhere to reveal it. See `docs/decisions.md#93-code-audit` and `docs/architecture.md` rule 20.
-
-**Mechanism:**
-- **Retiring a flow = deleting it now.** If a new endpoint/tool/screen replaces an old one, remove the old endpoint, its frontend wrapper, and any now-unused model in the same PR. "Leave it in case something still calls it" — check first (grep), don't guess.
-- **Before writing a loop over transactions/categories/budgets, check `backend/core/actual_client/client.py` for an existing shared helper** (`_compute_monthly_totals`, `_compute_budget_vs_spent`, `_tombstoned_category_remap` — architecture.md rule 20). If it doesn't cover the new need, extend it — don't copy-paste and let the copies diverge.
-- **Extract at the second occurrence, not before and not later.** Don't build a helper speculatively for a hypothetical future need — that guesses the wrong shape before a real second use case exists, and contradicts the root `CLAUDE.md`'s "no speculative code" rule. But the moment you're about to write a *second* copy of a loop/calculation that already exists elsewhere, extract right then — don't wait for a third occurrence or a future audit to catch it. Two occurrences copy-pasted and left alone is exactly how #93's divergence bug happened.
-- **DeepSeek prompts for any finance-calculation feature must name the relevant shared helper(s) in "Relevant files"** and say "reuse, don't reimplement" — the helper itself is the spec, per the step-8 "spec not code" rule below.
-- **Trust the existing audit triggers already in `docs/roadmap.md`** (10+ new features since the last audit / same bug appearing in multiple places / one change touching many files) and open a new audit issue the moment one fires — don't wait for it to compound into a bigger cleanup later.
+Both moved to path-scoped rules (2026-08-28) — load automatically when Claude reads the files they apply to, instead of taking up space in every session:
+- **Priority tracking** (`.claude/rules/priority-tracking.md`, loads on `docs/**/*.md`) — issue priority/status lives ONLY on GitHub, never in a hand-maintained doc.
+- **Duplication & dead-code prevention** (`.claude/rules/duplication-prevention.md`, loads on `backend/**/*.py`, `frontend/src/**/*.{ts,tsx}`) — retire old flows in the same task, extract shared helpers at the second occurrence.
 
 ---
 
@@ -196,7 +159,9 @@ If a lesson from this session deserves a detailed explanation with analogies/dia
 
 - `docs/architecture.md` — technical rules + flows + project structure
 - `docs/decisions.md` — why things are the way they are
-- `docs/roadmap.md` — milestones · GitHub Labels/Milestones — issue-level priority (`#priority-tracking` above)
+- `docs/roadmap.md` — milestones · GitHub Labels/Milestones — issue-level priority (`.claude/rules/priority-tracking.md`)
 - `docs/feature-ideas.md` — raw ideas not yet turned into issues
 - `docs/sessions/INDEX.md` — what was built and when
 - `PRIVATE_context.md` — account names, vehicle profiles (gitignored)
+- `.claude/rules/` — path-scoped rules, load automatically when Claude touches matching files
+- `.claude/skills/` — explicit, invokable workflows (`/plan-feature`)

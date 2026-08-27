@@ -1,6 +1,6 @@
 # Majordom — Feature Ideas
 
-Raw ideas not yet turned into GitHub issues. Once something here is actually going to be worked on, open an issue and remove it from this list — this file is a scratchpad, not a priority tracker (that's GitHub Milestones + Labels, see `CLAUDE.md#priority-tracking`).
+Raw ideas not yet turned into GitHub issues. Once something here is actually going to be worked on, open an issue and remove it from this list — this file is a scratchpad, not a priority tracker (that's GitHub Milestones + Labels, see `.claude/rules/priority-tracking.md`).
 
 | Feature | Notes |
 |---------|-------|
