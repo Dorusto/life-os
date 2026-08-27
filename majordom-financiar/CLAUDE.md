@@ -112,7 +112,7 @@ Found during an external review of `architecture.md`/`decisions.md` for a course
 2. **Architecture audits triggered by symptom, not schedule** — **mitigated, light.** A monthly scheduled check (see the `schedule` skill setup, 2026-07-04) reviews the existing audit triggers in `docs/roadmap.md` and opens a GitHub issue only if one actually fires — doesn't force an audit, just stops the trigger from being missed silently.
 3. **`architecture.md` mixed stable design rules with operational/deploy quirks** — **fixed 2026-07-04.** Rules 18-19 (Docker backup, `--build` vs `restart`) tagged inline with `🔧 RUNBOOK` rather than physically moved — a physical split would have orphaned ~15 existing cross-references to those rule numbers in `decisions.md` and `docs/sessions/`. New ops-only rules should get the same tag going forward.
 4. **`decisions.md` entries accumulated retroactive updates inline** — **fixed 2026-07-04.** Added an explicit ADR-style immutability rule to the top of `decisions.md`: entries are never edited after the fact, only superseded by a new entry with a one-line marker. Existing violations (e.g. "Sure adoption") are left as-is — rewriting old entries to fit the new rule would itself violate the new rule.
-5. **Pre-implementation research had a blind spot mid-implementation** — **fixed 2026-07-04.** "Before any implementation" (below) now states explicitly: if implementation reveals something unexpected, stop and re-verify before continuing — not just a one-time gate before writing code.
+5. **Pre-implementation research had a blind spot mid-implementation** — **fixed 2026-07-04.** The `/plan-feature` skill's "Before any implementation" checklist now states explicitly: if implementation reveals something unexpected, stop and re-verify before continuing — not just a one-time gate before writing code.
 
 ---
 
@@ -130,75 +130,7 @@ Found during an external review of `architecture.md`/`decisions.md` for a course
 - **One feature at a time — and this means one task per session, not just "no parallel work."** Corrected 2026-08-27: a single session drifted from "back up before touching data" into fixing the backup cron, filing an ops issue, re-running the duplicate investigation, scoping and speccing a whole new feature (#181), and filing a second unrelated ops issue (#182) — each individually reasonable, but chained without pausing to check in made the session hard to follow and harder to review as one thing. When a session surfaces a second, unrelated task mid-flow (a bug found while investigating something else, a doc gap noticed in passing) — flag it, open an issue if it needs tracking, and ask before continuing into it rather than folding it into the current thread. Doesn't apply to strictly sequential steps of the *same* task (e.g. investigate → spec → DeepSeek prompt for one feature) — those are one task, not several.
 - **Architecture trade-offs before implementation:** when a feature has meaningful variants (1 generic tool vs N specific tools, library vs pure code, single endpoint vs multiple), present the trade-offs in 2-3 lines and get confirmation BEFORE writing the DeepSeek prompt or any code. Never discover the simpler approach existed after the fact.
 - **No auto-memory:** do not save notes to `~/.claude/projects/.../memory/`. Save feedback and decisions in this file or in `docs/decisions.md`.
-
-### Before any implementation (mandatory — Claude or DeepSeek)
-
-**Applies before opening a new GitHub issue too, not just before writing code.** Step 5 (`docs/decisions.md`) especially — #155 was opened as a new "goal proposal" issue without checking decisions.md first, duplicating #110/#111 (which already reframed and split the same idea three days earlier). Cross-check `gh issue list` for existing coverage before creating one.
-
-1. Identify all files the task will touch
-2. Consult the "Task type → what to read" table above and read the relevant `docs/learn/` file
-3. Grep `docs/sessions/` for recent work on the same files — catches gotchas not yet in architecture.md:
-   `grep -rl "filename" docs/sessions/`
-4. Check `docs/architecture.md#critical-technical-rules` for rules relevant to those files
-5. Check `docs/decisions.md` for relevant decisions
-6. If the task involves a loop over transactions/categories/budgets, check whether an existing shared helper in `backend/core/actual_client/client.py` already covers it (see architecture.md rule 20) — extend it instead of writing a new copy
-
-**This check isn't a one-time gate — repeat it mid-implementation.** If the code reveals something unexpected (a mechanism that already half-exists, a structure different from what the pre-implementation check assumed) — stop and re-verify before continuing, don't push through on the original assumption. #99 found the requested mechanism already half-built *mid-implementation*; the pre-implementation check alone hadn't caught it beforehand.
-
-### Additionally, if delegating to DeepSeek
-
-6. Include found rules EXPLICITLY in the prompt under `## Critical Rules` — DeepSeek does not read other files
-7. If no rules apply, write: `No specific rules identified for this task.` (proves the step was done, not skipped)
-8. **Spec, not code.** Before writing any code block in the prompt, ask: "Can DeepSeek figure this out from a prose spec?" If yes → write prose. Code only for non-obvious quirks (library syntax, wrong field names, operation order). If you find yourself writing a full function → stop and replace with a sentence.
-
-### DeepSeek prompt template
-
-```markdown
-# Task: <short title>
-
-## Context
-<1-2 sentences: what problem, why now>
-
-## Goal
-<what the user can do after this — user perspective>
-
-## Relevant files
-| File | What it contains |
-|------|-----------------|
-| path/to/file.py | brief description |
-
-## Changes required
-### 1. `path/to/file.py`
-<bullet points per file; inline code ONLY for gotchas and non-obvious snippets>
-
-## Critical Rules
-<!-- Extracted from architecture.md + decisions.md for the files above -->
-- <rule> (source: architecture.md#section)
-- <rule> (source: decisions.md#section)
-<!-- If none apply: "No specific rules identified for this task." -->
-
-## Gotchas
-<!-- Code conventions DeepSeek cannot deduce from reading the files -->
-1. <quirk with inline example if needed>
-
-## Do NOT touch
-- <file or logic that must remain unchanged>
-
-## Done when
-- <verifiable acceptance criterion>
-```
-
-**Known gotchas (check relevance before each prompt):**
-- `_PROPOSAL_TOOLS` in `backend/api/chat.py` — every write tool must be listed here or the card never renders in frontend
-- **Every new tool needs an explicit bullet + example in `_build_system_prompt()`'s tool-guide section (`backend/api/chat.py`) — not just schema registration.** A tool with no bullet is unreliable: confirmed root cause of #160 (silently skipped, LLM hallucinates an answer instead) and #166 (worse — the model emitted its raw internal function-call tokens, e.g. `tool_sep`, as literal chat text instead of a structured call, because nothing steered it toward using the tool confidently). Bit twice now — always add the bullet in the same DeepSeek prompt/commit that registers the tool, never as a follow-up. Also keep the tool's own JSON `description` field terse (one short paragraph) — examples belong in the system-prompt bullet, not stacked into the description too (#166's first draft had 4 quoted examples crammed into the description, which didn't help and may have made the format-following worse).
-- actualpy in executor: `download_budget()` first → operations → `commit()` last, all inside `def _get(): with self._get_actual() as actual:`
-- Frontend auth: use `authFetch()` from `../lib/auth` or `getToken()` — never `localStorage.getItem('auth_token')`, the real key is `'majordom_token'`
-- Tool call args: `json.loads(args)` before `**args` — OpenAI format returns args as string, not dict
-- `LLM_BASE_URL` must NOT end with `/v1` — code appends `/v1/chat/completions` automatically
-- New `ActualBudgetClient` method (`backend/core/actual_client/client.py`) isn't reachable from tool code until it's also added to `ActualBudgetProvider` (`backend/core/finance/actual_budget_provider.py`, a thin pass-through) and declared on the `FinanceProvider` Protocol (`backend/core/finance/provider.py`) — all three, or `get_provider()`'s result raises `AttributeError` (#126)
-- **Any flow where the user confirms a merchant→category (or payee→transfer) association → use Actual Budget's native Rules engine, never a new SQLite table.** `client.py` already has `create_payee_rule()`, `create_payee_notes_rule()`, and the transfer-payee mechanism (`create_transfer()`, `Payees.transfer_acct`) — built on `actualpy`'s `Rule`/`Condition`/`Action`/`create_rule`. Already wired into `propose_transaction` (`backend/api/proposals.py`, `create_rule` checkbox) and `propose_categorize_with_rule` (`backend/api/category_actions.py`). Before adding a new confirm flow, check these first — don't reinvent a mapping table (#99 removed `merchant_mappings` for exactly this reason, see `docs/decisions.md#93-code-audit`). Any flow that lets the user pick/confirm a category gets an explicit "save as rule" checkbox — never silent/automatic bulk rule creation (decided for CSV import specifically because the old SQLite-based auto-learn had no opt-out and no visibility; a checkbox matches the pattern already used everywhere else).
-- **`vehicle-manager` is optional since 2026-07-05** (`docker compose --profile vehicle-manager up -d`, see `docs/decisions.md#vehicle-manager-optional-profile`) — `majordom-api` has no `depends_on` on it and no code assumes it's reachable. Any new vehicle-related tool/endpoint must handle it being down gracefully (clear error, not a crash) — don't add a hard dependency back.
-- **"Coach, not consultant" for any `intelligence-cluster` issue (FIRE/Portfolio Independence, Expense Coverage, budget calibration, goal proposals)** — see `docs/decisions.md#coach-not-consultant--principle-for-the-intelligence-module`. Numeric assumptions used in a projection (return rate, inflation, retirement age) are always user-editable inputs, never silently computed or presented as advice/predictions about specific investments. A shown default may be seeded from the user's own historical data, never a forward-looking claim about specific ETFs/securities.
+- **Before any implementation (mandatory — Claude or DeepSeek), and before opening a new GitHub issue:** run the `/plan-feature` skill (`.claude/skills/plan-feature/SKILL.md`). Covers the file/docs/sessions/decisions/helper checklist, the DeepSeek prompt template, and the known-gotchas list — not optional, and not duplicated here.
 
 ---
 
