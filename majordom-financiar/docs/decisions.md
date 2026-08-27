@@ -188,6 +188,8 @@ Sure checklist (budget allocation parity, MCP server) is deferred until the eval
 <a id="ghostfolio-vs-sure-portfolio-comparison"></a>
 ### Ghostfolio vs Sure — portfolio feature comparison + concrete migration criteria
 
+**Superseded by:** [Ghostfolio dropped — portfolio data source now open](#ghostfolio-dropped) (2026-08-28) — the "AB + Ghostfolio" half of this decision no longer holds; the Sure-vs-AB budgeting comparison and migration criteria below are unaffected.
+
 **Date:** 2026-07-05
 
 **Decision:** Stay on **AB + Ghostfolio** for now (AB for budgeting, Ghostfolio for portfolio) rather than moving toward unified Sure. Not a final/permanent decision — Sure's migration trigger conditions in `docs/decisions.md#sure-adoption` are tracked going forward with concrete, checkable criteria (below) instead of re-evaluated ad hoc.
@@ -341,6 +343,8 @@ Confirmed AB also has a native transfer mechanism usable the same way: every acc
 
 ### UI — 2 tabs only (Home + Majordom)
 
+**Partially superseded by:** [Universal transaction UI — sheet vs. full-screen split](#universal-transaction-ui) (2026-08-28) — the bulk transaction table (#184) is a full-screen page, reached by button rather than persistent nav, not a strict reading of "last resort." Also by [Navigation — 5 tabs, not 2](#nav-five-tabs) (2026-08-28) — nav is no longer 2 tabs at all. And the "Settings are conversational" line specifically: a dedicated Settings screen was added the same day (gear icon, present in the header throughout), once the header itself needed a real target for it — Doru asked for it directly, judged necessary now rather than deferred.
+
 **Date:** 2026-05-29
 
 **Decision:** No Import tab, no Settings screen. Import via `+` button in chat input. Settings are conversational.
@@ -398,6 +402,60 @@ Both exist for categories today (structure via `CategoryOverviewCard`, amounts v
 **Why:** Banners interrupt and overlay content. Red dot is discoverable but non-intrusive — user chooses when to act.
 
 **Rejected:** Banner overlays on Home — intrusive, especially during dashboard review.
+
+---
+
+<a id="universal-transaction-ui"></a>
+### Universal transaction UI — sheet vs. full-screen split (#184, #185)
+
+**Superseded (part 2 only) by:** [Navigation — 5 tabs, not 2](#nav-five-tabs) (2026-08-28, same session) — #184 became a persistent nav tab, not a button-launched full-screen page. Part 1 (#185 stays a sheet) is unaffected.
+
+**Date:** 2026-08-28
+
+**Context:** chat-based per-type action cards (fuel receipt, groceries receipt, etc.) don't scale — every new transaction shape needs its own card, and bulk cleanup of uncategorized transactions in chat breaks at scale (#178). Design inspiration gathered from two third-party apps (UI/UX only, no code — see `docs/design/inspiration/README.md`): Chompass (calorie tracker, MIT) and MoneyMatter (AGPL, already evaluated and rejected as a finance engine per `#ab-stays-not-moneymatter-not-firefly` — this time strictly UI reference, no engine/code involvement).
+
+**Decision, two parts:**
+
+1. **#185 (single-transaction add/review) stays a bottom sheet over Home** — no change from the existing draft spec (`docs/specs/add-review-transaction.md`), confirmed against Chompass's "Edit Food" sheet pattern (drag handle, pinned Save, per-line editable list, "+ Add line"). Every AI-proposed transaction opens the full sheet for v1 — no lightweight inline-confirm tier (Chompass has one for unambiguous cases; deferred as a future optimization, not needed for v1 and adds design/testing surface without which v1 still works).
+2. **#184 (bulk transaction table) is a full-screen page, opened by button from Home — not added to persistent nav.** MoneyMatter's transaction table (checkbox multi-select, Filters/date-range/account/category, sortable columns) confirmed a dense filterable grid doesn't fit a bottom sheet. This is read as consistent with the *spirit* of the 2026-05-29 "2 tabs only" decision (nav stays 2 tabs, no third persistent tab) rather than a literal reading of "last resort" — the table is real, needed complexity, not a redundant screen.
+
+**Also confirmed from MoneyMatter's "Add Transaction" modal:** a dedicated "Split" button next to Category, validating #115 (backend split-across-categories) as a proven, non-over-engineered pattern rather than speculative scope.
+
+**Rejected:** two-tier confirm (native lightweight dialog + full sheet) for #185 v1 — more to design and test upfront, revisit once the single sheet ships; #184 as a persistent third nav tab — would contradict the 2-tabs decision more directly than a button-launched full-screen page.
+
+---
+
+<a id="nav-five-tabs"></a>
+### Navigation — 5 tabs, not 2
+
+**Date:** 2026-08-28 (same session as the universal transaction UI mockup, later in the same day)
+
+**Decision:** Bottom nav is Dashboard / Accounts / Transactions / Majordom / Analytics — 5 persistent tabs, mirroring MoneyMatter's own bar (Dashboard/Accounts/Transactions/Planned/Analytics, with Majordom taking the "Planned" slot since chat stays the app's core differentiator). Home is renamed Dashboard and becomes widget-based with a MoneyMatter-style Customize mode (add/remove/resize widgets).
+
+**Why the reversal:** while mocking #184 as a button-launched full-screen page (the compromise from the entry above), it became clear a dense filterable transaction table and a real account-detail drill-down both want to be reached directly, not routed through Home every time — the "2 tabs, last resort" framing was optimizing for a much simpler app than what Majordom's own feature set (bulk transaction cleanup, multi-account tracking, analytics) actually needs. Explicit request from Doru: could the app replicate MoneyMatter fully — full navigational parity, not just the two original card patterns.
+
+**Accounts and Analytics tabs are UI shells only** — built to make the 5-tab bar feel real during design review, not yet scoped features. Accounts ties into real data already (AB accounts + vehicle-manager). Analytics is deliberately more built out than a stub (see below) but several of its reports have no confirmed data source yet — see `#ghostfolio-dropped`.
+
+**Rejected:** keeping 2 tabs and routing everything through Home buttons — reasonable for the original #184/#185 scope, wrong once the redesign expanded to match MoneyMatter's information architecture.
+
+---
+
+<a id="ghostfolio-dropped"></a>
+### Ghostfolio dropped — portfolio data source now open
+
+**Date:** 2026-08-28
+
+**Decision:** Ghostfolio is off the plan. No client code, no deployment, no dependency — there was never any to remove. `#ab-stays-not-moneymatter-not-firefly` and AB itself are unaffected; this only concerns the portfolio/investment side that Ghostfolio was meant to cover.
+
+**Why now:** raised by Doru mid-UI-session, initially as general frustration with "AB gets in the way," corrected after review into two separate, much sharper points:
+1. **AB's real pain is setup friction, not the engine.** Already spec'd and unbuilt: `docs/specs/ab-setup-wizard.md` (live "Test connection," budget-file listing, encrypted storage, reconnect banner). AB itself stays — its rollover/carryover budgeting model is genuinely hard to replace (confirmed by the M5 Sure evaluation rejecting Sure specifically for lacking it, `#budget-calibration`).
+2. **Ghostfolio has no case left.** Confirmed already in `docs/sessions/2026-W28.md`: "Ghostfolio doesn't support live sync anyway, only CSV import" (Doru's own words, months ago) — and it was never actually deployed or integrated (`#4`, reopened once already in `docs/sessions/2026-W27.md` with the exact same unease, never given the "dedicated conversation" that session said it needed). If Majordom is rendering all the investment charts itself anyway, a CSV-only, unintegrated engine contributes nothing a live API would.
+
+**Portfolio data source: deliberately left open, not re-decided today.** Options for later (manual entry, CSV import into majordom's own storage, a different API-first portfolio engine, or building return/cost-basis calculation in-house) are not evaluated here — this entry only removes Ghostfolio as the assumed answer.
+
+**UI built ahead of the data decision, on purpose (Doru's explicit call):** the Analytics investment reports (Net Worth Drivers, Investment Contributions, Investment Projection, portfolio holdings) are mocked with realistic layout and copy now, each visually flagged as pending a data source, so wiring them up later is a backend task, not a redesign.
+
+**Follow-up, not done here:** the monthly `sure-migration` cloud routine's criteria (`#ghostfolio-vs-sure-portfolio-comparison`) were framed partly around Ghostfolio; worth a quick check that its automated check still makes sense now that Ghostfolio is out of the comparison, but that's an ops task, not a redesign decision.
 
 ---
 

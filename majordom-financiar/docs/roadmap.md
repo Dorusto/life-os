@@ -130,18 +130,21 @@ Tool layer decoupled from ActualBudgetClient via Protocol. `FINANCE_BACKEND=sure
 
 ---
 
-### 🔲 M5 — Integrations (Ghostfolio + Portfolio)
+### 🔲 M5 — Integrations (Portfolio — engine TBD)
 
-Platform: AB + Ghostfolio — see `docs/decisions.md#ghostfolio-vs-sure-portfolio-comparison`.
+Platform: Ghostfolio dropped 2026-08-28 — see `docs/decisions.md#ghostfolio-dropped`. Portfolio
+data source is open, not re-decided; `docs/decisions.md#ghostfolio-vs-sure-portfolio-comparison`
+is superseded. Items below that assume Ghostfolio specifically are blocked on that open question,
+not on infra.
 
 | # | Feature | Status |
 |---|---------|--------|
-| 5.1 | portfolio-bridge: Bitvavo → Ghostfolio | 🔲 See [#4](https://github.com/Dorusto/life-os/issues/4) — blocked on Ghostfolio homelab deploy (infra step, not yet done) |
+| 5.1 | portfolio-bridge: Bitvavo → (portfolio engine, TBD) | 🔲 See [#4](https://github.com/Dorusto/life-os/issues/4) — blocked on portfolio-source decision, not just infra now |
 | 5.2 | FinanceProvider abstraction in Majordom | ✅ |
 | 5.3 | ~~Switch Majordom → Sure backend~~ | ⛔ not pursued for now — see `docs/decisions.md#ghostfolio-vs-sure-portfolio-comparison` |
-| 5.4 | Crypto tracker with sell alert | 🔲 See [#44](https://github.com/Dorusto/life-os/issues/44) |
-| 5.5 | Trading 212 sync (→ Ghostfolio) | 🔲 |
-| 5.6 | XTB sync (→ Ghostfolio) | 🔲 |
+| 5.4 | Crypto tracker with sell alert | 🔲 See [#44](https://github.com/Dorusto/life-os/issues/44) — portfolio-source dependent |
+| 5.5 | Trading 212 sync (→ portfolio engine, TBD) | 🔲 |
+| 5.6 | XTB sync (→ portfolio engine, TBD) | 🔲 |
 | 5.7 | MCP server endpoint for Majordom (inbound, for OpenClaw/external agents — unrelated to Sure/Ghostfolio) | 🔲 See [#58](https://github.com/Dorusto/life-os/issues/58) |
 | 5.8 | Child portfolio dashboard | 🔲 See [#45](https://github.com/Dorusto/life-os/issues/45) |
 | 5.9 | Freelance / ZZP dashboard | ✅ Done 2026-07-03, see [#126](https://github.com/Dorusto/life-os/issues/126) |
