@@ -459,6 +459,26 @@ Both exist for categories today (structure via `CategoryOverviewCard`, amounts v
 
 ---
 
+<a id="dashboard-goals-budget-kept-as-widgets"></a>
+### Dashboard widgets — Financial Goals and Budget kept, not dropped (#192)
+
+**Date:** 2026-08-28
+
+**Context:** implementing #192 from the Universal Transaction UI mockup, the mockup's own widget list (Balance trend, Latest Transactions, Cash Flow, Expenses Structure, Vehicle costs) turned out not to include Financial Goals (Portfolio Independence/FIRE + goal cards) or Budget at all — both existing, real, actively-used features from the old Home screen. Nothing in this mockup session's own record (`#universal-transaction-ui`, `#nav-five-tabs`) flags this as a deliberate removal; it reads as an omission, not a decision.
+
+**Decision:** kept both as widgets in the new Dashboard widget registry, alongside the mockup's own five — confirmed with Doru mid-implementation rather than silently dropped or silently kept. Both default ON, both removable/re-addable through Customize mode like every other widget.
+
+**Why:** a widget-based redesign is not the place to lose two shipped, real features by omission. The mockup is UI/UX reference for the *new* widgets it introduces, not a literal spec of the complete Dashboard content — a feature list built during a mockup session can undercount what the screen it's replacing already does.
+
+**Also decided the same pass — which widgets get real data vs. an honest placeholder, so #192 didn't balloon into a full backend-aggregation project:**
+- **Real, no new backend needed:** Financial Goals, Budget (both carried over unchanged), Latest Transactions (`getTransactions()` already existed), Expenses Structure (reuses the `BudgetCategory[]` data the Budget widget already fetches — no new endpoint).
+- **Real snapshot, placeholder trend:** Balance trend shows a real current total (summed from `getAccountList()`), but the historical chart and the Portfolio/Vehicles scopes are marked "coming soon" — no time-series balance endpoint and no portfolio/vehicle-manager cost aggregation exist yet.
+- **Full placeholder, off by default:** Cash Flow, Vehicle costs — no data source at all yet, matches the mockup's own off-by-default choice for these two.
+
+**Rejected:** implementing #192 strictly literally against the mockup's widget list (would have silently removed Goals/Budget from the app); building real backend aggregation for all 5 mockup widgets in the same pass (would have turned a nav/shell issue into an open-ended backend project, against the session's own explicit scope-narrowing decision).
+
+---
+
 ## Pending decisions (do not implement without explicit decision)
 
 ### FIRE % on Home
