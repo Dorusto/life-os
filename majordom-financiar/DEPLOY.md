@@ -224,8 +224,12 @@ See **[`scripts/backup.sh`](scripts/backup.sh)** for the automated backup script
 ./scripts/backup.sh
 
 # Schedule daily at 03:00 (crontab -e):
-0 3 * * * /home/majordom/life-os/majordom-financiar/scripts/backup.sh >> /var/log/majordom-backup.log 2>&1
+0 3 * * * /home/majordom/life-os/majordom-financiar/scripts/backup.sh >> /home/majordom/life-os/majordom-financiar/backups/backup.log 2>&1
 ```
+
+> **Note:** use a project-relative log path, not `/var/log/...` — on most systems `/var/log` is owned by
+> `root:syslog` and not writable by a regular user, so the cron job's shell redirect fails silently before
+> `backup.sh` even starts (no error surfaces anywhere). See #180.
 
 The script archives `.env` + `data/` (SQLite, VAPID keys) + Actual Budget Docker volume into a single `.tar.gz` in `./backups/`. Remote upload options (Google Drive, Nextcloud, rsync, Hetzner) are in the script — uncomment one.
 
