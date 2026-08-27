@@ -315,6 +315,28 @@ Confirmed AB also has a native transfer mechanism usable the same way: every acc
 
 ---
 
+<a id="174-code-audit"></a>
+### #174 code audit — dead/broken `FinanceProvider` method removed, CSV error-handling leak fixed
+
+**Date:** 2026-08-28
+
+**Decision:** Third full sweep, triggered by the monthly scheduled-check issue (15+ issues closed since #143 by the time it fired, more by the time it was picked up). Same 5 checkpoints as #93/#143. Found and fixed 2 items directly:
+1. `ActualBudgetProvider.get_spending_history()` (`backend/core/finance/actual_budget_provider.py`) and its matching entry on the `FinanceProvider` Protocol (`backend/core/finance/provider.py`) called `self._client().get_spending_history(months=months)` — but `ActualBudgetClient` never had a `get_spending_history` method. Dead (grep found zero callers of the provider method anywhere) and broken at the same time (would have raised `AttributeError` if ever invoked — the same failure class as #126, just never triggered because nothing calls it). The real `finance__get_spending_history` chat tool (`backend/tools/finance/actual_budget.py`) computes independently via a loop over `get_monthly_stats()` and bypasses the provider entirely — unaffected. Removed the dead method from both files rather than implementing it for real, since nothing needs it.
+2. `csv_import.py`'s CSV encoding/delimiter-detection handler caught a broad `except Exception as e` and leaked the raw message via `detail=f"Cannot parse CSV: {e}"` — inconsistent with the fixed-friendly-message pattern #93 established for every other broad-`Exception` handler in the codebase (`home.py`, `receipts.py`, `transactions.py`, `vehicle_proposals.py`). Changed to log the full exception server-side and return a generic message.
+
+**Rest of the sweep — checked, no findings:**
+- All 4 shared finance-calc helpers (`_compute_monthly_totals`, `_compute_budget_vs_spent`, `_tombstoned_category_remap`, `_compute_goal_progress`) remain the only copies — no new inline reimplementation since #143.
+- FIRE calc (`get_fire_status`) has one implementation despite being rewritten twice historically (#156/#166) — both call sites reuse it.
+- The `BudgetChart`/`GoalsChart` duplication flagged at #143 is resolved — unified into one generic `Chart.tsx`.
+- The #159 Confirm/Cancel unification (`ActionCardButtons`) is adopted by 13/18 chat action-card components; the 5 that don't use it (`SetupBalancesCard`, `FuelReceiptCard`, `ReceiptCard`, `CsvImportCard`, `IncomeSourceCard`) have genuinely different interaction shapes (multi-branch confirm, per-row bulk actions, a wizard step with no cancel) — not an oversight.
+- All 44 registered chat tools have a dispatch branch in `registry.py` — no dead tool entries. The one route with no frontend caller, `POST /push/test`, is an intentional auth-gated diagnostic endpoint, not dead code.
+- The two longest tool descriptions (`finance__propose_budget_copy`, `vehicle__get_vehicle_log`, ~590 chars) carry non-obvious behavioral guidance for the LLM (what a copy replicates, when not to suggest deletion) — inspected and judged not bloat.
+- 11 `ActualBudgetClient` methods (`create_account`, `create_transfer`, `get_home_data`, etc.) have no matching entry on the `FinanceProvider` Protocol, but every call site reaches them via the direct `_get_client()` helper, never `get_provider()` — not a live bug. Already tracked by the existing #148 ("csv_import.py and receipt_service.py bypass FinanceProvider, hardcode ActualBudgetClient") — no new issue opened for this.
+
+**Why:** Same reasoning as `#93-code-audit`/`#143-code-audit`. Notable this time: the finding was a genuine `AttributeError`-in-waiting on the third sweep of a codebase already audited twice — the scheduled-check mechanism (#149) catches real issues even absent a triggering incident.
+
+---
+
 ## Product decisions
 
 ### UI — 2 tabs only (Home + Majordom)
