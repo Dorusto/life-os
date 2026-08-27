@@ -580,6 +580,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
 
               <div>
                 <p className="text-white font-medium mb-2">Budget & goals</p>
+                <p className="text-muted mb-2">Goal tracking works by checking that your account balance is on target — you don't need to move money into a separate account.</p>
                 <ul className="space-y-1.5 text-muted">
                   <li className="flex gap-2"><span className="text-accent">→</span> "Show me my budget for this month"</li>
                   <li className="flex gap-2"><span className="text-accent">→</span> "Set my Restaurants budget to €150"</li>
