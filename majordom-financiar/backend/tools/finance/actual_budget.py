@@ -351,6 +351,60 @@ async def get_transactions(
     return "\n".join(lines)
 
 
+async def get_untagged_transactions(
+    start_date: str,
+    end_date: str,
+    account: str | None = None,
+    limit: int = 50,
+) -> str:
+    """
+    Return transactions in a date range that have no #tag in their notes.
+
+    This is the "trip tag" version of finance__get_uncategorized_groups:
+    it lists candidates that the user may want to review and tag manually.
+    It never writes anything.
+    """
+    import re
+
+    client = get_provider()
+    start = _date.fromisoformat(start_date)
+    end = _date.fromisoformat(end_date)
+
+    all_txs = await client.get_recent_transactions(
+        limit=limit * 4,
+        start_date=start,
+        end_date=end,
+    )
+
+    result = []
+    for tx in all_txs:
+        if account and (tx.get("account_name") or "").lower() != account.lower():
+            continue
+        notes = tx.get("notes") or ""
+        # A tag-meaningful substring is "#" followed by at least one non-space char.
+        # Any such match means the transaction already has a trip tag and shouldn't
+        # be listed here.
+        if re.search(r'#\S+', notes):
+            continue
+        result.append(tx)
+        if len(result) >= limit:
+            break
+
+    if not result:
+        range_str = f"{start.isoformat()} to {end.isoformat()}"
+        account_suffix = f" in {account}" if account else ""
+        return f"No untagged transactions found for {range_str}{account_suffix}."
+
+    lines = [f"Untagged transactions ({len(result)}):"]
+    for tx in result:
+        amount = abs(tx["amount_cents"]) / 100
+        lines.append(
+            f"  - {tx['date']} · {tx['merchant']} · €{amount:.2f} ({tx.get('category_name') or 'uncategorized'}) "
+            f"[{tx.get('account_name','')}] id: {tx['id']}"
+        )
+    return "\n".join(lines)
+
+
 async def get_spending_history(months: int = 3) -> str:
     """Return monthly spending totals for the last N months."""
     client = get_provider()

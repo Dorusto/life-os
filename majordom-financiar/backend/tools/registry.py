@@ -2,7 +2,7 @@
 Tool registry — defines tools exposed to the LLM and dispatches their execution.
 
 TOOLS: list of tool definitions in Ollama/OpenAI format.
-       Passed directly in the Ollama API request body as \`tools: TOOLS\`.
+       Passed directly in the Ollama API request body as `tools: TOOLS`.
 
 execute_tool(): called by the chat endpoint when the LLM returns tool_calls.
 """
@@ -63,6 +63,23 @@ TOOLS: list[dict] = [
                     "year": {"type": "integer", "description": "Optional year — required together with month if either is given."},
                 },
                 "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "finance__get_untagged_transactions",
+            "description": "Get transactions in a date range that have no #tag in their notes. Use this when the user wants to see which transactions in a period (optionally on a specific account) aren't tagged for a trip yet.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "start_date": {"type": "string", "description": "Start date in YYYY-MM-DD format."},
+                    "end_date": {"type": "string", "description": "End date in YYYY-MM-DD format."},
+                    "account": {"type": "string", "description": "Optional account name to filter by (case-insensitive)."},
+                    "limit": {"type": "integer", "description": "Maximum number of untagged transactions to return (default 50)."},
+                },
+                "required": ["start_date", "end_date"],
             },
         },
     },
@@ -1086,6 +1103,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "finance__get_transactions":
         from backend.tools.finance.actual_budget import get_transactions
         return await get_transactions(**arguments)
+
+    if name == "finance__get_untagged_transactions":
+        from backend.tools.finance.actual_budget import get_untagged_transactions
+        return await get_untagged_transactions(**arguments)
 
     if name == "finance__get_spending_history":
         from backend.tools.finance.actual_budget import get_spending_history
