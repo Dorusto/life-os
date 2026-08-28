@@ -35,7 +35,6 @@ Raw ideas not yet turned into GitHub issues. Once something here is actually goi
 | Split bill in chat | "Dinner with 4 people, €120, I paid — how much does each owe?" + log the expense. |
 | Net worth trend | Monthly chart 12 months — evolution not just today's snapshot. M2.7 charts infra ready. |
 | Swagger `/docs` link for vehicle-manager | Instead of (or in addition to) sqlite-web, expose vehicle-manager's port and link its auto-generated FastAPI `/docs` UI from Home's menu — structured API browsing vs. raw SQL rows. Revisit once the service matures past the raw-data-fixing stage sqlite-web is useful for now. |
-| [Add/Edit Transaction sheet](specs/add-review-transaction.md) | Home entry point over existing `_PROPOSAL_TOOLS` flow — today logging a transaction requires chat |
 | [AB Setup Wizard](specs/ab-setup-wizard.md) | Fixes blind first-install credential entry — live validation before save |
 | ReceiptReaderService | Standalone microservice for receipt scanning, decoupled from the finance engine — surfaced as a MoneyMatter gap-filler, not yet spec'd |
 | Goose as MCP client for Majordom | Once Majordom exposes an MCP server (see the "Majordom positioning" debate, vault Radar note), Goose (Apache 2.0, MCP-native, 70+ extensions incl. Slack/GitHub/calendar) could connect as an alternative agent alongside Claude/Hermes — same finance tools, plus cross-domain queries in one conversation. Blocked on the MCP server existing, not otherwise. |

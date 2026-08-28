@@ -1089,6 +1089,12 @@ class ActualBudgetClient:
                 for s in splits:
                     child = create_split(actual.session, tx, amount=sign * abs(float(s["amount"])))
                     child.category_id = s["category_id"]
+                    # create_split()/create_transaction() default cleared=False
+                    # regardless of the parent's actual state — architecture.md
+                    # rule 7 requires every creation path to set it explicitly,
+                    # or a split on an already-cleared/reconciled transaction
+                    # silently leaves its children permanently unreconciled.
+                    child.cleared = tx.cleared
                     created.append(str(child.id))
 
                 actual.commit()
