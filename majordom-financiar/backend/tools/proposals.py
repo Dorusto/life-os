@@ -15,6 +15,7 @@ def create(
     notes: str = "",
     is_expense: bool = True,
     notes_category_match: bool = False,
+    category_source: str | None = None,
 ) -> str:
     proposal_id = uuid.uuid4().hex[:8]
     _proposals[proposal_id] = {
@@ -27,6 +28,7 @@ def create(
         "notes": notes,
         "is_expense": is_expense,
         "notes_category_match": notes_category_match,
+        "category_source": category_source,
     }
     return proposal_id
 
