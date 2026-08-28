@@ -3,13 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, Camera, Upload, PenLine } from 'lucide-react'
 import BottomSheet from './BottomSheet'
 
-const MANUAL_ADD_PREFILL = 'I want to add a transaction manually.'
-
 /**
  * Persistent "+ Add" entry point, present in every tab's header
- * (decisions.md#nav-five-tabs). Photo/CSV route to the existing flows;
- * Manual routes to chat as an interim — the real inline Add/Review sheet
- * (#185) isn't built yet.
+ * (decisions.md#nav-five-tabs). Photo routes to the receipt scan, CSV to the
+ * import flow, and Manual to the same review screen in manual mode (#185) — no
+ * chat/LLM involvement.
  */
 export default function AddButton() {
   const navigate = useNavigate()
@@ -47,7 +45,7 @@ export default function AddButton() {
             </div>
           </button>
           <button
-            onClick={() => { setOpen(false); navigate('/chat', { state: { prefill: MANUAL_ADD_PREFILL } }) }}
+            onClick={() => { setOpen(false); navigate('/receipt', { state: { manual: true } }) }}
             className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-surface-2 hover:bg-white/5 transition-colors text-left"
           >
             <PenLine size={18} className="text-accent flex-shrink-0" />

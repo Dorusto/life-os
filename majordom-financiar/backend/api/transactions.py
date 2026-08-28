@@ -20,8 +20,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
+from backend.api.receipts import ConfirmResponse, NearDuplicateMatch
 from backend.core.actual_client import ActualBudgetClient
 from backend.core.config import settings
+from backend.services.receipt_service import ReceiptService
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -56,6 +58,17 @@ class Account(BaseModel):
     id: str
     name: str
     balance: float
+
+
+class CreateTransactionRequest(BaseModel):
+    merchant: str
+    amount: float
+    date: str              # ISO format: YYYY-MM-DD
+    category_id: str       # AB category id (UUID), as returned by GET /categories
+    account_id: str
+    notes: Optional[str] = None
+    force_new: bool = False        # skip the near-duplicate check, always create
+    attach_to: Optional[str] = None  # financial_id of an existing tx to attach to instead
 
 
 # --- Routes ---
@@ -167,6 +180,73 @@ async def bulk_update_category(
         )
 
     return {"updated": updated}
+
+
+@router.post("/transactions", response_model=ConfirmResponse)
+async def create_transaction(
+    request: CreateTransactionRequest,
+    current_user: str = Depends(get_current_user),
+):
+    """Create a transaction directly (manual entry, no receipt photo).
+
+    Mirrors POST /receipts/{id}/confirm's near-duplicate + attach flow, minus the
+    uploaded-image requirement. Returns the new transaction's own id (the same
+    "transaction_id" value POST /transactions/{id}/split expects), or a
+    possible_match when a likely bank-sync duplicate is found before anything is
+    saved (#121, #181).
+    """
+    service = ReceiptService()
+    try:
+        # User already decided to attach to a specific existing transaction.
+        if request.attach_to:
+            ok = await service.attach_to_existing(
+                financial_id=request.attach_to,
+                category_id=request.category_id,
+                notes=request.notes or "",
+            )
+            if not ok:
+                raise HTTPException(status_code=404, detail="Transaction to attach to was not found")
+            return ConfirmResponse(success=True, duplicate=False, transaction_id=request.attach_to)
+
+        # First pass (not forcing a new transaction): check for a likely
+        # bank-sync match before creating anything (#121).
+        if not request.force_new:
+            match = await service.check_near_duplicate(
+                account_id=request.account_id,
+                amount=request.amount,
+                date=request.date,
+            )
+            if match:
+                return ConfirmResponse(
+                    success=True,
+                    duplicate=False,
+                    transaction_id=None,
+                    possible_match=NearDuplicateMatch(**match),
+                )
+
+        result = await service.confirm(
+            merchant=request.merchant,
+            amount=request.amount,
+            date=request.date,
+            category_id=request.category_id,
+            account_id=request.account_id,
+            notes=request.notes or "",
+            confirmed_by=current_user,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Failed to create transaction: %s", e)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to save transaction. Please try again or check the account/category.",
+        )
+
+    return ConfirmResponse(
+        success=True,
+        duplicate=result.get("duplicate", False),
+        transaction_id=result.get("transaction_id"),
+    )
 
 
 @router.get("/accounts", response_model=list[Account])
