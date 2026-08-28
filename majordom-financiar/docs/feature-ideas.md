@@ -7,7 +7,6 @@ Raw ideas not yet turned into GitHub issues. Once something here is actually goi
 | [Enable Banking (auto bank sync)](specs/ab-integration.md#enable-banking-automatic-bank-sync) | PSD2 via Enable Banking API — free for personal use; replaces CSV for supported banks |
 | Async receipt queue | Upload multiple receipts → queue → review later. Essential for CPU-only setups. |
 | Voice input | Whisper local via Ollama → text |
-| Editable amount on proposal cards | BudgetRebalanceCard + AccountTransferCard |
 | Budget rebalancing by % / income | "Move 10% of income to Restaurants" |
 | Document Management System | Nextcloud for storage; Majordom for AI type detection + field extraction; foundation for Majordom Digital |
 | Unified + menu in chat | Replace receipt/CSV tabs with `+` menu: camera / gallery / CSV |
