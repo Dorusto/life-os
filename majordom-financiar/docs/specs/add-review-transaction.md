@@ -1,6 +1,38 @@
 # Add / Review Transaction Sheet — spec
 
+> **Status: implemented (#185, 2026-08-28).** Shipped narrower than this draft — see
+> "What actually shipped" below before reading the screens as current. Kept as-is
+> otherwise (design-inspiration history, not rewritten).
+
 > Draft, not yet scheduled. Design inspiration only from Chompass (`codeberg.org/fitguy/chompass`, MIT-licensed calorie tracker) — no code copied, UI pattern reimplemented in this stack.
+
+## What actually shipped (#185)
+
+Deliberately smaller than Screens 1-4 below, to close the highest-value gap (manual
+entry routing through chat as an interim, and no way to split a transaction across
+categories) without a bigger redesign in the same task:
+
+- **No dedicated bottom-sheet shell.** The shared drag-handle sheet this draft assumes
+  doesn't exist yet as reusable code anywhere in the app (see `decisions.md#universal-transaction-ui`,
+  which already flagged this). Reused the existing full-page `ReceiptFlow.tsx` instead —
+  it already implemented the propose→edit→confirm mechanic for photos — and added a
+  manual mode (`location.state.manual`, blank fields, no image/OCR) to the same page.
+- **No Photo/Note/Voice/Recent/Copy-from-Day/Search-category tier.** Only two entry
+  points exist via `AddButton`: Photo (existing OCR path) and Manual (blank form). Voice,
+  Recent & Templates, Copy from Day, and Search category are not built — no issue filed
+  for them either; revisit if the need comes up again.
+- **Split lines, single-screen.** Screen 3's "+ Add line" shipped, but inline in the one
+  review screen rather than as a separate step — each line has category + amount, a
+  running total-vs-allocated indicator, Confirm disabled until balanced.
+- **Confirm calls plain REST endpoints, not a chat proposal tool.** Screen 4's "calls the
+  existing proposal tool" is now stale — transaction entry/editing moved out of chat
+  entirely (see `decisions.md#universal-transaction-ui` and #184/#185's own scope notes).
+  Save calls `POST /api/transactions` (new, manual-entry) or the existing
+  `POST /receipts/{id}/confirm` (photo), then `POST /transactions/{id}/split` (#115) when
+  there are 2+ lines — no `_PROPOSAL_TOOLS`/LLM involvement anywhere in this flow.
+
+The rest of this document (Screens 1-4, the Chompass tier structure) is left as
+originally written — historical design reference, not a live backlog.
 
 ## Why this flow, not a new architecture
 

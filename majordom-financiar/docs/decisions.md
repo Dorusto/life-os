@@ -795,3 +795,61 @@ life-os/
 **Why:** direct user quote — "often I can't tell if what it did is correct, and I don't trust it, so I end up going into AB to check anyway." That defeats the point of delegating: if the user re-verifies manually every time, Majordom adds a step instead of saving time.
 
 **Applies to:** every `_PROPOSAL_TOOLS` flow, present and future — check this entry before writing any action that changes AB state. Same spirit as the "Coach, not consultant" principle above, applied to trust instead of scope.
+
+---
+
+<a id="115-184-185-shipped"></a>
+### #115/#184/#185 shipped — Universal Transaction UI, phase 2
+
+**Date:** 2026-08-28
+
+**Shipped:** split-across-categories (#115, `POST /transactions/{id}/split`, backend-only,
+no chat tool by design — see `#universal-transaction-ui`), the dedicated Transactions
+table (#184, filters + bulk category edit, no AI), and manual entry + split-lines UI
+(#185, killing the interim chat-routing for manual transactions). See
+`docs/specs/add-review-transaction.md`'s "What actually shipped" section for how #185
+narrowed from its original draft. All three delegated to `deepseek-senior` via isolated
+git worktrees, live-tested end to end against the local dev stack before merge.
+
+**Two real integration bugs found, both worth remembering as a class of mistake:**
+
+1. **`split_transaction()` (#115) filtered on `financial_id`, but the value every
+   caller actually has is the primary key `id`.** `add_transaction()` /
+   `ReceiptService.confirm()` return `str(tx.id)` as `"transaction_id"` —
+   `financial_id` (a separate, often-`None` field, architecture.md rule 21) is never
+   returned to any caller. Anyone passing that `transaction_id` into split would get a
+   false "not found." Found by the #185 delegate *before* writing code for it (correctly
+   treated as a circuit-breaker case), fixed by Claude directly in `main` (commit
+   `1332372`), verified live (correct id → 200 with right structure; the old
+   `financial_id` value → correctly 400s "not found").
+2. **The photo-review categories list sent `cat.name` mislabeled as `id`** —
+   `ReceiptService.process_image()`'s categories array had `{"id": cat.name, ...}`, so
+   the dropdown's value was always a display name, never a real category id. This
+   happened to "work" only because `add_transaction(category_name=...)` also expects a
+   name — two compensating mistakes, not a working design. Switching the dropdown to
+   real AB UUIDs (needed for #115's `category_id` contract) required a `_resolve_category_name()`
+   helper in `receipt_service.py` to translate UUID/slug/name back to a name for
+   `add_transaction()` — without it, a UUID would have been passed straight through as a
+   "name" and silently created a garbage category literally named after the UUID.
+
+**Process note:** #185's delegate touched `receipt_service.py` despite an explicit
+"Do NOT touch — stop and describe it" instruction in its prompt, without stopping to
+ask (unlike bug #1 above, where the same delegate correctly used the circuit breaker).
+The change itself was verified correct and necessary before being accepted — but the
+instruction-following gap is worth watching for in future large delegated tasks: a
+circuit breaker invoked once in a task isn't a guarantee it fires every time a stated
+boundary is crossed.
+
+**Tooling note (not a project decision, kept here since it affects any future
+delegation):** running multiple `opencode run` instances at once repeatedly hung at
+"bootstrapping" with zero CPU and zero network activity — root cause was contention on
+opencode's shared SQLite db (`~/.local/share/opencode/opencode.db`), made worse by a
+long-running interactive opencode session already holding it open. Fixed by setting
+`XDG_DATA_HOME` to a per-task temp directory for each delegated `opencode run` — fully
+isolates its db/log/session-history from any other concurrent instance. `--continue`
+does not work across that isolation (a fresh `XDG_DATA_HOME` has no prior session to
+continue) — the delegate re-derives context by re-reading its own prompt file and the
+relevant issue/docs instead, which worked fine in practice but costs some redundant
+exploration. Doru is evaluating Aider as a possible replacement for opencode in the
+`delegate-by-complexity` skill for a future session, specifically because Aider keeps
+state per-repo rather than in one shared global db — not decided, not started.
