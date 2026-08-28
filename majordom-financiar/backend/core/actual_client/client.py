@@ -625,6 +625,9 @@ class Account:
     name: str
     balance: float
     off_budget: bool = False
+    # YYYY-MM-DD of the account's most recent transaction — used as "Last
+    # updated" by the annual liability balance reminder (#60).
+    last_activity_date: str | None = None
 
 
 @dataclass
@@ -667,18 +670,31 @@ class ActualBudgetClient:
                 for acc in accounts:
                     if acc.closed:
                         continue
-                    # Calculate balance from transaction sum
+                    # Calculate balance from transaction sum + most recent
+                    # activity date (tx.date is an int YYYYMMDD)
                     txs = get_transactions(actual.session, account=acc)
-                    balance = sum(
-                        float(tx.amount or 0)
-                        for tx in txs
-                        if not tx.tombstone
-                    ) / 100
+                    balance = 0.0
+                    last_activity_int: int | None = None
+                    for tx in txs:
+                        if tx.tombstone:
+                            continue
+                        balance += float(tx.amount or 0)
+                        if tx.date and (last_activity_int is None or int(tx.date) > last_activity_int):
+                            last_activity_int = int(tx.date)
+                    balance /= 100
+                    last_activity_date = None
+                    if last_activity_int is not None:
+                        last_activity_date = (
+                            f"{last_activity_int // 10000:04d}-"
+                            f"{(last_activity_int // 100) % 100:02d}-"
+                            f"{last_activity_int % 100:02d}"
+                        )
                     result.append(Account(
                         id=str(acc.id),
                         name=acc.name,
                         balance=balance,
                         off_budget=bool(acc.offbudget),
+                        last_activity_date=last_activity_date,
                     ))
                 return result
         return await self._run(_get)

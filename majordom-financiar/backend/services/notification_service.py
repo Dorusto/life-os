@@ -568,6 +568,78 @@ async def _check_budget_copy_nudge(db: MemoryDB) -> str | None:
 
 
 # ---------------------------------------------------------------------------
+# _check_liability_balance_reminders — annual off-budget liability nudge (#60)
+# ---------------------------------------------------------------------------
+
+async def _check_liability_balance_reminders(db: MemoryDB) -> list[dict]:
+    """Return off-budget liability accounts due for a balance update.
+
+    Liability = off-budget account with a negative balance (money owed —
+    mortgage, loans). Only a per-account "last reminded" timestamp is stored
+    in SQLite; balances stay in Actual Budget (architecture.md rule 5).
+    """
+    rule = db.get_notification_rule("liability_balance_reminder")
+    if not rule or not rule["enabled"]:
+        return []
+
+    days = rule["config"].get("days", 365)
+    try:
+        accounts = await get_provider().get_accounts()
+    except Exception as e:
+        logger.error("Liability balance reminder check failed to fetch accounts: %s", e)
+        return []
+
+    due = []
+    for acc in accounts:
+        if not acc.off_budget or acc.balance >= 0:
+            continue
+        last = db.get_last_liability_reminder(acc.id)
+        if last:
+            try:
+                last_date = datetime.fromisoformat(last["last_reminded_at"])
+                if (datetime.now() - last_date).days < days:
+                    continue
+            except ValueError:
+                pass  # corrupt timestamp — remind anyway
+        due.append({
+            "account_id": acc.id,
+            "account_name": acc.name,
+            "last_updated": acc.last_activity_date,
+        })
+    return due
+
+
+async def run_annual_liability_balance_reminder():
+    """Annual off-budget liability balance reminder — one push per due account.
+
+    Runs daily (same cron pattern as run_daily_digest); each account's stored
+    "last reminded" timestamp gates it to once per year. The user's reply with
+    the new balance is handled by the existing propose_balance_adjustment flow.
+    """
+    try:
+        db = MemoryDB(settings.memory.db_path)
+        due = await _check_liability_balance_reminders(db)
+        if not due:
+            logger.debug("No liability balance reminders due")
+            return
+
+        push_svc = get_push_service()
+        for item in due:
+            last_updated = item["last_updated"] or "never"
+            body = (
+                f"Time to update your {item['account_name']} balance. "
+                f"Last updated: {last_updated}. How much do you still owe?"
+            )
+            await push_svc.broadcast(title="Majordom", body=body, url="/chat")
+            await _save_to_chat_history(body, db)
+            db.set_last_liability_reminder(item["account_id"])
+
+        logger.info("Annual liability balance reminder sent — %d account(s)", len(due))
+    except Exception as e:
+        logger.error("Annual liability balance reminder job failed: %s", e, exc_info=True)
+
+
+# ---------------------------------------------------------------------------
 # Main orchestrator — one push per day with everything bundled
 # ---------------------------------------------------------------------------
 

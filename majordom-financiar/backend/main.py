@@ -106,6 +106,13 @@ async def lifespan(app: FastAPI):
                 config={},
             )
             logger.info("Default notification rule seeded: budget_copy_nudge")
+        if not db.get_notification_rule("liability_balance_reminder"):
+            db.upsert_notification_rule(
+                rule_type="liability_balance_reminder",
+                enabled=True,
+                config={"days": 365},
+            )
+            logger.info("Default notification rule seeded: liability_balance_reminder at 365 days")
     except Exception as _e:
         logger.warning("Could not seed built-in CSV profiles: %s", _e)
     try:
@@ -117,7 +124,7 @@ async def lifespan(app: FastAPI):
     logger.info("APScheduler started")
 
     try:
-        from backend.services.notification_service import run_daily_digest
+        from backend.services.notification_service import run_daily_digest, run_annual_liability_balance_reminder
         from backend.core.memory.database import MemoryDB as _MemoryDB
         from backend.core.config import settings as _settings
 
@@ -135,6 +142,16 @@ async def lifespan(app: FastAPI):
             replace_existing=True,
         )
         logger.info("Daily digest scheduled at %s (financial summary + all alerts in one push)", _time)
+
+        scheduler.add_job(
+            run_annual_liability_balance_reminder,
+            trigger="cron",
+            hour=_hour,
+            minute=_minute,
+            id="annual_liability_balance_reminder",
+            replace_existing=True,
+        )
+        logger.info("Annual liability balance reminder scheduled at %s", _time)
     except Exception as _e:
         logger.warning("Could not schedule daily summary job: %s", _e)
 
