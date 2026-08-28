@@ -217,3 +217,32 @@ class ActualBudgetProvider:
         self, candidates: list[dict]
     ) -> list[dict | None]:
         return await self._client().match_existing_rules(candidates)
+
+    async def attach_receipt_to_transaction(
+        self, financial_id: str, category_name: str, notes: str
+    ) -> bool:
+        return await self._client().attach_receipt_to_transaction(
+            financial_id, category_name, notes
+        )
+
+    async def find_near_duplicate_transaction(
+        self,
+        account_id: str,
+        amount: float,
+        date: date,
+        date_window_days: int = 1,
+        tolerance_pct: float = 0.02,
+    ) -> dict | None:
+        return await self._client().find_near_duplicate_transaction(
+            account_id, amount, date, date_window_days, tolerance_pct
+        )
+
+    async def get_csv_import_context(
+        self,
+    ) -> tuple[set[str], list[str], dict[tuple[str, str], list[float]], list[str]]:
+        return await self._client().get_csv_import_context()
+
+    async def execute_csv_import(
+        self, account_id: str, rows: list[dict]
+    ) -> tuple[int, int, int, int]:
+        return await self._client().execute_csv_import(account_id, rows)

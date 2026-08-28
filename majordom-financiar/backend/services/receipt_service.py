@@ -23,8 +23,8 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
 
-from backend.core.actual_client import ActualBudgetClient
 from backend.core.config import settings
+from backend.core.finance.provider import get_provider
 from backend.core.memory import MemoryDB, SmartCategorizer
 from backend.core.ocr.vision_engine import VisionEngine
 from backend.core.vehicle_client import VehicleClient
@@ -72,11 +72,7 @@ class ReceiptService:
         )
         self._db = MemoryDB(db_path=settings.memory.db_path)
         self._categorizer = SmartCategorizer(db=self._db)
-        self._actual = ActualBudgetClient(
-            url=settings.actual.url,
-            password=settings.actual.password,
-            sync_id=settings.actual.sync_id,
-        )
+        self._provider = get_provider()
         self._vehicle_client = VehicleClient(base_url=settings.vehicle_manager.url)
 
     async def process_image(self, image_bytes: bytes) -> dict:
@@ -98,7 +94,7 @@ class ReceiptService:
 
         # Check Actual Budget's own rules first (payee or receipt-text based) —
         # only fall back to the local keyword categorizer if no rule matches (#99).
-        rule_matches = await self._actual.match_existing_rules(
+        rule_matches = await self._provider.match_existing_rules(
             [{"payee": merchant, "notes": receipt.raw_text}]
         )
         rule_match = rule_matches[0] if rule_matches else None
@@ -120,8 +116,8 @@ class ReceiptService:
 
         # Fetch accounts and categories live from Actual Budget
         accounts, ab_categories = await asyncio.gather(
-            self._actual.get_accounts(),
-            self._actual.get_categories(),
+            self._provider.get_accounts(),
+            self._provider.get_categories(),
         )
 
         # Build base result
@@ -226,7 +222,7 @@ class ReceiptService:
             logger.warning("Invalid date '%s', using today", date)
 
         # Save to Actual Budget — returns the transaction ID or None if duplicate
-        tx_id = await self._actual.add_transaction(
+        tx_id = await self._provider.add_transaction(
             account_id=account_id,
             amount=amount,
             payee=merchant,
@@ -242,18 +238,18 @@ class ReceiptService:
 
         if create_rule:
             try:
-                existing = await self._actual.match_existing_rules([{"payee": merchant, "notes": notes}])
+                existing = await self._provider.match_existing_rules([{"payee": merchant, "notes": notes}])
                 already_covered = (
                     existing and existing[0]
                     and existing[0].get("category_name", "").lower() == category_name.lower()
                 )
                 if not already_covered:
-                    cats = await self._actual.get_categories()
+                    cats = await self._provider.get_categories()
                     cat = next((c for c in cats if c.name.lower() == category_name.lower()), None)
                     if cat:
                         # merchant is verbatim what the user left in the (editable)
                         # field — no server-side "smart prefix" guess (#99).
-                        await self._actual.create_payee_rule(
+                        await self._provider.create_payee_rule(
                             payee_name_prefix=merchant,
                             category_id=cat.id,
                         )
@@ -278,7 +274,7 @@ class ReceiptService:
             tx_date = datetime.strptime(date, "%Y-%m-%d").date()
         except ValueError:
             tx_date = datetime.now().date()
-        return await self._actual.find_near_duplicate_transaction(
+        return await self._provider.find_near_duplicate_transaction(
             account_id=account_id,
             amount=amount,
             date=tx_date,
@@ -288,7 +284,7 @@ class ReceiptService:
         """Attach OCR details to an existing transaction instead of creating a new one."""
         category_info = _CATEGORY_BY_ID.get(category_id, {})
         category_name = category_info.get("name", category_id)
-        return await self._actual.attach_receipt_to_transaction(
+        return await self._provider.attach_receipt_to_transaction(
             financial_id=financial_id,
             category_name=category_name,
             notes=notes,

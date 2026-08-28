@@ -25,34 +25,22 @@ Categories:
   it never creates new ones.
 """
 import asyncio
-import hashlib
 import json
 import logging
-from datetime import datetime as dt
 
 import aiohttp
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
-from backend.core.actual_client import ActualBudgetClient
+from backend.core.actual_client import _financial_id
 from backend.core.config import settings, build_llm_headers
 from backend.core.csv_importer import CsvNormalizer, CsvProfileDetector
+from backend.core.finance.provider import get_provider
 from backend.core.memory import MemoryDB, SmartCategorizer
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-
-def _financial_id(date_str: str, merchant: str, amount: float) -> str:
-    """
-    SHA256(date+merchant+amount)[:16] — cross-transport deduplication key.
-    Identical algorithm to ActualBudgetClient.add_transaction, ensuring a
-    transaction imported via CSV is never re-imported via receipt scan or
-    /add command.
-    """
-    sig = f"{date_str}{merchant}{amount:.4f}"
-    return hashlib.sha256(sig.encode()).hexdigest()[:16]
 
 
 # ---------------------------------------------------------------------------
@@ -118,46 +106,8 @@ class ImportResult(BaseModel):
     unknown_income_rows: list[UnknownIncomeRow] = []
 
 # ---------------------------------------------------------------------------
-# Sync helpers — run in thread executor via ActualBudgetClient._run()
+# Category mapping helper
 # ---------------------------------------------------------------------------
-
-def _fetch_preview_data(
-    actual_client: ActualBudgetClient,
-) -> tuple[set[str], list[str], dict[tuple[str, str], list[float]], list[str]]:
-    """
-    Single AB session that returns:
-      - set of financial_ids already in AB (for exact duplicate detection)
-      - list of non-hidden AB category names (for the frontend dropdown)
-      - (date, payee name lower) -> list of existing amounts, for near-duplicate
-        detection (same date+merchant already in AB, but a different amount —
-        e.g. a transaction imported once with a wrong amount, later corrected
-        in the CSV source; catches it instead of silently creating a second one)
-      - list of non-hidden category group names (for the "create new category" option)
-    """
-    from actual.queries import get_categories, get_category_groups, get_transactions
-    with actual_client._get_actual() as actual:
-        actual.download_budget()
-        existing_ids = {
-            tx.financial_id
-            for tx in get_transactions(actual.session)
-            if tx.financial_id and not tx.tombstone
-        }
-        ab_categories = [
-            c.name for c in get_categories(actual.session)
-            if c.name and not c.hidden and not c.tombstone
-        ]
-        category_groups = [
-            g.name for g in get_category_groups(actual.session)
-            if g.name and not g.hidden and not g.tombstone
-        ]
-        near_dup_index: dict[tuple[str, str], list[float]] = {}
-        for tx in get_transactions(actual.session):
-            if tx.tombstone or not tx.payee or not tx.payee.name:
-                continue
-            key = (tx.get_date().isoformat(), tx.payee.name.strip().lower())
-            near_dup_index.setdefault(key, []).append(abs(float(tx.amount or 0)) / 100)
-        return existing_ids, ab_categories, near_dup_index, category_groups
-
 
 def _map_to_ab_category(cat_id: str, ab_categories: list[str]) -> str | None:
     """
@@ -190,165 +140,6 @@ def _map_to_ab_category(cat_id: str, ab_categories: list[str]) -> str | None:
     # 3. Fuzzy
     matches = get_close_matches(cat_id_lower, list(name_lower_map.keys()), n=1, cutoff=0.5)
     return name_lower_map[matches[0]] if matches else None
-
-
-def _do_import(
-    actual_client: ActualBudgetClient,
-    account_id: str,
-    rows: list[ImportRowConfirm],
-) -> tuple[int, int, int, int]:
-    """
-    Write confirmed rows to Actual Budget in a single session.
-
-    Categories are resolved by name against the existing AB category list.
-    No new categories are ever created — if a name is not found the transaction
-    is imported without a category.
-
-    Merge logic: if a duplicate already exists in AB without a category, and
-    the CSV row has a confirmed category, assign the category instead of skipping.
-
-    Retroactive categorization: after import, any existing uncategorized transaction
-    whose payee name matches a confirmed merchant in this import gets the same category.
-
-    Returns (imported, skipped, merged, retroactively_updated).
-    """
-    from actual.database import Transactions
-    from actual.queries import (
-        create_transaction,
-        get_categories,
-        get_or_create_payee,
-        get_transactions,
-    )
-
-    with actual_client._get_actual() as actual:
-        actual.download_budget()
-
-        # Build dedup map: financial_id → transaction (for merge checks)
-        existing_tx_map = {
-            tx.financial_id: tx
-            for tx in get_transactions(actual.session)
-            if tx.financial_id and not tx.tombstone
-        }
-        existing_ids = set(existing_tx_map.keys())
-
-        # Category lookup by name — never create new categories
-        all_cats = {
-            c.name: c
-            for c in get_categories(actual.session)
-            if not c.tombstone
-        }
-
-        imported = 0
-        skipped = 0
-        merged = 0
-
-        for row in rows:
-            try:
-                tx_date = dt.strptime(row.date, "%Y-%m-%d").date()
-            except ValueError:
-                tx_date = dt.now().date()
-
-            fid = _financial_id(tx_date.isoformat(), row.merchant, row.amount)
-
-            if row.duplicate or fid in existing_ids:
-                existing = existing_tx_map.get(fid)
-                if existing and not existing.category_id and row.category_name:
-                    cat_obj = all_cats.get(row.category_name)
-                    if cat_obj:
-                        existing.category = cat_obj
-                        merged += 1
-                    else:
-                        skipped += 1
-                else:
-                    skipped += 1
-                continue
-
-            # User-confirmed transfer → create proper AB transfer (two linked transactions).
-            # For expense rows: money leaves account_id → transfer_to_account_id.
-            # For income rows: money arrives from transfer_to_account_id → account_id.
-            if row.transfer_to_account_id:
-                from actual.queries import create_transfer as ab_create_transfer
-                from decimal import Decimal
-                tx_notes = f"[import CSV] {row.notes}".strip() if row.notes else "[import CSV]"
-                src = account_id if row.is_expense else row.transfer_to_account_id
-                dst = row.transfer_to_account_id if row.is_expense else account_id
-                src_tx, dst_tx = ab_create_transfer(
-                    actual.session,
-                    date=tx_date,
-                    source_account=src,
-                    dest_account=dst,
-                    amount=Decimal(str(row.amount)),
-                    notes=tx_notes,
-                )
-                # create_transfer() takes no imported_id/cleared params — set them
-                # directly on both legs so dedup (existing_tx_map) and reconciliation
-                # see this transfer on future imports. See issue #102.
-                src_tx.financial_id = fid
-                src_tx.cleared = True
-                dst_tx.financial_id = _financial_id(tx_date.isoformat(), row.merchant, -row.amount)
-                dst_tx.cleared = True
-                existing_ids.add(fid)
-                imported += 1
-                continue
-
-            # Skip auto-detected transfer candidates that have no user-confirmed destination
-            if row.is_transfer_candidate:
-                skipped += 1
-                continue
-
-            payee = get_or_create_payee(actual.session, row.merchant)
-            cat_obj = all_cats.get(row.category_name) if row.category_name else None
-
-            actual_amount = -abs(row.amount) if row.is_expense else abs(row.amount)
-            tx_notes = f"[import CSV] {row.notes}".strip() if row.notes else "[import CSV]"
-            create_transaction(
-                actual.session,
-                date=tx_date,
-                account=account_id,
-                payee=payee,
-                notes=tx_notes,
-                amount=actual_amount,
-                category=cat_obj,
-                imported_id=fid,
-                cleared=True,
-                imported_payee=row.merchant,
-            )
-            existing_ids.add(fid)
-            imported += 1
-
-        # --- Retroactive categorization ---
-        # For each confirmed merchant→category in this import, find all existing
-        # uncategorized transactions with the same payee and assign the category.
-        merchant_category_map: dict[str, str] = {
-            row.merchant.lower(): row.category_name
-            for row in rows
-            if not row.duplicate and not row.is_transfer_candidate and row.category_name
-        }
-
-        retroactively_updated = 0
-        if merchant_category_map:
-            uncategorized = actual.session.query(Transactions).filter(
-                Transactions.tombstone == 0,
-                Transactions.category_id == None,
-            ).all()
-            for tx in uncategorized:
-                if not tx.payee or not tx.payee.name:
-                    continue
-                cat_name = merchant_category_map.get(tx.payee.name.lower())
-                if cat_name:
-                    cat_obj = all_cats.get(cat_name)
-                    if cat_obj:
-                        tx.category_id = cat_obj.id
-                        retroactively_updated += 1
-
-        if imported > 0 or merged > 0 or retroactively_updated > 0:
-            actual.commit()
-            logger.info(
-                "CSV import committed: %d rows, %d merged, %d retroactively categorized",
-                imported, merged, retroactively_updated,
-            )
-
-    return imported, skipped, merged, retroactively_updated
 
 
 # ---------------------------------------------------------------------------
@@ -532,15 +323,11 @@ async def preview_csv(
     # normalize() keeps only expenses + refunds, drops pure income rows
     transactions = normalizer.normalize(rows, profile)
 
-    actual = ActualBudgetClient(
-        url=settings.actual.url,
-        password=settings.actual.password,
-        sync_id=settings.actual.sync_id,
-    )
+    provider = get_provider()
 
     # One AB session: existing IDs + real category list + near-duplicate index
-    existing_ids, ab_categories, near_dup_index, category_groups = await actual._run(lambda: _fetch_preview_data(actual))
-    accounts = await actual.get_accounts()
+    existing_ids, ab_categories, near_dup_index, category_groups = await provider.get_csv_import_context()
+    accounts = await provider.get_accounts()
 
     categorizer = SmartCategorizer(db=db)
 
@@ -555,7 +342,7 @@ async def preview_csv(
 
     # Check Actual Budget's existing rules once for the whole import — a single
     # fetch of the ruleset regardless of row count, not a per-row query (#99).
-    rule_matches = await actual.match_existing_rules([
+    rule_matches = await provider.match_existing_rules([
         {"payee": _lookup_merchant(tx), "notes": tx.description}
         for tx in transactions
     ])
@@ -679,14 +466,10 @@ async def confirm_csv(
     Rows flagged as duplicate in the preview are skipped.
     Deduplication is re-checked server-side as a safety net.
     """
-    actual = ActualBudgetClient(
-        url=settings.actual.url,
-        password=settings.actual.password,
-        sync_id=settings.actual.sync_id,
-    )
+    provider = get_provider()
 
     # Create any new categories the user picked "+ Create new category" for,
-    # before _do_import() runs — it only assigns *existing* categories by
+    # before execute_csv_import() runs — it only assigns *existing* categories by
     # name, never creates one (#99).
     new_categories = {
         (row.category_name, row.new_category_group)
@@ -694,21 +477,21 @@ async def confirm_csv(
         if row.new_category_group and row.category_name and not row.duplicate
     }
     if new_categories:
-        existing_names = {c.name.lower() for c in await actual.get_categories()}
+        existing_names = {c.name.lower() for c in await provider.get_categories()}
         for name, group in new_categories:
             if name.lower() in existing_names:
-                continue  # already exists — _do_import()'s own name lookup will find it
+                continue  # already exists — execute_csv_import()'s own name lookup will find it
             try:
-                await actual.create_category(name=name, group_name=group)
+                await provider.create_category(name=name, group_name=group)
             except Exception as e:
                 logger.warning("Failed to create category '%s' in group '%s': %s", name, group, e)
 
-    imported, skipped, merged, retroactively_updated = await actual._run(
-        lambda: _do_import(actual, body.account_id, body.rows)
+    imported, skipped, merged, retroactively_updated = await provider.execute_csv_import(
+        body.account_id, [row.model_dump() for row in body.rows]
     )
 
     # Fetch current balance for the reconciliation message
-    accounts_after = await actual.get_accounts()
+    accounts_after = await provider.get_accounts()
     matched_account = next((a for a in accounts_after if a.id == body.account_id), None)
 
     db = MemoryDB(db_path=settings.memory.db_path)
@@ -718,12 +501,12 @@ async def confirm_csv(
     # categorizer.learn() SQLite mapping.
     rule_rows = [r for r in body.rows if r.create_rule and not r.duplicate]
     if rule_rows:
-        cats = await actual.get_categories()
+        cats = await provider.get_categories()
         cats_by_name = {c.name.lower(): c for c in cats}
         # Check existing rules once for the whole batch — skip creating a rule
         # that's already covered by one (avoids exact duplicates when the user
         # checks "save as rule" more than once for the same merchant) (#99).
-        existing_matches = await actual.match_existing_rules(
+        existing_matches = await provider.match_existing_rules(
             [{"payee": row.merchant, "notes": row.notes} for row in rule_rows]
         )
         for row, existing in zip(rule_rows, existing_matches):
@@ -733,7 +516,7 @@ async def confirm_csv(
                 if row.transfer_to_account_id:
                     if existing and existing.get("is_transfer") and existing.get("account_id") == row.transfer_to_account_id:
                         continue
-                    await actual.create_payee_transfer_rule(
+                    await provider.create_payee_transfer_rule(
                         payee_name_prefix=row.merchant,
                         target_account_id=row.transfer_to_account_id,
                     )
@@ -742,7 +525,7 @@ async def confirm_csv(
                         continue
                     cat = cats_by_name.get(row.category_name.lower())
                     if cat:
-                        await actual.create_payee_rule(
+                        await provider.create_payee_rule(
                             payee_name_prefix=row.merchant,
                             category_id=cat.id,
                         )

@@ -137,6 +137,27 @@ class FinanceProvider(Protocol):
         self, candidates: list[dict]
     ) -> list[dict | None]: ...
 
+    async def attach_receipt_to_transaction(
+        self, financial_id: str, category_name: str, notes: str
+    ) -> bool: ...
+
+    async def find_near_duplicate_transaction(
+        self,
+        account_id: str,
+        amount: float,
+        date: date,
+        date_window_days: int = 1,
+        tolerance_pct: float = 0.02,
+    ) -> dict | None: ...
+
+    async def get_csv_import_context(
+        self,
+    ) -> tuple[set[str], list[str], dict[tuple[str, str], list[float]], list[str]]: ...
+
+    async def execute_csv_import(
+        self, account_id: str, rows: list[dict]
+    ) -> tuple[int, int, int, int]: ...
+
 
 def get_provider() -> FinanceProvider:
     """Return a FinanceProvider instance based on the FINANCE_BACKEND env var."""
