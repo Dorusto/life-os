@@ -120,6 +120,12 @@ Found during an external review of `architecture.md`/`decisions.md` for a course
 
 ## Current model
 
+Majordom's OWN product LLM config (what the app itself talks to) — distinct from
+`delegate-by-complexity`'s dev-tooling model choice (DeepSeek Flash/Pro, Qwen via Aider,
+used to develop Majordom, not by Majordom). Confused twice in one session (2026-08-28)
+by both Claude and a subagent — check which of the two you actually mean before editing
+either.
+
 - Chat: `deepseek/deepseek-chat` via OpenRouter
 - Vision: `google/gemini-2.5-flash-lite` via OpenRouter
 - Local Ollama fallback: `qwen3.5:9b` (vision + chat, ~4 min on CPU-only LXC)

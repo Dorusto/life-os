@@ -567,6 +567,16 @@ Both exist for categories today (structure via `CategoryOverviewCard`, amounts v
 
 ---
 
+### Majordom's own product LLM — possibly a smaller model than `qwen3.5:9b`
+
+**Date raised:** 2026-08-28. **Status:** an idea to test, not a decision — not implemented, don't act on it without an explicit go-ahead.
+
+**Context:** Doru is considering whether Majordom's own conversational model (see `CLAUDE.md#current-model`, currently `qwen3.5:9b` as the local Ollama fallback) should be even smaller than that, specifically so the app can run on cheaper hardware than what's needed today. Explicitly distinct from `delegate-by-complexity`'s dev-tooling model choice (DeepSeek/Qwen3.8 used to develop Majordom) — the two were confused twice in one session before this entry existed, see the `CLAUDE.md#current-model` clarifying note added the same day.
+
+**Doru's own framing:** "if it's not ok [i.e. a smaller model turns out too weak], it still remains to be tested" — the idea is explicitly provisional, meant to be empirically tried, not committed to.
+
+---
+
 ## Technical patterns (confirmed)
 
 ### `TARGET:` and `DEADLINE:` in AB account notes
