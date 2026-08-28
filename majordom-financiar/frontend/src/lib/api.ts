@@ -229,8 +229,10 @@ export async function confirmFuelReceipt(data: FuelConfirmRequest): Promise<Fuel
 
 // --- Transactions ---
 
-export async function getTransactions(limit = 20): Promise<Transaction[]> {
-  return request<Transaction[]>(`/transactions?limit=${limit}`)
+export async function getTransactions(limit = 20, accountId?: string): Promise<Transaction[]> {
+  const qs = new URLSearchParams({ limit: String(limit) })
+  if (accountId) qs.set('account_id', accountId)
+  return request<Transaction[]>(`/transactions?${qs}`)
 }
 
 export async function getAccounts(): Promise<Account[]> {

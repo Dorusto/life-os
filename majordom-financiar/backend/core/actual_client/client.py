@@ -1734,12 +1734,16 @@ class ActualBudgetClient:
 
     async def get_recent_transactions(
         self, limit: int = 20, start_date: date | None = None, end_date: date | None = None,
+        account_id: str | None = None,
     ) -> list[dict]:
         """
         Return the most recent transactions from Actual Budget, sorted by date descending.
         Optional start_date/end_date narrow to a range (e.g. one calendar month) before
         sorting/limiting — same actualpy start_date/end_date params get_monthly_stats()
         and get_budget_status() already use, see #171.
+        Optional account_id scopes the list to a single account (#194). The account
+        is looked up by string-casting its id (same pattern get_accounts() uses) and
+        passed to get_transactions() as an Account object, not a raw id.
 
         Returns plain dicts (not dataclasses) because the caller needs flexible
         access to fields that may or may not be set (category, payee, etc.).
@@ -1749,10 +1753,22 @@ class ActualBudgetClient:
           account_name, notes
         """
         def _get():
-            from actual.queries import get_transactions
+            from actual.queries import get_transactions, get_accounts
             with self._get_actual() as actual:
                 actual.download_budget()
-                all_txs = get_transactions(actual.session, start_date=start_date, end_date=end_date)
+                if account_id is not None:
+                    matched = next(
+                        (a for a in get_accounts(actual.session) if str(a.id) == account_id),
+                        None,
+                    )
+                    if matched is None:
+                        return []
+                    all_txs = get_transactions(
+                        actual.session, account=matched,
+                        start_date=start_date, end_date=end_date,
+                    )
+                else:
+                    all_txs = get_transactions(actual.session, start_date=start_date, end_date=end_date)
 
                 result = []
                 for tx in all_txs:
