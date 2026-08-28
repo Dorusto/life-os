@@ -164,6 +164,10 @@ class FinanceProvider(Protocol):
         self, transaction_id: str, target_account_id: str
     ) -> dict: ...
 
+    async def split_transaction(
+        self, financial_id: str, splits: list[dict]
+    ) -> dict: ...
+
 
 def get_provider() -> FinanceProvider:
     """Return a FinanceProvider instance based on the FINANCE_BACKEND env var."""

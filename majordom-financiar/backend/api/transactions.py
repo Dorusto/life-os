@@ -140,6 +140,48 @@ async def list_categories(current_user: str = Depends(get_current_user)):
     return [CategoryItem(id=cat.id, name=cat.name, group_name=cat.group_name, is_income=cat.is_income) for cat in cats]
 
 
+class SplitLine(BaseModel):
+    category_id: str
+    amount: float
+
+
+class SplitTransactionRequest(BaseModel):
+    splits: list[SplitLine]
+
+
+@router.post("/transactions/{financial_id}/split")
+async def split_transaction(
+    financial_id: str,
+    body: SplitTransactionRequest,
+    current_user: str = Depends(get_current_user),
+):
+    """Split an existing transaction into 2+ category lines (#115).
+
+    The transaction becomes a parent (no category) with one child per line,
+    each carrying its own category and amount. The split amounts must sum to
+    the original transaction's total.
+    """
+    if len(body.splits) < 2:
+        raise HTTPException(status_code=400, detail="A split needs at least 2 lines")
+
+    client = ActualBudgetClient(
+        url=settings.actual.url,
+        password=settings.actual.password,
+        sync_id=settings.actual.sync_id,
+    )
+    try:
+        result = await client.split_transaction(
+            financial_id, [s.model_dump() for s in body.splits]
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error("Failed to split transaction %s: %s", financial_id, e)
+        raise HTTPException(status_code=500, detail="Could not connect to Actual Budget. Is it running?")
+
+    return result
+
+
 @router.get("/category-groups", response_model=list[str])
 async def list_category_groups(current_user: str = Depends(get_current_user)):
     client = ActualBudgetClient(

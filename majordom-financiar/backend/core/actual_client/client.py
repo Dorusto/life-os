@@ -1002,6 +1002,64 @@ class ActualBudgetClient:
                 return True
         return await self._run(_update)
 
+    async def split_transaction(self, financial_id: str, splits: list[dict]) -> dict:
+        """
+        Split an existing transaction into N children, one per category (#115).
+
+        The original transaction becomes the parent (is_parent=1, no category);
+        each entry in `splits` becomes a child carrying its own category and
+        amount. `splits` is a list of {"category_id": str, "amount": float}
+        with always-positive amounts — the sign follows the original
+        transaction's direction (an expense's children stay negative, an
+        income's stay positive). Actual Budget's own UI shows the result
+        natively as a "Split" transaction once the underlying data is correct.
+
+        Raises ValueError if the transaction is not found, is already split,
+        any category_id is unknown, or the split amounts don't balance the
+        original total (within 0.01 tolerance) — the API layer turns these
+        into a 400.
+        """
+        def _split():
+            from actual.queries import create_split, get_categories
+            from actual.database import Transactions
+            with self._get_actual() as actual:
+                actual.download_budget()
+
+                tx = actual.session.query(Transactions).filter(
+                    Transactions.financial_id == financial_id,
+                    Transactions.tombstone == 0,
+                ).first()
+                if not tx:
+                    raise ValueError(f"Transaction not found: {financial_id}")
+                if tx.is_parent:
+                    raise ValueError("Transaction is already split")
+
+                original_amount = tx.get_amount()  # signed Decimal (EUR)
+                sign = 1 if original_amount >= 0 else -1
+                requested_total = sum(abs(float(s["amount"])) for s in splits)
+                if abs(requested_total - abs(float(original_amount))) > 0.01:
+                    raise ValueError(
+                        f"Splits sum to {requested_total:.2f}, transaction total is {abs(float(original_amount)):.2f}"
+                    )
+
+                valid_ids = {str(c.id) for c in get_categories(actual.session) if c.id}
+                bad = [s["category_id"] for s in splits if s["category_id"] not in valid_ids]
+                if bad:
+                    raise ValueError(f"Unknown category id(s): {', '.join(bad)}")
+
+                tx.is_parent = 1
+                tx.category_id = None
+                created = []
+                for s in splits:
+                    child = create_split(actual.session, tx, amount=sign * abs(float(s["amount"])))
+                    child.category_id = s["category_id"]
+                    created.append(str(child.id))
+
+                actual.commit()
+                logger.info("Transaction split: %s → %d children", financial_id, len(created))
+                return {"parent_financial_id": financial_id, "child_count": len(created)}
+        return await self._run(_split)
+
     async def find_near_duplicate_transaction(
         self,
         account_id: str,
