@@ -12,6 +12,7 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
   const [loading, setLoading] = useState(false)
   const [selectedSource, setSelectedSource] = useState(data.source_category)
   const [selectedDest, setSelectedDest] = useState(data.destination_category)
+  const [amount, setAmount] = useState(data.amount)
 
   const categories = data.categories ?? [
     { name: data.source_category, budgeted: data.current_source_budget },
@@ -27,14 +28,15 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
     [selectedDest, categories]
   )
 
-  const newSource = Math.round((sourceBudgeted - data.amount) * 100) / 100
-  const newDest = Math.round((destBudgeted + data.amount) * 100) / 100
+  const newSource = Math.round((sourceBudgeted - amount) * 100) / 100
+  const newDest = Math.round((destBudgeted + amount) * 100) / 100
 
   async function handleConfirm() {
     setLoading(true)
     try {
       const result = await confirmBudgetRebalance({
         ...data,
+        amount,
         source_category: selectedSource,
         destination_category: selectedDest,
         current_source_budget: sourceBudgeted,
@@ -61,7 +63,18 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
       <div>
         <p className="text-white font-medium text-sm">Budget rebalance</p>
-        <p className="text-muted text-xs mt-0.5">{data.month} · €{data.amount.toFixed(2)}</p>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <span className="text-muted text-xs">{data.month} ·</span>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={amount}
+            onChange={e => setAmount(parseFloat(e.target.value) || 0)}
+            disabled={loading}
+            className="w-24 bg-surface-2 border border-border rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:border-accent disabled:opacity-50"
+          />
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -85,7 +98,7 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
           </p>
         </div>
 
-        <p className="text-muted text-xs pl-1">↓ €{data.amount.toFixed(2)}</p>
+        <p className="text-muted text-xs pl-1">↓ €{amount.toFixed(2)}</p>
 
         {/* Destination */}
         <div className="space-y-1">
@@ -99,7 +112,7 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
             {categories.map(c => (
               <option key={c.name} value={c.name} style={{ background: '#1A1A1A' }}>
                 {c.name} · €{c.budgeted.toFixed(2)}
-            </option>
+              </option>
             ))}
           </select>
           <p className="text-xs text-muted pl-1">
