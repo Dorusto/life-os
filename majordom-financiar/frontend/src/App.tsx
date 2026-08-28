@@ -5,6 +5,7 @@ import { requestAndSubscribe } from './lib/push'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Accounts from './pages/Accounts'
+import AccountDetail from './pages/AccountDetail'
 import TransactionsPage from './pages/Transactions'
 import AnalyticsPage from './pages/Analytics'
 import SettingsPage from './pages/Settings'
@@ -101,6 +102,14 @@ function Layout() {
           element={
             <ProtectedRoute>
               <Accounts />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/accounts/:id"
+          element={
+            <ProtectedRoute>
+              <AccountDetail />
             </ProtectedRoute>
           }
         />

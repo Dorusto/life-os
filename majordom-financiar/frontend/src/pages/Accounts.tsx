@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { Wallet } from 'lucide-react'
 import { getAccountList, type AccountListItem } from '../lib/api'
 import PageHeader from '../components/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 
 /**
- * Accounts tab (decisions.md#nav-five-tabs) — UI shell for now: a real, live
- * account list, but no drill-down into a single account yet. That's #194.
+ * Accounts tab (decisions.md#nav-five-tabs) — a real, live list of Actual
+ * Budget accounts; tapping a row drills down into that account (#194).
  */
 export default function Accounts() {
   const { data: accounts } = useQuery({
@@ -54,8 +55,12 @@ export default function Accounts() {
 }
 
 function AccountRow({ account }: { account: AccountListItem }) {
+  const navigate = useNavigate()
   return (
-    <div className="flex items-center gap-3 bg-surface border border-border rounded-2xl px-3.5 py-3.5">
+    <button
+      onClick={() => navigate(`/accounts/${account.id}`)}
+      className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-3.5 py-3.5 text-left hover:bg-surface-2 transition-colors"
+    >
       <div className="w-9 h-9 rounded-xl bg-surface-2 flex items-center justify-center text-muted flex-shrink-0">
         <Wallet size={16} />
       </div>
@@ -63,6 +68,6 @@ function AccountRow({ account }: { account: AccountListItem }) {
       <p className="font-mono text-sm tabular-nums flex-shrink-0">
         €{account.balance.toLocaleString('nl-NL', { maximumFractionDigits: 0 })}
       </p>
-    </div>
+    </button>
   )
 }

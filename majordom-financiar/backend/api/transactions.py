@@ -49,11 +49,13 @@ class Account(BaseModel):
 @router.get("/transactions", response_model=list[Transaction])
 async def list_transactions(
     limit: int = Query(default=20, ge=1, le=100),
+    account_id: Optional[str] = Query(default=None),
     current_user: str = Depends(get_current_user),
 ):
     """
     Return the most recent transactions from Actual Budget.
     Used by the Home screen to show the last 5-20 transactions.
+    Optional account_id scopes the result to a single account (#194).
     """
     client = ActualBudgetClient(
         url=settings.actual.url,
@@ -62,7 +64,7 @@ async def list_transactions(
     )
 
     try:
-        raw = await client.get_recent_transactions(limit=limit)
+        raw = await client.get_recent_transactions(limit=limit, account_id=account_id)
     except Exception as e:
         logger.error("Failed to fetch transactions from Actual Budget: %s", e)
         raise HTTPException(
