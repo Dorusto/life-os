@@ -1834,7 +1834,7 @@ class ActualBudgetClient:
         return await self._run(_create)
 
     @staticmethod
-    def _get_or_create_transfer_payee(session, to_acct) -> "Payees":
+    def _get_or_create_transfer_payee(session, to_acct):
         """
         Find (or create) the special payee that triggers a linked transfer to
         `to_acct`. When an account is created, actualpy creates a blank Payee
@@ -2657,21 +2657,19 @@ class ActualBudgetClient:
                 return groups
         return await self._run(_fetch)
 
-    async def get_transactions_by_tag(self, tag: str) -> dict:
-        """
-        Return every transaction whose notes contain the given #tag (case-insensitive),
-        with an income/cost/net breakdown. Powers ad-hoc per-order/per-job costing (#126)
-        — e.g. a shared #C002-GVoros tag links a YouTube/Printful order's income
-        transaction to its associated cost transaction(s).
-        """
-        def _fetch():
-            from actual.database import Transactions, Payees
+    async def _fetch_tagged(self, tag: str) -> tuple[str, list]:
+        """Shared query for tag-filtered transactions. Returns (tag_pattern, rows)
+        where rows are (Transactions, payee_name, category_name) tuples."""
+        from actual.database import Transactions, Payees, Categories
+
+        def _inner():
             with self._get_actual() as actual:
                 actual.download_budget()
                 tag_pattern = tag if tag.startswith("#") else f"#{tag}"
                 rows = (
-                    actual.session.query(Transactions, Payees.name)
+                    actual.session.query(Transactions, Payees.name, Categories.name)
                     .outerjoin(Payees, Transactions.payee_id == Payees.id)
+                    .outerjoin(Categories, Transactions.category_id == Categories.id)
                     .filter(
                         Transactions.notes.ilike(f"%{tag_pattern}%"),
                         Transactions.tombstone == 0,
@@ -2680,31 +2678,74 @@ class ActualBudgetClient:
                     .order_by(Transactions.date)
                     .all()
                 )
+                return tag_pattern, rows
+        return await self._run(_inner)
 
-                transactions = []
-                income = 0.0
-                cost = 0.0
-                for tx, payee_name in rows:
-                    amount = float(tx.amount or 0) / 100
-                    if amount > 0:
-                        income += amount
-                    else:
-                        cost += abs(amount)
-                    transactions.append({
-                        "date": tx.get_date().isoformat() if tx.date is not None else None,
-                        "payee": payee_name or "",
-                        "amount": round(amount, 2),
-                        "notes": tx.notes or "",
-                    })
+    async def get_transactions_by_tag(self, tag: str) -> dict:
+        """
+        Return every transaction whose notes contain the given #tag (case-insensitive),
+        with an income/cost/net breakdown. Powers ad-hoc per-order/per-job costing (#126)
+        — e.g. a shared #C002-GVoros tag links a YouTube/Printful order's income
+        transaction to its associated cost transaction(s).
+        """
+        tag_pattern, rows = await self._fetch_tagged(tag)
+        transactions = []
+        income = 0.0
+        cost = 0.0
+        # rows are (Transactions, payee_name, category_name) — category_name unused here
+        for tx, payee_name, _cat_name in rows:
+            amount = float(tx.amount or 0) / 100
+            if amount > 0:
+                income += amount
+            else:
+                cost += abs(amount)
+            transactions.append({
+                "date": tx.get_date().isoformat() if tx.date is not None else None,
+                "payee": payee_name or "",
+                "amount": round(amount, 2),
+                "notes": tx.notes or "",
+            })
+        return {
+            "tag": tag_pattern,
+            "transactions": transactions,
+            "income": round(income, 2),
+            "cost": round(cost, 2),
+            "net": round(income - cost, 2),
+        }
 
-                return {
-                    "tag": tag_pattern,
-                    "transactions": transactions,
-                    "income": round(income, 2),
-                    "cost": round(cost, 2),
-                    "net": round(income - cost, 2),
-                }
-        return await self._run(_fetch)
+    async def get_tag_category_breakdown(self, tag: str) -> dict:
+        """
+        Return spending broken down by category for all transactions tagged #tag.
+        Mirrors get_transactions_by_tag's filtering but adds category info.
+        Cost transactions (negative amount) are grouped by category name.
+        Returns {"tag": tag_pattern, "total_cost", "total_income", "count", "categories": [{name, value}, ...]}
+        """
+        tag_pattern, rows = await self._fetch_tagged(tag)
+        total_cost = 0.0
+        total_income = 0.0
+        cost_count = 0
+        category_totals: dict[str, float] = {}
+        for tx, _payee_name, category_name in rows:
+            amount = float(tx.amount or 0) / 100
+            if amount > 0:
+                total_income += amount
+                continue
+            cost = abs(amount)
+            total_cost += cost
+            cost_count += 1
+            cat_name = category_name or "Uncategorized"
+            category_totals[cat_name] = category_totals.get(cat_name, 0.0) + cost
+        categories = [
+            {"name": name, "value": round(value, 2)}
+            for name, value in category_totals.items()
+        ]
+        return {
+            "tag": tag_pattern,
+            "total_cost": round(total_cost, 2),
+            "total_income": round(total_income, 2),
+            "count": cost_count,
+            "categories": categories,
+        }
 
     async def create_payee_rule(self, payee_name_prefix: str, category_id: str) -> None:
         """Create an AB rule: imported_description contains prefix → set category."""

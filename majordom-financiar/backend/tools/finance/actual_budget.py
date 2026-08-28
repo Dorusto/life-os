@@ -462,6 +462,38 @@ async def get_spending_chart(month: int | None = None, year: int | None = None) 
     })
 
 
+async def get_tag_spending_chart(tag: str) -> str:
+    """Return a donut chart of spending broken down by category for all
+    transactions tagged with #tag (a substring in the transaction's notes)."""
+    client = get_provider()
+    breakdown = await client.get_tag_category_breakdown(tag)
+    total_cost = breakdown["total_cost"]
+    if total_cost <= 0:
+        return json.dumps({
+            "type": "info",
+            "message": f"No tagged spending found for '{breakdown['tag']}'.",
+        })
+    segments = sorted([
+        {
+            "name": c["name"],
+            "value": round(c["value"], 2),
+            "percentage": round(c["value"] / total_cost * 100, 1) if total_cost > 0 else 0,
+        }
+        for c in breakdown["categories"]
+    ], key=lambda x: x["value"], reverse=True)
+    return json.dumps({
+        "type": "chart",
+        "chart_type": "pie",
+        "title": f"Spending — {breakdown['tag']}",
+        "data": {
+            "total": round(total_cost, 2),
+            "income": round(breakdown["total_income"], 2),
+            "count": breakdown["count"],
+            "segments": segments,
+        },
+    })
+
+
 async def get_budget_chart(month: int | None = None, year: int | None = None) -> str:
     """Return budget vs actual data as JSON for the frontend to render as a progress-list chart."""
     import calendar
