@@ -13,6 +13,7 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
   const [loading, setLoading] = useState(false)
   const [fromId, setFromId] = useState(data.from_account_id)
   const [toId, setToId] = useState(data.to_account_id)
+  const [amount, setAmount] = useState(data.amount)
   const [creatingNew, setCreatingNew] = useState(data.to_account_missing ?? false)
   const [newAccountName, setNewAccountName] = useState(data.to_account_name ?? '')
   const [newAccountOffBudget, setNewAccountOffBudget] = useState(false)
@@ -30,11 +31,12 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
     try {
       const result = creatingNew
         ? await confirmAccountTransfer(
-            { ...data, from_account_id: fromId, from_account_name: fromAcc?.name ?? fromId, to_account_id: '', to_account_name: newAccountName.trim() },
+            { ...data, amount, from_account_id: fromId, from_account_name: fromAcc?.name ?? fromId, to_account_id: '', to_account_name: newAccountName.trim() },
             { name: newAccountName.trim(), offBudget: newAccountOffBudget }
           )
         : await confirmAccountTransfer({
             ...data,
+            amount,
             from_account_id: fromId,
             from_account_name: fromAcc?.name ?? fromId,
             to_account_id: toId,
@@ -59,7 +61,18 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
       <div>
         <p className="text-white font-medium text-sm">Account transfer</p>
-        <p className="text-muted text-xs mt-0.5">{data.date} · €{data.amount.toFixed(2)}</p>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <span className="text-muted text-xs">{data.date} ·</span>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={amount}
+            onChange={e => setAmount(parseFloat(e.target.value) || 0)}
+            disabled={loading}
+            className="w-24 bg-surface-2 border border-border rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:border-accent disabled:opacity-50"
+          />
+        </div>
       </div>
 
       <div className="space-y-3">
@@ -78,13 +91,13 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
             ))}
           </select>
           <p className="text-xs text-muted pl-1">
-            <span className="text-red-400">-€{data.amount.toFixed(2)}</span>
+            <span className="text-red-400">-€{amount.toFixed(2)}</span>
           </p>
         </div>
 
         <div className="flex items-center gap-1 text-muted text-xs pl-1">
           <ArrowRight size={12} />
-          <span>€{data.amount.toFixed(2)}</span>
+          <span>€{amount.toFixed(2)}</span>
         </div>
 
         <div className="space-y-1">
@@ -145,7 +158,7 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
             </>
           )}
           <p className="text-xs text-muted pl-1">
-            <span className="text-green-400">+€{data.amount.toFixed(2)}</span>
+            <span className="text-green-400">+€{amount.toFixed(2)}</span>
           </p>
         </div>
       </div>
