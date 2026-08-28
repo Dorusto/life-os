@@ -179,6 +179,9 @@ class ActualBudgetProvider:
     async def get_transactions_by_tag(self, tag: str) -> dict:
         return await self._client().get_transactions_by_tag(tag)
 
+    async def get_tag_category_breakdown(self, tag: str) -> dict:
+        return await self._client().get_tag_category_breakdown(tag)
+
     async def update_uncategorized_by_payee(
         self, payee: str, category_id: str, notes_contains: str = ""
     ) -> int:
@@ -249,6 +252,9 @@ class ActualBudgetProvider:
 
     async def get_transaction_by_id(self, transaction_id: str) -> dict | None:
         return await self._client().get_transaction_by_id(transaction_id)
+
+    async def add_transaction_tag(self, transaction_id: str, tag: str) -> str:
+        return await self._client().add_transaction_tag(transaction_id, tag)
 
     async def convert_transaction_to_transfer(
         self, transaction_id: str, target_account_id: str
