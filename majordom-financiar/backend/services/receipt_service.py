@@ -19,6 +19,7 @@ import asyncio
 import hashlib
 import json
 import logging
+import re
 from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
@@ -50,6 +51,14 @@ def _load_categories() -> list[dict]:
 _CATEGORIES: list[dict] = _load_categories()
 # Index for fast lookup: category_id → category dict
 _CATEGORY_BY_ID: dict[str, dict] = {c["id"]: c for c in _CATEGORIES}
+
+# Actual Budget category ids are UUIDs ("xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx").
+# Used to tell a UUID (which needs an AB lookup to resolve to a name) from a slug
+# or display name (which don't), so the legacy slug/name paths avoid an extra
+# Actual Budget round-trip.
+_UUID_RE = re.compile(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+)
 
 
 class ReceiptService:
@@ -129,7 +138,7 @@ class ReceiptService:
             "category_source": source,
             # Fuel receipts override category below after receipt_type is known
             "categories": [
-                {"id": cat.name, "name": cat.name, "emoji": "📦", "group_name": cat.group_name}
+                {"id": cat.id, "name": cat.name, "emoji": "📦", "group_name": cat.group_name}
                 for cat in ab_categories
             ],
             "accounts": [
@@ -180,6 +189,20 @@ class ReceiptService:
             except Exception as e:
                 logger.warning("Vehicle detection failed: %s", e)
 
+        # Resolve the suggested category to its Actual Budget id (UUID) so the
+        # frontend's <select> values line up with the categories list above and
+        # with the split endpoint's category_id contract (#115). suggested_category_id
+        # may be a slug (local categorizer), an AB rule's display name, or a fuel
+        # default name — map any of those to the matching category's id.
+        if result.get("suggested_category_id"):
+            suggested_name = _CATEGORY_BY_ID.get(
+                result["suggested_category_id"], {}
+            ).get("name", result["suggested_category_id"])
+            result["suggested_category_id"] = next(
+                (cat.id for cat in ab_categories if cat.name.lower() == suggested_name.lower()),
+                None,
+            )
+
         return result
 
     async def confirm(
@@ -211,8 +234,7 @@ class ReceiptService:
         only when the user explicitly checks the box on the confirmation card.
         """
         # Look up the display name for Actual Budget's get_or_create_category
-        category_info = _CATEGORY_BY_ID.get(category_id, {})
-        category_name = category_info.get("name", category_id)
+        category_name = await self._resolve_category_name(category_id)
 
         # Parse date string to date object for ActualBudgetClient
         try:
@@ -282,10 +304,35 @@ class ReceiptService:
 
     async def attach_to_existing(self, financial_id: str, category_id: str, notes: str) -> bool:
         """Attach OCR details to an existing transaction instead of creating a new one."""
-        category_info = _CATEGORY_BY_ID.get(category_id, {})
-        category_name = category_info.get("name", category_id)
+        category_name = await self._resolve_category_name(category_id)
         return await self._provider.attach_receipt_to_transaction(
             financial_id=financial_id,
             category_name=category_name,
             notes=notes,
         )
+
+    async def _resolve_category_name(self, category_id: str) -> str:
+        """Resolve a category reference to its Actual Budget display name.
+
+        Accepts three forms and returns the display name that
+        ``ActualBudgetClient.add_transaction()`` looks up by:
+
+          - a slug from categories.json (legacy local-categorizer key),
+          - an Actual Budget category id / UUID (what the web receipt & split
+            flows now send, #115),
+          - an Actual Budget display name (pass-through).
+
+        Slugs resolve from the local index (no AB call); UUIDs need one AB
+        lookup; names pass through unchanged.
+        """
+        if category_id in _CATEGORY_BY_ID:
+            return _CATEGORY_BY_ID[category_id]["name"]
+        if _UUID_RE.match(category_id):
+            try:
+                cats = await self._provider.get_categories()
+                for c in cats:
+                    if c.id == category_id:
+                        return c.name
+            except Exception:
+                logger.warning("Could not resolve category id '%s' to a name", category_id)
+        return category_id

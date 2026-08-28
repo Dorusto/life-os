@@ -250,6 +250,41 @@ export async function createAccount(name: string, offBudget = false): Promise<Ac
   })
 }
 
+// --- Manual transaction entry (#185) ---
+
+export async function createTransaction(data: {
+  merchant: string
+  amount: number
+  date: string
+  category_id: string
+  account_id: string
+  notes?: string
+  force_new?: boolean
+  attach_to?: string
+}): Promise<ConfirmResponse> {
+  return request<ConfirmResponse>('/transactions', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+// --- Split transaction across categories (#115) ---
+
+export interface SplitLine {
+  category_id: string
+  amount: number
+}
+
+export async function splitTransaction(
+  transactionId: string,
+  splits: SplitLine[]
+): Promise<{ parent_transaction_id: string; child_count: number }> {
+  return request(`/transactions/${transactionId}/split`, {
+    method: 'POST',
+    body: JSON.stringify({ splits }),
+  })
+}
+
 // --- FIRE ---
 
 export interface FireData {
