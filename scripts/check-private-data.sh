@@ -75,6 +75,27 @@ check "Personal domain"            '\bdorulian\.eu\b'
 # doc examples use 192.168.x.x, which is intentionally not matched here.
 check "Internal homelab IP"        '\b10\.10\.\d{1,3}\.\d{1,3}\b'
 
+# Romanian-language text in this repo (life-os) — code, comments, commit
+# messages, and docs must be English only (root CLAUDE.md). The Obsidian
+# vault (Second-Brain) is a separate repo and is intentionally Romanian —
+# this check only ever sees life-os's own staged diff, so no path exclusion
+# is needed. Confirmed 2026-08-28: quoted Romanian phrases from the vault's
+# templates leaked into a session-log entry in this repo and were pushed
+# before being caught manually — this check exists to catch that class of
+# mistake automatically going forward. Deliberately not a broader
+# Romanian-word list — just the diacritic letters unique to Romanian
+# (modern comma-below forms and the legacy cedilla forms). Uses the
+# literal UTF-8 characters, not \x{...} PCRE code-point escapes -- the
+# escaped form triggered intermittent "character code point value ... too
+# large" failures from this environment's `grep` (ugrep 7.8.4) that
+# silently passed real Romanian text through, confirmed 2026-08-28 by
+# repeated testing; literal characters were reliable across every test.
+# Side effect: editing this exact line will trip this same check on
+# itself (it's a literal match against its own pattern) -- use
+# `git commit --no-verify` for that one commit, same as any other
+# legitimate false-positive per the convention above.
+check "Romanian-language text"     '[ăâîșțşţĂÂÎȘȚŞŢ]'
+
 if [[ $ERRORS -gt 0 ]]; then
     echo ""
     echo -e "${YELLOW}⚠️  Commit blocked — $ERRORS sensitive pattern(s) found above.${NC}"
