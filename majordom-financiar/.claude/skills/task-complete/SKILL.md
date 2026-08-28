@@ -7,9 +7,13 @@ description: Runs the mandatory end-of-task protocol for majordom-financiar once
 
 Formalizes the step that used to live as prose in `CLAUDE.md` under "End-of-task protocol." Run this once the user confirms something works, before reporting the task as done.
 
+**Batch by default — don't run the full protocol once per issue.** When a session resolves multiple issues back to back, run this protocol ONCE at the natural end-of-work-block point (one combined session-log entry, all resolved issues closed together). Per-issue only when separated by a real context switch. Why: `decisions.md#task-complete-skill-made-cheaper`.
+
 ## 1 — Pre-commit review, before committing anything
 
-Run the `pre-commit-review` subagent (`.claude/agents/pre-commit-review.md`) on the diff — pass it the DeepSeek prompt file path too if the task was implemented by DeepSeek. If it reports a violation: fix directly (Claude-implemented) or send back to DeepSeek with the specific observation (DeepSeek-implemented). Only after it reports "safe to commit" → proceed to step 2.
+Run the `pre-commit-review` subagent (`.claude/agents/pre-commit-review.md`) on the diff — pass it the DeepSeek prompt file path too if the task was implemented by DeepSeek. If it reports a violation: fix directly (Claude-implemented) or send back to DeepSeek/Aider with the specific observation (delegated). Only after it reports "safe to commit" → proceed to step 2.
+
+**Skip it only when every piece of the diff was already manually reviewed line-by-line in THIS conversation** — code you personally wrote and read, or every delegated diff read plus live/functional verification (not just a compile check). Note what was already checked in the session log instead. Default to running it whenever anything went straight from delegation to merge without an in-conversation review, or whenever in doubt — this is a bar to clear, not a default to lean on. Why: `decisions.md#task-complete-skill-made-cheaper`.
 
 ## 2 — Always, do not report the task as done until all of these are checked
 
@@ -42,5 +46,7 @@ After the summary of what was done, decide whether to also hand off to a fresh s
 ### Lessons
 ### Unresolved
 ```
+
+**Scale the write-up to what actually happened.** A trivial, no-surprise change gets 1-2 sentences under `### Resolved` and an empty/one-line `### Lessons` — don't force the full four-section treatment when three sections have nothing to say. Reserve real detail for tasks with an actual bug, surprise, or decision worth remembering. Why: `decisions.md#task-complete-skill-made-cheaper`.
 
 If a lesson from this session deserves a detailed explanation with analogies/diagrams (not just a bullet point), add it to `docs/learn/` as a new file or section in an existing one. Sessions log = what happened. `docs/learn/` = how things work.

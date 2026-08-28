@@ -926,3 +926,37 @@ structurally different, so the same failure profile may not transfer.
 this wasn't forced — but it was a workaround for an architecture that keeps state
 globally by default, not a fix at the root, and the class of bug could resurface in a
 form not yet seen.
+
+---
+
+### `task-complete` skill made cheaper — conditional review, batching, scaled logs
+
+**Date:** 2026-08-28
+
+**Decision:** three changes to `.claude/skills/task-complete/SKILL.md`, after Doru flagged
+the end-of-session protocol as too expensive mid-session:
+
+1. **Step 1's `pre-commit-review` subagent is now conditional.** Skip it when every piece
+   of the diff was already manually reviewed line-by-line in the same conversation (code
+   personally written and read, or every delegated diff read plus live/functional
+   verification run against it). Trigger: a full subagent pass was about to re-review an
+   11-commit, 3-feature diff (#200/#175/#176) where every delegated piece had already been
+   read and #176 had already been live-tested end-to-end (catching 2 real bugs) — the
+   subagent has no memory of that prior work and re-derives everything from scratch for
+   close to zero new signal. Default stays "run it" whenever anything went straight from
+   delegation to merge without an in-conversation review, or whenever in doubt.
+2. **Batch by default.** Run the full protocol once per work session (closing every issue
+   resolved so far, one combined session-log entry), not once per issue — running it 3×
+   for #200/#175/#176 individually would have re-paid the fixed overhead (issue lookup,
+   roadmap/spec check, INDEX.md edit, kickoff-prompt drafting) 3 times over.
+3. **Session-log detail now scales to what happened.** A trivial, no-surprise change gets
+   1-2 sentences; full four-section detail (root cause, what was tried, why a decision
+   landed where it did) is reserved for tasks that actually had a bug, surprise, or
+   decision worth remembering.
+
+**Why recorded here, not just in `SKILL.md`:** `SKILL.md` keeps the terse operative rule
+only (it's loaded in full on every `/task-complete` invocation, so verbose "why" text
+there is a recurring cost) — the full reasoning lives here instead, per this repo's
+"no auto-memory, decisions go in `CLAUDE.md` or `decisions.md`" rule. Ironic but
+deliberate: the fix for "the protocol got expensive" should not itself make the protocol
+file permanently heavier.
