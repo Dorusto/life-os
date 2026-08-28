@@ -32,6 +32,9 @@ Thumbs.db
 # Local Claude Code config (personal, never shared/pushed)
 CLAUDE.local.md
 
+# Local dev-only compose override (hot-reload for majordom-api — dev machine only, never pushed)
+docker-compose.override.yml
+
 # Private local files
 PLANNING.md
 PRIVATE_context.md

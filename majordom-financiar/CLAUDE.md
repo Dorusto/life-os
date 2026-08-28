@@ -47,6 +47,8 @@ Full details in `docs/architecture.md`. Summary:
 
 Cloning the repo is not enough on its own — git auth, `.env`, Docker, Ollama/LLM endpoint, and local-only gitignored files (`.claude/settings.local.json`, `PLANNING.md`, `PRIVATE_context.md`) all need separate setup. Deployment steps (LXC / plain Docker / Coolify): see `DEPLOY.md`.
 
+For backend hot-reload during dev, a local `docker-compose.override.yml` (gitignored, never committed) can bind-mount `backend/` into `majordom-api` and run uvicorn with `--reload` — `docker compose up` picks it up automatically by name, and production is unaffected because the file doesn't exist there. Each dev machine creates its own copy if wanted.
+
 ---
 
 ## Second Brain sync
