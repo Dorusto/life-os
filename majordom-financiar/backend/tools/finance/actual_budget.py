@@ -322,9 +322,19 @@ async def get_transactions(
         start_date = _date(year, month, 1)
         end_date = _date(year, month, calendar.monthrange(year, month)[1])
     all_txs = await client.get_recent_transactions(limit=limit * 4, start_date=start_date, end_date=end_date)
+    # Resolve the category name once against the real category list: exact
+    # case-insensitive match first, then fuzzy fallback (cutoff 0.6, same as
+    # _resolve_category elsewhere) so a near-miss like "Groceries" still matches
+    # "Grocery" instead of silently returning no transactions.
+    category_filter = category
+    if category:
+        from difflib import get_close_matches
+        real_categories = sorted({(tx.get("category_name") or "") for tx in all_txs})
+        exact = next((c for c in real_categories if c.lower() == category.lower()), None)
+        category_filter = exact or (get_close_matches(category, real_categories, n=1, cutoff=0.6) or [category])[0]
     result = []
     for tx in all_txs:
-        if category and (tx.get("category_name") or "").lower() != category.lower():
+        if category and (tx.get("category_name") or "").lower() != category_filter.lower():
             continue
         if account and (tx.get("account_name") or "").lower() != account.lower():
             continue
