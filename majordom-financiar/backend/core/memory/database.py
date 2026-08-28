@@ -107,6 +107,11 @@ class MemoryDB:
                     notified_at  TEXT DEFAULT NULL
                 );
 
+                CREATE TABLE IF NOT EXISTS liability_balance_reminders (
+                    account_id       TEXT PRIMARY KEY,
+                    last_reminded_at TEXT NOT NULL DEFAULT (datetime('now'))
+                );
+
                 CREATE TABLE IF NOT EXISTS chat_history (
                     id        INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id   TEXT NOT NULL,
@@ -366,6 +371,37 @@ class MemoryDB:
             d = dict(row)
             d["payload"] = json.loads(d["payload"])
             return d
+        finally:
+            conn.close()
+
+    # --- Liability Balance Reminders ---
+
+    def get_last_liability_reminder(self, account_id: str) -> dict | None:
+        """Return the stored 'last reminded' timestamp for an off-budget liability account.
+
+        Only a timestamp — never a balance or any financial figure (architecture.md
+        rule 5). Balances live in Actual Budget, the source of truth.
+        """
+        conn = self._get_conn()
+        try:
+            row = conn.execute(
+                "SELECT * FROM liability_balance_reminders WHERE account_id = ?",
+                (account_id,),
+            ).fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
+    def set_last_liability_reminder(self, account_id: str) -> None:
+        """Record that a liability balance reminder was sent for an account."""
+        conn = self._get_conn()
+        try:
+            conn.execute("""
+                INSERT INTO liability_balance_reminders (account_id, last_reminded_at)
+                VALUES (?, datetime('now'))
+                ON CONFLICT(account_id) DO UPDATE SET last_reminded_at = datetime('now')
+            """, (account_id,))
+            conn.commit()
         finally:
             conn.close()
 
