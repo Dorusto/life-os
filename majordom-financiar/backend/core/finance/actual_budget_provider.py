@@ -256,6 +256,3 @@ class ActualBudgetProvider:
         return await self._client().convert_transaction_to_transfer(
             transaction_id, target_account_id
         )
-
-    async def split_transaction(self, transaction_id: str, splits: list[dict]) -> dict:
-        return await self._client().split_transaction(transaction_id, splits)
