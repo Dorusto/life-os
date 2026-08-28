@@ -85,6 +85,7 @@ export default function TransactionsPage() {
   const [bulkCategoryId, setBulkCategoryId] = useState('')
   const [bulkSaving, setBulkSaving] = useState(false)
   const [bulkError, setBulkError] = useState<string | null>(null)
+  const [bulkNotice, setBulkNotice] = useState<string | null>(null)
 
   const { data: categories } = useQuery({
     queryKey: ['categories'],
@@ -163,6 +164,7 @@ export default function TransactionsPage() {
   }
 
   const toggleRow = (id: string) => {
+    setBulkNotice(null)
     setSelected(prev => {
       const next = new Set(prev)
       if (next.has(id)) {
@@ -177,6 +179,7 @@ export default function TransactionsPage() {
   const allVisibleSelected = transactions.length > 0 && transactions.every(t => selected.has(t.id))
 
   const toggleSelectAll = () => {
+    setBulkNotice(null)
     if (allVisibleSelected) {
       setSelected(new Set())
     } else {
@@ -186,6 +189,7 @@ export default function TransactionsPage() {
 
   const applyBulk = async () => {
     if (!bulkCategoryId) return
+    const selectedCount = selected.size
     const financialIds = transactions
       .filter(t => selected.has(t.id))
       .map(t => t.financial_id)
@@ -196,10 +200,16 @@ export default function TransactionsPage() {
     }
     setBulkSaving(true)
     setBulkError(null)
+    setBulkNotice(null)
     try {
       await bulkUpdateCategory(financialIds, bulkCategoryId)
       setSelected(new Set())
       setBulkCategoryId('')
+      if (financialIds.length < selectedCount) {
+        setBulkNotice(
+          `Updated ${financialIds.length} of ${selectedCount} — the rest have no financial_id and can't be bulk-edited.`
+        )
+      }
       await load(false)
     } catch (e) {
       setBulkError(e instanceof Error ? e.message : 'Bulk update failed')
@@ -497,6 +507,19 @@ export default function TransactionsPage() {
           </div>
         </div>
       </BottomSheet>
+
+      {bulkNotice && selected.size === 0 && (
+        <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-border px-4 py-3 z-40 flex items-center justify-between gap-2">
+          <p className="text-amber-400 text-xs">{bulkNotice}</p>
+          <button
+            onClick={() => setBulkNotice(null)}
+            className="text-muted hover:text-white flex-shrink-0"
+            aria-label="Dismiss"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
 
       {selected.size > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-border px-4 py-3 z-40">
