@@ -23,7 +23,9 @@ Read `CLAUDE.md`'s "Critical rules (never break)" section (8 items: no financial
 
 ## 4 — Check known gotchas
 
-Read the "Known gotchas" section at the bottom of `.claude/skills/plan-feature/SKILL.md` and check each one that's relevant to the touched files (e.g. a new tool needs both `_PROPOSAL_TOOLS` registration AND a system-prompt bullet in `_build_system_prompt()`; a new `ActualBudgetClient` method needs to also be added to `ActualBudgetProvider` and the `FinanceProvider` Protocol; any merchant/category confirm flow must use Actual Budget's Rules engine, never a new table).
+Read the "Known gotchas" section at the bottom of `.claude/skills/plan-feature/SKILL.md` and check each one that's relevant to the touched files (e.g. a new tool needs both `_PROPOSAL_TOOLS` registration AND a system-prompt bullet in `_build_system_prompt()`; any merchant/category confirm flow must use Actual Budget's Rules engine, never a new table).
+
+If the diff touches `backend/core/actual_client/client.py` or `backend/core/finance/*.py`: **run `python3 scripts/check_provider_wiring.py` instead of manually reasoning about the ActualBudgetClient/ActualBudgetProvider/FinanceProvider wiring gotcha** — this used to be a manual read-and-check step here and it missed 2 real gaps in one session (2026-08-28) despite being explicitly listed; the script (architecture.md rule 29) checks it mechanically via AST and is faster and more reliable than eyeballing it. Report its exit code and output verbatim rather than re-deriving the same check by hand.
 
 ## 5 — If a DeepSeek prompt file is referenced in your invocation
 

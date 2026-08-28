@@ -332,6 +332,14 @@ Found while building #181 (duplicate-transaction merge) — the first draft iden
 
 ---
 
+### 29. New `ActualBudgetClient` method called via `get_provider()` needs 3-layer wiring — now checked mechanically, not just documented
+
+A new method on `ActualBudgetClient` (`core/actual_client/client.py`) that the tool layer calls through `get_provider()` also needs a pass-through on `ActualBudgetProvider` (`core/finance/actual_budget_provider.py`) and a declaration on the `FinanceProvider` Protocol (`core/finance/provider.py`) — otherwise `get_provider()`'s result raises `AttributeError` the first time it's actually called (#126). This does NOT apply to `backend/api/*.py` REST routes that instantiate `ActualBudgetClient` directly (no `get_provider()` involved by design — they're Actual-Budget-specific, not meant to be swappable).
+
+Writing this rule down did not stop it from recurring: 2 of 11 gaps found by a 2026-08-28 audit sweep were fixed via #148, and 2 fresh misses (one Claude-written, one DeepSeek-delegated) happened in a single later session the same day — caught only by live functional testing, after code review had already passed both times. `scripts/check_provider_wiring.py` makes the check mechanical instead of relying on a reader remembering the rule: it AST-scans every `get_provider().<method>()` call site across `backend/`, and fails if the method is missing from either layer. Wired into `.git/hooks/pre-commit` (local-only, not tracked — same as `check-private-data.sh`). Run it directly any time: `python3 scripts/check_provider_wiring.py`.
+
+---
+
 ## Main Flows
 
 ### Receipt photo (web)
