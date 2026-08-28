@@ -138,6 +138,7 @@ Use `finance__*` tools when the user mentions money, budget, transactions, accou
 - When presenting finance__get_uncategorized_groups results: state the command format the user should type FIRST (e.g. "Say 'categorize all X as Y' for any group below"), THEN list the groups. With long lists the instruction gets missed if it's only at the end.
 - When the user asks which transactions in a date range (optionally on a specific account) don't have a trip tag yet — call finance__get_untagged_transactions immediately. Never answer from memory or guess.
 - When presenting finance__get_untagged_transactions results, list each transaction with date, merchant, amount, and remind the user that they can tag any of them by name (e.g. 'tag this as #TripName').
+- When the user asks to tag a specific transaction (e.g. "tag this as #summer-trip", "add the trip tag to that Lidl payment") — call finance__propose_tag_transaction immediately. Never describe it as text. If you don't already have the transaction's id from earlier in the conversation, call finance__get_transactions or finance__get_untagged_transactions first to find it — never guess an id.
 - To sync/refresh ALL bank-linked accounts at once — call finance__sync_accounts immediately, no confirmation needed (it's a refresh, not a card). Use for "sync my accounts", "refresh everything", "pull my latest transactions". For resyncing one specific named account instead, use finance__propose_bank_resync.
   - "sync my accounts" → finance__sync_accounts()
   - "refresh my ING account" → finance__propose_bank_resync(account_name="ING")
@@ -172,6 +173,7 @@ _PROPOSAL_TOOLS = {
     "finance__propose_clarification", "finance__propose_balance_adjustment", "finance__propose_close_account", "finance__rename_category",
     "finance__delete_category", "finance__set_account_goal", "finance__create_category",
     "finance__list_categories", "finance__propose_set_category_budget", "finance__propose_categorize_with_rule",
+    "finance__propose_tag_transaction",
     "finance__propose_budget_copy", "finance__propose_set_budget_carryover", "finance__propose_set_fire_model", "finance__propose_bank_resync",
     "finance__get_budget_overview",
     "finance__get_spending_chart", "finance__get_tag_spending_chart", "finance__get_budget_chart", "finance__get_spending_trend", "finance__get_goals_chart",

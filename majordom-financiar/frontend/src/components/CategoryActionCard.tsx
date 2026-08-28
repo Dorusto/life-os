@@ -17,6 +17,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const [payee, setPayee] = useState(data.payee ?? '')
   const [selectedCategory, setSelectedCategory] = useState(data.category_name ?? '')
   const [createRule, setCreateRule] = useState(data.is_consistent ?? true)
+  const [tag, setTag] = useState(data.tag ?? '')
   const [loading, setLoading] = useState(false)
 
   // FIRE model editable fields
@@ -38,6 +39,8 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         overrides = { amount: parseFloat(budgetAmount) || data.new_amount }
       } else if (data.action === 'categorize_with_rule') {
         overrides = { payee: payee || data.payee, category_name: selectedCategory || data.category_name, create_rule: createRule }
+      } else if (data.action === 'tag_transaction') {
+        overrides = { tag: tag || data.tag }
       } else if (data.action === 'set_fire_model') {
         overrides = {
           years_to_transition: parseFloat(fireYearsToTransition),
@@ -70,13 +73,21 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const isSetBudgetCarryover = data.action === 'set_budget_carryover'
   const isBankResync = data.action === 'bank_resync'
   const isSetFireModel = data.action === 'set_fire_model'
+  const isTagTransaction = data.action === 'tag_transaction'
 
   return (
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
       <div>
         <p className="text-white font-medium">
-          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetBudget ? 'Set budget amount?' : isCategorizeWithRule ? 'Categorize transactions?' : isSetBudgetCarryover ? `${data.enabled ? 'Enable' : 'Disable'} rollover overspending?` : isBankResync ? 'Resync bank account?' : isSetFireModel ? 'Update FIRE assumptions?' : 'Rename category?'}
+          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetBudget ? 'Set budget amount?' : isCategorizeWithRule ? 'Categorize transactions?' : isSetBudgetCarryover ? `${data.enabled ? 'Enable' : 'Disable'} rollover overspending?` : isBankResync ? 'Resync bank account?' : isSetFireModel ? 'Update FIRE assumptions?' : isTagTransaction ? 'Tag transaction?' : 'Rename category?'}
         </p>
+        {isTagTransaction && (
+          <p className="text-muted text-sm mt-0.5">
+            <span className="text-white">{data.merchant}</span>
+            {' · '}{data.date}
+            {' · '}€{(data.amount ?? 0).toFixed(2)}
+          </p>
+        )}
         {isSetBudgetCarryover && (
           <p className="text-muted text-sm mt-0.5">
             <span className="text-white">{data.category_name}</span>
@@ -117,7 +128,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
             ))}
           </div>
         )}
-        {!isDelete && !isCreate && !isSetBudget && !isCategorizeWithRule && !isSetBudgetCarryover && !isBankResync && !isSetFireModel && (
+        {!isDelete && !isCreate && !isSetBudget && !isCategorizeWithRule && !isSetBudgetCarryover && !isBankResync && !isSetFireModel && !isTagTransaction && (
           <p className="text-muted text-sm mt-0.5">
             <span className="text-white">{data.category_name}</span>
             {' → '}
@@ -180,6 +191,18 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
               />
             )}
           </div>
+        </div>
+      )}
+
+      {isTagTransaction && (
+        <div className="space-y-1">
+          <p className="text-muted text-xs">Tag</p>
+          <input
+            type="text"
+            value={tag}
+            onChange={e => setTag(e.target.value.startsWith('#') ? e.target.value : `#${e.target.value}`)}
+            className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+          />
         </div>
       )}
 
@@ -306,8 +329,8 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         onCancel={handleCancel}
         loading={loading}
         variant={isDelete ? 'danger' : 'default'}
-        confirmDisabled={(isCreate && !categoryName) || (isSetBudget && !budgetAmount) || (isCategorizeWithRule && (!payee || !selectedCategory))}
-        confirmLabel={isDelete ? 'Delete' : isCreate ? 'Create' : isSetBudget ? 'Set budget' : isCategorizeWithRule ? 'Categorize' : isSetBudgetCarryover || isBankResync || isSetFireModel ? 'Confirm' : 'Rename'}
+        confirmDisabled={(isCreate && !categoryName) || (isSetBudget && !budgetAmount) || (isCategorizeWithRule && (!payee || !selectedCategory)) || (isTagTransaction && tag.trim() === '#')}
+        confirmLabel={isDelete ? 'Delete' : isCreate ? 'Create' : isSetBudget ? 'Set budget' : isCategorizeWithRule ? 'Categorize' : isTagTransaction ? 'Tag' : isSetBudgetCarryover || isBankResync || isSetFireModel ? 'Confirm' : 'Rename'}
       />
     </div>
   )

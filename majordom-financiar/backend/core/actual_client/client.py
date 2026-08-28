@@ -1002,6 +1002,38 @@ class ActualBudgetClient:
                 return True
         return await self._run(_update)
 
+    async def add_transaction_tag(self, transaction_id: str, tag: str) -> str:
+        """
+        Append a #tag to a transaction's notes (trip tags, #176) — looked up by
+        row `id`, the identifier finance__get_transactions/get_untagged_transactions
+        already surface to the LLM, NOT `financial_id` (a different field used by
+        update_transaction_category's lookup elsewhere in this file).
+
+        No-ops if the tag is already present (case-insensitive substring check),
+        so re-confirming the same tag twice doesn't duplicate it in notes.
+        Returns the transaction's resulting notes string.
+        """
+        def _update():
+            from actual.database import Transactions
+            with self._get_actual() as actual:
+                actual.download_budget()
+                tx = actual.session.query(Transactions).filter(
+                    Transactions.id == transaction_id,
+                    Transactions.tombstone == 0,
+                ).first()
+                if not tx:
+                    raise ValueError(f"Transaction not found: {transaction_id}")
+                tag_pattern = tag if tag.startswith("#") else f"#{tag}"
+                notes = tx.notes or ""
+                if tag_pattern.lower() in notes.lower():
+                    return notes
+                new_notes = f"{notes} {tag_pattern}".strip()
+                tx.notes = new_notes
+                actual.commit()
+                logger.info(f"Tag added to transaction {transaction_id}: {tag_pattern}")
+                return new_notes
+        return await self._run(_update)
+
     async def bulk_update_category(self, financial_ids: list[str], category_id: str) -> int:
         """Set the same category on many transactions in one download/commit cycle.
         Returns the number of transactions actually updated (skips ids not found).

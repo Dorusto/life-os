@@ -26,6 +26,7 @@ class GoalOverride(BaseModel):
     payee: str | None = None
     create_rule: bool | None = None
     category_amounts: dict[str, float] | None = None  # budget_copy: category_id -> edited amount
+    tag: str | None = None  # tag_transaction: edited #tag value
     # FIRE model overrides
     years_to_transition: float | None = None
     years_in_retirement: float | None = None
@@ -215,6 +216,10 @@ async def confirm_category_action(
                     detail="One side of the duplicate pair is missing — it may already have been merged."
                 )
             message = "Merged duplicate — kept the bank-synced transaction, removed the manual entry."
+        elif action["action"] == "tag_transaction":
+            tag = override.tag or action["tag"]
+            await client.add_transaction_tag(action["transaction_id"], tag)
+            message = f"Tagged transaction with '{tag}'."
         else:
             raise HTTPException(status_code=400, detail=f"Unknown action: {action['action']}")
     except ValueError as e:

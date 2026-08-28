@@ -1413,6 +1413,41 @@ async def get_transactions_by_tag(tag: str) -> str:
     return json.dumps({"type": "tag_summary", **result})
 
 
+async def propose_tag_transaction(transaction_id: str, tag: str) -> str:
+    """
+    Propose adding a #tag to an existing transaction's notes (trip tags, #176).
+    Returns a confirmation card — does NOT write to Actual Budget yet.
+
+    transaction_id is the row `id` shown by finance__get_transactions or
+    finance__get_untagged_transactions (e.g. "id: 3f9a2..."), not financial_id.
+    """
+    import uuid
+    from backend.tools import category_actions as action_store
+
+    client = get_provider()
+    tx = await client.get_transaction_by_id(transaction_id)
+    if not tx:
+        return json.dumps({"type": "error", "message": f"Transaction not found: {transaction_id!r}"})
+
+    tag_pattern = tag if tag.startswith("#") else f"#{tag}"
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {
+        "action": "tag_transaction",
+        "transaction_id": transaction_id,
+        "tag": tag_pattern,
+    })
+    return json.dumps({
+        "type": "category_action",
+        "action": "tag_transaction",
+        "id": action_id,
+        "transaction_id": transaction_id,
+        "tag": tag_pattern,
+        "date": tx["date"],
+        "merchant": tx["merchant"],
+        "amount": tx["amount"],
+    })
+
+
 async def propose_categorize_with_rule(payee: str, category_name: str, notes_contains: str = "") -> str:
     """
     Propose categorizing a payee group AND creating an AB rule for future auto-categorization.

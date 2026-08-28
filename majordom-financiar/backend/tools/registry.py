@@ -1050,6 +1050,32 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__propose_tag_transaction",
+            "description": (
+                "Propose adding a #tag to an existing transaction's notes, e.g. to attribute it to "
+                "a trip. Use when the user asks to tag a specific transaction (they'll have named it "
+                "or it will have come from a prior finance__get_transactions or "
+                "finance__get_untagged_transactions result, which includes each transaction's id)."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "transaction_id": {
+                        "type": "string",
+                        "description": "The transaction's id, as shown by finance__get_transactions or finance__get_untagged_transactions.",
+                    },
+                    "tag": {
+                        "type": "string",
+                        "description": "The tag to apply, with or without the leading '#', e.g. 'summer-trip'.",
+                    },
+                },
+                "required": ["transaction_id", "tag"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "finance__propose_categorize_with_rule",
             "description": (
                 "Propose bulk-categorizing all uncategorized transactions for a payee, with an "
@@ -1294,6 +1320,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "finance__get_transactions_by_tag":
         from backend.tools.finance.actual_budget import get_transactions_by_tag
         return await get_transactions_by_tag(**arguments)
+
+    if name == "finance__propose_tag_transaction":
+        from backend.tools.finance.actual_budget import propose_tag_transaction
+        return await propose_tag_transaction(**arguments)
 
     if name == "finance__propose_categorize_with_rule":
         from backend.tools.finance.actual_budget import propose_categorize_with_rule

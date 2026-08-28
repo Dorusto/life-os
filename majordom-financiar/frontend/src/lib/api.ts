@@ -933,7 +933,7 @@ export interface FireModelValues {
 
 export interface CategoryActionData {
   id: string
-  action: 'rename' | 'delete' | 'create' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'bank_resync' | 'set_fire_model'
+  action: 'rename' | 'delete' | 'create' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'bank_resync' | 'set_fire_model' | 'tag_transaction'
   category_name: string
   new_name?: string
   group_name?: string
@@ -963,6 +963,12 @@ export interface CategoryActionData {
   // set_fire_model fields:
   current?: FireModelValues
   new?: FireModelValues
+  // tag_transaction fields:
+  transaction_id?: string
+  tag?: string
+  date?: string
+  merchant?: string
+  amount?: number
 }
 
 export async function confirmCategoryAction(
@@ -973,6 +979,7 @@ export async function confirmCategoryAction(
     years_to_transition?: number; years_in_retirement?: number; monthly_contribution?: number;
     accumulation_return?: number; decumulation_return?: number; desired_monthly_spend?: number;
     note?: string | null;
+    tag?: string;
   }
 ): Promise<{ message: string; monthly_needed?: number | null }> {
   return request(`/category-actions/${id}/confirm`, {
