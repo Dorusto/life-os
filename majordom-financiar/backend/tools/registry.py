@@ -2,7 +2,7 @@
 Tool registry — defines tools exposed to the LLM and dispatches their execution.
 
 TOOLS: list of tool definitions in Ollama/OpenAI format.
-       Passed directly in the Ollama API request body as \`tools: TOOLS\`.
+       Passed directly in the Ollama API request body as `tools: TOOLS`.
 
 execute_tool(): called by the chat endpoint when the LLM returns tool_calls.
 """

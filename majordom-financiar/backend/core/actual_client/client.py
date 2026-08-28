@@ -1834,7 +1834,7 @@ class ActualBudgetClient:
         return await self._run(_create)
 
     @staticmethod
-    def _get_or_create_transfer_payee(session, to_acct) -> "Payees":
+    def _get_or_create_transfer_payee(session, to_acct):
         """
         Find (or create) the special payee that triggers a linked transfer to
         `to_acct`. When an account is created, actualpy creates a blank Payee
