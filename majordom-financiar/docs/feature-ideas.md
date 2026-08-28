@@ -38,5 +38,6 @@ Raw ideas not yet turned into GitHub issues. Once something here is actually goi
 | [Add/Edit Transaction sheet](specs/add-review-transaction.md) | Home entry point over existing `_PROPOSAL_TOOLS` flow — today logging a transaction requires chat |
 | [AB Setup Wizard](specs/ab-setup-wizard.md) | Fixes blind first-install credential entry — live validation before save |
 | ReceiptReaderService | Standalone microservice for receipt scanning, decoupled from the finance engine — surfaced as a MoneyMatter gap-filler, not yet spec'd |
+| Goose as MCP client for Majordom | Once Majordom exposes an MCP server (see the "Majordom positioning" debate, vault Radar note), Goose (Apache 2.0, MCP-native, 70+ extensions incl. Slack/GitHub/calendar) could connect as an alternative agent alongside Claude/Hermes — same finance tools, plus cross-domain queries in one conversation. Blocked on the MCP server existing, not otherwise. |
 
-*Last updated: 2026-08-19*
+*Last updated: 2026-08-28*
