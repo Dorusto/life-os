@@ -1,6 +1,6 @@
 ---
 name: pre-commit-review
-description: Read-only audit of the current git diff against majordom-financiar's critical rules, path-scoped rules, and known gotchas, before commit. Invoked explicitly from CLAUDE.md's End-of-task protocol (both the "self-check" and "audit DeepSeek diff" steps) — not auto-triggered on every edit.
+description: Read-only audit of the current git diff against majordom-financiar's critical rules, path-scoped rules, and known gotchas, before commit. Invoked explicitly from the `/task-complete` skill's pre-commit step — not auto-triggered on every edit.
 tools: Read, Grep, Glob, Bash
 disallowedTools: Edit, Write
 permissionMode: default
