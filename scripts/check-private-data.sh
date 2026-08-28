@@ -6,6 +6,19 @@ RED='\033[0;31m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
+# GNU grep -P falls back to single-byte matching (not full UTF-8 codepoints)
+# unless LC_CTYPE resolves to a UTF-8 locale — this environment sets LC_*
+# categories to a mix of locales (LC_TIME/LC_MONETARY/etc. differ from
+# LC_CTYPE) with LC_ALL left empty, which isn't enough to make grep treat
+# multi-byte characters as single units. Without this, grep matches the lone
+# continuation byte inside €/×/— (bytes 0x82/0xc3/etc.) whenever it falls in
+# the same numeric range as a Romanian diacritic byte — a false positive
+# that survived the echo-pipe→file-based-grep fix below untouched, since it's
+# a locale issue, not an echo-pipe issue. Confirmed: forcing LC_ALL here
+# makes real diacritics (e.g. ă, full 2-byte match) still match correctly
+# while €/×/— stop matching.
+export LC_ALL=C.UTF-8
+
 ERRORS=0
 STAGED=$(git diff --cached -U0 | grep '^+' | grep -v '^+++')
 # Ad-hoc self-check (not just the pre-commit gate): if nothing is staged yet,
@@ -15,11 +28,21 @@ if [[ -z "$STAGED" ]]; then
     STAGED=$(git diff -U0 | grep '^+' | grep -v '^+++')
 fi
 
+# Feed grep via a temp file instead of an `echo` pipe — piping multi-byte
+# UTF-8 through `echo | grep -P` in this environment intermittently shifted
+# character boundaries, producing both false negatives (2026-07-07) and
+# false positives (2026-08-28) that did not reproduce when testing the same
+# pattern against a file. printf (not echo) avoids echo's own
+# quoting/interpretation quirks when writing the file.
+STAGED_FILE=$(mktemp)
+printf '%s\n' "$STAGED" > "$STAGED_FILE"
+trap 'rm -f "$STAGED_FILE"' EXIT
+
 check() {
     local description="$1"
     local pattern="$2"
     local matches
-    matches=$(echo "$STAGED" | grep -iP "$pattern" || true)
+    matches=$(grep -iP "$pattern" "$STAGED_FILE" || true)
     if [[ -n "$matches" ]]; then
         echo -e "${RED}BLOCKED${NC} — $description"
         echo "$matches" | head -5 | sed 's/^/  /'
