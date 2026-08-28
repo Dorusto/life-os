@@ -334,7 +334,10 @@ async def get_transactions(
     lines = [f"Transactions ({len(result)}):"]
     for tx in result:
         amount = abs(tx["amount_cents"]) / 100
-        lines.append(f"  - {tx['date']} · {tx['merchant']} · €{amount:.2f} ({tx.get('category_name') or 'uncategorized'}) [{tx.get('account_name','')}]")
+        lines.append(
+            f"  - {tx['date']} · {tx['merchant']} · €{amount:.2f} ({tx.get('category_name') or 'uncategorized'}) "
+            f"[{tx.get('account_name','')}] id: {tx['id']}"
+        )
     return "\n".join(lines)
 
 
@@ -707,6 +710,62 @@ async def propose_balance_adjustment(account_name: str, real_balance: float) -> 
         "current_balance": matched.balance,
         "real_balance": real_balance,
         "diff": round(real_balance - matched.balance, 2),
+    })
+
+
+async def propose_transfer_conversion(
+    transaction_id: str, target_account_id: str, target_account_name: str = ""
+) -> str:
+    """
+    Propose converting an existing transaction into a real AB transfer to
+    another account — reassigns its payee to the target account's transfer
+    payee, the same mechanism create_transfer() uses, not a delete+recreate.
+    Returns a JSON string with type='transfer_conversion' for the frontend to
+    render as a card. Does NOT write to Actual Budget yet.
+    """
+    import json
+    import uuid
+    from backend.tools import transfer_conversion as store
+
+    client = get_provider()
+    accounts = await client.get_accounts()
+
+    matched = next((a for a in accounts if str(a.id) == target_account_id), None)
+    if not matched:
+        names = ", ".join(a.name for a in accounts)
+        return json.dumps({
+            "type": "error",
+            "message": f"Destination account '{target_account_name or target_account_id}' not found. Available: {names}",
+        })
+
+    tx = await client.get_transaction_by_id(transaction_id)
+    if not tx:
+        return json.dumps({
+            "type": "error",
+            "message": f"Transaction not found: {transaction_id}. Use finance__get_transactions to find its id first.",
+        })
+    if tx["account_id"] and tx["account_id"] == matched.id:
+        return json.dumps({
+            "type": "error",
+            "message": f"Transaction is already in account '{matched.name}' — cannot convert it into a transfer to the same account.",
+        })
+
+    proposal_id = uuid.uuid4().hex[:8]
+    store.store(proposal_id, {
+        "transaction_id": transaction_id,
+        "target_account_id": matched.id,
+        "target_account_name": matched.name,
+    })
+
+    return json.dumps({
+        "type": "transfer_conversion",
+        "id": proposal_id,
+        "transaction_id": transaction_id,
+        "date": tx["date"],
+        "amount": tx["amount"],
+        "payee": tx["merchant"],
+        "account_name": tx["account_name"],
+        "target_account_name": matched.name,
     })
 
 

@@ -246,3 +246,13 @@ class ActualBudgetProvider:
         self, account_id: str, rows: list[dict]
     ) -> tuple[int, int, int, int]:
         return await self._client().execute_csv_import(account_id, rows)
+
+    async def get_transaction_by_id(self, transaction_id: str) -> dict | None:
+        return await self._client().get_transaction_by_id(transaction_id)
+
+    async def convert_transaction_to_transfer(
+        self, transaction_id: str, target_account_id: str
+    ) -> dict:
+        return await self._client().convert_transaction_to_transfer(
+            transaction_id, target_account_id
+        )

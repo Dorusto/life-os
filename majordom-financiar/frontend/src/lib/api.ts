@@ -803,6 +803,27 @@ export async function cancelBalanceAdjustment(id: string): Promise<void> {
   return request<void>(`/balance-adjustments/${id}/cancel`, { method: 'POST' })
 }
 
+// --- Transfer Conversion ---
+
+export interface TransferConversionData {
+  type: 'transfer_conversion'
+  id: string
+  transaction_id: string
+  date: string
+  amount: number
+  payee: string
+  account_name: string
+  target_account_name: string
+}
+
+export async function confirmTransferConversion(id: string): Promise<{ message: string }> {
+  return request(`/transfer-conversion/${id}/confirm`, { method: 'POST' })
+}
+
+export async function cancelTransferConversion(id: string): Promise<void> {
+  return request<void>(`/transfer-conversion/${id}/cancel`, { method: 'POST' })
+}
+
 // --- Close Account ---
 
 export interface CloseAccountData {

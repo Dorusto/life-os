@@ -1809,6 +1809,90 @@ class ActualBudgetClient:
 
         return await self._run(_transfer)
 
+    async def get_transaction_by_id(self, transaction_id: str) -> dict | None:
+        """
+        Return a single non-tombstoned transaction's display fields by its row
+        `id` — companion read for the transfer-conversion flow (#144), which
+        needs the transaction's date/amount/payee/account for the confirmation
+        card before anything is written.
+        """
+        def _get():
+            from actual.database import Transactions
+            with self._get_actual() as actual:
+                actual.download_budget()
+                tx = actual.session.query(Transactions).filter(
+                    Transactions.id == transaction_id,
+                    Transactions.tombstone == 0,
+                ).first()
+                if not tx:
+                    return None
+                return {
+                    "id": str(tx.id),
+                    "date": tx.get_date().isoformat(),
+                    "amount": abs(float(tx.amount or 0)) / 100,
+                    "merchant": tx.payee.name if tx.payee else "",
+                    "account_id": str(tx.acct) if tx.acct else "",
+                    "account_name": tx.account.name if tx.account else "",
+                }
+        return await self._run(_get)
+
+    async def convert_transaction_to_transfer(
+        self, transaction_id: str, target_account_id: str
+    ) -> dict:
+        """
+        Convert an existing standalone transaction into a real AB transfer by
+        reassigning its payee to the target account's transfer payee (#144).
+
+        Reuses `_get_or_create_transfer_payee` (shared with create_transfer())
+        for the payee lookup, then applies it to the EXISTING transaction via
+        actualpy's `set_transaction_payee()` — the same function
+        create_transaction(process_payee=True) calls internally and the same
+        thing AB's own UI does when you change a transaction's type to
+        "Transfer". It auto-creates the mirrored transaction in the target
+        account, cross-links `transferred_id` both ways, and clears the category
+        for on-budget target accounts — so the converted pair behaves exactly
+        like a natively-created transfer (never spending/income). The
+        transaction's own id/history is kept; nothing is deleted or recreated.
+
+        Returns a dict for the confirmation message:
+        {"payee", "amount", "target_account_name"}.
+        """
+        def _convert():
+            from actual.database import Transactions
+            from actual.queries import get_account, set_transaction_payee
+
+            with self._get_actual() as actual:
+                actual.download_budget()
+                tx = actual.session.query(Transactions).filter(
+                    Transactions.id == transaction_id,
+                    Transactions.tombstone == 0,
+                ).first()
+                if not tx:
+                    raise ValueError(f"Transaction not found: {transaction_id}")
+                to_acct = get_account(actual.session, target_account_id)
+                if not to_acct:
+                    raise ValueError(f"Destination account not found: {target_account_id}")
+                if to_acct.tombstone or to_acct.closed:
+                    raise ValueError(f"Destination account is closed: {to_acct.name}")
+                if tx.acct and str(tx.acct) == str(to_acct.id):
+                    raise ValueError(
+                        "Cannot convert a transaction into a transfer to its own account"
+                    )
+
+                transfer_payee = self._get_or_create_transfer_payee(actual.session, to_acct)
+                set_transaction_payee(actual.session, tx, transfer_payee)
+                actual.commit()
+                logger.info(
+                    "Transaction %s converted to transfer → %s (€%.2f)",
+                    transaction_id, to_acct.name, abs(float(tx.amount or 0)) / 100,
+                )
+                return {
+                    "payee": transfer_payee.name or "",
+                    "amount": abs(float(tx.amount or 0)) / 100,
+                    "target_account_name": to_acct.name,
+                }
+        return await self._run(_convert)
+
     async def get_full_context(
         self,
         month: int | None = None,

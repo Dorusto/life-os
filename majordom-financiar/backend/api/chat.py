@@ -112,6 +112,7 @@ Use `finance__*` tools when the user mentions money, budget, transactions, accou
 - To show, manage, or organize the full list of category groups and subcategories — call finance__list_categories immediately. Use this for "show me my categories", "arată-mi categoriile", "I want to configure categories", or any request to see/set up the category structure. Never answer with the account list or invent category names from memory.
 - To show or edit the full budget table (amounts per category, rollover toggle) — call finance__get_budget_overview. Use this for "show me my budget", "let me edit my budget", "arată-mi bugetul". Different from finance__get_budget_status, which is for checking progress/overspend on an already-set budget, not editing it.
 - To transfer money between accounts: call finance__propose_account_transfer. Never describe it as text. Pass account names EXACTLY as the user stated them — do NOT substitute with known accounts. If an account is not in Actual Budget, the transfer card offers to create it inline.
+- When the user says a specific already-imported transaction was actually a transfer to another account (e.g. "that Shell payment on the 3rd was a transfer to my savings") — call finance__propose_transfer_conversion immediately. Never describe it as text. Use finance__get_transactions to find the transaction's id first if it isn't already known.
 - To close an account: call finance__propose_close_account immediately. Never describe it as text. Pass only the account name, without the trailing word "account".
   - "close my ING savings account" → finance__propose_close_account(account_name="ING savings")
 - To set or update a savings goal (target amount, optional deadline, optional purpose) — call finance__set_account_goal immediately. Never describe it as text. `note` is a short free-text purpose shown on the goal card later — pass it whenever the user states *why* they're saving, not just the amount.
@@ -170,6 +171,7 @@ _PROPOSAL_TOOLS = {
     "finance__get_budget_overview",
     "finance__get_spending_chart", "finance__get_budget_chart", "finance__get_spending_trend", "finance__get_goals_chart",
     "finance__get_fire_chart",
+    "finance__propose_transfer_conversion",
     "vehicle__log_refuel", "vehicle__delete_vehicle_log_entry", "vehicle__set_vehicle_reminder",
     "vehicle__set_service_interval", "vehicle__propose_set_vehicle_active", "vehicle__set_vehicle_apk_required",
     "vehicle__get_vehicle_consumption_chart", "vehicle__get_vehicle_distance_chart",

@@ -158,6 +158,12 @@ class FinanceProvider(Protocol):
         self, account_id: str, rows: list[dict]
     ) -> tuple[int, int, int, int]: ...
 
+    async def get_transaction_by_id(self, transaction_id: str) -> dict | None: ...
+
+    async def convert_transaction_to_transfer(
+        self, transaction_id: str, target_account_id: str
+    ) -> dict: ...
+
 
 def get_provider() -> FinanceProvider:
     """Return a FinanceProvider instance based on the FINANCE_BACKEND env var."""

@@ -593,6 +593,37 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__propose_transfer_conversion",
+            "description": (
+                "Propose converting an existing transaction into a transfer to another account, "
+                "by reassigning its payee to the target account's transfer payee. Use when the "
+                "user says a specific already-imported transaction was actually a transfer to "
+                "another of their own accounts. A confirmation card appears — nothing is "
+                "written until the user confirms."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "transaction_id": {
+                        "type": "string",
+                        "description": "The transaction's id, as shown by finance__get_transactions.",
+                    },
+                    "target_account_id": {
+                        "type": "string",
+                        "description": "The destination account's id, as shown by finance__get_accounts.",
+                    },
+                    "target_account_name": {
+                        "type": "string",
+                        "description": "Optional destination account name, for display.",
+                    },
+                },
+                "required": ["transaction_id", "target_account_id"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "finance__propose_close_account",
             "description": "Propose closing an Actual Budget account. This is a DESTRUCTIVE action requiring user confirmation via a card. Use when the user asks to close, remove, or archive an account.",
             "parameters": {
@@ -1100,6 +1131,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "finance__propose_balance_adjustment":
         from backend.tools.finance.actual_budget import propose_balance_adjustment
         return await propose_balance_adjustment(**arguments)
+
+    if name == "finance__propose_transfer_conversion":
+        from backend.tools.finance.actual_budget import propose_transfer_conversion
+        return await propose_transfer_conversion(**arguments)
 
     if name == "finance__propose_close_account":
         from backend.tools.finance.actual_budget import propose_close_account
