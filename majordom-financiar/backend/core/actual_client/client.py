@@ -1002,6 +1002,33 @@ class ActualBudgetClient:
                 return True
         return await self._run(_update)
 
+    async def bulk_update_category(self, financial_ids: list[str], category_id: str) -> int:
+        """Set the same category on many transactions in one download/commit cycle.
+        Returns the number of transactions actually updated (skips ids not found).
+
+        One ``download_budget()`` + one ``commit()`` for the whole batch (#184) —
+        deliberately NOT a loop over ``update_transaction_category()``, which opens
+        and commits its own session per call (one full round trip per row, far too
+        slow for a bulk operation on hundreds of rows).
+        """
+        def _update():
+            from actual.database import Transactions
+            with self._get_actual() as actual:
+                actual.download_budget()
+                txs = actual.session.query(Transactions).filter(
+                    Transactions.financial_id.in_(financial_ids),
+                    Transactions.tombstone == 0,
+                ).all()
+                for tx in txs:
+                    tx.category_id = category_id
+                actual.commit()
+                logger.info(
+                    "Bulk category update: %d/%d transactions → %s",
+                    len(txs), len(financial_ids), category_id,
+                )
+                return len(txs)
+        return await self._run(_update)
+
     async def split_transaction(self, transaction_id: str, splits: list[dict]) -> dict:
         """
         Split an existing transaction into N children, one per category (#115).
@@ -2111,6 +2138,13 @@ class ActualBudgetClient:
     async def get_recent_transactions(
         self, limit: int = 20, start_date: date | None = None, end_date: date | None = None,
         account_id: str | None = None,
+        offset: int = 0,
+        category_id: str | None = None,
+        payee: str | None = None,
+        uncategorized_only: bool = False,
+        amount_min: float | None = None,
+        amount_max: float | None = None,
+        is_expense: bool | None = None,
     ) -> list[dict]:
         """
         Return the most recent transactions from Actual Budget, sorted by date descending.
@@ -2121,12 +2155,20 @@ class ActualBudgetClient:
         is looked up by string-casting its id (same pattern get_accounts() uses) and
         passed to get_transactions() as an Account object, not a raw id.
 
+        Additional optional filters (#184 — bulk table view, no-AI CRUD):
+          offset            — apply after sort, before the limit slice (pagination)
+          category_id       — keep only rows whose category_id matches
+          payee             — case-insensitive substring match against merchant
+          uncategorized_only — keep only rows where category_id is None
+          amount_min/max    — compare against abs(amount_cents) / 100
+          is_expense        — None = both; True = amount_cents < 0, False = >= 0
+
         Returns plain dicts (not dataclasses) because the caller needs flexible
         access to fields that may or may not be set (category, payee, etc.).
 
         Each dict has:
-          id, date, merchant, amount_cents, category_name, category_id,
-          account_name, notes
+          id, financial_id, date, merchant, amount_cents, category_name,
+          category_id, account_name, notes
         """
         def _get():
             from actual.queries import get_transactions, get_accounts
@@ -2161,10 +2203,10 @@ class ActualBudgetClient:
                         merchant = tx.imported_payee or ""
 
                     category_name = None
-                    category_id = None
+                    cat_id = None
                     if tx.category:
                         category_name = tx.category.name
-                        category_id = str(tx.category.id) if tx.category.id else None
+                        cat_id = str(tx.category.id) if tx.category.id else None
 
                     account_name = tx.account.name if tx.account else ""
 
@@ -2179,18 +2221,39 @@ class ActualBudgetClient:
 
                     result.append({
                         "id": str(tx.id),
+                        "financial_id": tx.financial_id,
                         "date": date_iso,
                         "merchant": merchant,
                         "amount_cents": int(tx.amount or 0),
                         "category_name": category_name,
-                        "category_id": category_id,
+                        "category_id": cat_id,
                         "account_name": account_name,
                         "notes": tx.notes or "",
                     })
 
+                # Filters applied on the normalized dict list (#184) — several
+                # (payee substring, uncategorized) need the already-normalized
+                # fields rather than the raw actualpy `tx` object.
+                if category_id is not None:
+                    result = [t for t in result if t["category_id"] == category_id]
+                if payee is not None:
+                    needle = payee.casefold()
+                    result = [t for t in result if needle in (t["merchant"] or "").casefold()]
+                if uncategorized_only:
+                    result = [t for t in result if t["category_id"] is None]
+                if amount_min is not None:
+                    result = [t for t in result if abs(t["amount_cents"]) / 100 >= amount_min]
+                if amount_max is not None:
+                    result = [t for t in result if abs(t["amount_cents"]) / 100 <= amount_max]
+                if is_expense is not None:
+                    if is_expense:
+                        result = [t for t in result if t["amount_cents"] < 0]
+                    else:
+                        result = [t for t in result if t["amount_cents"] >= 0]
+
                 # Sort newest-first then slice — get_transactions() order is not guaranteed
                 result.sort(key=lambda t: t["date"], reverse=True)
-                return result[:limit]
+                return result[offset:offset + limit]
 
         return await self._run(_get)
 

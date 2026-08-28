@@ -154,6 +154,7 @@ export interface FuelConfirmResponse {
 
 export interface Transaction {
   id: string
+  financial_id: string | null
   date: string
   merchant: string
   amount: number
@@ -233,6 +234,43 @@ export async function getTransactions(limit = 20, accountId?: string): Promise<T
   const qs = new URLSearchParams({ limit: String(limit) })
   if (accountId) qs.set('account_id', accountId)
   return request<Transaction[]>(`/transactions?${qs}`)
+}
+
+export interface TransactionFilters {
+  limit?: number
+  offset?: number
+  accountId?: string
+  categoryId?: string
+  payee?: string
+  uncategorizedOnly?: boolean
+  amountMin?: number
+  amountMax?: number
+  dateFrom?: string  // YYYY-MM-DD
+  dateTo?: string
+  isExpense?: boolean
+}
+
+export async function getTransactionsFiltered(filters: TransactionFilters): Promise<Transaction[]> {
+  const qs = new URLSearchParams()
+  if (filters.limit !== undefined) qs.set('limit', String(filters.limit))
+  if (filters.offset !== undefined) qs.set('offset', String(filters.offset))
+  if (filters.accountId) qs.set('account_id', filters.accountId)
+  if (filters.categoryId) qs.set('category_id', filters.categoryId)
+  if (filters.payee) qs.set('payee', filters.payee)
+  if (filters.uncategorizedOnly) qs.set('uncategorized_only', 'true')
+  if (filters.amountMin !== undefined) qs.set('amount_min', String(filters.amountMin))
+  if (filters.amountMax !== undefined) qs.set('amount_max', String(filters.amountMax))
+  if (filters.dateFrom) qs.set('start_date', filters.dateFrom)
+  if (filters.dateTo) qs.set('end_date', filters.dateTo)
+  if (filters.isExpense !== undefined) qs.set('is_expense', String(filters.isExpense))
+  return request<Transaction[]>(`/transactions?${qs}`)
+}
+
+export async function bulkUpdateCategory(financialIds: string[], categoryId: string): Promise<{ updated: number }> {
+  return request<{ updated: number }>('/transactions/bulk-category', {
+    method: 'POST',
+    body: JSON.stringify({ financial_ids: financialIds, category_id: categoryId }),
+  })
 }
 
 export async function getAccounts(): Promise<Account[]> {

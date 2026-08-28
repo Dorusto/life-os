@@ -12,6 +12,7 @@ Actual Budget shows — there's no risk of them getting out of sync.
 """
 import logging
 import re
+from datetime import date
 from pathlib import Path
 from typing import Optional
 
@@ -26,10 +27,21 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _parse_date(value: str) -> date:
+    """Parse a YYYY-MM-DD query param into a date, or raise HTTP 400 for a bad value."""
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        raise HTTPException(
+            status_code=400, detail=f"Invalid date: {value!r} (expected YYYY-MM-DD)"
+        )
+
+
 # --- Models ---
 
 class Transaction(BaseModel):
     id: str
+    financial_id: Optional[str]  # Actual Budget financial_id (None for rows entered directly in the AB UI)
     date: str           # YYYY-MM-DD
     merchant: str
     amount: float       # always positive; check is_expense for direction
@@ -50,14 +62,25 @@ class Account(BaseModel):
 
 @router.get("/transactions", response_model=list[Transaction])
 async def list_transactions(
-    limit: int = Query(default=20, ge=1, le=100),
+    limit: int = Query(default=20, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     account_id: Optional[str] = Query(default=None),
+    category_id: Optional[str] = Query(default=None),
+    payee: Optional[str] = Query(default=None),
+    uncategorized_only: bool = Query(default=False),
+    amount_min: Optional[float] = Query(default=None),
+    amount_max: Optional[float] = Query(default=None),
+    is_expense: Optional[bool] = Query(default=None),
+    start_date: Optional[str] = Query(default=None),
+    end_date: Optional[str] = Query(default=None),
     current_user: str = Depends(get_current_user),
 ):
     """
-    Return the most recent transactions from Actual Budget.
-    Used by the Home screen to show the last 5-20 transactions.
-    Optional account_id scopes the result to a single account (#194).
+    Return transactions from Actual Budget, newest-first.
+
+    Used by the Home screen (last 5-20) and the Transactions table (#184), which
+    passes the full set of optional filters. `limit`'s cap was raised to 200 rows
+    so a full table page can request more than the Home/widget callers ever needed.
     """
     client = ActualBudgetClient(
         url=settings.actual.url,
@@ -65,8 +88,23 @@ async def list_transactions(
         sync_id=settings.actual.sync_id,
     )
 
+    start = _parse_date(start_date) if start_date else None
+    end = _parse_date(end_date) if end_date else None
+
     try:
-        raw = await client.get_recent_transactions(limit=limit, account_id=account_id)
+        raw = await client.get_recent_transactions(
+            limit=limit,
+            offset=offset,
+            account_id=account_id,
+            category_id=category_id,
+            payee=payee,
+            uncategorized_only=uncategorized_only,
+            amount_min=amount_min,
+            amount_max=amount_max,
+            is_expense=is_expense,
+            start_date=start,
+            end_date=end,
+        )
     except Exception as e:
         logger.error("Failed to fetch transactions from Actual Budget: %s", e)
         raise HTTPException(
@@ -78,6 +116,7 @@ async def list_transactions(
     for tx in raw:
         result.append(Transaction(
             id=str(tx["id"]),
+            financial_id=tx.get("financial_id"),
             date=str(tx["date"]),
             merchant=tx["merchant"] or "Unknown",
             amount=abs(tx["amount_cents"]) / 100,
@@ -89,6 +128,45 @@ async def list_transactions(
         ))
 
     return result
+
+
+class BulkCategoryRequest(BaseModel):
+    financial_ids: list[str]
+    category_id: str
+
+
+@router.post("/transactions/bulk-category")
+async def bulk_update_category(
+    body: BulkCategoryRequest,
+    current_user: str = Depends(get_current_user),
+):
+    """Set the same category on many transactions in one batch (#184).
+
+    No-AI bulk edit from the Transactions table — selects a set of rows by
+    financial_id and assigns one category to all of them in a single
+    download/commit cycle (not N per-row round trips).
+    """
+    if not body.financial_ids:
+        raise HTTPException(status_code=400, detail="financial_ids must not be empty")
+
+    client = ActualBudgetClient(
+        url=settings.actual.url,
+        password=settings.actual.password,
+        sync_id=settings.actual.sync_id,
+    )
+
+    try:
+        updated = await client.bulk_update_category(
+            body.financial_ids, body.category_id
+        )
+    except Exception as e:
+        logger.error("Failed to bulk-update categories: %s", e)
+        raise HTTPException(
+            status_code=500,
+            detail="Could not connect to Actual Budget. Is it running?",
+        )
+
+    return {"updated": updated}
 
 
 @router.get("/accounts", response_model=list[Account])
