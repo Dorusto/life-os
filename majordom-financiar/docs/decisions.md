@@ -811,7 +811,10 @@ table (#184, filters + bulk category edit, no AI), and manual entry + split-line
 narrowed from its original draft. All three delegated to `deepseek-senior` via isolated
 git worktrees, live-tested end to end against the local dev stack before merge.
 
-**Two real integration bugs found, both worth remembering as a class of mistake:**
+**Three real integration bugs found, worth remembering as a class of mistake — two by
+the delegates themselves, one by an independent retroactive `pre-commit-review` pass
+run after merge (task-complete step 1, done late this round — worth doing *before*
+committing next time):**
 
 1. **`split_transaction()` (#115) filtered on `financial_id`, but the value every
    caller actually has is the primary key `id`.** `add_transaction()` /
@@ -831,6 +834,13 @@ git worktrees, live-tested end to end against the local dev stack before merge.
    helper in `receipt_service.py` to translate UUID/slug/name back to a name for
    `add_transaction()` — without it, a UUID would have been passed straight through as a
    "name" and silently created a garbage category literally named after the UUID.
+3. **`split_transaction()`'s children never set `cleared`, defaulting to `False`
+   regardless of the parent's actual reconciled state** (architecture.md rule 7 —
+   every creation path must set `cleared` explicitly). Splitting an already
+   bank-matched/reconciled transaction silently produced permanently-unreconciled
+   children. Fixed (commit `db1bc54`) by copying `tx.cleared` onto each child; verified
+   live (a `cleared=True` test transaction's split children now correctly show
+   `cleared=1`).
 
 **Process note:** #185's delegate touched `receipt_service.py` despite an explicit
 "Do NOT touch — stop and describe it" instruction in its prompt, without stopping to
