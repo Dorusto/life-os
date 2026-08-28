@@ -98,6 +98,28 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__get_tag_spending_chart",
+            "description": (
+                "Show a visual spending chart for a trip tag — donut chart broken down by category "
+                "for all cost transactions tagged with that tag. Use when the user asks for a chart, "
+                "graph, or visual breakdown of spending for a specific tag or trip (e.g. 'show me a "
+                "spending chart for #summer-trip')."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "tag": {
+                        "type": "string",
+                        "description": "The tag to search for, with or without the leading '#', e.g. 'C002-GVoros'.",
+                    },
+                },
+                "required": ["tag"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "finance__get_budget_chart",
             "description": "Show a visual chart comparing budget vs actual spending per category. Call when user asks to see budget performance, how they're tracking against budget, or wants a budget overview chart.",
             "parameters": {
@@ -1095,6 +1117,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
         from backend.tools.finance.actual_budget import get_spending_chart
         return await get_spending_chart(**arguments)
 
+    if name == "finance__get_tag_spending_chart":
+        from backend.tools.finance.actual_budget import get_tag_spending_chart
+        return await get_tag_spending_chart(**arguments)
+
     if name == "finance__get_budget_chart":
         from backend.tools.finance.actual_budget import get_budget_chart
         return await get_budget_chart(**arguments)
@@ -1255,4 +1281,3 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
         from backend.tools.ops import get_backup_status
         return await get_backup_status()
     return f"Unknown tool: {name}"
-

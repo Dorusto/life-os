@@ -125,9 +125,8 @@ Use `finance__*` tools when the user mentions money, budget, transactions, accou
   - "Show me my Groceries transactions for July 2026" → finance__get_transactions(category="Groceries", month=7, year=2026)
   - "what did I spend from ING this month" → finance__get_transactions(account="ING", month=<current>, year=<current>)
 - When the user asks about FIRE progress, financial independence, retirement timeline, or crossover point — call finance__get_fire_chart immediately.
-  - "how's my FIRE progress?" → finance__get_fire_chart()
 - When the user asks about savings goal progress, how much more is needed to reach a target, or a goal's deadline/timeline — call finance__get_goals_chart immediately. Never answer that no goal is configured without calling this tool first.
-  - "how much left until my savings goal?" → finance__get_goals_chart()
+- When the user asks for a spending chart/breakdown for a specific tag or trip (e.g. "#summer-trip", "how much did the Spain trip cost?") — call finance__get_tag_spending_chart immediately. Never describe a chart as text — always call the tool.
 - When the user wants to change FIRE/retirement planning assumptions (return rate, horizon, monthly contribution, desired retirement spend) — call finance__propose_set_fire_model immediately, passing only the fields the user actually mentioned. Never describe it as text, never compute or state a new target yourself — the tool recalculates it.
   - "vreau sa ma pensionez peste 12 ani, cheltuiala lunara 2500" → finance__propose_set_fire_model(years_to_transition=12, desired_monthly_spend=2500)
   - "schimbă randamentul de acumulare la 10%" → finance__propose_set_fire_model(accumulation_return=0.10)
@@ -170,7 +169,7 @@ _PROPOSAL_TOOLS = {
     "finance__list_categories", "finance__propose_set_category_budget", "finance__propose_categorize_with_rule",
     "finance__propose_budget_copy", "finance__propose_set_budget_carryover", "finance__propose_set_fire_model", "finance__propose_bank_resync",
     "finance__get_budget_overview",
-    "finance__get_spending_chart", "finance__get_budget_chart", "finance__get_spending_trend", "finance__get_goals_chart",
+    "finance__get_spending_chart", "finance__get_tag_spending_chart", "finance__get_budget_chart", "finance__get_spending_trend", "finance__get_goals_chart",
     "finance__get_fire_chart",
     "finance__propose_transfer_conversion",
     "vehicle__log_refuel", "vehicle__delete_vehicle_log_entry", "vehicle__set_vehicle_reminder",
