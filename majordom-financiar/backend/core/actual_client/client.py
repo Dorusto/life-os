@@ -1002,7 +1002,7 @@ class ActualBudgetClient:
                 return True
         return await self._run(_update)
 
-    async def split_transaction(self, financial_id: str, splits: list[dict]) -> dict:
+    async def split_transaction(self, transaction_id: str, splits: list[dict]) -> dict:
         """
         Split an existing transaction into N children, one per category (#115).
 
@@ -1013,6 +1013,15 @@ class ActualBudgetClient:
         transaction's direction (an expense's children stay negative, an
         income's stay positive). Actual Budget's own UI shows the result
         natively as a "Split" transaction once the underlying data is correct.
+
+        `transaction_id` is the row's own primary key (`Transactions.id`), the
+        same value `add_transaction()`/`ReceiptService.confirm()` return as
+        "transaction_id" — NOT `financial_id` (architecture.md rule 21:
+        `financial_id` is only populated for bank-synced/imported rows and is
+        None for anything Majordom itself created via `add_transaction()`,
+        which would make an equality filter on it match arbitrarily, or
+        nothing at all, for exactly the transactions this method needs to
+        find).
 
         Raises ValueError if the transaction is not found, is already split,
         any category_id is unknown, or the split amounts don't balance the
@@ -1026,11 +1035,11 @@ class ActualBudgetClient:
                 actual.download_budget()
 
                 tx = actual.session.query(Transactions).filter(
-                    Transactions.financial_id == financial_id,
+                    Transactions.id == transaction_id,
                     Transactions.tombstone == 0,
                 ).first()
                 if not tx:
-                    raise ValueError(f"Transaction not found: {financial_id}")
+                    raise ValueError(f"Transaction not found: {transaction_id}")
                 if tx.is_parent:
                     raise ValueError("Transaction is already split")
 
@@ -1056,8 +1065,8 @@ class ActualBudgetClient:
                     created.append(str(child.id))
 
                 actual.commit()
-                logger.info("Transaction split: %s → %d children", financial_id, len(created))
-                return {"parent_financial_id": financial_id, "child_count": len(created)}
+                logger.info("Transaction split: %s → %d children", transaction_id, len(created))
+                return {"parent_transaction_id": transaction_id, "child_count": len(created)}
         return await self._run(_split)
 
     async def find_near_duplicate_transaction(

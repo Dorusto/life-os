@@ -257,5 +257,5 @@ class ActualBudgetProvider:
             transaction_id, target_account_id
         )
 
-    async def split_transaction(self, financial_id: str, splits: list[dict]) -> dict:
-        return await self._client().split_transaction(financial_id, splits)
+    async def split_transaction(self, transaction_id: str, splits: list[dict]) -> dict:
+        return await self._client().split_transaction(transaction_id, splits)

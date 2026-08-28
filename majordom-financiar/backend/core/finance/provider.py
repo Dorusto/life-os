@@ -165,7 +165,7 @@ class FinanceProvider(Protocol):
     ) -> dict: ...
 
     async def split_transaction(
-        self, financial_id: str, splits: list[dict]
+        self, transaction_id: str, splits: list[dict]
     ) -> dict: ...
 
 

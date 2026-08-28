@@ -149,9 +149,9 @@ class SplitTransactionRequest(BaseModel):
     splits: list[SplitLine]
 
 
-@router.post("/transactions/{financial_id}/split")
+@router.post("/transactions/{transaction_id}/split")
 async def split_transaction(
-    financial_id: str,
+    transaction_id: str,
     body: SplitTransactionRequest,
     current_user: str = Depends(get_current_user),
 ):
@@ -160,6 +160,10 @@ async def split_transaction(
     The transaction becomes a parent (no category) with one child per line,
     each carrying its own category and amount. The split amounts must sum to
     the original transaction's total.
+
+    `transaction_id` is the row's own primary key — the same "transaction_id"
+    value returned by POST /receipts/{id}/confirm and POST /transactions —
+    NOT financial_id (see client.py::split_transaction's docstring / rule 21).
     """
     if len(body.splits) < 2:
         raise HTTPException(status_code=400, detail="A split needs at least 2 lines")
@@ -171,12 +175,12 @@ async def split_transaction(
     )
     try:
         result = await client.split_transaction(
-            financial_id, [s.model_dump() for s in body.splits]
+            transaction_id, [s.model_dump() for s in body.splits]
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
-        logger.error("Failed to split transaction %s: %s", financial_id, e)
+        logger.error("Failed to split transaction %s: %s", transaction_id, e)
         raise HTTPException(status_code=500, detail="Could not connect to Actual Budget. Is it running?")
 
     return result
