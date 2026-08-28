@@ -330,9 +330,12 @@ class ReceiptService:
         if _UUID_RE.match(category_id):
             try:
                 cats = await self._provider.get_categories()
-                for c in cats:
-                    if c.id == category_id:
-                        return c.name
-            except Exception:
-                logger.warning("Could not resolve category id '%s' to a name", category_id)
+            except Exception as e:
+                logger.error("Could not fetch categories to resolve id '%s': %s", category_id, e)
+                raise ValueError(f"Could not resolve category id '{category_id}' to a name") from e
+            for c in cats:
+                if c.id == category_id:
+                    return c.name
+            logger.error("Category id '%s' not found in Actual Budget", category_id)
+            raise ValueError(f"Category id '{category_id}' does not exist in Actual Budget")
         return category_id
