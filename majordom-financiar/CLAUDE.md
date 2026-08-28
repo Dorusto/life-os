@@ -51,11 +51,11 @@ Cloning the repo is not enough on its own — git auth, `.env`, Docker, Ollama/L
 
 ## Second Brain sync
 
-La finalizarea oricărui milestone (M complet sau feature major), actualizează **ambele** locații:
-1. `docs/roadmap.md` — statusul featurei (✅ / 🔄 / 🔲)
-2. `/home/doru/Sync/Obsidian/Second_Brain/10_PROJECTS/10_Life_OS/CLAUDE.md` — secțiunea "Status Majordom"
+On completing any milestone (a full M or a major feature), update **both** locations:
+1. `docs/roadmap.md` — the feature's status (✅ / 🔄 / 🔲)
+2. `/home/doru/Sync/Obsidian/Second_Brain/10_PROJECTS/10_Life_OS/CLAUDE.md` — the "Status Majordom" section
 
-Fără acest pas, Second Brain rămâne out of sync și sesiunile de strategie YouTube/Business lucrează pe date false.
+Skipping this leaves Second Brain out of sync, and YouTube/Business strategy sessions end up working from stale data.
 
 ---
 
@@ -101,7 +101,7 @@ Found during an external review of `architecture.md`/`decisions.md` for a course
 
 - **Commit only after user verifies and confirms it works**
 - **Push to GitHub only when user explicitly asks**
-- **Commit timestamps: 18:00-23:00 on a weekday (real time OK on weekend)** — Doru works evenings, git history should reflect that consistently. If the real current time is outside that window, set the commit's `GIT_AUTHOR_DATE`/`GIT_COMMITTER_DATE` inside it (most recent evening) — but do NOT push until the real time is actually inside a window. **A plain "push" request is not an override of this** (corrected 2026-08-28, after treating "fă push" as the override and pushing at 00:34) — only push outside the window if the user's request unmistakably acknowledges the timing (e.g. "știu că nu e în fereastră, push acum oricum"), otherwise hold and say so.
+- **Check `CLAUDE.local.md` for additional, personal workflow rules not shared in this file.**
 - **After pushing a backend/frontend fix, also rebuild the affected service(s) in the local `docker-compose` stack on this dev machine** (`docker compose build <service> && docker compose up -d <service>`) — the user tests locally (`localhost:5006` for Actual Budget, local chat) instead of waiting on the LXC deploy round-trip each time. Established 2026-07-04 after discovering this dev machine runs its own full local copy of the stack (separate Tailscale host from the LXC, same docker-compose.yml) with direct Docker access from this environment. **This local stack's data is test/fixture data, not real financial data** (the LXC is the only real-data environment) — but don't infer that from how the data looks (test fixtures are deliberately realistic). If unsure, check `.env`'s `ACTUAL_BUDGET_URL` — it must point to the local `actual-budget` container (`http://actual-budget:5006`), never an LXC/remote host.
 - All code, comments, commit messages, GitHub issues = **English**
 - Discussions with Claude = Romanian

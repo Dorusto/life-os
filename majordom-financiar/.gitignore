@@ -29,6 +29,9 @@ node_modules/
 .DS_Store
 Thumbs.db
 
+# Local Claude Code config (personal, never shared/pushed)
+CLAUDE.local.md
+
 # Private local files
 PLANNING.md
 PRIVATE_context.md
