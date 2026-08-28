@@ -12,6 +12,7 @@ export interface ProposalData {
   account_name: string
   notes?: string
   notes_category_match?: boolean
+  category_source?: string
 }
 
 interface Props {
@@ -108,6 +109,16 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
           ))
         )}
       </select>
+
+      {/* Category auto-fill source label — informational only, never a warning */}
+      {proposal.category_source && (
+        <span className="inline-block bg-surface-2 text-muted text-[10px] font-bold px-1.5 py-0.5 rounded">
+          {proposal.category_source === 'rule' ? 'Rule'
+            : proposal.category_source === 'notes_match' ? 'Notes match'
+            : proposal.category_source === 'guess' ? 'Guess'
+            : proposal.category_source}
+        </span>
+      )}
 
       {/* Notes-based category match — offer an AB rule, unchecked by default */}
       {proposal.notes_category_match && (

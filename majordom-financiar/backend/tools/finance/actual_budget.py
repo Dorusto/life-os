@@ -93,6 +93,7 @@ async def propose_transaction(
     # can mean groceries one time and a gift the next) without needing the
     # payee-only guess below to be deprioritized by hand (#99).
     notes_category_match = False
+    category_source: str | None = None
     if not category_name:
         try:
             rule_matches = await get_provider().match_existing_rules(
@@ -100,6 +101,7 @@ async def propose_transaction(
             )
             if rule_matches and rule_matches[0] and rule_matches[0].get("category_name"):
                 category_name = rule_matches[0]["category_name"]
+                category_source = "rule"
         except Exception:
             pass
 
@@ -118,6 +120,7 @@ async def propose_transaction(
             if match:
                 category_name = match.name
                 notes_category_match = True
+                category_source = "notes_match"
         except Exception:
             pass
 
@@ -129,6 +132,7 @@ async def propose_transaction(
             prediction = SmartCategorizer(db=db).predict(payee, amount=amount)
             if prediction.category_name:
                 category_name = prediction.category_name
+                category_source = "guess"
         except Exception:
             pass
 
@@ -155,6 +159,7 @@ async def propose_transaction(
         notes=notes,
         is_expense=is_expense,
         notes_category_match=notes_category_match,
+        category_source=category_source,
     )
 
     return json.dumps({
@@ -169,6 +174,7 @@ async def propose_transaction(
         "notes": notes,
         "is_expense": is_expense,
         "notes_category_match": notes_category_match,
+        "category_source": category_source,
     })
 
 
