@@ -2623,3 +2623,50 @@ class ActualBudgetClient:
                 actual.commit()
                 return True
         return await self._run(_set)
+
+    async def get_payees(self) -> list[dict]:
+        """Return all non-tombstoned payees with their transaction counts.
+
+        Counts transactions via get_transactions(session, payee=p), filtering out
+        tombstoned rows. Sorted by transaction_count descending, so the settings
+        screen shows the most-used payees first.
+        """
+        def _get():
+            from actual.queries import get_payees, get_transactions
+            with self._get_actual() as actual:
+                actual.download_budget()
+                result = []
+                for p in get_payees(actual.session):
+                    if p.tombstone:
+                        continue
+                    txs = get_transactions(actual.session, payee=p)
+                    count = sum(1 for tx in txs if not tx.tombstone)
+                    result.append({
+                        "id": str(p.id),
+                        # Some payees (e.g. the transfer/unset placeholder) have a
+                        # null name — coerce to a string so the endpoint's
+                        # PayeeItem.name: str doesn't reject the row.
+                        "name": p.name or "Unnamed",
+                        "transaction_count": count,
+                    })
+                result.sort(key=lambda x: x["transaction_count"], reverse=True)
+                return result
+        return await self._run(_get)
+
+    async def get_schedules(self) -> list[dict]:
+        """Return all non-tombstoned scheduled transactions (id, name, active).
+
+        Amount/date details live in the schedule's `rule` relationship, which is
+        not parsed here — the settings screen only needs name + state. The
+        `active` field is the direct attribute on the Schedules model.
+        """
+        def _get():
+            from actual.queries import get_schedules
+            with self._get_actual() as actual:
+                actual.download_budget()
+                return [
+                    {"id": str(s.id), "name": s.name or "Unnamed", "active": bool(s.active)}
+                    for s in get_schedules(actual.session)
+                    if not s.tombstone
+                ]
+        return await self._run(_get)
