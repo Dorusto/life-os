@@ -863,3 +863,66 @@ relevant issue/docs instead, which worked fine in practice but costs some redund
 exploration. Doru is evaluating Aider as a possible replacement for opencode in the
 `delegate-by-complexity` skill for a future session, specifically because Aider keeps
 state per-repo rather than in one shared global db — not decided, not started.
+
+---
+
+### `delegate-by-complexity` skill migrated from opencode to Aider
+
+**Date:** 2026-08-28
+
+**Decision:** the `delegate-by-complexity` skill (`~/.claude/skills/delegate-by-complexity/`,
+not tracked in this repo) now dispatches headless delegation to Aider instead of opencode.
+`deepseek-senior`/`deepseek-flash` opencode agent aliases are replaced by direct Aider
+`--model` strings (`deepseek/deepseek-v4-pro`, `deepseek/deepseek-v4-flash`) — same
+underlying DeepSeek models, confirmed identical via `aider --list-models deepseek`, just
+addressed without an intermediate agent config.
+
+**Why:** not an urgency fix — the opencode SQLite-contention bug this entry documents was
+already resolved via `XDG_DATA_HOME` isolation. The motivation is structural: Aider keeps
+its history/cache per-repo (`.aider.input.history`, `.aider.chat.history.md`, written to
+the current working directory), never in a shared global db, so the entire class of bug
+this entry is about cannot recur. Aider also has no general bash/filesystem tool (only
+explicit, config'd `--lint-cmd`/`--test-cmd` hooks) — the `permission requested:
+external_directory` failure class (#193, #161 above) has no equivalent either, since
+there's no broad tool for it to misuse in the first place.
+
+**Validated with a live end-to-end test before rewriting the skill**, not just read
+opencode's docs and assumed parity: dispatched #198 (a small, well-specified single-file
+backend bug fix — `_resolve_category_name()` in `receipt_service.py` silently returning a
+raw UUID instead of raising) to `aider --model deepseek/deepseek-chat` in an isolated
+worktree. Result: correct fix, better than the spec asked (cleanly separated the
+"fetch failed" and "not found" cases, both logged then raised), 13-line diff, no scope
+creep, auto-committed by Aider itself, merged via fast-forward. Cost ~$0.009, single call,
+no background run needed for a task this size.
+
+**New gotchas found during that test (now in the skill's `SKILL.md`):**
+1. **Aider auto-adds `.aider*` to the repo's root `.gitignore` on any invocation**,
+   including a bare `--list-models` lookup with no `--message` — confirmed live when a
+   research command run directly against the main checkout (not a worktree) modified the
+   tracked `.gitignore`, uncommitted, requiring a manual `git checkout -- .gitignore`
+   revert. Mitigation: always pass `--no-gitignore`, and never run `aider` directly
+   against the main checkout for anything, including read-only lookups — always a worktree.
+2. **Aider's own commit uses the real system clock**, unaffected by the personal
+   `CLAUDE.local.md` commit-timestamp-window rule (that file is gitignored and never
+   part of any prompt sent to Aider). If a delegated run happens outside the allowed
+   window, `GIT_AUTHOR_DATE`/`GIT_COMMITTER_DATE` must be exported *before* invoking
+   `aider`, not after — the commit happens during the run itself, not at a separate
+   post-review commit step like the old manual DeepSeek flow.
+3. **Opposite failure signature for missing external context**: opencode refused loudly
+   (`external_directory ... auto-rejecting`) when it needed a fact not in the prompt;
+   Aider has no such refusal and will attempt to generate code anyway, risking a
+   plausible-looking hallucinated API instead of a visibly failed run. Same mitigation as
+   before (verify external facts, put them directly in the prompt) — but review must
+   check diff correctness more carefully, since there's no more "it just didn't produce
+   output" signal to rely on.
+
+**Qwen/Ollama "stopped for coding" decision (see the opencode-era entry above) carries
+over unchanged, not re-evaluated** — the local Bazzite server isn't running anyway. Worth
+an empirical retest before assuming it still applies: the original failure mode was
+opencode's long agentic tool-call chains, and Aider's edit-block-generation model is
+structurally different, so the same failure profile may not transfer.
+
+**Rejected:** keeping opencode. The SQLite-contention fix (`XDG_DATA_HOME`) worked, so
+this wasn't forced — but it was a workaround for an architecture that keeps state
+globally by default, not a fix at the root, and the class of bug could resurface in a
+form not yet seen.
