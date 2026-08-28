@@ -11,6 +11,8 @@ transactions from Actual Budget ensures what you see in the app matches what
 Actual Budget shows — there's no risk of them getting out of sync.
 """
 import logging
+import re
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -148,5 +150,75 @@ async def list_category_groups(current_user: str = Depends(get_current_user)):
     except Exception as e:
         logger.error("Failed to fetch category groups: %s", e)
         raise HTTPException(status_code=500, detail="Could not fetch category groups")
+
+
+class PayeeItem(BaseModel):
+    id: str
+    name: str
+    transaction_count: int
+
+
+class ScheduleItem(BaseModel):
+    id: str
+    name: str
+    active: bool
+
+
+@router.get("/payees", response_model=list[PayeeItem])
+async def list_payees(current_user: str = Depends(get_current_user)):
+    """Return all payees with their transaction counts (settings screen)."""
+    client = ActualBudgetClient(
+        url=settings.actual.url,
+        password=settings.actual.password,
+        sync_id=settings.actual.sync_id,
+    )
+    try:
+        return await client.get_payees()
+    except Exception as e:
+        logger.error("Failed to fetch payees: %s", e)
+        raise HTTPException(status_code=500, detail="Could not fetch payees")
+
+
+@router.get("/schedules", response_model=list[ScheduleItem])
+async def list_schedules(current_user: str = Depends(get_current_user)):
+    """Return all scheduled transactions (settings screen)."""
+    client = ActualBudgetClient(
+        url=settings.actual.url,
+        password=settings.actual.password,
+        sync_id=settings.actual.sync_id,
+    )
+    try:
+        return await client.get_schedules()
+    except Exception as e:
+        logger.error("Failed to fetch schedules: %s", e)
+        raise HTTPException(status_code=500, detail="Could not fetch schedules")
+
+
+class BackupStatus(BaseModel):
+    last_backup: Optional[str] = None
+
+
+@router.get("/backup-status", response_model=BackupStatus)
+async def backup_status(current_user: str = Depends(get_current_user)):
+    """Return the timestamp of the last successful backup, or null if unknown.
+
+    Reads the last line of backups/backup.log (the same ./backups/ directory the
+    daily backup cron writes to, mounted read-only into the container — see
+    settings.backup_dir). Never crashes: any read/parse error returns null.
+    """
+    try:
+        log_path = Path(settings.backup_dir) / "backup.log"
+        if not log_path.is_file():
+            return BackupStatus(last_backup=None)
+        lines = log_path.read_text(encoding="utf-8", errors="replace").strip().splitlines()
+        if not lines:
+            return BackupStatus(last_backup=None)
+        match = re.search(r"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]", lines[-1])
+        if not match:
+            return BackupStatus(last_backup=None)
+        return BackupStatus(last_backup=match.group(1))
+    except Exception as e:
+        logger.warning("Could not read backup status: %s", e)
+        return BackupStatus(last_backup=None)
 
 

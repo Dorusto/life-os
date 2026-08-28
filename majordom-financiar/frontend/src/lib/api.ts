@@ -670,6 +670,10 @@ export async function getCategories(): Promise<CategoryItem[]> {
   return request<CategoryItem[]>('/categories')
 }
 
+export async function getCategoryGroups(): Promise<string[]> {
+  return request<string[]>('/category-groups')
+}
+
 // --- Proposals ---
 
 export interface ConfirmResult {
@@ -1013,4 +1017,34 @@ export async function confirmVehicleStatus(id: string): Promise<{ message: strin
 
 export async function cancelVehicleStatus(id: string): Promise<void> {
   return request<void>(`/vehicle-status-actions/${id}/cancel`, { method: 'POST' })
+}
+
+// --- Settings ---
+
+export interface PayeeItem {
+  id: string
+  name: string
+  transaction_count: number
+}
+
+export async function getPayees(): Promise<PayeeItem[]> {
+  return request<PayeeItem[]>('/payees')
+}
+
+export interface ScheduleItem {
+  id: string
+  name: string
+  active: boolean
+}
+
+export async function getSchedules(): Promise<ScheduleItem[]> {
+  return request<ScheduleItem[]>('/schedules')
+}
+
+export interface BackupStatus {
+  last_backup: string | null
+}
+
+export async function getBackupStatus(): Promise<BackupStatus> {
+  return request<BackupStatus>('/backup-status')
 }
