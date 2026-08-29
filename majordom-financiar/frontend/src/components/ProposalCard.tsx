@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { confirmProposal, cancelProposal, getCategories, getAccounts, type CategoryItem, type Account } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
+import { formatCurrency } from '../lib/formatCurrency'
 
 export interface ProposalData {
   id: string
@@ -53,9 +54,9 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
     try {
       const result = await confirmProposal(proposal.id, selectedCategory, selectedAccountId, createRule)
       if (result.message.toLowerCase().includes('duplicate') || result.message.toLowerCase().includes('already exists')) {
-        onConfirmed(`Duplicate: ${proposal.payee} €${proposal.amount.toFixed(2)} already exists in Actual Budget for this date.`)
+        onConfirmed(`Duplicate: ${proposal.payee} ${formatCurrency(proposal.amount)} already exists in Actual Budget for this date.`)
       } else {
-        onConfirmed(`Added: ${proposal.payee} €${proposal.amount.toFixed(2)} → ${selectedCategory}`)
+        onConfirmed(`Added: ${proposal.payee} ${formatCurrency(proposal.amount)} → ${selectedCategory}`)
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
@@ -81,7 +82,7 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[80%] space-y-3">
       <div>
         <p className="text-white font-medium">{proposal.payee}</p>
-        <p className="text-muted text-sm">€{proposal.amount.toFixed(2)} · {formattedDate}</p>
+        <p className="text-muted text-sm">{formatCurrency(proposal.amount)} · {formattedDate}</p>
       </div>
 
       {/* Category selector */}

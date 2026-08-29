@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Loader2, Plus, X } from 'lucide-react'
 import { completeSetup, type SetupAccount } from '../lib/api'
+import { formatCurrency } from '../lib/formatCurrency'
 
 interface Props {
   accounts: SetupAccount[]
@@ -66,7 +67,7 @@ export default function SetupBalancesCard({ accounts, onComplete }: Props) {
         onComplete('All balances are already up to date. Majordom is ready.')
       } else {
         const parts = adjusted.map(a =>
-          `${a.account_name} ${a.adjustment > 0 ? '+' : ''}€${Math.abs(a.adjustment).toFixed(2)}`
+          `${a.account_name} ${formatCurrency(a.adjustment, { signDisplay: 'always' })}`
         )
         onComplete(`Balances updated — ${parts.join(' · ')}`)
       }

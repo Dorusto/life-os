@@ -14,6 +14,7 @@ import {
   type Transaction,
   type TransactionFilters,
 } from '../lib/api'
+import { formatCurrency } from '../lib/formatCurrency'
 
 const LIMIT = 50
 const VIEW_STORAGE_KEY = 'majordom_transactions_view_v1'
@@ -241,7 +242,8 @@ export default function TransactionsPage() {
     }
   }
 
-  const amountText = (tx: Transaction) => `${tx.is_expense ? '−' : '+'}€${tx.amount.toFixed(2)}`
+  const amountText = (tx: Transaction) =>
+    formatCurrency(tx.is_expense ? -Math.abs(tx.amount) : Math.abs(tx.amount), { signDisplay: 'always' })
 
   return (
     <div className="min-h-dvh bg-background flex flex-col overflow-y-auto">

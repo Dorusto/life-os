@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { applyBudgetOverview, type BudgetOverviewData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
+import { formatCurrency } from '../lib/formatCurrency'
 
 interface Props {
   data: BudgetOverviewData
@@ -94,9 +95,9 @@ export default function BudgetOverviewCard({ data, onConfirmed, onCancelled }: P
                           className="bg-background border border-border rounded-lg px-2 py-1 w-24 text-white text-sm text-right focus:outline-none focus:border-accent transition-colors"
                         />
                       </div>
-                      <span className="text-muted text-xs">spent €{cat.spent.toFixed(2)}</span>
+                      <span className="text-muted text-xs">spent {formatCurrency(cat.spent)}</span>
                       <span className={`text-xs ${liveBalance < 0 ? 'text-red-400' : 'text-muted'}`}>
-                        balance €{liveBalance.toFixed(2)}
+                        balance {formatCurrency(liveBalance)}
                       </span>
                     </div>
                   </div>

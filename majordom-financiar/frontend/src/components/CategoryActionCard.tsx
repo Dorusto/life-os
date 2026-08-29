@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { confirmCategoryAction, cancelCategoryAction, type CategoryActionData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
+import { formatCurrency } from '../lib/formatCurrency'
 
 interface Props {
   data: CategoryActionData
@@ -85,7 +86,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
           <p className="text-muted text-sm mt-0.5">
             <span className="text-white">{data.merchant}</span>
             {' · '}{data.date}
-            {' · '}€{(data.amount ?? 0).toFixed(2)}
+            {' · '}{formatCurrency(data.amount ?? 0)}
           </p>
         )}
         {isSetBudgetCarryover && (
@@ -123,7 +124,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
               <div key={i} className="flex items-center justify-between gap-2 text-xs">
                 <span className="text-muted whitespace-nowrap">{tx.date.slice(5)}</span>
                 {tx.notes && <span className="text-muted truncate flex-1">{tx.notes}</span>}
-                <span className="text-white whitespace-nowrap">€{tx.amount.toFixed(2)}</span>
+                <span className="text-white whitespace-nowrap">{formatCurrency(tx.amount)}</span>
               </div>
             ))}
           </div>
@@ -145,7 +146,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
           </p>
           <div className="space-y-1">
             <p className="text-muted text-xs">
-              Current: €{(data.current_amount ?? 0).toFixed(2)} → New amount (€)
+              Current: {formatCurrency(data.current_amount ?? 0)} → New amount (€)
             </p>
             <input
               type="number"

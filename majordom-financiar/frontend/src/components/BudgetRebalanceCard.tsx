@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react'
 import { confirmBudgetRebalance, type BudgetRebalanceData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
+import { formatCurrency } from '../lib/formatCurrency'
 
 interface Props {
   data: BudgetRebalanceData
@@ -89,16 +90,16 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
           >
             {categories.map(c => (
               <option key={c.name} value={c.name} style={{ background: '#1A1A1A' }}>
-                {c.name} · €{c.budgeted.toFixed(2)}
+                {c.name} · {formatCurrency(c.budgeted)}
               </option>
             ))}
           </select>
           <p className="text-xs text-muted pl-1">
-            €{sourceBudgeted.toFixed(2)} → <span className="text-red-400">€{newSource.toFixed(2)}</span>
+            {formatCurrency(sourceBudgeted)} → <span className="text-red-400">{formatCurrency(newSource)}</span>
           </p>
         </div>
 
-        <p className="text-muted text-xs pl-1">↓ €{amount.toFixed(2)}</p>
+        <p className="text-muted text-xs pl-1">↓ {formatCurrency(amount)}</p>
 
         {/* Destination */}
         <div className="space-y-1">
@@ -111,12 +112,12 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
           >
             {categories.map(c => (
               <option key={c.name} value={c.name} style={{ background: '#1A1A1A' }}>
-                {c.name} · €{c.budgeted.toFixed(2)}
+                {c.name} · {formatCurrency(c.budgeted)}
               </option>
             ))}
           </select>
           <p className="text-xs text-muted pl-1">
-            €{destBudgeted.toFixed(2)} → <span className="text-green-400">€{newDest.toFixed(2)}</span>
+            {formatCurrency(destBudgeted)} → <span className="text-green-400">{formatCurrency(newDest)}</span>
           </p>
         </div>
       </div>

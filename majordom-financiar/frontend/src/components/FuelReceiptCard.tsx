@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Loader2, Check } from 'lucide-react'
 import { confirmFuelReceipt, type ReceiptDraft, type FuelConfirmResponse, type VehicleOption, type AccountOption, type Category, type NearDuplicateMatch } from '../lib/api'
 import { getToken } from '../lib/auth'
+import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 
 // Helper: get base URL for API calls
 const BASE = '/api'
@@ -215,7 +216,7 @@ export default function FuelReceiptCard({
             >
               {vehicles.map((v: VehicleOption) => (
                 <option key={v.id} value={v.id}>
-                  {v.name}{v.last_odo ? ` (${v.last_odo.toLocaleString()} km)` : ''}
+                  {v.name}{v.last_odo ? ` (${formatNumber(v.last_odo)} km)` : ''}
                 </option>
               ))}
             </select>
@@ -278,17 +279,17 @@ export default function FuelReceiptCard({
           />
           {odoBackwards && (
             <span className="text-xs text-red-400">
-              ⛔ ODO goes backwards ({odoRawDiff!.toLocaleString()} km) — check value
+              ⛔ ODO goes backwards ({formatNumber(odoRawDiff!)} km) — check value
             </span>
           )}
           {!odoBackwards && odoDiff != null && !odoWarning && (
             <span className="text-xs text-green-400">
-              +{odoDiff.toLocaleString()} km ✓
+              +{formatNumber(odoDiff)} km ✓
             </span>
           )}
           {!odoBackwards && odoWarning && (
             <span className="text-xs text-yellow-400">
-              ⚠️ ODO difference is {odoDiff!.toLocaleString()} km — check if correct
+              ⚠️ ODO difference is {formatNumber(odoDiff!)} km — check if correct
             </span>
           )}
         </div>
@@ -398,7 +399,7 @@ export default function FuelReceiptCard({
           <div className="px-3 py-2.5 rounded-xl bg-yellow-500/10 border border-yellow-500/30 space-y-2">
             <p className="text-yellow-500 text-xs">
               Found a similar bank transaction: <span className="text-white">{possibleMatch.payee || 'Unknown'}</span>{' '}
-              €{possibleMatch.amount.toFixed(2)} on {possibleMatch.date}. Attach these details to it instead of creating a new transaction?
+              {formatCurrency(possibleMatch.amount)} on {possibleMatch.date}. Attach these details to it instead of creating a new transaction?
             </p>
             <div className="flex gap-2">
               <button

@@ -5,18 +5,15 @@ import { Plus } from 'lucide-react'
 import type { FireData, Goal } from '../lib/api'
 import InfoIcon from './InfoIcon'
 import NewGoalSheet from './NewGoalSheet'
+import { formatCurrency, formatPercent } from '../lib/formatCurrency'
+import WidgetLoading from './WidgetLoading'
 
 const GOAL_COLORS = ['#F59E0B', '#3B82F6', '#22C55E', '#8B5CF6', '#EC4899']
 
-function fmtK(n: number): string {
-  if (n >= 1000) return `€${Math.round(n / 1000)}k`
-  return `€${Math.round(n)}`
-}
-
-function formatGoalAmount(value: number): string {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
-  if (value >= 1_000) return value.toLocaleString('nl-NL', { maximumFractionDigits: 0 })
-  return value.toFixed(0)
+// Amounts are shown in full, never abbreviated (no €14k / 1.2M). On a screen that also
+// shows exact figures, an abbreviated one reintroduces exactly the ambiguity #211 removed.
+function euro(n: number): string {
+  return formatCurrency(n, { decimals: 0 })
 }
 
 function formatDeadline(deadline: string): string {
@@ -47,7 +44,7 @@ const GOAL_CHIPS: { label: string; colorClass: string; prefill: string }[] = [
  * both Dashboard (as the existing 'goals' widget) and the new Planned page —
  * same component, not duplicated (decisions.md#nav-five-tabs supersession).
  */
-export default function GoalsSection({ fireData, goals }: { fireData: FireData | undefined; goals: Goal[] | undefined }) {
+export default function GoalsSection({ fireData, goals, isLoading }: { fireData: FireData | undefined; goals: Goal[] | undefined; isLoading?: boolean }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -71,7 +68,9 @@ export default function GoalsSection({ fireData, goals }: { fireData: FireData |
         </button>
       </div>
 
-      {!hasContent ? (
+      {isLoading ? (
+        <WidgetLoading label="Loading goals…" />
+      ) : !hasContent ? (
         <div className="py-4 text-center">
           <p className="text-white font-semibold text-[15px] mb-2.5">Create your first goal</p>
           <div className="flex items-center justify-center gap-2 flex-wrap">
@@ -122,14 +121,14 @@ function PortfolioIndependenceRow({ data, navigate }: { data: FireData; navigate
             </p>
             <p className="mb-2">
               Counts your off-budget accounts (savings, brokerage, crypto) — your home and any mortgage
-              are excluded. Assumes a {(data.accumulation_return * 100).toFixed(0)}% return during
-              accumulation, {(data.decumulation_return * 100).toFixed(0)}% during retirement, and your
-              current {fmtK(data.monthly_contribution)}/mo contribution.
+              are excluded. Assumes a {formatPercent(data.accumulation_return * 100, { decimals: 0 })} return during
+              accumulation, {formatPercent(data.decumulation_return * 100, { decimals: 0 })} during retirement, and your
+              current {euro(data.monthly_contribution)}/mo contribution.
             </p>
             <p>
-              Target ({fmtK(data.fire_target)}) is the principal needed today to fund{' '}
-              {fmtK(data.desired_monthly_spend)}/mo for {data.years_in_retirement} years at{' '}
-              {(data.decumulation_return * 100).toFixed(0)}% return.
+              Target ({euro(data.fire_target)}) is the principal needed today to fund{' '}
+              {euro(data.desired_monthly_spend)}/mo for {data.years_in_retirement} years at{' '}
+              {formatPercent(data.decumulation_return * 100, { decimals: 0 })} return.
             </p>
             {data.is_default_assumptions && (
               <div className="mt-2 text-yellow-400">
@@ -149,7 +148,7 @@ function PortfolioIndependenceRow({ data, navigate }: { data: FireData; navigate
           </InfoIcon>
         </p>
         <p className="font-display font-bold text-lg tabular-nums flex-shrink-0" style={{ color }}>
-          {data.fire_pct.toFixed(0)}%
+          {formatPercent(data.fire_pct, { decimals: 0 })}
         </p>
       </div>
 
@@ -161,12 +160,12 @@ function PortfolioIndependenceRow({ data, navigate }: { data: FireData; navigate
       </div>
 
       <div className="flex items-center justify-between text-xs text-muted">
-        <span>{fmtK(data.fire_portfolio)} saved</span>
-        <span>{fmtK(data.monthly_contribution)}/mo</span>
+        <span>{euro(data.fire_portfolio)} saved</span>
+        <span>{euro(data.monthly_contribution)}/mo</span>
       </div>
 
       <div className="flex items-center justify-between text-[11px] text-muted-2 mt-1.5">
-        <span>target ~{fmtK(data.fire_target)}</span>
+        <span>target ~{euro(data.fire_target)}</span>
         <span>
           {data.estimated_year ? `est. ${data.estimated_year}` : '—'}
           {trend != null && trend !== 0 && (
@@ -220,7 +219,7 @@ function GoalRow({ goal, color, navigate }: GoalRowProps) {
           </InfoIcon>
         </p>
         <p className="font-display font-bold text-lg tabular-nums flex-shrink-0" style={{ color }}>
-          €{formatGoalAmount(goal.target)}
+          {euro(goal.target)}
         </p>
       </div>
 
@@ -232,14 +231,14 @@ function GoalRow({ goal, color, navigate }: GoalRowProps) {
       </div>
 
       <div className="flex items-center justify-between text-xs text-muted">
-        <span>€{formatGoalAmount(goal.balance)} saved</span>
+        <span>{euro(goal.balance)} saved</span>
         {goal.monthly_needed != null && goal.monthly_needed > 0 && (
-          <span>€{formatGoalAmount(goal.monthly_needed)}/mo</span>
+          <span>{euro(goal.monthly_needed)}/mo</span>
         )}
       </div>
 
       <div className="text-right text-[11px] text-muted-2 mt-1.5">
-        {goal.deadline ? `target: ${formatDeadline(goal.deadline)}` : `${goal.percentage.toFixed(0)}%`}
+        {goal.deadline ? `target: ${formatDeadline(goal.deadline)}` : formatPercent(goal.percentage, { decimals: 0 })}
       </div>
     </div>
   )

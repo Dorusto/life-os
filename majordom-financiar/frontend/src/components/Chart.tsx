@@ -7,6 +7,7 @@
  */
 import { useState } from 'react'
 import { authFetch } from '../lib/auth'
+import { formatCurrency, formatPercent, formatNumber } from '../lib/formatCurrency'
 
 // Shared palette — single source of truth for chart colors (previously duplicated
 // across SpendingChart.tsx and BudgetChart.tsx).
@@ -233,9 +234,6 @@ function MonthNavTitle({
   )
 }
 
-const money = (n: number) =>
-  `€${n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-
 // --- Pie / donut ---
 
 function PieChart({ title, data, refetch: initialRefetch }: { title: string; data: PieData; refetch?: RefetchConfig }) {
@@ -265,7 +263,7 @@ function PieChart({ title, data, refetch: initialRefetch }: { title: string; dat
           ) : (
             <p className="text-xs text-muted uppercase tracking-wide">{liveTitle}</p>
           )}
-          <p className="text-white text-2xl font-semibold mt-0.5">{money(liveData.total)}</p>
+          <p className="text-white text-2xl font-semibold mt-0.5">{formatCurrency(liveData.total)}</p>
           <p className="text-muted text-xs mt-0.5">{liveData.count} transactions</p>
         </div>
         <Donut segments={segments} />
@@ -285,8 +283,8 @@ function PieChart({ title, data, refetch: initialRefetch }: { title: string; dat
                   <span className="text-white text-xs truncate">{seg.name}</span>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                  <span className="text-muted text-xs">{seg.percentage.toFixed(0)}%</span>
-                  <span className="text-white text-xs font-medium w-16 text-right">{money(seg.value)}</span>
+                  <span className="text-muted text-xs">{formatPercent(seg.percentage, { decimals: 0 })}</span>
+                  <span className="text-white text-xs font-medium w-16 text-right">{formatCurrency(seg.value)}</span>
                 </div>
               </div>
               <div className="h-1 bg-background rounded-full overflow-hidden">
@@ -397,7 +395,7 @@ function ProgressListChart({
                   className="text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0"
                   style={{ color, backgroundColor: `${color}20` }}
                 >
-                  {item.percentage.toFixed(0)}%
+                  {formatPercent(item.percentage, { decimals: 0 })}
                 </span>
               </div>
               <div className="h-2 bg-background rounded-full overflow-hidden">
@@ -408,7 +406,7 @@ function ProgressListChart({
               </div>
               <div className="flex items-center justify-between mt-1">
                 <span className="text-muted text-xs">
-                  {money(item.value)} / {money(item.target)}
+                  {formatCurrency(item.value)} / {formatCurrency(item.target)}
                 </span>
               </div>
               {item.extra && <p className="text-xs text-muted mt-0.5">{item.extra}</p>}
@@ -540,7 +538,7 @@ function BarChart({ title, data, refetch: initialRefetch }: { title: string; dat
         {liveData.points.map((p) => (
           <div key={p.x} className="flex-1 text-center">
             <span className="text-[10px] text-muted">
-              €{(p.values[0] || 0).toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              {formatCurrency(p.values[0] || 0, { decimals: 0 })}
             </span>
           </div>
         ))}
@@ -738,7 +736,7 @@ function LineChart({
             <div className="flex items-center justify-between text-xs text-muted mb-1">
               <span>{s.label}</span>
               <span>
-                min {seriesMin} · max {seriesMax}
+                min {formatNumber(seriesMin, 2)} · max {formatNumber(seriesMax, 2)}
               </span>
             </div>
             <p className="text-[10px] text-muted mb-1">
@@ -752,13 +750,13 @@ function LineChart({
                 className="absolute left-0.5 text-[9px] text-muted-2 -translate-y-1/2 bg-surface/80 px-0.5 rounded"
                 style={{ top: `${(scaleY(seriesMax) / height) * 100}%` }}
               >
-                {Math.round(seriesMax).toLocaleString()}
+                {formatNumber(seriesMax)}
               </span>
               <span
                 className="absolute left-0.5 text-[9px] text-muted-2 -translate-y-1/2 bg-surface/80 px-0.5 rounded"
                 style={{ top: `${(scaleY(seriesMin) / height) * 100}%` }}
               >
-                {Math.round(seriesMin).toLocaleString()}
+                {formatNumber(seriesMin)}
               </span>
               <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} preserveAspectRatio="none">
                 <path d={path} fill="none" stroke={s.color} strokeWidth={2} vectorEffect="non-scaling-stroke" />

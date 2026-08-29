@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
 import { confirmVehicleLogAction, cancelVehicleLogAction, type VehicleLogActionData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
+import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 
 interface Props {
   data: VehicleLogActionData
@@ -38,9 +39,9 @@ export default function VehicleLogActionCard({ data, onConfirmed, onCancelled }:
           <span className="text-white">{data.vehicle_name}</span>
           {' · '}
           {data.date}
-          {data.odo_km != null && <span> · {data.odo_km.toFixed(0)} km</span>}
-          {data.fuel_liters != null && <span> · {data.fuel_liters.toFixed(1)}L</span>}
-          {data.cost_total != null && <span> · €{data.cost_total.toFixed(2)}</span>}
+          {data.odo_km != null && <span> · {formatNumber(data.odo_km)} km</span>}
+          {data.fuel_liters != null && <span> · {formatNumber(data.fuel_liters, 1)}L</span>}
+          {data.cost_total != null && <span> · {formatCurrency(data.cost_total)}</span>}
           {data.location && <span> · {data.location}</span>}
         </p>
         <p className="text-yellow-500 text-xs mt-1">ID #{data.entry_id} · This cannot be undone.</p>

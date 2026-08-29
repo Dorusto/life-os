@@ -16,6 +16,7 @@ import {
 } from '../lib/vehicleValueApi'
 import EditVehicleModal from '../components/vehicles/EditVehicleModal'
 import OverrideValueModal from '../components/vehicles/OverrideValueModal'
+import { formatCurrency, formatPercent, formatNumber } from '../lib/formatCurrency'
 
 function formatDate(iso?: string | null): string {
   if (!iso) return '—'
@@ -25,7 +26,7 @@ function formatDate(iso?: string | null): string {
 
 function formatMoney(n: number | null | undefined): string {
   if (n == null || Number.isNaN(n)) return '—'
-  return `€${n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  return formatCurrency(n)
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -167,7 +168,7 @@ export default function VehicleDetail() {
   const mileage = vehicle.last_odo ?? vehicle.manual_mileage
 
   const depreciationModel = vehicle.annual_depreciation_pct
-    ? `Custom (${vehicle.annual_depreciation_pct}%/yr)`
+    ? `Custom (${formatPercent(vehicle.annual_depreciation_pct)}/yr)`
     : 'Class default'
 
   function handleSaved() {
@@ -238,7 +239,7 @@ export default function VehicleDetail() {
               {purchasePrice != null && delta != null && deltaPct != null && (
                 <p className="text-xs text-muted mt-1">
                   {delta >= 0 ? '+' : ''}
-                  {formatMoney(delta)} ({deltaPct.toFixed(1)}%) since acquired {formatDate(purchaseDate)}
+                  {formatMoney(delta)} ({formatPercent(deltaPct)}) since acquired {formatDate(purchaseDate)}
                 </p>
               )}
 
@@ -259,7 +260,7 @@ export default function VehicleDetail() {
                   </p>
                   {totalDepreciationPct != null && (
                     <p className="text-[10px] text-muted mt-0.5">
-                      {totalDepreciationPct.toFixed(1)}%
+                      {formatPercent(totalDepreciationPct)}
                     </p>
                   )}
                 </div>
@@ -272,7 +273,7 @@ export default function VehicleDetail() {
                   </p>
                   {additionalDeclinePct != null && (
                     <p className="text-[10px] text-muted mt-0.5">
-                      {Math.abs(additionalDeclinePct).toFixed(0)}% additional decline
+                      {formatPercent(Math.abs(additionalDeclinePct), { decimals: 0 })} additional decline
                     </p>
                   )}
                 </div>
@@ -313,12 +314,12 @@ export default function VehicleDetail() {
           <InfoRow label="Year" value={vehicle.year ? String(vehicle.year) : '—'} />
           <InfoRow
             label="Mileage"
-            value={mileage ? `${mileage.toLocaleString('nl-NL')} km` : '—'}
+            value={mileage ? `${formatNumber(mileage)} km` : '—'}
           />
           <InfoRow label="Depreciation model" value={depreciationModel} />
           <InfoRow
             label="Salvage floor"
-            value={`${vehicle.salvage_floor_pct}% ≈ ${formatMoney(salvageFloorAmount)}`}
+            value={`${formatPercent(vehicle.salvage_floor_pct ?? 0)} ≈ ${formatMoney(salvageFloorAmount)}`}
           />
         </div>
 

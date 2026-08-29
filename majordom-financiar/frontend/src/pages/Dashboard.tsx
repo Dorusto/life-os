@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import {
-  Bell, Pencil, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Calendar, ArrowUpRight, Loader2,
+  Bell, Pencil, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Calendar, ArrowUpRight,
 } from 'lucide-react'
 import {
   getHomeData, getAccountList, getBalanceHistory, getTransactions, getBudgetPeriod, getVehicleCostsSummary,
@@ -18,13 +18,15 @@ import Chart from '../components/Chart'
 import { WIDGETS, loadWidgetPrefs, saveWidgetPrefs, type WidgetId } from '../lib/dashboardWidgets'
 import { loadNetWorthIncludePrefs, saveNetWorthIncludePrefs } from '../lib/netWorthPrefs'
 import { useState, useEffect, useRef } from 'react'
+import { formatCurrency, formatPercent } from '../lib/formatCurrency'
+import WidgetLoading from '../components/WidgetLoading'
 
 const EXPENSE_COLORS = ['#E8A838', '#4F8EF7', '#EF4444', '#8B7BF0', '#22C55E']
 
 export default function Dashboard() {
   const navigate = useNavigate()
 
-  const { data: homeData } = useQuery({
+  const { data: homeData, isLoading: homeLoading } = useQuery({
     queryKey: ['home'],
     queryFn: () => getHomeData(),
     staleTime: 120_000,
@@ -34,7 +36,7 @@ export default function Dashboard() {
     queryFn: () => getAccountList(),
     staleTime: 120_000,
   })
-  const { data: transactions } = useQuery({
+  const { data: transactions, isLoading: transactionsLoading } = useQuery({
     queryKey: ['transactions', 'latest'],
     queryFn: () => getTransactions(5),
     staleTime: 60_000,
@@ -49,7 +51,7 @@ export default function Dashboard() {
   const [dashboardYear, setDashboardYear] = useState(now.getFullYear())
   const [periodSheetOpen, setPeriodSheetOpen] = useState(false)
 
-  const { data: periodBudget } = useQuery({
+  const { data: periodBudget, isLoading: periodBudgetLoading } = useQuery({
     queryKey: ['budget-period', dashboardMonth, dashboardYear],
     queryFn: () => getBudgetPeriod('month', dashboardMonth, dashboardYear),
     staleTime: 60_000,
@@ -117,7 +119,7 @@ export default function Dashboard() {
   function renderWidget(id: WidgetId): ReactNode {
     switch (id) {
       case 'goals':
-        return <GoalsSection fireData={fireData} goals={goals} />
+        return <GoalsSection fireData={fireData} goals={goals} isLoading={homeLoading} />
       case 'budget':
         return periodCategories && periodCategories.length > 0 ? (
           <BudgetPeriodCard
@@ -129,9 +131,9 @@ export default function Dashboard() {
       case 'trend':
         return <TrendWidget accounts={accounts} dashboardMonth={dashboardMonth} dashboardYear={dashboardYear} />
       case 'latest':
-        return <LatestTransactionsWidget transactions={transactions} navigate={navigate} />
+        return <LatestTransactionsWidget transactions={transactions} navigate={navigate} isLoading={transactionsLoading} />
       case 'expenses':
-        return <ExpensesStructureWidget categories={periodCategories} />
+        return <ExpensesStructureWidget categories={periodCategories} isLoading={periodBudgetLoading} />
       case 'cashflow':
         return <CashFlowWidget periodLabel={periodLabel} />
       case 'vehicle':
@@ -484,13 +486,10 @@ function TrendWidget({ accounts, dashboardMonth, dashboardYear }: {
         <>
           <p className="font-mono text-[10px] tracking-widest uppercase text-muted mt-3">Today</p>
           <p className="font-mono font-medium text-3xl mt-1 tabular-nums">
-            {amount != null ? `€${amount.toLocaleString('nl-NL', { maximumFractionDigits: 0 })}` : '—'}
+            {amount != null ? formatCurrency(amount, { decimals: 0 }) : '—'}
           </p>
           {balanceHistoryQuery.isLoading ? (
-            <div className="mt-3 flex items-center gap-2 text-muted text-xs">
-              <Loader2 size={14} className="animate-spin" />
-              Loading historical balance…
-            </div>
+            <WidgetLoading label="Loading historical balance…" className="mt-3" />
           ) : balanceHistoryQuery.isError ? (
             <p className="text-muted text-xs mt-3">Couldn't load balance history.</p>
           ) : historyPoints.length >= 2 ? (
@@ -500,8 +499,8 @@ function TrendWidget({ accounts, dashboardMonth, dashboardYear }: {
               </div>
               {periodDiff != null && periodPct != null && (
                 <p className={`text-xs mt-1.5 ${periodDiff >= 0 ? 'text-positive' : 'text-red-400'}`}>
-                  {periodDiff >= 0 ? '+' : ''}€{periodDiff.toFixed(2)} · {periodDiff >= 0 ? '+' : ''}
-                  {periodPct.toFixed(1)}% vs 30d ago
+                  {formatCurrency(periodDiff, { signDisplay: 'always' })} ·{' '}
+                  {formatPercent(periodPct, { signDisplay: 'always' })} vs 30d ago
                 </p>
               )}
             </>
@@ -617,14 +616,11 @@ function NetWorthWidget({ accounts, dashboardMonth, dashboardYear }: {
       </div>
 
       <p className="font-mono font-medium text-3xl mt-2 tabular-nums">
-        €{currentTotal.toLocaleString('nl-NL', { maximumFractionDigits: 0 })}
+        {formatCurrency(currentTotal, { decimals: 0 })}
       </p>
 
       {balanceHistoryQuery.isLoading ? (
-        <div className="mt-3 flex items-center gap-2 text-muted text-xs">
-          <Loader2 size={14} className="animate-spin" />
-          Loading historical balance…
-        </div>
+        <WidgetLoading label="Loading historical balance…" className="mt-3" />
       ) : balanceHistoryQuery.isError ? (
         <p className="text-muted text-xs mt-3">Couldn't load net worth history.</p>
       ) : historyPoints.length >= 2 ? (
@@ -636,17 +632,17 @@ function NetWorthWidget({ accounts, dashboardMonth, dashboardYear }: {
             <div className="grid grid-cols-3 gap-2 mt-3">
               <div>
                 <p className="font-mono text-[10px] tracking-widest uppercase text-muted">Start</p>
-                <p className="text-sm text-white tabular-nums mt-0.5">€{startBalance.toFixed(2)}</p>
+                <p className="text-sm text-white tabular-nums mt-0.5">{formatCurrency(startBalance)}</p>
               </div>
               <div>
                 <p className="font-mono text-[10px] tracking-widest uppercase text-muted">Now</p>
-                <p className="text-sm text-white tabular-nums mt-0.5">€{endBalance.toFixed(2)}</p>
+                <p className="text-sm text-white tabular-nums mt-0.5">{formatCurrency(endBalance)}</p>
               </div>
               <div>
                 <p className="font-mono text-[10px] tracking-widest uppercase text-muted">Growth</p>
                 <p className={`text-sm tabular-nums mt-0.5 ${growthDiff != null && growthDiff >= 0 ? 'text-positive' : 'text-red-400'}`}>
-                  {growthDiff != null ? `${growthDiff >= 0 ? '+' : ''}€${growthDiff.toFixed(2)}` : '—'}
-                  {growthPct != null ? ` · ${growthPct >= 0 ? '+' : ''}${growthPct.toFixed(1)}%` : ''}
+                  {growthDiff != null ? formatCurrency(growthDiff, { signDisplay: 'always' }) : '—'}
+                  {growthPct != null ? ` · ${formatPercent(growthPct, { signDisplay: 'always' })}` : ''}
                 </p>
               </div>
             </div>
@@ -659,7 +655,7 @@ function NetWorthWidget({ accounts, dashboardMonth, dashboardYear }: {
   )
 }
 
-function LatestTransactionsWidget({ transactions, navigate }: { transactions: Transaction[] | undefined; navigate: NavigateFn }) {
+function LatestTransactionsWidget({ transactions, navigate, isLoading }: { transactions: Transaction[] | undefined; navigate: NavigateFn; isLoading?: boolean }) {
   return (
     <div className="bg-surface border border-border rounded-2xl px-4 pt-4 pb-1.5">
       <div className="flex items-center justify-between mb-1.5">
@@ -668,7 +664,9 @@ function LatestTransactionsWidget({ transactions, navigate }: { transactions: Tr
           <ArrowUpRight size={16} />
         </button>
       </div>
-      {!transactions || transactions.length === 0 ? (
+      {isLoading ? (
+        <WidgetLoading label="Loading transactions…" />
+      ) : !transactions || transactions.length === 0 ? (
         <p className="text-muted text-xs py-3">No transactions yet.</p>
       ) : (
         transactions.slice(0, 5).map(tx => (
@@ -678,7 +676,7 @@ function LatestTransactionsWidget({ transactions, navigate }: { transactions: Tr
               <p className="text-[11.5px] text-muted truncate">{tx.category ?? 'Uncategorized'}</p>
             </div>
             <p className={`font-mono text-[13.5px] tabular-nums flex-shrink-0 ${!tx.is_expense ? 'text-positive' : ''}`}>
-              {!tx.is_expense ? '+' : '−'}{Math.abs(tx.amount).toFixed(2)}
+              {formatCurrency(tx.is_expense ? -Math.abs(tx.amount) : Math.abs(tx.amount), { signDisplay: 'always' })}
             </p>
           </div>
         ))
@@ -689,7 +687,7 @@ function LatestTransactionsWidget({ transactions, navigate }: { transactions: Tr
 
 /** Expenses Structure — real data, reused from the same BudgetCategory[] the
     Budget widget already fetches (no new endpoint needed). */
-function ExpensesStructureWidget({ categories }: { categories: BudgetCategory[] | undefined }) {
+function ExpensesStructureWidget({ categories, isLoading }: { categories: BudgetCategory[] | undefined; isLoading?: boolean }) {
   const expenseCats = (categories ?? []).filter(c => c.group_name !== 'Income' && c.spent > 0)
   const sorted = [...expenseCats].sort((a, b) => b.spent - a.spent)
   const top = sorted.slice(0, 4)
@@ -697,11 +695,15 @@ function ExpensesStructureWidget({ categories }: { categories: BudgetCategory[] 
   const slices: { category_name: string; spent: number }[] = otherTotal > 0 ? [...top, { category_name: 'Other', spent: otherTotal }] : top
   const total = slices.reduce((sum, s) => sum + s.spent, 0)
 
-  if (total === 0) {
+  if (isLoading || total === 0) {
     return (
       <div className="bg-surface border border-border rounded-2xl p-4">
         <p className="font-display font-bold text-[15px] mb-2">Expenses Structure</p>
-        <p className="text-muted text-xs">No spending recorded this period yet.</p>
+        {isLoading ? (
+          <WidgetLoading label="Loading spending…" />
+        ) : (
+          <p className="text-muted text-xs">No spending recorded this period yet.</p>
+        )}
       </div>
     )
   }
@@ -724,7 +726,7 @@ function ExpensesStructureWidget({ categories }: { categories: BudgetCategory[] 
         >
           <div className="w-[60%] h-[60%] rounded-full bg-surface flex flex-col items-center justify-center">
             <span className="text-[9px] text-muted uppercase tracking-wide">Total</span>
-            <span className="font-mono text-[11px] mt-0.5">€{total.toFixed(0)}</span>
+            <span className="font-mono text-[11px] mt-0.5">{formatCurrency(total, { decimals: 0 })}</span>
           </div>
         </div>
         <div className="flex-1 min-w-[120px] flex flex-col gap-1.5">
@@ -732,7 +734,7 @@ function ExpensesStructureWidget({ categories }: { categories: BudgetCategory[] 
             <div key={s.category_name} className="flex items-center gap-2 text-xs">
               <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: EXPENSE_COLORS[i % EXPENSE_COLORS.length] }} />
               <span className="flex-1 min-w-0 truncate">{s.category_name}</span>
-              <span className="font-mono text-muted tabular-nums">€{s.spent.toFixed(0)}</span>
+              <span className="font-mono text-muted tabular-nums">{formatCurrency(s.spent, { decimals: 0 })}</span>
             </div>
           ))}
         </div>
@@ -764,12 +766,7 @@ function VehicleCostsWidget({ dashboardMonth, dashboardYear }: {
   let content: ReactNode
 
   if (isLoading) {
-    content = (
-      <div className="mt-2 flex items-center gap-2 text-muted text-xs">
-        <Loader2 size={14} className="animate-spin" />
-        Loading…
-      </div>
-    )
+    content = <WidgetLoading label="Loading vehicle costs…" className="mt-2" />
   } else if (isError) {
     content = <p className="text-muted text-xs mt-2">Couldn't load vehicle cost data.</p>
   } else if (data && data.available === false) {
@@ -782,12 +779,12 @@ function VehicleCostsWidget({ dashboardMonth, dashboardYear }: {
     content = (
       <>
         <p className="font-mono font-medium text-3xl mt-1 tabular-nums">
-          €{totalCost.toLocaleString('nl-NL', { maximumFractionDigits: 0 })}
+          {formatCurrency(totalCost, { decimals: 0 })}
         </p>
         <p className="text-muted text-xs mt-2">
           {vehicleCount} vehicle{vehicleCount !== 1 ? 's' : ''}
           {data.cost_per_km != null && (
-            <> · €{data.cost_per_km.toFixed(2)}/km</>
+            <> · {formatCurrency(data.cost_per_km)}/km</>
           )}
         </p>
       </>

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ArrowRight } from 'lucide-react'
 import { confirmAccountTransfer, type AccountTransferData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
+import { formatCurrency } from '../lib/formatCurrency'
 
 interface Props {
   data: AccountTransferData
@@ -86,18 +87,18 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
           >
             {accounts.map(a => (
               <option key={a.id} value={a.id} style={{ background: '#1A1A1A' }}>
-                {a.name} · €{a.balance.toFixed(2)}
+                {a.name} · {formatCurrency(a.balance)}
               </option>
             ))}
           </select>
           <p className="text-xs text-muted pl-1">
-            <span className="text-red-400">-€{amount.toFixed(2)}</span>
+            <span className="text-red-400">{formatCurrency(-Math.abs(amount))}</span>
           </p>
         </div>
 
         <div className="flex items-center gap-1 text-muted text-xs pl-1">
           <ArrowRight size={12} />
-          <span>€{amount.toFixed(2)}</span>
+          <span>{formatCurrency(amount)}</span>
         </div>
 
         <div className="space-y-1">
@@ -143,7 +144,7 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
               >
                 {accounts.map(a => (
                   <option key={a.id} value={a.id} style={{ background: '#1A1A1A' }}>
-                    {a.name} · €{a.balance.toFixed(2)}
+                    {a.name} · {formatCurrency(a.balance)}
                   </option>
                 ))}
               </select>
@@ -158,7 +159,7 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
             </>
           )}
           <p className="text-xs text-muted pl-1">
-            <span className="text-green-400">+€{amount.toFixed(2)}</span>
+            <span className="text-green-400">{formatCurrency(Math.abs(amount), { signDisplay: 'always' })}</span>
           </p>
         </div>
       </div>

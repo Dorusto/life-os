@@ -16,6 +16,7 @@ import {
   type Category,
   type AccountOption,
 } from '../lib/api'
+import { formatCurrency } from '../lib/formatCurrency'
 
 /**
  * Receipt flow — the multi-step process after selecting a photo, or manual entry.
@@ -410,8 +411,8 @@ export default function ReceiptFlow() {
               {lines.length > 1 && !isBalanced && (
                 <p className="text-xs text-attention text-center">
                   {diff > 0
-                    ? `€${diff.toFixed(2)} unallocated`
-                    : `€${Math.abs(diff).toFixed(2)} over by`}
+                    ? `${formatCurrency(diff)} unallocated`
+                    : `${formatCurrency(Math.abs(diff))} over by`}
                 </p>
               )}
 
@@ -446,7 +447,7 @@ export default function ReceiptFlow() {
               <div className="px-3 py-2.5 rounded-xl bg-attention-dim border border-attention/30 space-y-2">
                 <p className="text-attention text-xs">
                   Found a similar bank transaction: <span className="text-white">{possibleMatch.payee || 'Unknown'}</span>{' '}
-                  €{possibleMatch.amount.toFixed(2)} on {possibleMatch.date}. Attach these details to it instead of creating a new transaction?
+                  {formatCurrency(possibleMatch.amount)} on {possibleMatch.date}. Attach these details to it instead of creating a new transaction?
                 </p>
                 <div className="flex gap-2">
                   <button

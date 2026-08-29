@@ -4,6 +4,7 @@ import { ChevronUp, ChevronDown, Trash2, Plus } from 'lucide-react'
 import type { BudgetCategory } from '../lib/api'
 import { applyCategoryOverview } from '../lib/api'
 import { loadGroupOrder, saveGroupOrder } from '../lib/categoryGroupOrder'
+import { formatCurrency } from '../lib/formatCurrency'
 
 const GROUP_ORDER = ['Housing', 'Daily Living', 'Transport', 'Health', 'Lifestyle', 'Finance', 'Unexpected']
 
@@ -21,10 +22,6 @@ function getBudgetColor(percentage: number, budgeted: number): string {
   if (percentage > 100) return '#FF2D2D'
   const hue = Math.round(120 * (1 - percentage / 100))
   return `hsl(${hue}, 75%, 45%)`
-}
-
-function fmt(n: number): string {
-  return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
 function pad2(n: number): string {
@@ -357,7 +354,7 @@ function GroupRow({
             </div>
           )}
           <span className={`font-mono text-sm tabular-nums ${isIncome ? 'text-positive' : 'text-white'}`}>
-            €{fmt(spent)}
+            {formatCurrency(spent)}
           </span>
         </div>
       </div>
@@ -396,7 +393,7 @@ function SubcategoryRow({
           <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
           <span className="text-muted text-xs truncate">{category_name}</span>
         </div>
-        <span className="font-mono text-xs tabular-nums text-white">€{fmt(spent)}</span>
+        <span className="font-mono text-xs tabular-nums text-white">{formatCurrency(spent)}</span>
       </div>
       {hasBudget && (
         <div className="h-px bg-border/30 rounded-full overflow-hidden mt-1.5 ml-[15px]">

@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft } from 'lucide-react'
 import { getAccountList, getTransactions, setAccountType, ACCOUNT_TYPES } from '../lib/api'
+import { formatCurrency } from '../lib/formatCurrency'
 
 type Tab = 'details' | 'transactions'
 
@@ -94,7 +95,7 @@ export default function AccountDetail() {
         <p className="font-mono text-[11px] uppercase tracking-wide text-muted">Balance</p>
         <h1 className="font-display text-3xl font-bold text-white truncate">{account.name}</h1>
         <p className="font-mono font-medium text-3xl mt-1 tabular-nums">
-          €{account.balance.toLocaleString('nl-NL', { maximumFractionDigits: 0 })}
+          {formatCurrency(account.balance, { decimals: 0 })}
         </p>
       </header>
 
@@ -157,7 +158,7 @@ export default function AccountDetail() {
                     <p className="text-[11.5px] text-muted truncate">{tx.category ?? 'Uncategorized'}</p>
                   </div>
                   <p className={`font-mono text-[13.5px] tabular-nums flex-shrink-0 ${!tx.is_expense ? 'text-positive' : ''}`}>
-                    {!tx.is_expense ? '+' : '−'}{Math.abs(tx.amount).toFixed(2)}
+                    {formatCurrency(tx.is_expense ? -Math.abs(tx.amount) : Math.abs(tx.amount), { signDisplay: 'always' })}
                   </p>
                 </div>
               ))

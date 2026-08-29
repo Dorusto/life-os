@@ -10,6 +10,7 @@ import {
 } from '../lib/api'
 import { matchAccountBySource } from '../lib/csvImportUtils'
 import PageHeader from '../components/PageHeader'
+import { formatCurrency } from '../lib/formatCurrency'
 
 // --- Types ---
 
@@ -429,7 +430,7 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
                     )}
                     {row.possibleDuplicate && (
                       <span
-                        title={`Possible duplicate — €${row.existingAmount?.toFixed(2)} already recorded for this merchant on this date`}
+                        title={`Possible duplicate — ${formatCurrency(row.existingAmount ?? 0)} already recorded for this merchant on this date`}
                       >
                         <AlertCircle size={10} className="text-yellow-500 flex-shrink-0" />
                       </span>
@@ -454,7 +455,9 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
                   )}
                 </td>
                 <td className="py-2 pr-2 text-white text-right whitespace-nowrap">
-                  {row.is_expense ? '' : '+'}{row.currency === 'EUR' ? '€' : row.currency}{row.amount.toFixed(2)}
+                  {row.currency === 'EUR'
+                    ? formatCurrency(row.is_expense ? -Math.abs(row.amount) : Math.abs(row.amount), { signDisplay: 'always' })
+                    : `${row.is_expense ? '' : '+'}${row.currency}${row.amount.toFixed(2)}`}
                 </td>
                 <td className="py-2">
                   {row.duplicate ? (
@@ -465,7 +468,7 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
                     <div className="flex flex-col gap-1">
                       {row.possibleDuplicate && (
                         <span className="text-yellow-500 text-[10px]">
-                          possible duplicate — €{row.existingAmount?.toFixed(2)} already recorded
+                          possible duplicate — {formatCurrency(row.existingAmount ?? 0)} already recorded
                         </span>
                       )}
                       <div className="relative">
@@ -549,13 +552,13 @@ function Step3Confirm({ activeCount, duplicateCount, transferCandidateCount, nee
           <div className="h-px bg-border my-1" />
           <SummaryRow
             label="Expenses"
-            value={`−€${totalExpenses.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            value={formatCurrency(-Math.abs(totalExpenses))}
             bold
           />
           {totalIncome > 0 && (
             <SummaryRow
               label="Income"
-              value={`+€${totalIncome.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+              value={formatCurrency(Math.abs(totalIncome), { signDisplay: 'always' })}
             />
           )}
         </div>

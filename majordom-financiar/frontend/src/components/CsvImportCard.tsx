@@ -8,6 +8,7 @@ import {
   type AccountOption,
 } from '../lib/api'
 import { matchAccountBySource } from '../lib/csvImportUtils'
+import { formatCurrency } from '../lib/formatCurrency'
 
 // --- Local types (mirrors ImportRow from api.ts with local UI additions) ---
 
@@ -351,7 +352,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
                       )}
                       {row.possibleDuplicate && (
                         <span
-                          title={`Possible duplicate — €${row.existingAmount?.toFixed(2)} already recorded for this merchant on this date`}
+                          title={`Possible duplicate — ${formatCurrency(row.existingAmount ?? 0)} already recorded for this merchant on this date`}
                         >
                           <AlertCircle size={10} className="text-yellow-500 flex-shrink-0" />
                         </span>
@@ -383,8 +384,9 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
                     )}
                   </td>
                   <td className="py-1 pr-2 text-white text-right whitespace-nowrap">
-                    {row.is_expense ? '' : '+'}
-                    {row.currency === 'EUR' ? '€' : row.currency}{row.amount.toFixed(2)}
+                    {row.currency === 'EUR'
+                      ? formatCurrency(row.is_expense ? -Math.abs(row.amount) : Math.abs(row.amount), { signDisplay: 'always' })
+                      : `${row.is_expense ? '' : '+'}${row.currency}${row.amount.toFixed(2)}`}
                   </td>
                   <td className="py-1">
                     {row.duplicate ? (
@@ -544,8 +546,8 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
 
       {/* Summary */}
       <div className="flex items-center gap-3 text-xs text-muted flex-wrap">
-        <span>{activeRows.filter(r => r.is_expense).length} expenses (−€{totalExpenses.toFixed(2)})</span>
-        {totalIncome > 0 && <span>| {activeRows.filter(r => !r.is_expense).length} income (+€{totalIncome.toFixed(2)})</span>}
+        <span>{activeRows.filter(r => r.is_expense).length} expenses ({formatCurrency(-Math.abs(totalExpenses))})</span>
+        {totalIncome > 0 && <span>| {activeRows.filter(r => !r.is_expense).length} income ({formatCurrency(Math.abs(totalIncome), { signDisplay: 'always' })})</span>}
         {duplicateCount > 0 && <span>| {duplicateCount} duplicates skipped</span>}
       </div>
 

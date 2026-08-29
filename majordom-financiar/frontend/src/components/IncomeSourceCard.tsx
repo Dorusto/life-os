@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Loader2, Check } from 'lucide-react'
 import { createIncomeSource, getAccountList, AccountListItem } from '../lib/api'
+import { formatCurrency } from '../lib/formatCurrency'
 
 interface IncomeSourceCardProps {
   payee: string
@@ -55,7 +56,7 @@ export default function IncomeSourceCard({ payee, amount, date, onConfirmed }: I
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[520px] w-full space-y-3">
       {/* Transaction context bar */}
       <div className="flex items-center gap-2 text-sm">
-        <span className="text-green-400 font-medium">+€{amount.toFixed(2)}</span>
+        <span className="text-green-400 font-medium">{formatCurrency(amount, { signDisplay: 'always' })}</span>
         <span className="text-muted">·</span>
         <span className="text-muted">{date.slice(5).replace('-', '/')}</span>
       </div>

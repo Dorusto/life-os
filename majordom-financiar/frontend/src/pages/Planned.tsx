@@ -11,7 +11,7 @@ import StandardHeaderActions from '../components/StandardHeaderActions'
  * the only section here until those get their own spec'd feature.
  */
 export default function Planned() {
-  const { data: homeData } = useQuery({
+  const { data: homeData, isLoading } = useQuery({
     queryKey: ['home'],
     queryFn: () => getHomeData(),
     staleTime: 120_000,
@@ -21,7 +21,7 @@ export default function Planned() {
     <div className="min-h-dvh bg-background flex flex-col overflow-y-auto">
       <PageHeader label="Goals & budgeting" title="Planned" actions={<StandardHeaderActions />} />
       <section className="px-5 pt-3 pb-24">
-        <GoalsSection fireData={homeData?.fire} goals={homeData?.goals} />
+        <GoalsSection fireData={homeData?.fire} goals={homeData?.goals} isLoading={isLoading} />
       </section>
     </div>
   )

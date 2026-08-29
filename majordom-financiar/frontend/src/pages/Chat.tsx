@@ -29,6 +29,7 @@ import PageHeader from '../components/PageHeader'
 import IconButton from '../components/IconButton'
 import BottomSheet from '../components/BottomSheet'
 import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from '../lib/api'
+import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 
 
 export interface Message {
@@ -902,7 +903,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
                     )
                   )
                   if (monthlyNeeded && monthlyNeeded > 0) {
-                    const offerText = `To reach this goal, you'd need to put aside €${monthlyNeeded.toFixed(0)}/mo. Want to add that to your Savings budget?`
+                    const offerText = `To reach this goal, you'd need to put aside ${formatCurrency(monthlyNeeded, { decimals: 0 })}/mo. Want to add that to your Savings budget?`
                     try {
                       const proposal = await proposeSavingsBudget(monthlyNeeded)
                       if ('type' in proposal && proposal.type === 'error') {
@@ -1362,15 +1363,15 @@ function PendingFuelStatsDisplay({ msg, draft: propDraft, stats: propStats }: {
           {resolvedStats.liters != null && (
             <p className="text-xs text-muted">
               {resolvedStats.liters}L
-              {resolvedStats.price_per_liter != null && ` → €${resolvedStats.price_per_liter.toFixed(3)}/L`}
+              {resolvedStats.price_per_liter != null && ` → ${formatCurrency(resolvedStats.price_per_liter, { decimals: 3 })}/L`}
               {resolvedStats.fuel_grade && ` (${resolvedStats.fuel_grade})`}
             </p>
           )}
           {(resolvedStats.km_since_last != null || resolvedStats.consumption_l100km != null || resolvedStats.cost_per_km != null) && (
             <p className="text-xs text-muted">
-              {resolvedStats.km_since_last != null && `+${Math.round(resolvedStats.km_since_last).toLocaleString()} km`}
-              {resolvedStats.consumption_l100km != null && `  |  ${resolvedStats.consumption_l100km.toFixed(1)} L/100km`}
-              {resolvedStats.cost_per_km != null && `  |  €${resolvedStats.cost_per_km.toFixed(3)}/km`}
+              {resolvedStats.km_since_last != null && `+${formatNumber(resolvedStats.km_since_last)} km`}
+              {resolvedStats.consumption_l100km != null && `  |  ${formatNumber(resolvedStats.consumption_l100km, 1)} L/100km`}
+              {resolvedStats.cost_per_km != null && `  |  ${formatCurrency(resolvedStats.cost_per_km, { decimals: 3 })}/km`}
             </p>
           )}
           {resolvedDraft?.merchant && <p className="text-xs text-muted">{resolvedDraft.merchant}</p>}

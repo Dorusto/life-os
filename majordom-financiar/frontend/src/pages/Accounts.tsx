@@ -7,6 +7,7 @@ import { listVehicles, type Vehicle } from '../lib/vehicleValueApi'
 import PageHeader from '../components/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import EditVehicleModal from '../components/vehicles/EditVehicleModal'
+import { formatCurrency } from '../lib/formatCurrency'
 
 /**
  * Accounts tab (decisions.md#nav-five-tabs) — a real, live list of Actual
@@ -58,7 +59,7 @@ export default function Accounts() {
       <section className="px-5 pt-2 pb-24">
         <p className="font-mono text-[11px] uppercase tracking-wide text-muted">Total</p>
         <p className="font-mono font-medium text-3xl mt-1 tabular-nums">
-          €{total.toLocaleString('nl-NL', { maximumFractionDigits: 0 })}
+          {formatCurrency(total, { decimals: 0 })}
         </p>
 
         <div className="flex items-center justify-between mt-6 mb-2">
@@ -75,7 +76,7 @@ export default function Accounts() {
         {vehicleAccounts.length > 0 && (
           <>
             <p className="font-mono font-medium text-3xl mt-1 tabular-nums">
-              €{vehicleSubtotal.toLocaleString('nl-NL', { maximumFractionDigits: 0 })}
+              {formatCurrency(vehicleSubtotal, { decimals: 0 })}
             </p>
             <div className="space-y-2.5 mt-3">
               {vehicleAccounts.map(account => {
@@ -128,7 +129,7 @@ function AccountRow({ account }: { account: AccountListItem }) {
       </div>
       <p className="flex-1 min-w-0 text-[13.5px] font-semibold truncate">{account.name}</p>
       <p className="font-mono text-sm tabular-nums flex-shrink-0">
-        €{account.balance.toLocaleString('nl-NL', { maximumFractionDigits: 0 })}
+        {formatCurrency(account.balance, { decimals: 0 })}
       </p>
     </button>
   )
@@ -162,7 +163,7 @@ function VehicleAccountRow({ account, vehicle }: { account: AccountListItem; veh
         )}
       </div>
       <p className="font-mono text-sm tabular-nums flex-shrink-0">
-        €{account.balance.toLocaleString('nl-NL', { maximumFractionDigits: 0 })}
+        {formatCurrency(account.balance, { decimals: 0 })}
       </p>
     </button>
   )

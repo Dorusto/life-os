@@ -15,6 +15,7 @@ import PageHeader from '../components/PageHeader'
 import Card from '../components/Card'
 import ActionCardButtons from '../components/ActionCardButtons'
 import IconButton from '../components/IconButton'
+import { formatCurrency } from '../lib/formatCurrency'
 
 /**
  * Duplicate review screen (#181) — opens from the Home header icon.
@@ -211,7 +212,7 @@ function SideBlock({ title, side, keep }: { title: string; side: DuplicateTransa
       <p className={`text-[11px] tracking-[0.15em] uppercase mb-2 ${keep ? 'text-success' : 'text-muted'}`}>{title}</p>
       <div className="space-y-1">
         <Row label="Date" value={formatDate(side.date)} />
-        <Row label="Amount" value={`€${side.amount.toFixed(2)}`} strong />
+        <Row label="Amount" value={formatCurrency(side.amount)} strong />
         <Row label="Payee" value={side.payee || '—'} />
         <Row label="Category" value={side.category_name || 'Uncategorized'} />
         <Row label="Notes" value={side.notes || '—'} />

@@ -1,4 +1,5 @@
 import type { Transaction } from '../lib/api'
+import { formatCurrency } from '../lib/formatCurrency'
 
 /**
  * A single transaction row in the Home screen list.
@@ -30,7 +31,8 @@ interface Props {
 export default function TransactionItem({ transaction: tx }: Props) {
   const emoji = tx.category_id ? (CATEGORY_EMOJI[tx.category_id] ?? '📦') : '📦'
   const formattedDate = formatDate(tx.date)
-  const formattedAmount = `${tx.is_expense ? '-' : '+'}€${tx.amount.toFixed(2)}`
+  const signedAmount = tx.is_expense ? -Math.abs(tx.amount) : Math.abs(tx.amount)
+  const formattedAmount = formatCurrency(signedAmount, { signDisplay: 'always' })
 
   return (
     <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-surface hover:bg-surface-2 transition-colors">

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Loader2, Check, AlertCircle } from 'lucide-react'
 import { confirmReceipt, type ReceiptDraft, type NearDuplicateMatch } from '../lib/api'
+import { formatCurrency } from '../lib/formatCurrency'
 
 interface ReceiptCardProps {
   imageUrl?: string
@@ -66,8 +67,8 @@ export default function ReceiptCard({
         return
       }
       const message = opts?.attachTo
-        ? `Attached to existing transaction — ${merchant} €${parsed.toFixed(2)}`
-        : `Receipt saved — ${merchant} €${parsed.toFixed(2)}`
+        ? `Attached to existing transaction — ${merchant} ${formatCurrency(parsed)}`
+        : `Receipt saved — ${merchant} ${formatCurrency(parsed)}`
       onConfirmed(message)
     } catch (err) {
       onConfirmed(`Failed to save receipt: ${err instanceof Error ? err.message : 'Unknown error'}`)
@@ -236,7 +237,7 @@ export default function ReceiptCard({
             <div className="px-3 py-2.5 rounded-xl bg-yellow-500/10 border border-yellow-500/30 space-y-2">
               <p className="text-yellow-500 text-xs">
                 Found a similar bank transaction: <span className="text-white">{possibleMatch.payee || 'Unknown'}</span>{' '}
-                €{possibleMatch.amount.toFixed(2)} on {possibleMatch.date}. Attach these details to it instead of creating a new transaction?
+                {formatCurrency(possibleMatch.amount)} on {possibleMatch.date}. Attach these details to it instead of creating a new transaction?
               </p>
               <div className="flex gap-2">
                 <button

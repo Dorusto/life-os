@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { confirmTransferConversion, cancelTransferConversion, type TransferConversionData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
+import { formatCurrency } from '../lib/formatCurrency'
 
 interface Props {
   data: TransferConversionData
@@ -10,10 +11,6 @@ interface Props {
 
 export default function TransferConversionCard({ data, onConfirmed, onCancelled }: Props) {
   const [loading, setLoading] = useState(false)
-
-  function formatEuro(amount: number): string {
-    return `€${Math.abs(amount).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-  }
 
   async function handleConfirm() {
     setLoading(true)
@@ -41,7 +38,7 @@ export default function TransferConversionCard({ data, onConfirmed, onCancelled 
       <div>
         <p className="text-white font-medium">Convert to transfer?</p>
         <p className="text-muted text-sm">
-          <span className="text-white">{data.payee || 'Unnamed'}</span> · {data.date} · {formatEuro(data.amount)}
+          <span className="text-white">{data.payee || 'Unnamed'}</span> · {data.date} · {formatCurrency(data.amount)}
         </p>
         <p className="text-muted text-sm mt-0.5">
           Move from {data.account_name} to{' '}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { confirmCloseAccount, cancelCloseAccount, type CloseAccountData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
+import { formatCurrency } from '../lib/formatCurrency'
 
 interface Props {
   data: CloseAccountData
@@ -13,10 +14,6 @@ export default function CloseAccountCard({ data, onConfirmed, onCancelled }: Pro
   const accounts = data.accounts ?? []
   const hasBalance = Math.abs(data.balance) >= 0.01
   const [destinationId, setDestinationId] = useState(accounts[0]?.id ?? '')
-
-  function formatEuro(amount: number): string {
-    return `€${Math.abs(amount).toLocaleString('en', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-  }
 
   async function handleConfirm() {
     setLoading(true)
@@ -43,10 +40,10 @@ export default function CloseAccountCard({ data, onConfirmed, onCancelled }: Pro
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[80%] space-y-3">
       <div>
         <p className="text-white font-medium">{data.account_name}</p>
-        <p className="text-muted text-sm">Current balance: {formatEuro(data.balance)}</p>
+        <p className="text-muted text-sm">Current balance: {formatCurrency(data.balance)}</p>
         {hasBalance && (
           <p className="text-sm font-medium mt-1 text-yellow-400">
-            This account still has a balance of {formatEuro(data.balance)} — pick a destination account below to move it there before closing.
+            This account still has a balance of {formatCurrency(data.balance)} — pick a destination account below to move it there before closing.
           </p>
         )}
       </div>
@@ -63,7 +60,7 @@ export default function CloseAccountCard({ data, onConfirmed, onCancelled }: Pro
             {accounts.length === 0 && <option value="">No other accounts available</option>}
             {accounts.map(a => (
               <option key={a.id} value={a.id} style={{ background: '#1A1A1A' }}>
-                {a.name} · €{a.balance.toFixed(2)}
+                {a.name} · {formatCurrency(a.balance)}
               </option>
             ))}
           </select>
