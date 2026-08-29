@@ -188,7 +188,7 @@ export default function Dashboard() {
           </div>
         </section>
       ) : (
-        <section className="px-5 pt-3 pb-24">
+        <section className="px-5 pt-3 pb-36">
           {!editing && (
             <div className="flex justify-center mb-4">
               <button
@@ -271,31 +271,37 @@ export default function Dashboard() {
               </div>
             </>
           )}
-
-          <div className="flex items-center justify-center gap-2 mt-7">
-            <button
-              onClick={() => shiftDashboardPeriod(-1)}
-              className="w-7 h-7 rounded-lg bg-surface border border-border text-muted hover:text-white flex items-center justify-center flex-shrink-0"
-              aria-label="Previous period"
-            >
-              <ChevronLeft size={14} />
-            </button>
-            <button
-              onClick={() => setPeriodSheetOpen(true)}
-              className="inline-flex items-center gap-1.5 bg-surface border border-border rounded-lg px-3 py-2 text-xs font-semibold text-white hover:border-interactive transition-colors"
-            >
-              <Calendar size={13} />
-              {periodLabel}
-            </button>
-            <button
-              onClick={() => shiftDashboardPeriod(1)}
-              className="w-7 h-7 rounded-lg bg-surface border border-border text-muted hover:text-white flex items-center justify-center flex-shrink-0"
-              aria-label="Next period"
-            >
-              <ChevronRight size={14} />
-            </button>
-          </div>
         </section>
+      )}
+
+      {/* Always-visible period bar — fixed above BottomNav, not part of the
+          scrollable content, so switching periods and seeing every widget
+          react doesn't require scrolling down to the control and back up
+          to look at the result. */}
+      {homeData && accountCount !== 0 && (
+        <div className="fixed bottom-16 left-0 right-0 z-40 flex items-center justify-center gap-2 py-2.5 bg-background/95 backdrop-blur border-t border-border">
+          <button
+            onClick={() => shiftDashboardPeriod(-1)}
+            className="w-7 h-7 rounded-lg bg-surface border border-border text-muted hover:text-white flex items-center justify-center flex-shrink-0"
+            aria-label="Previous period"
+          >
+            <ChevronLeft size={14} />
+          </button>
+          <button
+            onClick={() => setPeriodSheetOpen(true)}
+            className="inline-flex items-center gap-1.5 bg-surface border border-border rounded-lg px-3 py-2 text-xs font-semibold text-white hover:border-interactive transition-colors"
+          >
+            <Calendar size={13} />
+            {periodLabel}
+          </button>
+          <button
+            onClick={() => shiftDashboardPeriod(1)}
+            className="w-7 h-7 rounded-lg bg-surface border border-border text-muted hover:text-white flex items-center justify-center flex-shrink-0"
+            aria-label="Next period"
+          >
+            <ChevronRight size={14} />
+          </button>
+        </div>
       )}
 
       <PeriodPickerSheet
