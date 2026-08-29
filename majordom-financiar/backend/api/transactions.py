@@ -54,12 +54,6 @@ class Transaction(BaseModel):
     notes: Optional[str]
 
 
-class Account(BaseModel):
-    id: str
-    name: str
-    balance: float
-
-
 class CreateTransactionRequest(BaseModel):
     merchant: str
     amount: float
@@ -247,33 +241,6 @@ async def create_transaction(
         duplicate=result.get("duplicate", False),
         transaction_id=result.get("transaction_id"),
     )
-
-
-@router.get("/accounts", response_model=list[Account])
-async def list_accounts(current_user: str = Depends(get_current_user)):
-    """
-    Return all open accounts from Actual Budget.
-    Used to populate the account selector when confirming a receipt.
-    """
-    client = ActualBudgetClient(
-        url=settings.actual.url,
-        password=settings.actual.password,
-        sync_id=settings.actual.sync_id,
-    )
-
-    try:
-        accounts = await client.get_accounts()
-    except Exception as e:
-        logger.error("Failed to fetch accounts from Actual Budget: %s", e)
-        raise HTTPException(
-            status_code=500,
-            detail="Could not connect to Actual Budget. Is it running?",
-        )
-
-    return [
-        Account(id=acc.id, name=acc.name, balance=acc.balance)
-        for acc in accounts
-    ]
 
 
 class CategoryItem(BaseModel):

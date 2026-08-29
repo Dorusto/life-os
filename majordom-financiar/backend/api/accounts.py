@@ -62,7 +62,10 @@ async def list_accounts(current_user: str = Depends(get_current_user)):
     client = _get_client()
     accounts = await client.get_accounts()
     return [
-        AccountListItem(id=a.id, name=a.name, balance=a.balance, off_budget=a.off_budget)
+        AccountListItem(
+            id=a.id, name=a.name, balance=a.balance,
+            off_budget=a.off_budget, account_type=a.account_type,
+        )
         for a in accounts
     ]
 
