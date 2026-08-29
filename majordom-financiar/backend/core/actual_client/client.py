@@ -13,6 +13,8 @@ from datetime import date
 
 logger = logging.getLogger(__name__)
 
+ACCOUNT_TYPES = ("Cash", "Investment", "Vehicle", "Loan", "Rental")
+
 # Every request builds its own ActualBudgetClient (see e.g. backend/api/home.py's
 # _get_client()), but actualpy syncs to one shared local cache file keyed by sync_id —
 # concurrent instances racing on that file causes intermittent "no such table" errors
@@ -625,6 +627,7 @@ class Account:
     name: str
     balance: float
     off_budget: bool = False
+    account_type: str | None = None
     # YYYY-MM-DD of the account's most recent transaction — used as "Last
     # updated" by the annual liability balance reminder (#60).
     last_activity_date: str | None = None
@@ -689,11 +692,21 @@ class ActualBudgetClient:
                             f"{(last_activity_int // 100) % 100:02d}-"
                             f"{last_activity_int % 100:02d}"
                         )
+                    import re
+                    account_type = None
+                    notes = acc.notes or ""
+                    type_match = re.search(r'TYPE:\s*(' + '|'.join(ACCOUNT_TYPES) + r')', notes, re.IGNORECASE)
+                    if type_match:
+                        account_type = next(
+                            (t for t in ACCOUNT_TYPES if t.lower() == type_match.group(1).lower()),
+                            None,
+                        )
                     result.append(Account(
                         id=str(acc.id),
                         name=acc.name,
                         balance=balance,
                         off_budget=bool(acc.offbudget),
+                        account_type=account_type,
                         last_activity_date=last_activity_date,
                     ))
                 return result

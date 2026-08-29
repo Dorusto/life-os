@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, type ChangeEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft } from 'lucide-react'
-import { getAccountList, getTransactions } from '../lib/api'
+import { getAccountList, getTransactions, setAccountType, ACCOUNT_TYPES } from '../lib/api'
 
 type Tab = 'details' | 'transactions'
 
@@ -21,6 +21,8 @@ export default function AccountDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('transactions')
+  const [editingType, setEditingType] = useState(false)
+  const queryClient = useQueryClient()
 
   const { data: accounts } = useQuery({
     queryKey: ['account-list'],
@@ -66,6 +68,18 @@ export default function AccountDetail() {
     )
   }
 
+  async function handleTypeChange(event: ChangeEvent<HTMLSelectElement>) {
+    if (!account) return
+    const value = event.target.value
+    try {
+      await setAccountType(account.id, value)
+      await queryClient.invalidateQueries({ queryKey: ['account-list'] })
+    } catch {
+      // ignore — the select closes below
+    }
+    setEditingType(false)
+  }
+
   return (
     <div className="min-h-dvh bg-background flex flex-col overflow-y-auto">
       <header className="flex-shrink-0 px-5 pb-3 pt-14">
@@ -98,10 +112,34 @@ export default function AccountDetail() {
         </div>
 
         {tab === 'details' ? (
-          <div className="mt-4 bg-surface border border-border rounded-2xl px-4 py-3">
+          <div className="mt-4 bg-surface border border-border rounded-2xl px-4 py-3 space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-[13.5px] text-muted">Type</p>
+              <p className="text-[13.5px] text-muted">Budget</p>
               <p className="text-[13.5px] font-semibold">{account.off_budget ? 'Off-budget' : 'On-budget'}</p>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[13.5px] text-muted">Category</p>
+              {editingType ? (
+                <select
+                  autoFocus
+                  value={account.account_type ?? ''}
+                  onChange={handleTypeChange}
+                  onBlur={() => setEditingType(false)}
+                  className="bg-surface-2 border border-border text-[13.5px] font-semibold px-2 py-1 rounded-lg"
+                >
+                  <option value="" disabled>Select…</option>
+                  {ACCOUNT_TYPES.map(t => (
+                    <option key={t} value={t}>{t}</option>
+                  ))}
+                </select>
+              ) : (
+                <button
+                  onClick={() => setEditingType(true)}
+                  className="text-[13.5px] font-semibold hover:text-accent transition-colors"
+                >
+                  {account.account_type ?? 'Not set'}
+                </button>
+              )}
             </div>
           </div>
         ) : (

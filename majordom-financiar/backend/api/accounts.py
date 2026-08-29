@@ -22,6 +22,7 @@ class AccountListItem(BaseModel):
     name: str
     balance: float
     off_budget: bool
+    account_type: str | None = None
 
 
 class CreateAccountRequest(BaseModel):
@@ -41,6 +42,10 @@ class TransferRequest(BaseModel):
 
 class TransferResult(BaseModel):
     message: str
+
+
+class SetAccountTypeRequest(BaseModel):
+    account_type: str
 
 
 def _get_client() -> ActualBudgetClient:
@@ -148,3 +153,29 @@ async def transfer_money(
     if created_account_name:
         message = f"Account '{created_account_name}' created. " + message
     return TransferResult(message=message)
+
+
+@router.post("/accounts/{account_id}/type", response_model=AccountListItem)
+async def set_account_type(
+    account_id: str,
+    body: SetAccountTypeRequest,
+    current_user: str = Depends(get_current_user),
+):
+    """Set the account category (Cash / Investment / Vehicle / Loan / Rental) as a TYPE: tag in AB notes."""
+    client = _get_client()
+    try:
+        await client.set_account_type(account_id, body.account_type)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    accounts = await client.get_accounts()
+    account = next((a for a in accounts if str(a.id) == account_id), None)
+    if account is None:
+        raise HTTPException(status_code=404, detail="Account not found after update")
+    return AccountListItem(
+        id=str(account.id),
+        name=account.name,
+        balance=account.balance,
+        off_budget=account.off_budget,
+        account_type=account.account_type,
+    )

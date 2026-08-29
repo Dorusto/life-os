@@ -176,6 +176,7 @@ export interface AccountListItem {
   name: string
   balance: number
   off_budget: boolean
+  account_type?: string | null
 }
 
 // --- Auth ---
@@ -312,8 +313,17 @@ export async function getVehicleCostsSummary(period?: string): Promise<VehicleCo
   return request<VehicleCostsSummary>(`/vehicle/costs-summary${query ? `?${query}` : ''}`)
 }
 
+export const ACCOUNT_TYPES = ['Cash', 'Investment', 'Vehicle', 'Loan', 'Rental'] as const
+
 export async function getAccountList(): Promise<AccountListItem[]> {
   return request<AccountListItem[]>('/accounts')
+}
+
+export async function setAccountType(accountId: string, accountType: string): Promise<AccountListItem> {
+  return request<AccountListItem>(`/accounts/${accountId}/type`, {
+    method: 'POST',
+    body: JSON.stringify({ account_type: accountType }),
+  })
 }
 
 export async function createAccount(name: string, offBudget = false): Promise<AccountListItem> {
