@@ -1812,6 +1812,41 @@ class ActualBudgetClient:
                 return acc.name
         return await self._run(_set)
 
+    async def set_account_type(self, account_id: str, account_type: str) -> str:
+        """Set TYPE: <value> tag on account notes. Returns account name."""
+        canonical = None
+        for t in ACCOUNT_TYPES:
+            if t.lower() == account_type.lower():
+                canonical = t
+                break
+        if canonical is None:
+            raise ValueError(
+                f"Invalid account type: {account_type!r}. Must be one of {', '.join(ACCOUNT_TYPES)}"
+            )
+
+        def _set():
+            import re
+            from actual.database import Accounts
+            with self._get_actual() as actual:
+                actual.download_budget()
+                acc = actual.session.query(Accounts).filter(
+                    Accounts.id == account_id,
+                    Accounts.tombstone == 0,
+                ).first()
+                if not acc or acc.closed:
+                    raise ValueError(f"Account not found: {account_id}")
+                note = acc.notes or ""
+                type_tag = f"TYPE: {canonical}"
+                if re.search(r'TYPE:\s*\w+', note, re.IGNORECASE):
+                    note = re.sub(r'TYPE:\s*\w+', type_tag, note, flags=re.IGNORECASE)
+                else:
+                    note = (note.strip() + "\n" + type_tag).strip()
+                acc.notes = note
+                actual.commit()
+                return acc.name
+
+        return await self._run(_set)
+
     async def get_total_balance(self) -> float:
         accounts = await self.get_accounts()
         return sum(acc.balance for acc in accounts)
