@@ -989,3 +989,33 @@ file permanently heavier.
 **Also decided the same session — write path stays chat-mediated, just without the typing/navigation step.** Doru pushed back on "everything must go through typed chat" as a general principle — agreed there's no reason a structured input (name, amount, deadline) needs a free-text round trip. The fix implemented is narrow, not a new write path: the "+ New goal" button opens a form (`frontend/src/components/NewGoalSheet.tsx`) that constructs a natural-language message from the form fields and submits it to the existing `/chat` endpoint in the background (`sendChatMessageStreaming`, no visible transcript), then renders the existing `GoalProposalCard` confirmation card inline once the stream returns a `goal_proposal`. `finance__set_account_goal` was already in `_PROPOSAL_TOOLS` — no backend changes, no new endpoint, the "LLM = translator, logic = backend" principle (`docs/learn/10-chat-tools.md`) is unaffected. This is a UI-level shortcut around free-text typing, not a bypass of the confirmation-card write pattern (`architecture.md`'s "all write tools → confirmation card" rule still holds — the card is still shown, still editable, still requires an explicit confirm).
 
 **Rejected:** keeping Financial Goals as a button-launched page under Dashboard (didn't fit — see above); building a new non-chat write endpoint for goal creation (bigger scope, not needed — the existing tool/proposal machinery already does everything required, the only real complaint was the typing/navigation step, not the underlying mechanism).
+
+---
+
+<a id="task-complete-via-fork-paused"></a>
+### `/task-complete` run via background fork — paused, not redesigned
+
+**Date:** 2026-08-29 (same session, right after `#planned-tab-added`)
+
+**Context:** the new step 7a in `.claude/skills/plan-feature/SKILL.md` ("implementing directly? fork instead of blocking") was applied to `/task-complete` itself — a fork ran the full skill for the Planned-tab feature (commit + issue-closing check + session log + setup-improvement check). It cost ~266k subagent tokens and ~5 minutes for a same-session, already-manually-tested, low-risk commit — the exact "conditional review" case `#task-complete-skill-made-cheaper` (2026-08-28) already exists to short-circuit, but forking the whole skill re-paid the fixed overhead anyway rather than skipping steps.
+
+**Decision:** stop routing `/task-complete` through a background fork for now. Run it inline (main conversation) until it's made cheap enough that forking it isn't disproportionate to the task. This does not undo step 7a in `plan-feature/SKILL.md` — that step is about *implementation* work (the thing that actually benefits from running unattended while the conversation continues), not the wrap-up checklist.
+
+**Why:** Doru flagged the cost live ("costa prea mult pentru o simpla confirmare ca totul e ok sau sa gaseasca chestii minore") — a fork's fixed overhead (re-deriving context, running the pre-commit-review subagent, doing its own file reads) turned a step that step-1's own conditional-skip rule should have made near-free into one of the most expensive single actions of the session.
+
+**Not done here:** no redesign of `/task-complete` itself — the existing conditional-review/batching/scaled-logs rules (`#task-complete-skill-made-cheaper`) are believed still correct, the problem is specifically the fork wrapper adding its own overhead on top. A future pass should look at whether step 1's "skip if already reviewed in this conversation" can be judged by the *main* session before forking at all, instead of re-derived inside the fork.
+
+---
+
+<a id="deepseek-delegation-default-is-aider"></a>
+### DeepSeek delegation default corrected — Aider dispatch, not a saved prompt file
+
+**Date:** 2026-08-29 (same session, right after `#task-complete-via-fork-paused`)
+
+**Context:** two well-scoped frontend tasks (Budget widget restyle, category-click → filtered Transactions) got written as static `scripts/prompts/deepseek/*.md` files, the old manual-handoff habit — even though `delegate-by-complexity` (Aider headless dispatch, migrated from opencode 2026-08-28) already exists and was the actual intended default. Doru caught it live: "am schimbat structura de colaborare, nu mai scrii acolo prompturile pentru deepseek ci le delegi tu direct prin aider. nu stiu de ce nu s-a activat skill-ul."
+
+**Decision:** `CLAUDE.md` (root), `majordom-financiar/CLAUDE.md`, and `plan-feature/SKILL.md` step 8 all corrected — default delegation path is now explicitly "run `delegate-by-complexity`, dispatch via Aider, review the diff, merge only on Doru's confirmation." The old "write to `scripts/prompts/deepseek/NNN_desc.md` and stop" behavior is kept only as a named fallback (Doru wants to run DeepSeek himself, or Claude Code is unavailable) — no longer described as "the default handoff."
+
+**Why it silently resurfaced:** the two static prompt files were written by pattern-matching on this session's own earlier `plan-feature`-driven work (which correctly used the manual-file convention because that's what the docs said at the time) — nothing in the moment flagged that a newer, better mechanism existed and should have been checked first. Root cause is the docs, not a one-off lapse: `CLAUDE.md`'s collaboration-workflow section still described the manual file save as the default, so following it faithfully produced the outdated behavior.
+
+**Not done here:** no change to `delegate-by-complexity` itself (it was already correct) — this is purely a documentation-default fix in the *calling* project's docs, so the right tool gets reached for automatically next time instead of depending on being remembered mid-session.

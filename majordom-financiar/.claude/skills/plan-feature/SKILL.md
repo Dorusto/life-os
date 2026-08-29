@@ -43,15 +43,21 @@ If the feature has meaningful variants (1 generic tool vs N specific tools, libr
 
 - The fork already has the full conversation context (the plan, the research, the file reads) — the prompt only needs to be a clear, self-contained *directive*: exact files, exact patterns/line ranges already found, critical rules already identified in steps 1-6, and a "Done when" checklist. Don't make the fork re-derive research already done in the main thread.
 - Explicitly tell the fork not to commit — Doru reviews the diff and confirms it works before any commit, same as any other implementation (`CLAUDE.md`'s commit rule doesn't change just because a fork did the typing).
-- This doesn't apply to a DeepSeek delegation (step 8) — DeepSeek prompts are saved to a file and run by Doru himself, already async by construction. It applies specifically to "implement directly" tasks, which otherwise block the whole conversation on tool-call turns until finished.
+- This doesn't apply to a DeepSeek delegation (step 8) — that's dispatched via Aider (`delegate-by-complexity`), already async by construction (runs in its own worktree, doesn't block this conversation). It applies specifically to "implement directly" tasks, which otherwise block the whole conversation on tool-call turns until finished.
+- **Does not apply to `/task-complete`.** Paused 2026-08-29 (`decisions.md#task-complete-via-fork-paused`) after a fork ran the full end-of-task checklist for a same-session, already-tested, low-risk commit at ~266k tokens / ~5 minutes — the fork's own fixed overhead defeated `task-complete`'s existing conditional-review/batching rules instead of benefiting from them. Run `/task-complete` inline in the main conversation until that's revisited.
 
 ## 8 — If delegating to DeepSeek
+
+**Default (corrected 2026-08-29): dispatch via the `delegate-by-complexity` skill, Aider headless.** Run that skill — it handles worktree isolation, model tier selection (Flash default, Pro for Senior-tier), the actual `aider --message-file ...` launch, and the review/merge-confirmation loop. Do not write a static prompt file and stop; that was the old habit (see `decisions.md` for when/why it got corrected) and it silently resurfaced once already despite the skill existing — check for `delegate-by-complexity` explicitly before defaulting to the manual path below.
+
+**Manual prompt-file path — fallback only**, for when Doru wants to run DeepSeek himself or Claude Code is unavailable: save to `scripts/prompts/deepseek/NNN_desc.md` using the template below, then stop — Doru runs it manually. Not the default when Claude itself is doing the delegating.
+
+Either way, the prompt content follows the same rules:
 
 8a. Include every rule found in steps 1-6 EXPLICITLY in the prompt under `## Critical Rules` — DeepSeek does not read other files.
 8b. If no rules apply, write: `No specific rules identified for this task.` (proves the step was done, not skipped.)
 8c. **Spec, not code.** Before writing any code block in the prompt, ask: "Can DeepSeek figure this out from a prose spec?" If yes → write prose. Code only for non-obvious quirks (library syntax, wrong field names, operation order). If you find yourself writing a full function → stop and replace with a sentence.
-
-Save the prompt to `scripts/prompts/deepseek/NNN_desc.md`, using the template below. Once saved, stop — Doru runs it in DeepSeek himself; that's the default handoff, not a choice to re-confirm each time.
+8d. Add a **Circuit breaker** clause (see `delegate-by-complexity`'s `references/prompt-template.md`) — Aider doesn't read `decisions.md`/`architecture.md` on its own, so it needs telling: stop and describe the situation rather than picking an undocumented architectural call itself.
 
 ### DeepSeek prompt template
 

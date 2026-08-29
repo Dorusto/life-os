@@ -29,11 +29,12 @@ Issue priority: GitHub Milestones + Labels, not a doc — see `majordom-financia
 
 ## Collaboration workflow
 
-**Claude** = senior/architect: reads the code, designs the solution, writes the spec and DeepSeek prompt.
-**DeepSeek** = engineer: receives the prompt, implements.
+**Claude** = senior/architect: reads the code, designs the solution, scopes the task.
+**DeepSeek** = engineer: implements.
 
-DeepSeek prompts are saved in `majordom-financiar/scripts/prompts/` — one `.md` file per task.
-If Claude is not available (credit exhausted): open the relevant prompt file and paste it directly into DeepSeek.
+**Default (2026-08-29, corrected from the old manual-file habit): Claude delegates directly via Aider headless, using the `delegate-by-complexity` skill** — isolated git worktree, `aider --model deepseek/... --message-file <task>`, Claude reviews the diff, merges only with the user's explicit confirmation. Claude does not write a static prompt file and stop.
+
+**Fallback only** — when the user wants to run DeepSeek themselves, or Claude Code isn't available (credit exhausted): a prompt file saved under `majordom-financiar/scripts/prompts/deepseek/` to paste directly into DeepSeek. This is the exception path, not the default.
 
 When the user asks only to note a bug or idea → create a GitHub issue and stop. Do not implement.
 
