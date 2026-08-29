@@ -16,6 +16,7 @@ import StandardHeaderActions from '../components/StandardHeaderActions'
 import BottomSheet from '../components/BottomSheet'
 import Chart from '../components/Chart'
 import { WIDGETS, loadWidgetPrefs, saveWidgetPrefs, type WidgetId } from '../lib/dashboardWidgets'
+import { loadNetWorthIncludePrefs, saveNetWorthIncludePrefs } from '../lib/netWorthPrefs'
 import { useState, useEffect, useRef } from 'react'
 
 const EXPENSE_COLORS = ['#E8A838', '#4F8EF7', '#EF4444', '#8B7BF0', '#22C55E']
@@ -135,6 +136,8 @@ export default function Dashboard() {
         return <CashFlowWidget periodLabel={periodLabel} />
       case 'vehicle':
         return <VehicleCostsWidget periodLabel={periodLabel} dashboardMonth={dashboardMonth} dashboardYear={dashboardYear} />
+      case 'networth':
+        return <NetWorthWidget accounts={accounts} dashboardMonth={dashboardMonth} dashboardYear={dashboardYear} />
     }
   }
 
@@ -510,6 +513,147 @@ function TrendWidget({ accounts, dashboardMonth, dashboardYear }: {
         <p className="text-muted text-xs mt-3">
           {scope === 'Portfolio' ? 'No portfolio data source yet.' : 'Needs vehicle-manager cost data.'}
         </p>
+      )}
+    </div>
+  )
+}
+
+function NetWorthWidget({ accounts, dashboardMonth, dashboardYear }: {
+  accounts: AccountListItem[] | undefined
+  dashboardMonth: number
+  dashboardYear: number
+}) {
+  const [includePrefs, setIncludePrefs] = useState<Record<'Loan' | 'Vehicle' | 'Rental', boolean>>(() => loadNetWorthIncludePrefs())
+  const [menuOpen, setMenuOpen] = useState(false)
+  const navigate = useNavigate()
+
+  const currentTotal = (accounts ?? []).reduce((sum, a) => {
+    const type = a.account_type
+    if (type === 'Loan' && !includePrefs.Loan) return sum
+    if (type === 'Vehicle' && !includePrefs.Vehicle) return sum
+    if (type === 'Rental' && !includePrefs.Rental) return sum
+    return sum + a.balance
+  }, 0)
+
+  const currentDate = new Date()
+  const isCurrentPeriod =
+    dashboardMonth === currentDate.getMonth() + 1 &&
+    dashboardYear === currentDate.getFullYear()
+  const endDate = isCurrentPeriod
+    ? undefined
+    : (() => {
+        const lastDay = new Date(dashboardYear, dashboardMonth, 0).getDate()
+        const mm = String(dashboardMonth).padStart(2, '0')
+        const dd = String(lastDay).padStart(2, '0')
+        return `${dashboardYear}-${mm}-${dd}`
+      })()
+
+  const balanceHistoryQuery = useQuery({
+    queryKey: ['net-worth-history', dashboardMonth, dashboardYear],
+    queryFn: () => getBalanceHistory('total', 30, endDate),
+  })
+
+  const historyPoints = balanceHistoryQuery.data ?? []
+  const startBalance = historyPoints[0]?.balance
+  const endBalance = historyPoints[historyPoints.length - 1]?.balance
+  const growthDiff = startBalance != null && endBalance != null ? endBalance - startBalance : null
+  const growthPct =
+    startBalance != null && endBalance != null && startBalance !== 0
+      ? ((endBalance - startBalance) / Math.abs(startBalance)) * 100
+      : null
+
+  const lineData = {
+    series: [
+      {
+        label: 'Net Worth',
+        color: '#6366F1',
+        points: historyPoints.map(p => ({ x: p.date, y: p.balance })),
+      },
+    ],
+    empty_message: 'No net worth history yet',
+  }
+
+  function toggleInclude(category: 'Loan' | 'Vehicle' | 'Rental') {
+    const next = { ...includePrefs, [category]: !includePrefs[category] }
+    setIncludePrefs(next)
+    saveNetWorthIncludePrefs(next)
+  }
+
+  return (
+    <div className="bg-gradient-to-br from-surface to-surface-2 border border-border rounded-2xl p-5">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-display font-bold text-[15px]">Net Worth</span>
+        <div className="relative flex items-center gap-1">
+          <button
+            onClick={() => navigate('/analytics')}
+            className="text-muted hover:text-white transition-colors"
+            aria-label="View analytics"
+          >
+            <ArrowUpRight size={15} />
+          </button>
+          <button
+            onClick={() => setMenuOpen(o => !o)}
+            className="inline-flex items-center gap-1.5 bg-surface-2 border border-border text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg"
+          >
+            Include
+            <ChevronDown size={12} />
+          </button>
+          {menuOpen && (
+            <div className="absolute top-full right-0 mt-1.5 bg-surface-2 border border-border-hover rounded-xl p-2.5 min-w-[190px] shadow-lg z-10">
+              {(['Loan', 'Vehicle', 'Rental'] as const).map(cat => (
+                <label key={cat} className="flex items-center gap-2 py-1.5 text-sm text-white cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includePrefs[cat]}
+                    onChange={() => toggleInclude(cat)}
+                    className="accent-accent"
+                  />
+                  {cat}
+                </label>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <p className="font-mono font-medium text-3xl mt-2 tabular-nums">
+        €{currentTotal.toLocaleString('nl-NL', { maximumFractionDigits: 0 })}
+      </p>
+
+      {balanceHistoryQuery.isLoading ? (
+        <div className="mt-3 flex items-center gap-2 text-muted text-xs">
+          <Loader2 size={14} className="animate-spin" />
+          Loading historical balance…
+        </div>
+      ) : balanceHistoryQuery.isError ? (
+        <p className="text-muted text-xs mt-3">Couldn't load net worth history.</p>
+      ) : historyPoints.length >= 2 ? (
+        <>
+          <div className="mt-3">
+            <Chart chart_type="line" title="Net Worth" data={lineData} bare />
+          </div>
+          {startBalance != null && endBalance != null && (
+            <div className="grid grid-cols-3 gap-2 mt-3">
+              <div>
+                <p className="font-mono text-[10px] tracking-widest uppercase text-muted">Start</p>
+                <p className="text-sm text-white tabular-nums mt-0.5">€{startBalance.toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="font-mono text-[10px] tracking-widest uppercase text-muted">Now</p>
+                <p className="text-sm text-white tabular-nums mt-0.5">€{endBalance.toFixed(2)}</p>
+              </div>
+              <div>
+                <p className="font-mono text-[10px] tracking-widest uppercase text-muted">Growth</p>
+                <p className={`text-sm tabular-nums mt-0.5 ${growthDiff != null && growthDiff >= 0 ? 'text-positive' : 'text-red-400'}`}>
+                  {growthDiff != null ? `${growthDiff >= 0 ? '+' : ''}€${growthDiff.toFixed(2)}` : '—'}
+                  {growthPct != null ? ` · ${growthPct >= 0 ? '+' : ''}${growthPct.toFixed(1)}%` : ''}
+                </p>
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="text-muted text-xs mt-3">Not enough net worth history yet.</p>
       )}
     </div>
   )

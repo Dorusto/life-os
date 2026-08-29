@@ -1,4 +1,4 @@
-export type WidgetId = 'goals' | 'budget' | 'trend' | 'latest' | 'expenses' | 'cashflow' | 'vehicle'
+export type WidgetId = 'goals' | 'budget' | 'trend' | 'latest' | 'expenses' | 'cashflow' | 'vehicle' | 'networth'
 
 export interface WidgetMeta {
   id: WidgetId
@@ -23,6 +23,7 @@ export const WIDGETS: WidgetMeta[] = [
   { id: 'expenses', name: 'Expenses Structure', desc: "This month's spend, broken down by category", defaultEnabled: true, column: 'right' },
   { id: 'cashflow', name: 'Cash Flow', desc: 'Income vs. expenses this month', defaultEnabled: false, column: 'right' },
   { id: 'vehicle', name: 'Vehicle costs', desc: 'Fuel + maintenance from vehicle-manager, cost/km', defaultEnabled: false, column: 'left' },
+  { id: 'networth', name: 'Net Worth', desc: 'Total balance, adjustable by account category', defaultEnabled: false, column: 'left' },
 ]
 
 const STORAGE_KEY = 'majordom_dashboard_widgets_v1'
