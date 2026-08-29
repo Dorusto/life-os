@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Filter, List, Loader2, Table2, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
@@ -68,10 +69,16 @@ function saveViewPref(view: View) {
  * outside the chat/LLM path entirely.
  */
 export default function TransactionsPage() {
+  const location = useLocation()
+  const navigate = useNavigate()
   const [view, setView] = useState<View>(loadViewPref)
+  const getInitialFilters = (): FiltersState => {
+    const categoryId = location.state?.categoryId
+    return categoryId ? { ...EMPTY_FILTERS, categoryId } : EMPTY_FILTERS
+  }
+  const [applied, setApplied] = useState<FiltersState>(getInitialFilters)
+  const [draft, setDraft] = useState<FiltersState>(getInitialFilters)
   const [uncategorizedOnly, setUncategorizedOnly] = useState(false)
-  const [applied, setApplied] = useState<FiltersState>(EMPTY_FILTERS)
-  const [draft, setDraft] = useState<FiltersState>(EMPTY_FILTERS)
   const [filtersOpen, setFiltersOpen] = useState(false)
 
   const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -86,6 +93,15 @@ export default function TransactionsPage() {
   const [bulkSaving, setBulkSaving] = useState(false)
   const [bulkError, setBulkError] = useState<string | null>(null)
   const [bulkNotice, setBulkNotice] = useState<string | null>(null)
+
+  // If we arrived via a category click, clear the router state after reading it
+  // so that back/forward navigation doesn't re-apply an old filter unexpectedly.
+  useEffect(() => {
+    if (location.state?.categoryId) {
+      navigate(location.pathname, { replace: true, state: null })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const { data: categories } = useQuery({
     queryKey: ['categories'],

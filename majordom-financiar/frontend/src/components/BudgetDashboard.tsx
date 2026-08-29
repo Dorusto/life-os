@@ -2,11 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { BudgetCategory } from '../lib/api'
 
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-]
-
 const GROUP_ORDER = ['Housing', 'Daily Living', 'Transport', 'Health', 'Lifestyle', 'Finance', 'Unexpected']
 
 const GROUP_EMOJI: Record<string, string> = {
@@ -93,10 +88,13 @@ export default function BudgetDashboard({ categories, month, year }: Props) {
     })
   }
 
-  function openCategoryChat(category: BudgetCategory) {
-    const monthLabel = `${MONTH_NAMES[month - 1]} ${year}`
-    navigate('/chat', {
-      state: { prefill: `Show me my ${category.category_name} transactions for ${monthLabel}.` },
+  function openCategoryTransactions(category: BudgetCategory) {
+    navigate('/transactions', {
+      state: {
+        categoryId: category.category_id,
+        budgetMonth: month,
+        budgetYear: year,
+      },
     })
   }
 
@@ -172,7 +170,7 @@ export default function BudgetDashboard({ categories, month, year }: Props) {
                             key={cat.category_id}
                             category={cat}
                             isLast={catIdx === cats.length - 1}
-                            onClick={() => openCategoryChat(cat)}
+                            onClick={() => openCategoryTransactions(cat)}
                           />
                         ))}
                       </div>
