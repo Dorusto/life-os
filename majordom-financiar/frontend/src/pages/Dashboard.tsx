@@ -2,10 +2,10 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import {
-  Bell, Pencil, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Calendar, Check, ArrowUpRight,
+  Bell, Pencil, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Calendar, Check, ArrowUpRight, Loader2,
 } from 'lucide-react'
 import {
-  getHomeData, getAccountList, getTransactions,
+  getHomeData, getAccountList, getBalanceHistory, getTransactions,
   type BudgetCategory, type AccountListItem, type Transaction,
 } from '../lib/api'
 import { requestAndSubscribe } from '../lib/push'
@@ -14,6 +14,7 @@ import GoalsSection from '../components/GoalsSection'
 import PageHeader from '../components/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import BottomSheet from '../components/BottomSheet'
+import Chart from '../components/Chart'
 import { WIDGETS, loadWidgetPrefs, saveWidgetPrefs, type WidgetId } from '../lib/dashboardWidgets'
 import { useState, useEffect, useRef } from 'react'
 
@@ -404,6 +405,32 @@ function TrendWidget({ accounts }: { accounts: AccountListItem[] | undefined }) 
   const hasSnapshot = scope === 'Total' || scope === 'On-budget'
   const amount = scope === 'Total' ? total : scope === 'On-budget' ? onBudget : null
 
+  const balanceHistoryQuery = useQuery({
+    queryKey: ['balance-history', scope],
+    queryFn: () => getBalanceHistory(scope === 'Total' ? 'total' : 'on_budget', 30),
+    enabled: hasSnapshot,
+  })
+
+  const historyPoints = balanceHistoryQuery.data ?? []
+  const firstBalance = historyPoints[0]?.balance
+  const lastBalance = historyPoints[historyPoints.length - 1]?.balance
+  const periodDiff = firstBalance != null && lastBalance != null ? lastBalance - firstBalance : null
+  const periodPct =
+    firstBalance != null && lastBalance != null && firstBalance !== 0
+      ? ((lastBalance - firstBalance) / Math.abs(firstBalance)) * 100
+      : null
+
+  const lineData = {
+    series: [
+      {
+        label: 'Balance',
+        color: '#6366F1',
+        points: historyPoints.map(p => ({ x: p.date, y: p.balance })),
+      },
+    ],
+    empty_message: 'No balance history yet',
+  }
+
   return (
     <div className="bg-gradient-to-br from-surface to-surface-2 border border-border rounded-2xl p-5">
       <div className="flex items-center justify-between gap-2">
@@ -439,7 +466,28 @@ function TrendWidget({ accounts }: { accounts: AccountListItem[] | undefined }) 
           <p className="font-mono font-medium text-3xl mt-1 tabular-nums">
             {amount != null ? `€${amount.toLocaleString('nl-NL', { maximumFractionDigits: 0 })}` : '—'}
           </p>
-          <p className="text-muted text-xs mt-3">Historical trend — coming soon</p>
+          {balanceHistoryQuery.isLoading ? (
+            <div className="mt-3 flex items-center gap-2 text-muted text-xs">
+              <Loader2 size={14} className="animate-spin" />
+              Loading historical balance…
+            </div>
+          ) : balanceHistoryQuery.isError ? (
+            <p className="text-muted text-xs mt-3">Couldn't load balance history.</p>
+          ) : historyPoints.length >= 2 ? (
+            <>
+              <div className="mt-3">
+                <Chart chart_type="line" title="Balance trend" data={lineData} bare />
+              </div>
+              {periodDiff != null && periodPct != null && (
+                <p className={`text-xs mt-1.5 ${periodDiff >= 0 ? 'text-positive' : 'text-red-400'}`}>
+                  {periodDiff >= 0 ? '+' : ''}€{periodDiff.toFixed(2)} · {periodDiff >= 0 ? '+' : ''}
+                  {periodPct.toFixed(1)}% vs 30d ago
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="text-muted text-xs mt-3">Not enough balance history yet.</p>
+          )}
         </>
       ) : (
         <p className="text-muted text-xs mt-3">

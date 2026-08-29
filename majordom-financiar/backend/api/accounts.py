@@ -6,7 +6,7 @@ POST /api/accounts/transfer  → execute a transfer between two accounts in Actu
 import logging
 from datetime import date
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
@@ -60,6 +60,19 @@ async def list_accounts(current_user: str = Depends(get_current_user)):
         AccountListItem(id=a.id, name=a.name, balance=a.balance, off_budget=a.off_budget)
         for a in accounts
     ]
+
+
+@router.get("/accounts/balance-history")
+async def get_balance_history(
+    scope: str = Query(default="total"),
+    days: int = Query(default=30, ge=1, le=365),
+    current_user: str = Depends(get_current_user),
+):
+    """Return a daily running balance series for the requested scope."""
+    if scope not in ("total", "on_budget"):
+        raise HTTPException(status_code=400, detail="scope must be 'total' or 'on_budget'")
+    client = _get_client()
+    return await client.get_balance_history(scope, days)
 
 
 @router.post("/accounts", response_model=AccountListItem)

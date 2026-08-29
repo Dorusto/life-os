@@ -198,6 +198,9 @@ class ActualBudgetProvider:
     async def get_fire_status(self) -> dict:
         return await self._client().get_fire_status()
 
+    async def get_balance_history(self, scope: str = "total", days: int = 30) -> list[dict]:
+        return await self._client().get_balance_history(scope, days)
+
     async def create_payee_rule(
         self, payee_name_prefix: str, category_id: str
     ) -> None:
