@@ -5,12 +5,11 @@ import {
   Bell, Pencil, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Calendar, Check, ArrowUpRight,
 } from 'lucide-react'
 import {
-  getHomeData, getAccountList, getTransactions, getBudgetPeriod,
-  type BudgetCategory, type AccountListItem, type Transaction, type BudgetPeriod,
+  getHomeData, getAccountList, getTransactions,
+  type BudgetCategory, type AccountListItem, type Transaction,
 } from '../lib/api'
 import { requestAndSubscribe } from '../lib/push'
 import BudgetDashboard from '../components/BudgetDashboard'
-import Chart, { type LineData } from '../components/Chart'
 import GoalsSection from '../components/GoalsSection'
 import PageHeader from '../components/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
