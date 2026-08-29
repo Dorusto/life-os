@@ -592,6 +592,54 @@ async def get_vehicle_distance_chart(
     })
 
 
+async def get_vehicle_costs_summary(period: str = "") -> dict:
+    """
+    Aggregate cost stats across every active vehicle for a period
+    (period: "YYYY-MM", "YYYY", or "" for all-time — same convention as
+    VehicleClient.get_stats / the vehicle-manager /stats endpoint).
+    Returns {"available": False, "error": <message>} if vehicle-manager
+    is unreachable (VehicleClientError) — never raises, per CLAUDE.md's
+    "vehicle-manager is optional, handle it being down gracefully" rule.
+    """
+    client = _get_client()
+    try:
+        vehicles = await client.list_vehicles(active_only=True)
+    except VehicleClientError as e:
+        return {"available": False, "error": str(e)}
+
+    total_fuel_cost = 0.0
+    total_other_cost = 0.0
+    total_cost = 0.0
+    total_distance = 0.0
+
+    for vehicle in vehicles:
+        try:
+            stats = await client.get_stats(vehicle["id"], period=period)
+        except VehicleClientError as e:
+            logger.warning("vehicle-manager stats request failed for vehicle %s: %s", vehicle.get("id"), e)
+            continue
+        if not stats:
+            continue
+
+        # defensive defaults — stats may be missing keys if a vehicle has no fuel history yet
+        total_fuel_cost += float(stats.get("total_fuel_cost") or 0)
+        total_other_cost += float(stats.get("total_other_cost") or 0)
+        total_cost += float(stats.get("total_cost") or 0)
+        total_distance += float(stats.get("total_distance") or 0)
+
+    cost_per_km = round(total_fuel_cost / total_distance, 3) if total_distance > 0 else None
+
+    return {
+        "available": True,
+        "vehicle_count": len(vehicles),
+        "total_fuel_cost": round(total_fuel_cost, 2),
+        "total_other_cost": round(total_other_cost, 2),
+        "total_cost": round(total_cost, 2),
+        "total_distance": round(total_distance, 1),
+        "cost_per_km": cost_per_km,
+    }
+
+
 async def set_vehicle_type(vehicle_name: str, vehicle_type: str) -> str:
     """
     Set the type of a vehicle ('car', 'motorcycle', 'other').

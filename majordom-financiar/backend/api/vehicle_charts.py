@@ -48,3 +48,12 @@ async def vehicle_distance_chart(
         vehicle_name=vehicle_name, months=months, start_date=start_date, end_date=end_date
     )
     return json.loads(result)
+
+
+@router.get("/vehicle/costs-summary")
+async def vehicle_costs_summary(
+    period: str = "",
+    current_user: str = Depends(get_current_user),
+):
+    from backend.tools.finance.vehicle import get_vehicle_costs_summary
+    return await get_vehicle_costs_summary(period=period)
