@@ -141,45 +141,6 @@ export default function BudgetDashboard({ categories, month, year, editing, onDa
     }
   }
 
-  function swapGroup(index: number, dir: -1 | 1) {
-    const current = loadGroupOrder(liveOrder)
-    const target = index + dir
-    if (target < 0 || target >= current.length) return
-    const next = [...current]
-    ;[next[index], next[target]] = [next[target], next[index]]
-    saveGroupOrder(next)
-    setOrderVersion(v => v + 1)
-  }
-
-  async function handleDeleteGroup(name: string) {
-    if (!window.confirm(`Delete category group "${name}"? Move or delete its categories first if needed.`)) return
-    try {
-      await applyCategoryOverview({ deleted_groups: [name] })
-      setExtraGroups(prev => prev.filter(g => g !== name))
-      setUiError(null)
-      setOrderVersion(v => v + 1)
-      onDataChange?.()
-    } catch (err) {
-      setUiError(err instanceof Error ? err.message : 'Something went wrong')
-    }
-  }
-
-  async function handleAddGroup() {
-    const trimmed = newGroupValue.trim()
-    if (!trimmed) return
-    try {
-      await applyCategoryOverview({ new_groups: [trimmed] })
-      setExtraGroups(prev => [...prev, trimmed])
-      setNewGroupValue('')
-      setAddingGroup(false)
-      setUiError(null)
-      setOrderVersion(v => v + 1)
-      onDataChange?.()
-    } catch (err) {
-      setUiError(err instanceof Error ? err.message : 'Something went wrong')
-    }
-  }
-
   function openCategoryTransactions(category: BudgetCategory) {
     navigate('/transactions', {
       state: {

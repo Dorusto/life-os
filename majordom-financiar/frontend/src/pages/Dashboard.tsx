@@ -583,7 +583,6 @@ function BudgetPeriodCard({
   const [monthCategories, setMonthCategories] = useState(initialCategories)
   const [trend, setTrend] = useState<{ range_label: string; title: string; data: LineData; requestId: number } | null>(null)
   const [editingGroups, setEditingGroups] = useState(false)
-  const [editingGroups, setEditingGroups] = useState(false)
 
   // Every load() bumps this; a response only gets applied if it's still the
   // most recent request. Actual Budget serializes requests through one lock
