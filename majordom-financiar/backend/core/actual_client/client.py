@@ -699,7 +699,7 @@ class ActualBudgetClient:
                 return result
         return await self._run(_get)
 
-    async def get_balance_history(self, scope: str = "total", days: int = 30) -> list[dict]:
+    async def get_balance_history(self, scope: str = "total", days: int = 30, end_date: str | None = None) -> list[dict]:
         """
         Return a daily running balance series for the last `days` days.
 
@@ -731,6 +731,11 @@ class ActualBudgetClient:
                 dated.sort(key=lambda tx: tx.date)
 
                 today = _date.today()
+                if end_date is not None:
+                    try:
+                        today = _date.fromisoformat(end_date)
+                    except ValueError:
+                        pass  # invalid ISO stays today
                 start = today - timedelta(days=days - 1)
 
                 def _date_int(d: _date) -> int:

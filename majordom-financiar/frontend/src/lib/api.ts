@@ -287,10 +287,11 @@ export interface BalanceHistoryPoint {
 export async function getBalanceHistory(
   scope: 'total' | 'on_budget',
   days = 30,
+  endDate?: string,
 ): Promise<BalanceHistoryPoint[]> {
-  return request<BalanceHistoryPoint[]>(
-    `/accounts/balance-history?scope=${scope}&days=${days}`
-  )
+  const qs = new URLSearchParams({ scope, days: String(days) })
+  if (endDate) qs.set('end_date', endDate)
+  return request<BalanceHistoryPoint[]>(`/accounts/balance-history?${qs}`)
 }
 
 export async function getAccountList(): Promise<AccountListItem[]> {

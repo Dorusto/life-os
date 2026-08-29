@@ -66,13 +66,14 @@ async def list_accounts(current_user: str = Depends(get_current_user)):
 async def get_balance_history(
     scope: str = Query(default="total"),
     days: int = Query(default=30, ge=1, le=365),
+    end_date: str | None = Query(default=None),
     current_user: str = Depends(get_current_user),
 ):
     """Return a daily running balance series for the requested scope."""
     if scope not in ("total", "on_budget"):
         raise HTTPException(status_code=400, detail="scope must be 'total' or 'on_budget'")
     client = _get_client()
-    return await client.get_balance_history(scope, days)
+    return await client.get_balance_history(scope, days, end_date)
 
 
 @router.post("/accounts", response_model=AccountListItem)

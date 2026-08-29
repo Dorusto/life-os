@@ -171,7 +171,7 @@ class FinanceProvider(Protocol):
     ) -> dict: ...
 
     async def get_balance_history(
-        self, scope: str = "total", days: int = 30
+        self, scope: str = "total", days: int = 30, end_date: str | None = None
     ) -> list[dict]: ...
 
 

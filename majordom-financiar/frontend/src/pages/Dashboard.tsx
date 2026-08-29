@@ -2,10 +2,10 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import {
-  Bell, Pencil, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Calendar, Check, ArrowUpRight, Loader2,
+  Bell, Pencil, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Calendar, ArrowUpRight, Loader2,
 } from 'lucide-react'
 import {
-  getHomeData, getAccountList, getBalanceHistory, getTransactions,
+  getHomeData, getAccountList, getBalanceHistory, getTransactions, getBudgetPeriod,
   type BudgetCategory, type AccountListItem, type Transaction,
 } from '../lib/api'
 import { requestAndSubscribe } from '../lib/push'
@@ -44,6 +44,39 @@ export default function Dashboard() {
   const fireData = homeData?.fire
   const accountCount = homeData?.account_count
 
+  const now = new Date()
+  const [dashboardMonth, setDashboardMonth] = useState(now.getMonth() + 1)
+  const [dashboardYear, setDashboardYear] = useState(now.getFullYear())
+  const [periodSheetOpen, setPeriodSheetOpen] = useState(false)
+
+  const { data: periodBudget } = useQuery({
+    queryKey: ['budget-period', dashboardMonth, dashboardYear],
+    queryFn: () => getBudgetPeriod('month', dashboardMonth, dashboardYear),
+    staleTime: 60_000,
+  })
+  const periodCategories =
+    periodBudget?.mode === 'month' ? periodBudget.categories : undefined
+
+  function shiftDashboardPeriod(dir: number) {
+    let m = dashboardMonth + dir
+    let y = dashboardYear
+    if (m < 1) {
+      m = 12
+      y -= 1
+    } else if (m > 12) {
+      m = 1
+      y += 1
+    }
+    setDashboardMonth(m)
+    setDashboardYear(y)
+  }
+
+  const periodIsCurrentMonth =
+    dashboardMonth === now.getMonth() + 1 && dashboardYear === now.getFullYear()
+  const periodLabel = periodIsCurrentMonth
+    ? 'Current month'
+    : `${MONTH_NAMES_FULL[dashboardMonth - 1].slice(0, 3)} ${dashboardYear}`
+
   // ---------- Customize mode (widget registry, persisted to localStorage) ----------
   const [editing, setEditing] = useState(false)
   const [enabled, setEnabled] = useState<Record<WidgetId, boolean>>(() => loadWidgetPrefs())
@@ -68,20 +101,6 @@ export default function Dashboard() {
     setEnabled(prev => ({ ...prev, [id]: true }))
   }
 
-  // ---------- Dashboard-level period selector — UI only (issue #192 scope):
-  // updates widget captions, doesn't recompute real numbers per period. The
-  // Budget widget keeps its own separate, real period nav (BudgetPeriodCard). ----------
-  const dashboardMonths = generateRecentMonths(12)
-  const [periodIdx, setPeriodIdx] = useState(dashboardMonths.length - 1)
-  const [periodLabel, setPeriodLabel] = useState('Current month')
-  const [periodSheetOpen, setPeriodSheetOpen] = useState(false)
-
-  function shiftDashboardPeriod(dir: number) {
-    const next = Math.max(0, Math.min(dashboardMonths.length - 1, periodIdx + dir))
-    setPeriodIdx(next)
-    setPeriodLabel(next === dashboardMonths.length - 1 ? 'Current month' : dashboardMonths[next].label)
-  }
-
   // ---------- Notification permission banner ----------
   const [notifState, setNotifState] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('granted')
   useEffect(() => {
@@ -93,7 +112,6 @@ export default function Dashboard() {
     setNotifState(result === 'unsupported' ? 'unsupported' : result)
   }
 
-  const now = new Date()
   const dateLabel = now.toLocaleDateString('en-GB', { weekday: 'short', month: 'short', day: 'numeric' })
 
   function renderWidget(id: WidgetId): ReactNode {
@@ -101,17 +119,19 @@ export default function Dashboard() {
       case 'goals':
         return <GoalsSection fireData={fireData} goals={goals} />
       case 'budget':
-        return budgetStatus && budgetStatus.length > 0 ? (
+        return periodCategories && periodCategories.length > 0 ? (
           <BudgetPeriodCard
-            initialCategories={budgetStatus}
+            categories={periodCategories}
+            dashboardMonth={dashboardMonth}
+            dashboardYear={dashboardYear}
           />
         ) : null
       case 'trend':
-        return <TrendWidget accounts={accounts} />
+        return <TrendWidget accounts={accounts} dashboardMonth={dashboardMonth} dashboardYear={dashboardYear} />
       case 'latest':
         return <LatestTransactionsWidget transactions={transactions} navigate={navigate} />
       case 'expenses':
-        return <ExpensesStructureWidget categories={budgetStatus} />
+        return <ExpensesStructureWidget categories={periodCategories} />
       case 'cashflow':
         return <CashFlowWidget periodLabel={periodLabel} />
       case 'vehicle':
@@ -282,7 +302,10 @@ export default function Dashboard() {
       <PeriodPickerSheet
         open={periodSheetOpen}
         onClose={() => setPeriodSheetOpen(false)}
-        onApply={label => setPeriodLabel(label)}
+        onApply={(month, year) => {
+          setDashboardMonth(month)
+          setDashboardYear(year)
+        }}
       />
     </div>
   )
@@ -319,13 +342,8 @@ function generateRecentMonths(count: number): { label: string; month: number; ye
   return out
 }
 
-const GRANULARITIES = ['Day', 'Month', 'Quarter', 'Half-year', 'Year'] as const
-const PRESETS = ['Current month', 'Last 3 months', 'Last 6 months', 'Last 12 months', 'This year', 'Previous year']
 
-function PeriodPickerSheet({ open, onClose, onApply }: { open: boolean; onClose: () => void; onApply: (label: string) => void }) {
-  const [gran, setGran] = useState<typeof GRANULARITIES[number]>('Month')
-  const [draft, setDraft] = useState('Current month')
-
+function PeriodPickerSheet({ open, onClose, onApply }: { open: boolean; onClose: () => void; onApply: (month: number, year: number) => void }) {
   const months = generateRecentMonths(12)
   const byYear = months.reduce<Record<number, typeof months>>((acc, m) => {
     (acc[m.year] ??= []).push(m)
@@ -335,19 +353,6 @@ function PeriodPickerSheet({ open, onClose, onApply }: { open: boolean; onClose:
 
   return (
     <BottomSheet open={open} onClose={onClose} title="Select period">
-      <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1">
-        {GRANULARITIES.map(g => (
-          <button
-            key={g}
-            onClick={() => setGran(g)}
-            className={`flex-shrink-0 text-xs font-semibold px-3 py-2 rounded-lg border transition-colors ${
-              gran === g ? 'bg-interactive border-interactive text-white' : 'bg-surface border-border text-muted'
-            }`}
-          >
-            {g}
-          </button>
-        ))}
-      </div>
       {years.map(year => (
         <div key={year}>
           <p className="font-mono text-xs text-muted mt-3 mb-1.5">{year}</p>
@@ -355,10 +360,11 @@ function PeriodPickerSheet({ open, onClose, onApply }: { open: boolean; onClose:
             {byYear[year].map(m => (
               <button
                 key={m.label}
-                onClick={() => setDraft(m.label)}
-                className={`text-[13px] font-semibold px-2 py-2.5 rounded-lg border transition-colors ${
-                  draft === m.label ? 'bg-interactive border-interactive text-white' : 'bg-surface border-border text-white hover:border-border-hover'
-                }`}
+                onClick={() => {
+                  onApply(m.month, m.year)
+                  onClose()
+                }}
+                className="text-[13px] font-semibold px-2 py-2.5 rounded-lg border transition-colors bg-surface border-border text-white hover:border-border-hover"
               >
                 {m.label.split(' ')[0]}
               </button>
@@ -366,24 +372,6 @@ function PeriodPickerSheet({ open, onClose, onApply }: { open: boolean; onClose:
           </div>
         </div>
       ))}
-      <p className="text-[11px] text-muted mt-3 mb-1.5">Quick ranges</p>
-      <div className="flex flex-wrap gap-x-3 gap-y-1.5 mb-2">
-        {PRESETS.map(p => (
-          <button key={p} onClick={() => setDraft(p)} className="text-interactive text-xs font-semibold">
-            {p}
-          </button>
-        ))}
-      </div>
-      <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
-        <span className="font-mono text-xs bg-surface border border-border rounded-lg px-3 py-2">{draft}</span>
-        <button
-          onClick={() => { onApply(draft); onClose() }}
-          className="inline-flex items-center gap-1.5 bg-accent hover:bg-accent-hover text-white font-semibold text-sm px-4 py-2 rounded-xl transition-colors"
-        >
-          <Check size={15} />
-          Apply
-        </button>
-      </div>
     </BottomSheet>
   )
 }
@@ -396,7 +384,11 @@ type TrendScope = typeof TREND_SCOPES[number]
     Portfolio/Vehicles scopes have no data source at all (Ghostfolio dropped,
     vehicle-manager cost aggregation not built) — both honestly marked pending
     rather than faked, per the "shell real, data placeholder" scope decision. */
-function TrendWidget({ accounts }: { accounts: AccountListItem[] | undefined }) {
+function TrendWidget({ accounts, dashboardMonth, dashboardYear }: {
+  accounts: AccountListItem[] | undefined
+  dashboardMonth: number
+  dashboardYear: number
+}) {
   const [scope, setScope] = useState<TrendScope>('Total')
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -405,9 +397,26 @@ function TrendWidget({ accounts }: { accounts: AccountListItem[] | undefined }) 
   const hasSnapshot = scope === 'Total' || scope === 'On-budget'
   const amount = scope === 'Total' ? total : scope === 'On-budget' ? onBudget : null
 
+  const currentDate = new Date()
+  const isCurrentPeriod =
+    dashboardMonth === currentDate.getMonth() + 1 &&
+    dashboardYear === currentDate.getFullYear()
+  const endDate = isCurrentPeriod
+    ? undefined
+    : (() => {
+        const lastDay = new Date(dashboardYear, dashboardMonth, 0).getDate()
+        const mm = String(dashboardMonth).padStart(2, '0')
+        const dd = String(lastDay).padStart(2, '0')
+        return `${dashboardYear}-${mm}-${dd}`
+      })()
+
   const balanceHistoryQuery = useQuery({
-    queryKey: ['balance-history', scope],
-    queryFn: () => getBalanceHistory(scope === 'Total' ? 'total' : 'on_budget', 30),
+    queryKey: ['balance-history', scope, dashboardMonth, dashboardYear],
+    queryFn: () => getBalanceHistory(
+      scope === 'Total' ? 'total' : 'on_budget',
+      30,
+      endDate,
+    ),
     enabled: hasSnapshot,
   })
 
@@ -606,7 +615,15 @@ const MONTH_NAMES_FULL = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
-function BudgetPeriodCard({ initialCategories }: { initialCategories: BudgetCategory[] }) {
+function BudgetPeriodCard({
+  categories,
+  dashboardMonth,
+  dashboardYear,
+}: {
+  categories: BudgetCategory[]
+  dashboardMonth: number
+  dashboardYear: number
+}) {
   const [editingGroups, setEditingGroups] = useState(false)
   const queryClient = useQueryClient()
 
@@ -626,10 +643,10 @@ function BudgetPeriodCard({ initialCategories }: { initialCategories: BudgetCate
         </div>
       </div>
       <BudgetDashboard
-        categories={initialCategories}
+        categories={categories}
         editing={editingGroups}
         onDataChange={() => {
-          queryClient.invalidateQueries({ queryKey: ['home'] })
+          queryClient.invalidateQueries({ queryKey: ['budget-period', dashboardMonth, dashboardYear] })
         }}
       />
     </div>
