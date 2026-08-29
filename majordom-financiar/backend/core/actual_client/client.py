@@ -1955,6 +1955,23 @@ class ActualBudgetClient:
 
         return await self._run(_delete)
 
+    async def rename_account(self, account_id: str, new_name: str) -> None:
+        """Rename an existing account by id. Raises ValueError if not found."""
+        def _rename():
+            from actual.database import Accounts
+            with self._get_actual() as actual:
+                actual.download_budget()
+                acc = actual.session.query(Accounts).filter(
+                    Accounts.id == account_id,
+                    Accounts.tombstone == 0,
+                ).first()
+                if not acc:
+                    raise ValueError(f"Account not found: {account_id}")
+                acc.name = new_name
+                actual.commit()
+                logger.info(f"Account renamed: {account_id} → {new_name!r}")
+        return await self._run(_rename)
+
     async def rename_category(self, old_name: str, new_name: str) -> None:
         """Rename an existing category. Raises ValueError if not found."""
         def _rename():
