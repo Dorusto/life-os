@@ -276,6 +276,7 @@ async def apply_category_overview(
     created_categories = 0
     renamed_categories = 0
     deleted_groups = 0
+    errors: list[str] = []
 
     for group_name in body.new_groups:
         try:
@@ -297,6 +298,7 @@ async def apply_category_overview(
             deleted_groups += 1
         except Exception as e:
             logger.warning("Failed to delete category group '%s': %s", group_name, e)
+            errors.append(str(e))
 
     for cat in body.new_categories:
         try:
@@ -324,7 +326,9 @@ async def apply_category_overview(
     if renamed_categories:
         parts.append(f"{renamed_categories} categor{'ies' if renamed_categories != 1 else 'y'} renamed")
     message = ", ".join(parts) if parts else "No changes made."
-    return {"message": message}
+    if errors:
+        message = f"{message} ({'; '.join(errors)})" if parts else "; ".join(errors)
+    return {"message": message, "errors": errors}
 
 
 class BudgetOverviewApply(BaseModel):

@@ -115,7 +115,11 @@ export default function BudgetDashboard({ categories, month, year, editing, onDa
   async function handleDeleteGroup(name: string) {
     if (!window.confirm(`Delete category group "${name}"? Move or delete its categories first if needed.`)) return
     try {
-      await applyCategoryOverview({ deleted_groups: [name] })
+      const result = await applyCategoryOverview({ deleted_groups: [name] })
+      if (result.errors && result.errors.length > 0) {
+        setUiError(result.errors.join('; '))
+        return
+      }
       setExtraGroups(prev => prev.filter(g => g !== name))
       setUiError(null)
       setOrderVersion(v => v + 1)

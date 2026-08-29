@@ -1009,7 +1009,7 @@ export interface CategoryOverviewApplyPayload {
 
 export async function applyCategoryOverview(
   payload: CategoryOverviewApplyPayload
-): Promise<{ message: string }> {
+): Promise<{ message: string; errors?: string[] }> {
   return request('/category-actions/overview/apply', {
     method: 'POST',
     body: JSON.stringify(payload),
