@@ -63,6 +63,13 @@ export default function VehicleDetail() {
     queryFn: () => getValueProjection(vehicleId!),
     enabled: !!vehicle,
     staleTime: 120_000,
+    // A 404 here means "this vehicle has no purchase price set" — a real,
+    // permanent answer, not a transient failure. The app-wide QueryClient
+    // default (main.tsx) retries every error for 15s and then polls every
+    // 5s forever assuming the backend is still coming up — wrong for this
+    // query specifically, so both are disabled here.
+    retry: false,
+    refetchInterval: false,
   })
 
   const historyQuery = useQuery({

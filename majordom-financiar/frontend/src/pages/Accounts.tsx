@@ -61,19 +61,19 @@ export default function Accounts() {
           €{total.toLocaleString('nl-NL', { maximumFractionDigits: 0 })}
         </p>
 
+        <div className="flex items-center justify-between mt-6 mb-2">
+          <p className="font-mono text-[11px] uppercase tracking-wide text-muted">Vehicles</p>
+          <button
+            type="button"
+            onClick={() => setAddVehicleOpen(true)}
+            className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent hover:opacity-80 transition-opacity"
+          >
+            <Plus size={13} />
+            Add vehicle
+          </button>
+        </div>
         {vehicleAccounts.length > 0 && (
           <>
-            <div className="flex items-center justify-between mt-6 mb-2">
-              <p className="font-mono text-[11px] uppercase tracking-wide text-muted">Vehicles</p>
-              <button
-                type="button"
-                onClick={() => setAddVehicleOpen(true)}
-                className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent hover:opacity-80 transition-opacity"
-              >
-                <Plus size={13} />
-                Add vehicle
-              </button>
-            </div>
             <p className="font-mono font-medium text-3xl mt-1 tabular-nums">
               €{vehicleSubtotal.toLocaleString('nl-NL', { maximumFractionDigits: 0 })}
             </p>
@@ -84,6 +84,9 @@ export default function Accounts() {
               })}
             </div>
           </>
+        )}
+        {vehicleAccounts.length === 0 && (
+          <p className="text-muted text-xs">No vehicles yet.</p>
         )}
 
         {onBudget.length > 0 && (
