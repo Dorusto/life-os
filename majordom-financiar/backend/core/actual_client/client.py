@@ -699,6 +699,74 @@ class ActualBudgetClient:
                 return result
         return await self._run(_get)
 
+    async def get_balance_history(self, scope: str = "total", days: int = 30) -> list[dict]:
+        """
+        Return a daily running balance series for the last `days` days.
+
+        `scope` is one of:
+          * "total"      — all open accounts
+          * "on_budget"  — only on-budget accounts (off_budget == False)
+
+        This mirrors get_accounts()'s balance calculation: every transaction amount
+        is stored in cents, so we accumulate in cents (int) and only convert to EUR
+        when building the final day-by-day series, avoiding float drift.
+
+        The query uses actualpy's built-in `off_budget` filter rather than manually
+        cross-referencing get_accounts().  The returned series is continuous — days
+        with no transactions carry forward the last known running balance.
+        """
+        def _get():
+            from datetime import date as _date, timedelta
+            from actual.queries import get_transactions
+
+            with self._get_actual() as actual:
+                actual.download_budget()
+
+                off_budget = False if scope == "on_budget" else None
+                txs = get_transactions(actual.session, off_budget=off_budget)
+
+                # Build a sorted, date-bearing transaction list.  tx.date is an
+                # actualpy int field in YYYYMMDD form.
+                dated = [tx for tx in txs if not tx.tombstone and tx.date is not None]
+                dated.sort(key=lambda tx: tx.date)
+
+                today = _date.today()
+                start = today - timedelta(days=days - 1)
+
+                def _date_int(d: _date) -> int:
+                    return d.year * 10000 + d.month * 100 + d.day
+
+                start_int = _date_int(start)
+
+                running_cents = 0
+                idx = 0
+                n = len(dated)
+
+                # Include every transaction that happened before the visible window,
+                # so the first visible day already reflects the full all-time balance.
+                while idx < n and dated[idx].date < start_int:
+                    running_cents += int(dated[idx].amount or 0)
+                    idx += 1
+
+                result = []
+                for offset in range(days):
+                    day = start + timedelta(days=offset)
+                    day_int = _date_int(day)
+
+                    # Add all transactions up to the end of this calendar day.
+                    while idx < n and dated[idx].date <= day_int:
+                        running_cents += int(dated[idx].amount or 0)
+                        idx += 1
+
+                    result.append({
+                        "date": day.isoformat(),
+                        "balance": round(running_cents / 100, 2),
+                    })
+
+                return result
+
+        return await self._run(_get)
+
 
     async def get_fire_status(self) -> dict:
         """Fetch accounts fresh and compute FIRE status.

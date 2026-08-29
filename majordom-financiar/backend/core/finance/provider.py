@@ -170,6 +170,10 @@ class FinanceProvider(Protocol):
         self, transaction_id: str, target_account_id: str
     ) -> dict: ...
 
+    async def get_balance_history(
+        self, scope: str = "total", days: int = 30
+    ) -> list[dict]: ...
+
 
 def get_provider() -> FinanceProvider:
     """Return a FinanceProvider instance based on the FINANCE_BACKEND env var."""

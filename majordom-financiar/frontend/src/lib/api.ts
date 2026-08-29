@@ -279,6 +279,20 @@ export async function getAccounts(): Promise<Account[]> {
   return request<Account[]>('/accounts')
 }
 
+export interface BalanceHistoryPoint {
+  date: string
+  balance: number
+}
+
+export async function getBalanceHistory(
+  scope: 'total' | 'on_budget',
+  days = 30,
+): Promise<BalanceHistoryPoint[]> {
+  return request<BalanceHistoryPoint[]>(
+    `/accounts/balance-history?scope=${scope}&days=${days}`
+  )
+}
+
 export async function getAccountList(): Promise<AccountListItem[]> {
   return request<AccountListItem[]>('/accounts')
 }
