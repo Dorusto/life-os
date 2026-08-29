@@ -261,6 +261,8 @@ class CategoryOverviewApply(BaseModel):
     renamed_groups: dict[str, str] = {}
     new_categories: list[dict] = []  # [{"name": str, "group_name": str}]
     renamed_categories: dict[str, str] = {}
+    deleted_groups: list[str] = []
+    deleted_groups: list[str] = []
 
 
 @router.post("/category-actions/overview/apply")
@@ -274,6 +276,7 @@ async def apply_category_overview(
     renamed_groups = 0
     created_categories = 0
     renamed_categories = 0
+    deleted_groups = 0
 
     for group_name in body.new_groups:
         try:
@@ -288,6 +291,13 @@ async def apply_category_overview(
             renamed_groups += 1
         except Exception as e:
             logger.warning("Failed to rename category group '%s' -> '%s': %s", old_name, new_name, e)
+
+    for group_name in body.deleted_groups:
+        try:
+            await client.delete_category_group(group_name)
+            deleted_groups += 1
+        except Exception as e:
+            logger.warning("Failed to delete category group '%s': %s", group_name, e)
 
     for cat in body.new_categories:
         try:
@@ -308,6 +318,8 @@ async def apply_category_overview(
         parts.append(f"{created_groups} group{'s' if created_groups != 1 else ''} created")
     if renamed_groups:
         parts.append(f"{renamed_groups} group{'s' if renamed_groups != 1 else ''} renamed")
+    if deleted_groups:
+        parts.append(f"{deleted_groups} group{'s' if deleted_groups != 1 else ''} deleted")
     if created_categories:
         parts.append(f"{created_categories} categor{'ies' if created_categories != 1 else 'y'} created")
     if renamed_categories:

@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ChevronUp, ChevronDown, Trash2, Plus } from 'lucide-react'
 import type { BudgetCategory } from '../lib/api'
+import { applyCategoryOverview } from '../lib/api'
+import { loadGroupOrder, saveGroupOrder } from '../lib/categoryGroupOrder'
 
 const GROUP_ORDER = ['Housing', 'Daily Living', 'Transport', 'Health', 'Lifestyle', 'Finance', 'Unexpected']
 
@@ -35,6 +38,8 @@ interface Props {
   categories: BudgetCategory[]
   month: number
   year: number
+  editing: boolean
+  onDataChange?: () => void
 }
 
 function getColor(percentage: number, budgeted: number): string {
@@ -48,10 +53,15 @@ function fmt(n: number): string {
   return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-export default function BudgetDashboard({ categories, month, year }: Props) {
+export default function BudgetDashboard({ categories, month, year, editing, onDataChange }: Props) {
   const navigate = useNavigate()
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const [detailsOpen, setDetailsOpen] = useState(false)
+  const [, setOrderVersion] = useState(0)
+  const [addingGroup, setAddingGroup] = useState(false)
+  const [newGroupValue, setNewGroupValue] = useState('')
+  const [extraGroups, setExtraGroups] = useState<string[]>([])
+  const [uiError, setUiError] = useState<string | null>(null)
 
   const totalSpent = categories.reduce((sum, c) => sum + c.spent, 0)
   const totalBudgeted = categories.reduce((sum, c) => sum + c.budgeted, 0)
@@ -74,10 +84,14 @@ export default function BudgetDashboard({ categories, month, year }: Props) {
   }
 
   // Ordered list of groups that have data, plus any extra groups not in GROUP_ORDER at the end
-  const orderedGroups = [
+  const defaultOrder = [
     ...GROUP_ORDER.filter(g => groupMap[g]),
     ...Object.keys(groupMap).filter(g => !GROUP_ORDER.includes(g)),
   ]
+  const liveOrder = editing
+    ? [...defaultOrder, ...extraGroups.filter(g => !defaultOrder.includes(g))]
+    : defaultOrder
+  const orderedGroups = loadGroupOrder(liveOrder)
 
   function toggleGroup(name: string) {
     setExpandedGroups(prev => {
@@ -86,6 +100,84 @@ export default function BudgetDashboard({ categories, month, year }: Props) {
       else next.add(name)
       return next
     })
+  }
+
+  function swapGroup(index: number, dir: -1 | 1) {
+    const current = loadGroupOrder(liveOrder)
+    const target = index + dir
+    if (target < 0 || target >= current.length) return
+    const next = [...current]
+    ;[next[index], next[target]] = [next[target], next[index]]
+    saveGroupOrder(next)
+    setOrderVersion(v => v + 1)
+  }
+
+  async function handleDeleteGroup(name: string) {
+    if (!window.confirm(`Delete category group "${name}"? Move or delete its categories first if needed.`)) return
+    try {
+      await applyCategoryOverview({ deleted_groups: [name] })
+      setExtraGroups(prev => prev.filter(g => g !== name))
+      setUiError(null)
+      setOrderVersion(v => v + 1)
+      onDataChange?.()
+    } catch (err) {
+      setUiError(err instanceof Error ? err.message : 'Something went wrong')
+    }
+  }
+
+  async function handleAddGroup() {
+    const trimmed = newGroupValue.trim()
+    if (!trimmed) return
+    try {
+      await applyCategoryOverview({ new_groups: [trimmed] })
+      setExtraGroups(prev => [...prev, trimmed])
+      setNewGroupValue('')
+      setAddingGroup(false)
+      setUiError(null)
+      setOrderVersion(v => v + 1)
+      onDataChange?.()
+    } catch (err) {
+      setUiError(err instanceof Error ? err.message : 'Something went wrong')
+    }
+  }
+
+  function swapGroup(index: number, dir: -1 | 1) {
+    const current = loadGroupOrder(liveOrder)
+    const target = index + dir
+    if (target < 0 || target >= current.length) return
+    const next = [...current]
+    ;[next[index], next[target]] = [next[target], next[index]]
+    saveGroupOrder(next)
+    setOrderVersion(v => v + 1)
+  }
+
+  async function handleDeleteGroup(name: string) {
+    if (!window.confirm(`Delete category group "${name}"? Move or delete its categories first if needed.`)) return
+    try {
+      await applyCategoryOverview({ deleted_groups: [name] })
+      setExtraGroups(prev => prev.filter(g => g !== name))
+      setUiError(null)
+      setOrderVersion(v => v + 1)
+      onDataChange?.()
+    } catch (err) {
+      setUiError(err instanceof Error ? err.message : 'Something went wrong')
+    }
+  }
+
+  async function handleAddGroup() {
+    const trimmed = newGroupValue.trim()
+    if (!trimmed) return
+    try {
+      await applyCategoryOverview({ new_groups: [trimmed] })
+      setExtraGroups(prev => [...prev, trimmed])
+      setNewGroupValue('')
+      setAddingGroup(false)
+      setUiError(null)
+      setOrderVersion(v => v + 1)
+      onDataChange?.()
+    } catch (err) {
+      setUiError(err instanceof Error ? err.message : 'Something went wrong')
+    }
   }
 
   function openCategoryTransactions(category: BudgetCategory) {
@@ -140,12 +232,12 @@ export default function BudgetDashboard({ categories, month, year }: Props) {
       {/* Group rows */}
       {detailsOpen && (
         <div className="border-t border-border/40 px-4 pb-2">
-          {orderedGroups.length === 0 ? (
+          {orderedGroups.length === 0 && !editing ? (
             <p className="text-muted text-sm text-center py-4">No budget data this month</p>
           ) : (
             <div>
               {orderedGroups.map((groupName, idx) => {
-                const cats = groupMap[groupName]
+                const cats = groupMap[groupName] ?? []
                 const groupBudgeted = cats.reduce((s, c) => s + c.budgeted, 0)
                 const groupSpent = cats.reduce((s, c) => s + c.spent, 0)
                 const groupPct = groupBudgeted > 0 ? Math.round(groupSpent / groupBudgeted * 100) : 0
@@ -161,7 +253,12 @@ export default function BudgetDashboard({ categories, month, year }: Props) {
                       spent={groupSpent}
                       percentage={groupPct}
                       isExpanded={isExpanded}
+                      editing={editing}
+                      index={idx}
+                      total={orderedGroups.length}
                       onToggle={() => toggleGroup(groupName)}
+                      onMove={(dir) => swapGroup(idx, dir)}
+                      onDelete={() => handleDeleteGroup(groupName)}
                     />
                     {isExpanded && (
                       <div className="ml-4 mb-1">
@@ -178,6 +275,34 @@ export default function BudgetDashboard({ categories, month, year }: Props) {
                   </div>
                 )
               })}
+              {editing && (
+                <div className="pt-2">
+                  {addingGroup ? (
+                    <input
+                      autoFocus
+                      placeholder="Group name"
+                      value={newGroupValue}
+                      onChange={e => setNewGroupValue(e.target.value)}
+                      onBlur={handleAddGroup}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleAddGroup()
+                        if (e.key === 'Escape') { setAddingGroup(false); setNewGroupValue('') }
+                      }}
+                      className="w-full bg-background border border-accent rounded-lg px-3 py-2 text-white text-sm outline-none"
+                    />
+                  ) : (
+                    <button
+                      onClick={() => setAddingGroup(true)}
+                      className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-border text-accent text-sm font-medium hover:bg-surface-hover transition-colors"
+                    >
+                      <Plus size={14} /> Add group
+                    </button>
+                  )}
+                </div>
+              )}
+              {uiError && editing && (
+                <p className="text-danger text-xs mt-2 px-1">{uiError}</p>
+              )}
             </div>
           )}
         </div>
@@ -188,6 +313,7 @@ export default function BudgetDashboard({ categories, month, year }: Props) {
 
 function GroupRow({
   name, emoji, budgeted, spent, percentage, isExpanded, onToggle,
+  editing, index, total, onMove, onDelete,
 }: {
   name: string
   emoji: string
@@ -196,6 +322,11 @@ function GroupRow({
   percentage: number
   isExpanded: boolean
   onToggle: () => void
+  editing: boolean
+  index: number
+  total: number
+  onMove: (dir: -1 | 1) => void
+  onDelete: () => void
 }) {
   const color = getColor(percentage, budgeted)
   const hasBudget = budgeted > 0
@@ -210,8 +341,41 @@ function GroupRow({
           <span className="text-base leading-none">{emoji}</span>
           <span className="text-white text-sm font-semibold truncate">{name}</span>
           <span className="text-muted text-xs">{isExpanded ? '▲' : '▼'}</span>
+          {editing && index === 0 && (
+            <span className="text-muted-2 text-[10px] uppercase tracking-wide ml-1">top</span>
+          )}
         </div>
         <div className="flex items-center gap-3 flex-shrink-0 ml-2">
+          {editing && (
+            <div
+              className="flex items-center gap-1"
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                onClick={() => onMove(-1)}
+                disabled={index === 0}
+                className="w-6 h-6 rounded-lg bg-surface-2 border border-border text-muted hover:text-white disabled:opacity-40 flex items-center justify-center"
+                aria-label={`Move ${name} up`}
+              >
+                <ChevronUp size={13} />
+              </button>
+              <button
+                onClick={() => onMove(1)}
+                disabled={index === total - 1}
+                className="w-6 h-6 rounded-lg bg-surface-2 border border-border text-muted hover:text-white disabled:opacity-40 flex items-center justify-center"
+                aria-label={`Move ${name} down`}
+              >
+                <ChevronDown size={13} />
+              </button>
+              <button
+                onClick={onDelete}
+                className="w-6 h-6 rounded-lg bg-danger/15 border border-danger/40 text-danger hover:bg-danger/25 flex items-center justify-center"
+                aria-label={`Delete ${name} group`}
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          )}
           {hasBudget ? (
             <>
               <span className="text-muted text-xs font-mono tabular-nums">

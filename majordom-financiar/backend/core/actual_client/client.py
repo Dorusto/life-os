@@ -1796,6 +1796,82 @@ class ActualBudgetClient:
                 logger.info(f"Category deleted: {name!r}")
         return await self._run(_delete)
 
+    async def delete_category_group(self, name: str) -> None:
+        """
+        Soft-delete an empty category group (tombstone=1). Raises ValueError
+        if the group doesn't exist, or if it still contains any live category.
+        """
+        def _delete():
+            from actual.database import CategoryGroups
+            from actual.queries import get_categories
+
+            with self._get_actual() as actual:
+                actual.download_budget()
+
+                # Block deletion if any non-tombstoned category still lives in it
+                living_categories = [
+                    c for c in get_categories(actual.session)
+                    if not getattr(c, 'tombstone', False)
+                    and (c.group.name if c.group else '') == name
+                ]
+                if living_categories:
+                    count = len(living_categories)
+                    raise ValueError(
+                        f"Category group '{name}' still has {count} categor{'y' if count == 1 else 'ies'} — move or delete them first"
+                    )
+
+                group = (
+                    actual.session.query(CategoryGroups)
+                    .filter(CategoryGroups.name == name, CategoryGroups.tombstone == 0)
+                    .first()
+                )
+                if not group:
+                    raise ValueError(f"Category group not found: {name}")
+
+                group.tombstone = 1
+                actual.commit()
+                logger.info(f"Category group deleted: {name!r}")
+
+        return await self._run(_delete)
+
+    async def delete_category_group(self, name: str) -> None:
+        """
+        Soft-delete an empty category group (tombstone=1). Raises ValueError
+        if the group doesn't exist, or if it still contains any live category.
+        """
+        def _delete():
+            from actual.database import CategoryGroups
+            from actual.queries import get_categories
+
+            with self._get_actual() as actual:
+                actual.download_budget()
+
+                # Block deletion if any non-tombstoned category still lives in it
+                living_categories = [
+                    c for c in get_categories(actual.session)
+                    if not getattr(c, 'tombstone', False)
+                    and (c.group.name if c.group else '') == name
+                ]
+                if living_categories:
+                    count = len(living_categories)
+                    raise ValueError(
+                        f"Category group '{name}' still has {count} categor{'y' if count == 1 else 'ies'} — move or delete them first"
+                    )
+
+                group = (
+                    actual.session.query(CategoryGroups)
+                    .filter(CategoryGroups.name == name, CategoryGroups.tombstone == 0)
+                    .first()
+                )
+                if not group:
+                    raise ValueError(f"Category group not found: {name}")
+
+                group.tombstone = 1
+                actual.commit()
+                logger.info(f"Category group deleted: {name!r}")
+
+        return await self._run(_delete)
+
     async def rename_category(self, old_name: str, new_name: str) -> None:
         """Rename an existing category. Raises ValueError if not found."""
         def _rename():

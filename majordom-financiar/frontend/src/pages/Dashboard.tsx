@@ -582,6 +582,8 @@ function BudgetPeriodCard({
   const [loading, setLoading] = useState(false)
   const [monthCategories, setMonthCategories] = useState(initialCategories)
   const [trend, setTrend] = useState<{ range_label: string; title: string; data: LineData; requestId: number } | null>(null)
+  const [editingGroups, setEditingGroups] = useState(false)
+  const [editingGroups, setEditingGroups] = useState(false)
 
   // Every load() bumps this; a response only gets applied if it's still the
   // most recent request. Actual Budget serializes requests through one lock
@@ -633,7 +635,17 @@ function BudgetPeriodCard({
           between the arrows is the only source of truth for what's shown below;
           no separate month/year label duplicated elsewhere on the card). */}
       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/40">
-        <span className="font-display font-bold text-[15px]">Budget</span>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="font-display font-bold text-[15px]">Budget</span>
+          <button
+            onClick={() => setEditingGroups(o => !o)}
+            className={`text-muted hover:text-white transition-colors ${editingGroups ? 'text-accent' : ''}`}
+            aria-label={editingGroups ? 'Exit group edit mode' : 'Edit groups'}
+            title={editingGroups ? 'Exit group edit mode' : 'Edit groups'}
+          >
+            <Pencil size={15} />
+          </button>
+        </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <div className="flex items-center gap-1 bg-background rounded-full p-1 border border-border">
             {PERIOD_OPTIONS.map(p => (
@@ -670,7 +682,13 @@ function BudgetPeriodCard({
       </div>
 
       {period === 'month' ? (
-        <BudgetDashboard categories={monthCategories} month={month} year={year} />
+        <BudgetDashboard
+          categories={monthCategories}
+          month={month}
+          year={year}
+          editing={editingGroups}
+          onDataChange={() => load(period, month, year)}
+        />
       ) : trend ? (
         // Chart.tsx's internal state only takes title/data as an initial value
         // (for its own in-card refetch), so it needs a `key` change to pick up
