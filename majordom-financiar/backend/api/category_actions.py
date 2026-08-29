@@ -262,7 +262,6 @@ class CategoryOverviewApply(BaseModel):
     new_categories: list[dict] = []  # [{"name": str, "group_name": str}]
     renamed_categories: dict[str, str] = {}
     deleted_groups: list[str] = []
-    deleted_groups: list[str] = []
 
 
 @router.post("/category-actions/overview/apply")

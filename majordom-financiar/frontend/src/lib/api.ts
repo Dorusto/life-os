@@ -1000,10 +1000,10 @@ export interface CategoryOverviewData {
 }
 
 export interface CategoryOverviewApplyPayload {
-  new_groups: string[]
-  renamed_groups: Record<string, string>
-  new_categories: { name: string; group_name: string }[]
-  renamed_categories: Record<string, string>
+  new_groups?: string[]
+  renamed_groups?: Record<string, string>
+  new_categories?: { name: string; group_name: string }[]
+  renamed_categories?: Record<string, string>
   deleted_groups?: string[]
 }
 
