@@ -8,6 +8,13 @@ For Actual Budget integration details (split transactions, multi-currency, credi
 
 ---
 
+> **Boundary with `product-plan.md` (set 2026-08-30):** this file is the **record of what was
+> built** — milestone themes and their outcomes. `docs/product-plan.md` holds the **forward
+> direction** — the product position and the phases we build toward next. When an unbuilt
+> milestone here overlaps a phase there (M2.5 ≈ Phase C, M5 ≈ Phase D), the phase is the one that
+> decides what gets picked up; this file records the result. Never restate a phase's plan here —
+> that is how two documents start disagreeing (see `docs/audit-2026-08.md`, F4/F5).
+
 ## Milestones
 
 ### ✅ M0 — Foundation

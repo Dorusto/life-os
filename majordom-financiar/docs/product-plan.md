@@ -4,6 +4,10 @@ Written 2026-08-30, at the end of the audit session, because development had dri
 reactive work: fixing what surfaced, adding UI where it seemed missing. This document exists so
 that stops. Its job is not to list features — it is to make it **obvious what to say no to**.
 
+`docs/roadmap.md` remains the record of **what was built** (milestone themes and outcomes). This
+file holds the **forward direction**. Where an unbuilt milestone there overlaps a phase here, the
+phase decides; roadmap records the result. Neither file restates the other.
+
 Status and priority live on GitHub (`.claude/rules/priority-tracking.md`). This file is narrative
 only: what we're building, in what order, and why. No status tables.
 
