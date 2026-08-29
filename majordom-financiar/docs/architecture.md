@@ -338,6 +338,10 @@ A new method on `ActualBudgetClient` (`core/actual_client/client.py`) that the t
 
 Writing this rule down did not stop it from recurring: 2 of 11 gaps found by a 2026-08-28 audit sweep were fixed via #148, and 2 fresh misses (one Claude-written, one DeepSeek-delegated) happened in a single later session the same day — caught only by live functional testing, after code review had already passed both times. `scripts/check_provider_wiring.py` makes the check mechanical instead of relying on a reader remembering the rule: it AST-scans every `get_provider().<method>()` call site across `backend/`, and fails if the method is missing from either layer. Wired into `.git/hooks/pre-commit` (local-only, not tracked — same as `check-private-data.sh`). Run it directly any time: `python3 scripts/check_provider_wiring.py`.
 
+### 30. A structured form can submit through the existing chat/tool-call pipeline directly — no new write endpoint needed just to skip typing
+
+When a write already goes through a chat tool call + `_PROPOSAL_TOOLS` confirmation card (e.g. `finance__set_account_goal` → `GoalProposalCard`), a UI that wants to collect the same inputs via a form instead of free-text chat does NOT need a new backend endpoint. Construct the equivalent natural-language message from the form fields, call `sendChatMessageStreaming()` (`frontend/src/lib/api.ts`) directly against the existing `/chat` endpoint without navigating to the Chat screen, parse the stream for the proposal JSON the same way `Chat.tsx` does, and render the existing proposal-card component inline for confirm/cancel. See `frontend/src/components/NewGoalSheet.tsx` for the reference implementation (`decisions.md#planned-tab-added`). This keeps "LLM = translator, logic = backend" (`docs/learn/10-chat-tools.md`) and the confirmation-card rule intact — it only removes the typing/navigation step, it is not a bypass of either.
+
 ---
 
 ## Main Flows
