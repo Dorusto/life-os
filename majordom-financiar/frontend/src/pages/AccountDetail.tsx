@@ -22,6 +22,7 @@ export default function AccountDetail() {
   const navigate = useNavigate()
   const [tab, setTab] = useState<Tab>('transactions')
   const [editingType, setEditingType] = useState(false)
+  const [typeError, setTypeError] = useState<string | null>(null)
   const queryClient = useQueryClient()
 
   const { data: accounts } = useQuery({
@@ -74,8 +75,9 @@ export default function AccountDetail() {
     try {
       await setAccountType(account.id, value)
       await queryClient.invalidateQueries({ queryKey: ['account-list'] })
-    } catch {
-      // ignore — the select closes below
+      setTypeError(null)
+    } catch (err) {
+      setTypeError(err instanceof Error ? err.message : 'Failed to update category')
     }
     setEditingType(false)
   }
@@ -141,6 +143,7 @@ export default function AccountDetail() {
                 </button>
               )}
             </div>
+            {typeError && <p className="text-danger text-xs">{typeError}</p>}
           </div>
         ) : (
           <div className="mt-2">
