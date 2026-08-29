@@ -17,7 +17,7 @@ export interface WidgetMeta {
  */
 export const WIDGETS: WidgetMeta[] = [
   { id: 'goals', name: 'Financial Goals', desc: 'Portfolio Independence and your savings goals', defaultEnabled: true, column: 'full' },
-  { id: 'budget', name: 'Budget', desc: 'Category spend vs. budget, current period', defaultEnabled: true, column: 'full' },
+  { id: 'budget', name: 'Categories Watchlist', desc: 'Category groups with current-month amounts', defaultEnabled: true, column: 'full' },
   { id: 'trend', name: 'Balance trend', desc: 'Total / on-budget / portfolio / vehicles', defaultEnabled: true, column: 'left' },
   { id: 'latest', name: 'Latest Transactions', desc: 'Recent activity across all accounts', defaultEnabled: true, column: 'right' },
   { id: 'expenses', name: 'Expenses Structure', desc: "This month's spend, broken down by category", defaultEnabled: true, column: 'right' },
