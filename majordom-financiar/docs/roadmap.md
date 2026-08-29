@@ -76,7 +76,7 @@ For Actual Budget integration details (split transactions, multi-currency, credi
 | 3.5 | Reminders | ➡️ merged into M4.6 |
 | 3.6 | Vehicle log management via chat | ✅ |
 
-Backlog (needs dedicated UI tab): mileage log view, moving average consumption, monthly cost charts, cross-vehicle comparison, service history, fuel price trend.
+Dedicated UI tab (mileage/consumption/cost-per-km/monthly-cost charts + purchase-price/depreciation value tracking with AB sync) shipped as the Vehicles section on the Accounts tab — see [#208](https://github.com/Dorusto/life-os/issues/208). Still open: cross-vehicle comparison, service history, fuel price trend.
 
 → [Session log W22](sessions/2026-W22.md)
 
