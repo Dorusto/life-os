@@ -12,13 +12,43 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 3. Ask what we're working on if not specified
 ```
 
-> **⏸️ Open decision, raise it before picking up new work: [#222](https://github.com/Dorusto/life-os/issues/222)** —
-> the `FinanceProvider` abstraction is bypassed by eleven modules under `backend/api/`, so the
-> documented one-env-var backend switch doesn't hold. Make the abstraction real, or collapse it.
-> The answer depends on whether the Sure migration is still live, and the open portfolio data
-> source (`decisions.md#ghostfolio-dropped`) belongs in the same conversation. Deferred from the
-> 2026-08-29 audit by choice, not forgotten — Doru asked for it to surface here.
-> **Remove this block once #222 is decided.**
+> ### ▶️ Picked-up work — start here (set 2026-08-30, remove when done)
+>
+> **Decided: [#222](https://github.com/Dorusto/life-os/issues/222) — finish the adapter layer.**
+> Route the eleven modules under `backend/api/` through `get_provider()`. The reason is no longer
+> a Sure hedge: Doru wants Majordom usable by other people, who won't all run Actual Budget
+> (candidates now include Beancount, hledger, or his own engine). Staying on Actual Budget for now
+> is not a commitment — **finishing the adapter is what makes changing engines cheap later**, which
+> is the actual goal. Supersede `decisions.md#financeprovider-abstraction` with this reasoning.
+>
+> **Run in this order — the first two change what the third looks like:**
+>
+> 0. **[#220](https://github.com/Dorusto/life-os/issues/220) — revoke the Telegram token** and
+>    remove the orphaned container. Live right now, ~10 min, not a coding task. Also stop the
+>    `sure-migration-trigger-check` cloud routine (`/schedule`) — Doru's call, and Sure is no
+>    longer the axis this turns on.
+> 1. **[#223](https://github.com/Dorusto/life-os/issues/223) — measure the chart lag** (~30 min).
+>    All 67 client methods re-open the budget, with no cache. If that's the cause, Actual Budget
+>    isn't slow — Majordom's integration is, and the same pattern would follow any backend. Do
+>    this before anything makes the engine look worse than it is.
+> 2. **[#213](https://github.com/Dorusto/life-os/issues/213) — wire the mechanisms in** (~1h).
+>    Track the pre-commit hook and fix the scanner's path. The audit's highest-leverage finding,
+>    and it protects every refactor after it.
+> 3. **#222 itself** — the eleven modules. Main work. Not before 1 and 2.
+>
+> **Good to delegate in parallel** (`/delegate-by-complexity`, Aider): #214 (three HTTP layers,
+> divergent 401 handling) and #215 (40 copy-pasted handlers in `Chat.tsx`). Both are self-contained
+> and independently verifiable — named in the audit as the best delegation candidates.
+>
+> **Related, don't attribute to the engine:** [#157](https://github.com/Dorusto/life-os/issues/157)
+> (HTTPS/reverse proxy — the connection friction Doru blames on Actual Budget is a deployment gap)
+> and [#190](https://github.com/Dorusto/life-os/issues/190) (setup wizard — the one friction that
+> *is* real, since a new user shouldn't have to configure Actual Budget by hand).
+>
+> **Portfolio is core scope now**, not optional — Doru: seeing his investments in Majordom is
+> "actually the point of it". Build the calculation layer in Majordom (see the closing comment on
+> #4 for why that's a reasonable build, unlike building a budgeting engine). The real dependency
+> is market price data, which needs its own decision.
 
 ---
 
