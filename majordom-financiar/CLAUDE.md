@@ -12,6 +12,14 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 3. Ask what we're working on if not specified
 ```
 
+> **⏸️ Open decision, raise it before picking up new work: [#222](https://github.com/Dorusto/life-os/issues/222)** —
+> the `FinanceProvider` abstraction is bypassed by eleven modules under `backend/api/`, so the
+> documented one-env-var backend switch doesn't hold. Make the abstraction real, or collapse it.
+> The answer depends on whether the Sure migration is still live, and the open portfolio data
+> source (`decisions.md#ghostfolio-dropped`) belongs in the same conversation. Deferred from the
+> 2026-08-29 audit by choice, not forgotten — Doru asked for it to surface here.
+> **Remove this block once #222 is decided.**
+
 ---
 
 ## Task type → what to read
