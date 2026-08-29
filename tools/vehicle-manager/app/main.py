@@ -91,12 +91,15 @@ async def create_vehicle(body: VehicleUpsertRequest):
             annual_depreciation_pct=data.get("annual_depreciation_pct"),
             salvage_floor_pct=data.get("salvage_floor_pct") or 10.0,
         )
-        ab_account_id = await majordom_client.sync_vehicle_account(
+        synced_id = await majordom_client.sync_vehicle_account(
             name=data.get("name", "Unknown Vehicle"),
             current_value=current_value,
             ab_account_id=None,
         )
-        update_current_value(vid, current_value, ab_account_id)
+        # synced_id is None on any sync failure — never overwrite a real link
+        # (there isn't one yet here, but keep the same safe pattern as the
+        # update/override call sites below, so this can't regress later).
+        update_current_value(vid, current_value, synced_id)
 
     return {"id": vid}
 
@@ -130,12 +133,17 @@ async def update_vehicle(vehicle_id: int, body: VehiclePatchRequest):
                 annual_depreciation_pct=vehicle.get("annual_depreciation_pct"),
                 salvage_floor_pct=vehicle.get("salvage_floor_pct") or 10.0,
             )
-            ab_account_id = await majordom_client.sync_vehicle_account(
+            existing_ab_account_id = vehicle.get("ab_account_id")
+            synced_id = await majordom_client.sync_vehicle_account(
                 name=vehicle.get("name", "Unknown Vehicle"),
                 current_value=current_value,
-                ab_account_id=vehicle.get("ab_account_id"),
+                ab_account_id=existing_ab_account_id,
             )
-            update_current_value(vehicle_id, current_value, ab_account_id)
+            # synced_id is None on any sync failure — keep the existing link
+            # rather than wiping it, otherwise a transient majordom-api outage
+            # permanently severs this vehicle's AB account and the next sync
+            # would create a duplicate account instead of updating the real one.
+            update_current_value(vehicle_id, current_value, synced_id or existing_ab_account_id)
 
     return get_vehicle(vehicle_id)
 
@@ -164,17 +172,20 @@ async def create_value_override(vehicle_id: int, body: VehicleValueOverrideReque
 
     insert_value_override(vehicle_id, resulting, body.date, body.note)
 
-    ab_account_id = await majordom_client.sync_vehicle_account(
+    existing_ab_account_id = vehicle.get("ab_account_id")
+    synced_id = await majordom_client.sync_vehicle_account(
         name=vehicle["name"],
         current_value=resulting,
-        ab_account_id=vehicle.get("ab_account_id"),
+        ab_account_id=existing_ab_account_id,
     )
-    update_current_value(vehicle_id, resulting, ab_account_id)
+    # See update_vehicle's comment — never let a failed sync wipe a real link.
+    final_ab_account_id = synced_id or existing_ab_account_id
+    update_current_value(vehicle_id, resulting, final_ab_account_id)
 
     return get_vehicle(vehicle_id) or {
         "vehicle_id": vehicle_id,
         "current_value": resulting,
-        "ab_account_id": ab_account_id,
+        "ab_account_id": final_ab_account_id,
     }
 
 

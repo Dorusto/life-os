@@ -111,6 +111,8 @@ services:
       dockerfile: Dockerfile
     container_name: vehicle-manager
     restart: unless-stopped
+    environment:
+      MAJORDOM_API_URL: ${MAJORDOM_API_URL:-http://majordom-api:8000}
     volumes:
       - vehicle-manager-data:/app/data
     networks:
