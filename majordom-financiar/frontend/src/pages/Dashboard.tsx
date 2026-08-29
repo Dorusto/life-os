@@ -5,7 +5,7 @@ import {
   Bell, Pencil, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Calendar, ArrowUpRight, Loader2,
 } from 'lucide-react'
 import {
-  getHomeData, getAccountList, getBalanceHistory, getTransactions, getBudgetPeriod,
+  getHomeData, getAccountList, getBalanceHistory, getTransactions, getBudgetPeriod, getVehicleCostsSummary,
   type BudgetCategory, type AccountListItem, type Transaction,
 } from '../lib/api'
 import { requestAndSubscribe } from '../lib/push'
@@ -134,7 +134,7 @@ export default function Dashboard() {
       case 'cashflow':
         return <CashFlowWidget periodLabel={periodLabel} />
       case 'vehicle':
-        return <VehicleCostsWidget periodLabel={periodLabel} />
+        return <VehicleCostsWidget periodLabel={periodLabel} dashboardMonth={dashboardMonth} dashboardYear={dashboardYear} />
     }
   }
 
@@ -606,11 +606,56 @@ function CashFlowWidget({ periodLabel }: { periodLabel: string }) {
   )
 }
 
-function VehicleCostsWidget({ periodLabel }: { periodLabel: string }) {
+function VehicleCostsWidget({ dashboardMonth, dashboardYear }: {
+  periodLabel: string
+  dashboardMonth: number
+  dashboardYear: number
+}) {
+  const period = `${dashboardYear}-${String(dashboardMonth).padStart(2, '0')}`
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ['vehicle-costs-summary', dashboardMonth, dashboardYear],
+    queryFn: () => getVehicleCostsSummary(period),
+  })
+
+  let content: ReactNode
+
+  if (isLoading) {
+    content = (
+      <div className="mt-2 flex items-center gap-2 text-muted text-xs">
+        <Loader2 size={14} className="animate-spin" />
+        Loading…
+      </div>
+    )
+  } else if (isError) {
+    content = <p className="text-muted text-xs mt-2">Couldn't load vehicle cost data.</p>
+  } else if (data && data.available === false) {
+    content = <p className="text-muted text-xs mt-2">{data.error || 'Vehicle data temporarily unavailable.'}</p>
+  } else if (data && data.available === true && (data.vehicle_count ?? 0) === 0) {
+    content = <p className="text-muted text-xs mt-2">No active vehicles yet.</p>
+  } else if (data && data.available === true) {
+    const totalCost = data.total_cost ?? 0
+    const vehicleCount = data.vehicle_count ?? 0
+    content = (
+      <>
+        <p className="font-mono font-medium text-3xl mt-1 tabular-nums">
+          €{totalCost.toLocaleString('nl-NL', { maximumFractionDigits: 0 })}
+        </p>
+        <p className="text-muted text-xs mt-2">
+          {vehicleCount} vehicle{vehicleCount !== 1 ? 's' : ''}
+          {data.cost_per_km != null && (
+            <> · €{data.cost_per_km.toFixed(2)}/km</>
+          )}
+        </p>
+      </>
+    )
+  } else {
+    content = <p className="text-muted text-xs mt-2">No vehicle data available.</p>
+  }
+
   return (
     <div className="bg-surface border border-border rounded-2xl px-4 py-4">
       <p className="font-display font-bold text-[15px]">Vehicle costs</p>
-      <p className="text-muted text-xs mt-2">Needs vehicle-manager cost data — coming soon ({periodLabel}).</p>
+      {content}
     </div>
   )
 }

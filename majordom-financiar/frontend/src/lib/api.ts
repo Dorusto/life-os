@@ -294,6 +294,24 @@ export async function getBalanceHistory(
   return request<BalanceHistoryPoint[]>(`/accounts/balance-history?${qs}`)
 }
 
+export interface VehicleCostsSummary {
+  available: boolean
+  error?: string
+  vehicle_count?: number
+  total_fuel_cost?: number
+  total_other_cost?: number
+  total_cost?: number
+  total_distance?: number
+  cost_per_km?: number | null
+}
+
+export async function getVehicleCostsSummary(period?: string): Promise<VehicleCostsSummary> {
+  const qs = new URLSearchParams()
+  if (period) qs.set('period', period)
+  const query = qs.toString()
+  return request<VehicleCostsSummary>(`/vehicle/costs-summary${query ? `?${query}` : ''}`)
+}
+
 export async function getAccountList(): Promise<AccountListItem[]> {
   return request<AccountListItem[]>('/accounts')
 }
