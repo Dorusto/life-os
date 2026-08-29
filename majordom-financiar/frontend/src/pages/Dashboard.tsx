@@ -189,18 +189,6 @@ export default function Dashboard() {
         </section>
       ) : (
         <section className="px-5 pt-3 pb-36">
-          {!editing && (
-            <div className="flex justify-center mb-4">
-              <button
-                onClick={enterEdit}
-                className="inline-flex items-center gap-1.5 bg-surface border border-border text-muted hover:text-white hover:border-border-hover text-xs font-semibold px-3.5 py-2 rounded-xl transition-colors"
-              >
-                <Pencil size={13} />
-                Customize
-              </button>
-            </div>
-          )}
-
           {fullWidgets.length > 0 && (
             <div className="space-y-6 mb-6">
               {fullWidgets.map(w => (
@@ -274,33 +262,48 @@ export default function Dashboard() {
         </section>
       )}
 
-      {/* Always-visible period bar — fixed above BottomNav, not part of the
-          scrollable content, so switching periods and seeing every widget
-          react doesn't require scrolling down to the control and back up
-          to look at the result. */}
+      {/* Always-visible bottom bar — fixed above BottomNav, not part of the
+          scrollable content. Combines Customize (used to sit in its own row
+          at the top, wasting vertical space) with the period control (used
+          to live at the bottom of the scrollable widget list) — switching
+          periods and seeing every widget react no longer requires scrolling
+          down to the control and back up to look at the result. */}
       {homeData && accountCount !== 0 && (
-        <div className="fixed bottom-16 left-0 right-0 z-40 flex items-center justify-center gap-2 py-2.5 bg-background/95 backdrop-blur border-t border-border">
-          <button
-            onClick={() => shiftDashboardPeriod(-1)}
-            className="w-7 h-7 rounded-lg bg-surface border border-border text-muted hover:text-white flex items-center justify-center flex-shrink-0"
-            aria-label="Previous period"
-          >
-            <ChevronLeft size={14} />
-          </button>
-          <button
-            onClick={() => setPeriodSheetOpen(true)}
-            className="inline-flex items-center gap-1.5 bg-surface border border-border rounded-lg px-3 py-2 text-xs font-semibold text-white hover:border-interactive transition-colors"
-          >
-            <Calendar size={13} />
-            {periodLabel}
-          </button>
-          <button
-            onClick={() => shiftDashboardPeriod(1)}
-            className="w-7 h-7 rounded-lg bg-surface border border-border text-muted hover:text-white flex items-center justify-center flex-shrink-0"
-            aria-label="Next period"
-          >
-            <ChevronRight size={14} />
-          </button>
+        <div className="fixed bottom-16 left-0 right-0 z-40 flex items-center justify-between gap-2 px-4 py-2.5 bg-background/95 backdrop-blur border-t border-border">
+          {!editing ? (
+            <button
+              onClick={enterEdit}
+              className="inline-flex items-center gap-1.5 bg-surface border border-border text-muted hover:text-white hover:border-border-hover text-xs font-semibold px-3 py-2 rounded-xl transition-colors flex-shrink-0"
+            >
+              <Pencil size={13} />
+              Customize
+            </button>
+          ) : (
+            <span className="w-[1px]" aria-hidden />
+          )}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => shiftDashboardPeriod(-1)}
+              className="w-7 h-7 rounded-lg bg-surface border border-border text-muted hover:text-white flex items-center justify-center flex-shrink-0"
+              aria-label="Previous period"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <button
+              onClick={() => setPeriodSheetOpen(true)}
+              className="inline-flex items-center gap-1.5 bg-surface border border-border rounded-lg px-3 py-2 text-xs font-semibold text-white hover:border-interactive transition-colors"
+            >
+              <Calendar size={13} />
+              {periodLabel}
+            </button>
+            <button
+              onClick={() => shiftDashboardPeriod(1)}
+              className="w-7 h-7 rounded-lg bg-surface border border-border text-muted hover:text-white flex items-center justify-center flex-shrink-0"
+              aria-label="Next period"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
         </div>
       )}
 
