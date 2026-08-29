@@ -16,6 +16,12 @@ interface Props {
   onDataChange?: () => void
 }
 
+function getBudgetColor(percentage: number, budgeted: number): string {
+  if (budgeted === 0) return '#71717A'
+  if (percentage > 100) return '#FF2D2D'
+  const hue = Math.round(120 * (1 - percentage / 100))
+  return `hsl(${hue}, 75%, 45%)`
+}
 
 function fmt(n: number): string {
   return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -146,6 +152,8 @@ export default function BudgetDashboard({ categories, editing, onDataChange }: P
           {orderedGroups.map((groupName, idx) => {
             const cats = groupMap[groupName] ?? []
             const groupSpent = cats.reduce((s, c) => s + c.spent, 0)
+            const groupBudgeted = cats.reduce((s, c) => s + c.budgeted, 0)
+            const groupPct = groupBudgeted > 0 ? Math.round(groupSpent / groupBudgeted * 100) : 0
             const isExpanded = expandedGroups.has(groupName)
             const isLast = idx === orderedGroups.length - 1
             const groupColor = groupName === 'Income' ? INCOME_COLOR : GROUP_COLORS[idx % GROUP_COLORS.length]
@@ -157,6 +165,8 @@ export default function BudgetDashboard({ categories, editing, onDataChange }: P
                   color={groupColor}
                   isIncome={groupName === 'Income'}
                   spent={groupSpent}
+                  budgeted={groupBudgeted}
+                  percentage={groupPct}
                   isExpanded={isExpanded}
                   editing={editing}
                   index={idx}
@@ -173,6 +183,7 @@ export default function BudgetDashboard({ categories, editing, onDataChange }: P
                         key={cat.category_id}
                         category={cat}
                         color={groupColor}
+                        percentage={cat.budgeted > 0 ? Math.round(cat.spent / cat.budgeted * 100) : 0}
                         isLast={catIdx === cats.length - 1}
                         onClick={() => openCategoryTransactions(cat)}
                       />
@@ -246,6 +257,8 @@ function GroupRow({
   color,
   isIncome,
   spent,
+  budgeted,
+  percentage,
   isExpanded,
   onToggle,
   onGroupClick,
@@ -259,6 +272,8 @@ function GroupRow({
   color: string
   isIncome: boolean
   spent: number
+  budgeted: number
+  percentage: number
   isExpanded: boolean
   onToggle: () => void
   onGroupClick: () => void
@@ -268,57 +283,70 @@ function GroupRow({
   onMove: (dir: -1 | 1) => void
   onDelete: () => void
 }) {
+  const hasBudget = budgeted > 0 && !isIncome
+  const barColor = getBudgetColor(percentage, budgeted)
+
   return (
-    <div
-      className="flex items-center justify-between gap-3 py-3"
-      onClick={editing ? undefined : onGroupClick}
-    >
-      <div className="flex items-center gap-2 min-w-0">
-        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-        <span className="text-white text-sm font-semibold truncate">{name}</span>
-        <button
-          onClick={(e) => { e.stopPropagation(); onToggle() }}
-          className="text-muted hover:text-white transition-colors"
-          aria-label={isExpanded ? 'Collapse' : 'Expand'}
-        >
-          {isExpanded ? '▲' : '▼'}
-        </button>
-        {editing && index === 0 && (
-          <span className="text-muted-2 text-[10px] uppercase tracking-wide ml-1">top</span>
-        )}
+    <div className="py-3">
+      <div
+        className="flex items-center justify-between gap-3"
+        onClick={editing ? undefined : onGroupClick}
+      >
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+          <span className="text-white text-sm font-semibold truncate">{name}</span>
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggle() }}
+            className="text-muted hover:text-white transition-colors"
+            aria-label={isExpanded ? 'Collapse' : 'Expand'}
+          >
+            {isExpanded ? '▲' : '▼'}
+          </button>
+          {editing && index === 0 && (
+            <span className="text-muted-2 text-[10px] uppercase tracking-wide ml-1">top</span>
+          )}
+        </div>
+        <div className="flex items-center gap-3 flex-shrink-0 ml-2">
+          {editing && (
+            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+              <button
+                onClick={() => onMove(-1)}
+                disabled={index === 0}
+                className="w-6 h-6 rounded-lg bg-surface-2 border border-border text-muted hover:text-white disabled:opacity-40 flex items-center justify-center"
+                aria-label={`Move ${name} up`}
+              >
+                <ChevronUp size={13} />
+              </button>
+              <button
+                onClick={() => onMove(1)}
+                disabled={index === total - 1}
+                className="w-6 h-6 rounded-lg bg-surface-2 border border-border text-muted hover:text-white disabled:opacity-40 flex items-center justify-center"
+                aria-label={`Move ${name} down`}
+              >
+                <ChevronDown size={13} />
+              </button>
+              <button
+                onClick={onDelete}
+                className="w-6 h-6 rounded-lg bg-danger/15 border border-danger/40 text-danger hover:bg-danger/25 flex items-center justify-center"
+                aria-label={`Delete ${name} group`}
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
+          )}
+          <span className={`font-mono text-sm tabular-nums ${isIncome ? 'text-positive' : 'text-white'}`}>
+            €{fmt(spent)}
+          </span>
+        </div>
       </div>
-      <div className="flex items-center gap-3 flex-shrink-0 ml-2">
-        {editing && (
-          <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-            <button
-              onClick={() => onMove(-1)}
-              disabled={index === 0}
-              className="w-6 h-6 rounded-lg bg-surface-2 border border-border text-muted hover:text-white disabled:opacity-40 flex items-center justify-center"
-              aria-label={`Move ${name} up`}
-            >
-              <ChevronUp size={13} />
-            </button>
-            <button
-              onClick={() => onMove(1)}
-              disabled={index === total - 1}
-              className="w-6 h-6 rounded-lg bg-surface-2 border border-border text-muted hover:text-white disabled:opacity-40 flex items-center justify-center"
-              aria-label={`Move ${name} down`}
-            >
-              <ChevronDown size={13} />
-            </button>
-            <button
-              onClick={onDelete}
-              className="w-6 h-6 rounded-lg bg-danger/15 border border-danger/40 text-danger hover:bg-danger/25 flex items-center justify-center"
-              aria-label={`Delete ${name} group`}
-            >
-              <Trash2 size={13} />
-            </button>
-          </div>
-        )}
-        <span className={`font-mono text-sm tabular-nums ${isIncome ? 'text-positive' : 'text-white'}`}>
-          €{fmt(spent)}
-        </span>
-      </div>
+      {hasBudget && (
+        <div className="h-px bg-border/40 rounded-full overflow-hidden mt-2 ml-[18px]">
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${Math.min(percentage, 100)}%`, backgroundColor: barColor }}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -326,15 +354,19 @@ function GroupRow({
 function SubcategoryRow({
   category,
   color,
+  percentage,
   isLast,
   onClick,
 }: {
   category: BudgetCategory
   color: string
+  percentage: number
   isLast: boolean
   onClick: () => void
 }) {
-  const { category_name, spent } = category
+  const { category_name, spent, budgeted } = category
+  const hasBudget = budgeted > 0
+  const barColor = getBudgetColor(percentage, budgeted)
   return (
     <button onClick={onClick} className={`w-full text-left py-2 ${isLast ? '' : 'border-b border-border/10'}`}>
       <div className="flex items-center justify-between gap-3 ml-3">
@@ -344,6 +376,14 @@ function SubcategoryRow({
         </div>
         <span className="font-mono text-xs tabular-nums text-white">€{fmt(spent)}</span>
       </div>
+      {hasBudget && (
+        <div className="h-px bg-border/30 rounded-full overflow-hidden mt-1.5 ml-[15px]">
+          <div
+            className="h-full rounded-full transition-all duration-500"
+            style={{ width: `${Math.min(percentage, 100)}%`, backgroundColor: barColor }}
+          />
+        </div>
+      )}
     </button>
   )
 }
