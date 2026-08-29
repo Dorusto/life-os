@@ -11,7 +11,6 @@ import {
 import { requestAndSubscribe } from '../lib/push'
 import BudgetDashboard from '../components/BudgetDashboard'
 import Chart, { type LineData } from '../components/Chart'
-import Card from '../components/Card'
 import GoalsSection from '../components/GoalsSection'
 import PageHeader from '../components/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
@@ -629,13 +628,13 @@ function BudgetPeriodCard({
   const navLabel = period === 'month' ? `${MONTH_NAMES_FULL[month - 1]} ${year}` : trend?.range_label ?? ''
 
   return (
-    <>
-      <p className="text-xs tracking-[0.2em] uppercase text-muted mb-4">Budget</p>
-      <Card variant="accordion">
-        {/* Period nav — segmented control + prev/next, inside the card (the label
-            between the arrows is the only source of truth for what's shown below;
-            no separate month/year label duplicated elsewhere on the card). */}
-        <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/40">
+    <div className="bg-surface border border-border rounded-2xl overflow-hidden">
+      {/* Period nav — segmented control + prev/next, inside the card (the label
+          between the arrows is the only source of truth for what's shown below;
+          no separate month/year label duplicated elsewhere on the card). */}
+      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/40">
+        <span className="font-display font-bold text-[15px]">Budget</span>
+        <div className="flex items-center gap-2 flex-shrink-0">
           <div className="flex items-center gap-1 bg-background rounded-full p-1 border border-border">
             {PERIOD_OPTIONS.map(p => (
               <button
@@ -650,42 +649,40 @@ function BudgetPeriodCard({
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              onClick={() => shift(-1)}
-              disabled={loading}
-              className="w-6 h-6 rounded-full bg-background border border-border text-muted hover:text-white disabled:opacity-50 flex items-center justify-center text-xs"
-              aria-label="Previous period"
-            >
-              ‹
-            </button>
-            <span className="text-[11px] text-muted-2 min-w-[6rem] text-center">{navLabel}</span>
-            <button
-              onClick={() => shift(1)}
-              disabled={loading}
-              className="w-6 h-6 rounded-full bg-background border border-border text-muted hover:text-white disabled:opacity-50 flex items-center justify-center text-xs"
-              aria-label="Next period"
-            >
-              ›
-            </button>
-          </div>
+          <button
+            onClick={() => shift(-1)}
+            disabled={loading}
+            className="w-6 h-6 rounded-full bg-background border border-border text-muted hover:text-white disabled:opacity-50 flex items-center justify-center text-xs"
+            aria-label="Previous period"
+          >
+            ‹
+          </button>
+          <span className="text-[11px] text-muted-2 min-w-[6rem] text-center">{navLabel}</span>
+          <button
+            onClick={() => shift(1)}
+            disabled={loading}
+            className="w-6 h-6 rounded-full bg-background border border-border text-muted hover:text-white disabled:opacity-50 flex items-center justify-center text-xs"
+            aria-label="Next period"
+          >
+            ›
+          </button>
         </div>
+      </div>
 
-        {period === 'month' ? (
-          <BudgetDashboard categories={monthCategories} month={month} year={year} />
-        ) : trend ? (
-          // Chart.tsx's internal state only takes title/data as an initial value
-          // (for its own in-card refetch), so it needs a `key` change to pick up
-          // fresh data. Keying on period/month/year looked right but isn't: those
-          // update one render *before* the new trend data lands (setPeriod fires
-          // immediately, setTrend only after the fetch resolves), so the remount
-          // happens too early and the later props-only update gets ignored by
-          // Chart's internal state — verified live (nav label updated, chart
-          // didn't). requestId only changes in the same state update as the data
-          // itself, so the key and the data it's keying always land together.
-          <Chart key={trend.requestId} chart_type="line" title={trend.title} data={trend.data} bare />
-        ) : null}
-      </Card>
-    </>
+      {period === 'month' ? (
+        <BudgetDashboard categories={monthCategories} month={month} year={year} />
+      ) : trend ? (
+        // Chart.tsx's internal state only takes title/data as an initial value
+        // (for its own in-card refetch), so it needs a `key` change to pick up
+        // fresh data. Keying on period/month/year looked right but isn't: those
+        // update one render *before* the new trend data lands (setPeriod fires
+        // immediately, setTrend only after the fetch resolves), so the remount
+        // happens too early and the later props-only update gets ignored by
+        // Chart's internal state — verified live (nav label updated, chart
+        // didn't). requestId only changes in the same state update as the data
+        // itself, so the key and the data it's keying always land together.
+        <Chart key={trend.requestId} chart_type="line" title={trend.title} data={trend.data} bare />
+      ) : null}
+    </div>
   )
 }
