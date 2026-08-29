@@ -76,6 +76,14 @@ Three failure modes this is written against, all observed in this repo:
 
 - **Adding a screen because a screen felt missing.** A new view is not progress unless something
   new is being noticed. Most of what looks like a missing screen is a missing *insight*.
+
+  *Worked example, in Doru's own words (2026-08-30):* "I wanted to rename transactions in chat,
+  got an error saying there were too many uncategorised ones, so I decided I needed to be able to
+  reach the transactions — and I built a Transactions tab." The missing thing was never a tab. It
+  was **Majordom handling the uncategorised ones** — bringing them over grouped, with a proposal
+  and a one-tap confirm. What got built was a room to walk into, when the problem was that nothing
+  was coming to him. This happened without being noticed at the time, which is why the rule is
+  written down rather than left to judgement.
 - **Fixing what surfaced instead of what matters.** Real bugs get fixed — but a fix is not a phase
   goal, and a session of fixes is not a step forward.
 - **Building the abstraction before the second use case.** `FinanceProvider` was built for a
@@ -133,6 +141,27 @@ for it.
 
 **Done when:** you open Majordom and the first thing you see is *what it found since last time*,
 not a dashboard you have to interpret.
+
+### Why this phase is the whole product, in one quote
+
+Doru, 2026-08-30, at the end of the audit session:
+
+> *"The intelligence I'm talking about doesn't work without me, and I don't trust that what I did
+> is right — I have to go into Actual Budget to check."*
+
+**That is the real problem, and it is not complexity.** An assistant you have to verify saves you
+nothing; it adds a step. Majordom currently feels heavy not because it has too many features, but
+because **not one of them takes a worry off him completely.**
+
+This was already identified months ago and written down —
+`decisions.md#every-proposed-action-needs-verifiable-proof`: *every proposed action needs
+verifiable proof, not just a success message.* Like most of what the 2026-08-29 audit found, the
+rule exists and is not executed.
+
+So Phase B is not just "a queue of findings". **Every item in the Inbox must carry its own proof**
+— what changed, what it was before, and how to see it — so that confirming is the end of the
+task, not the start of a verification trip into Actual Budget. An Inbox without proof would
+reproduce exactly the problem it is meant to solve.
 
 **Why this is the spine:** every intelligent thing Majordom will ever do lands here. Coaching,
 alerts, budget checks, unusual spending — all of it is "Majordom noticed something and proposes
