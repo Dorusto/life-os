@@ -39,7 +39,6 @@ export default function Dashboard() {
     staleTime: 60_000,
   })
 
-  const budgetStatus = homeData?.budget
   const goals = homeData?.goals
   const fireData = homeData?.fire
   const accountCount = homeData?.account_count
