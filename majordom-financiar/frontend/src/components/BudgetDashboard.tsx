@@ -32,14 +32,7 @@ export default function BudgetDashboard({ categories, editing, onDataChange }: P
   const [extraGroups, setExtraGroups] = useState<string[]>([])
   const [uiError, setUiError] = useState<string | null>(null)
 
-  const totalSpent = categories.reduce((sum, c) => sum + c.spent, 0)
-  const totalBudgeted = categories.reduce((sum, c) => sum + c.budgeted, 0)
-  const budgetBalance = totalBudgeted - totalSpent
-  const isOver = budgetBalance < 0
-  const pct = totalBudgeted > 0 ? Math.round((totalSpent / totalBudgeted) * 100) : 0
-  const summaryColor = isOver ? '#FF2D2D' : '#22C55E'
-
-  // Group categories — skip Income and zero-activity entries
+  // Group categories — skip zero-activity entries (Income included, unlike the old Budget widget)
   const spendingCats = categories.filter(c => (c.budgeted > 0 || c.spent > 0))
 
   // Build groups map
