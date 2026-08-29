@@ -1019,3 +1019,33 @@ file permanently heavier.
 **Why it silently resurfaced:** the two static prompt files were written by pattern-matching on this session's own earlier `plan-feature`-driven work (which correctly used the manual-file convention because that's what the docs said at the time) — nothing in the moment flagged that a newer, better mechanism existed and should have been checked first. Root cause is the docs, not a one-off lapse: `CLAUDE.md`'s collaboration-workflow section still described the manual file save as the default, so following it faithfully produced the outdated behavior.
 
 **Not done here:** no change to `delegate-by-complexity` itself (it was already correct) — this is purely a documentation-default fix in the *calling* project's docs, so the right tool gets reached for automatically next time instead of depending on being remembered mid-session.
+
+---
+
+<a id="account-type-note-tag"></a>
+### Account categorization (#205) stored as a note-tag on the AB account, not a new field/table
+
+**Date:** 2026-08-29
+
+**Context:** A Net Worth widget and extra Balance-trend scopes (Portfolio/Vehicles/Loans) both need to group accounts by a business-meaning category (Cash/Investment/Vehicle/Loan/Rental) that neither Actual Budget nor `AccountListItem` had any concept of. Checked directly in the AB web UI (Create Local Account dialog) and confirmed AB's own `type`/`subtype` account columns are populated only by bank-sync integrations (GoCardless/SimpleFIN/Pluggy) — `None` on every real account in this deployment, and there is no way to set them for a manually-created account through AB's own UI.
+
+**Decision:** reuse the exact mechanism Financial Goals already established (`set_account_goal()`, `client.py`) — encode structured metadata as a recognizable tag inside the AB account's own free-text `notes` field (`TARGET:`/`DEADLINE:` for goals, now `TYPE:` for category), parsed back out with a regex on read. New `ACCOUNT_TYPES = ("Cash", "Investment", "Vehicle", "Loan", "Rental")` constant, `Account.account_type` field, `set_account_type()` method (matches by account `id`, not name — more robust than the goals method's name-matching). No `FinanceProvider`/`provider.py` wiring — `backend/api/accounts.py` already bypasses that layer via its own `_get_client()` for every other account mutation (`create_account`, transfers), and there's no chat tool for this (direct REST only, same precedent as `apply_category_overview`'s category-group edits).
+
+**Why not a new SQLite table or column:** the "No financial data in SQLite — Actual Budget is the source of truth" rule (`CLAUDE.md`) extends naturally to account metadata that drives real financial aggregation (Net Worth totals, trend scopes) — this isn't cosmetic like `categoryGroupOrder.ts`'s pure-display `localStorage` ordering. Writing it into AB's own `notes` field keeps AB as the literal source of truth, visible/editable even outside Majordom (in AB's own UI), and needs zero new schema.
+
+**"Ventures" → "Rental":** the original value set (Cash/Investment/Vehicle/Loan) came from #205's own issue title; "Ventures" was a 5th label picked up mechanically from the #207 MoneyMatter reference screenshot's own toggle text ("Include in net worth: Loans/Vehicles/Ventures") without ever being defined in this project. Asked directly — Doru didn't know what it meant either, and on reflection it wasn't inherited from a real need. Replaced with "Rental" after he described the actual case: a rented-out apartment whose *value* he wants trackable toward Net Worth, explicitly distinct from tracking the rental's ongoing income/expenses (which needs no new mechanism — plain AB income/expense categories already do that, unblocked, not part of this task).
+
+**Not done here:** #205 only adds the tagging mechanism and a manual dropdown editor (`AccountDetail.tsx`) — no auto-inference from account name (deliberately manual-only, matching the "coach not consultant" user-controlled-inputs principle used elsewhere). The actual consumers (#207 Net Worth widget, Balance trend's Portfolio/Vehicles/Loans scopes) are separate, unstarted follow-up work.
+
+---
+
+<a id="categories-watchlist-picker-deferred"></a>
+### #204 re-scoped: Categories Watchlist has no picker at all today, and adding one isn't a priority right now
+
+**Date:** 2026-08-29
+
+**Context:** #204 was opened as "Income is excluded from Categories Watchlist, fix the exclusion." Investigating the real fix (extend the shared `_compute_budget_vs_spent` with an opt-in `include_income`/`earned_by_category` path, isolated from `get_budget_status`'s other consumers — overspend notifications, the `finance__get_budget_status` chat tool) surfaced a bigger misunderstanding mid-discussion: Categories Watchlist isn't a manually curated picker at all today — `BudgetDashboard.tsx`'s `spendingCats` filter shows *any* category with budget or spending activity automatically, and "+ Add category" creates a brand-new AB category rather than selecting from existing ones. What Doru actually wants (per the MoneyMatter reference) is a real picker — choosing specific existing categories one at a time, including individual income categories (not the whole Income group in one click).
+
+**Decision:** don't implement either the automatic-inclusion fix or the picker now. Doru confirmed, once he saw the actual current behavior, that this isn't a current priority. Re-scoped and retitled the issue to describe the real ask (manual picker), downgraded `tier-2` → `tier-3`, and recorded the full technical findings (both root causes, the AB/`actualpy` "nothing precomputes this" finding, the planned `include_income` shape) as an issue comment so the research isn't lost whenever it's picked back up.
+
+**Also confirmed while investigating:** neither Actual Budget nor `actualpy` precompute an "actual received/spent per category" figure anywhere — `zero_budgets`/`reflect_budgets` only ever store the *planned* amount, and `queries.py` has no equivalent read helper. Every consumer, including AB's own web UI, derives it by summing transactions at read time — this codebase already does exactly that for expenses (`_compute_budget_vs_spent`'s `spent_by_category` loop); income would need the mirror of it, not something fetchable from an existing field.
