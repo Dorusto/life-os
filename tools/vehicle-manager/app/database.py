@@ -56,6 +56,14 @@ def init_db(db_path: str | None = None) -> None:
                 service_interval_months INTEGER DEFAULT NULL,
                 last_service_km REAL DEFAULT NULL,
                 last_service_date TEXT DEFAULT NULL,
+                purchase_price REAL,
+                purchase_date TEXT,
+                vehicle_class TEXT,
+                annual_depreciation_pct REAL,
+                salvage_floor_pct REAL DEFAULT 10.0,
+                manual_mileage REAL,
+                current_value REAL,
+                ab_account_id TEXT,
                 apk_required INTEGER DEFAULT 1,
                 created_at TEXT DEFAULT (datetime('now'))
             );
@@ -91,10 +99,23 @@ def init_db(db_path: str | None = None) -> None:
         # Existing databases predate apk_required — CREATE TABLE IF NOT EXISTS
         # above won't add it to an already-created table.
         existing_columns = {row["name"] for row in conn.execute("PRAGMA table_info(vehicles)")}
-        if "apk_required" not in existing_columns:
-            conn.execute("ALTER TABLE vehicles ADD COLUMN apk_required INTEGER DEFAULT 1")
-            conn.commit()
-            logger.info("Migrated: added apk_required column to vehicles")
+
+        new_vehicle_columns = {
+            "apk_required": "INTEGER DEFAULT 1",
+            "purchase_price": "REAL",
+            "purchase_date": "TEXT",
+            "vehicle_class": "TEXT",
+            "annual_depreciation_pct": "REAL",
+            "salvage_floor_pct": "REAL DEFAULT 10.0",
+            "manual_mileage": "REAL",
+            "current_value": "REAL",
+            "ab_account_id": "TEXT",
+        }
+        for col, definition in new_vehicle_columns.items():
+            if col not in existing_columns:
+                conn.execute(f"ALTER TABLE vehicles ADD COLUMN {col} {definition}")
+                conn.commit()
+                logger.info("Migrated: added %s column to vehicles", col)
 
         logger.info("Database initialized: %s", path)
     finally:
@@ -116,19 +137,32 @@ def upsert_vehicle(data: dict, db_path: str | None = None) -> int:
         if row:
             vid = row["id"]
             conn.execute("""
-                UPDATE vehicles SET make=?,model=?,year=?,tank_capacity=?,fuel_type=?,active=?,vehicle_type=?
+                UPDATE vehicles SET
+                    make=?, model=?, year=?, tank_capacity=?, fuel_type=?, active=?, vehicle_type=?,
+                    purchase_price=?, purchase_date=?, vehicle_class=?, annual_depreciation_pct=?,
+                    salvage_floor_pct=?, manual_mileage=?
                 WHERE id=?
             """, (data.get("make"), data.get("model"), data.get("year"),
                   data.get("tank_capacity"), data.get("fuel_type"), data.get("active", 1),
-                  data.get("vehicle_type", "car"), vid))
+                  data.get("vehicle_type", "car"),
+                  data.get("purchase_price"), data.get("purchase_date"), data.get("vehicle_class"),
+                  data.get("annual_depreciation_pct"), data.get("salvage_floor_pct"),
+                  data.get("manual_mileage"), vid))
             conn.commit()
             return vid
         cursor = conn.execute("""
-            INSERT INTO vehicles (name,make,model,year,plate,tank_capacity,fuel_type,active,vehicle_type)
-            VALUES (?,?,?,?,?,?,?,?,?)
+            INSERT INTO vehicles (
+                name, make, model, year, plate, tank_capacity, fuel_type, active, vehicle_type,
+                purchase_price, purchase_date, vehicle_class, annual_depreciation_pct,
+                salvage_floor_pct, manual_mileage
+            )
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         """, (data.get("name"), data.get("make"), data.get("model"), data.get("year"),
               data.get("plate"), data.get("tank_capacity"), data.get("fuel_type"),
-              data.get("active", 1), data.get("vehicle_type", "car")))
+              data.get("active", 1), data.get("vehicle_type", "car"),
+              data.get("purchase_price"), data.get("purchase_date"), data.get("vehicle_class"),
+              data.get("annual_depreciation_pct"), data.get("salvage_floor_pct"),
+              data.get("manual_mileage")))
         conn.commit()
         return cursor.lastrowid
     finally:
@@ -175,10 +209,12 @@ def patch_vehicle(vehicle_id: int, updates: dict, db_path: str | None = None) ->
     Returns True if vehicle was found and updated.
     """
     allowed_fields = {
-        "vehicle_type", "apk_due", "insurance_due",
+        "name", "vehicle_type", "apk_due", "insurance_due",
         "service_interval_km", "service_interval_months",
         "last_service_km", "last_service_date", "active",
         "apk_required",
+        "purchase_price", "purchase_date", "vehicle_class",
+        "annual_depreciation_pct", "salvage_floor_pct", "manual_mileage",
     }
     set_clauses = []
     params = []
@@ -398,5 +434,63 @@ def get_vehicle_stats_data(vehicle_id: int, period: str = "",
             "total_other_cost": total_other_cost,
             "total_cost": total_cost,
         }
+    finally:
+        conn.close()
+
+
+def insert_value_override(vehicle_id: int, value: float, date: str, note: str | None, db_path: str | None = None) -> int:
+    """Insert a manual vehicle value override and return its id."""
+    conn = _get_conn(db_path)
+    try:
+        cursor = conn.execute(
+            "INSERT INTO vehicle_value_overrides (vehicle_id, value, date, note) VALUES (?,?,?,?)",
+            (vehicle_id, value, date, note)
+        )
+        conn.commit()
+        return cursor.lastrowid
+    finally:
+        conn.close()
+
+
+def get_value_overrides(vehicle_id: int, db_path: str | None = None) -> list[dict]:
+    """Return value overrides for a vehicle, newest first."""
+    conn = _get_conn(db_path)
+    try:
+        rows = conn.execute("""
+            SELECT id, vehicle_id, value, date, note, created_at
+            FROM vehicle_value_overrides
+            WHERE vehicle_id = ?
+            ORDER BY date DESC, created_at DESC
+        """, (vehicle_id,)).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
+def get_latest_value_override(vehicle_id: int, db_path: str | None = None) -> dict | None:
+    """Return the most recent value override for a vehicle, or None."""
+    conn = _get_conn(db_path)
+    try:
+        row = conn.execute("""
+            SELECT id, vehicle_id, value, date, note, created_at
+            FROM vehicle_value_overrides
+            WHERE vehicle_id = ?
+            ORDER BY date DESC, created_at DESC
+            LIMIT 1
+        """, (vehicle_id,)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def update_current_value(vehicle_id: int, current_value: float, ab_account_id: str | None = None, db_path: str | None = None) -> None:
+    """Set the system-managed current_value and optional ab_account_id for a vehicle."""
+    conn = _get_conn(db_path)
+    try:
+        conn.execute(
+            "UPDATE vehicles SET current_value = ?, ab_account_id = ? WHERE id = ?",
+            (current_value, ab_account_id, vehicle_id)
+        )
+        conn.commit()
     finally:
         conn.close()

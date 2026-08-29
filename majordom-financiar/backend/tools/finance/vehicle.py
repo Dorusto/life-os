@@ -2,7 +2,7 @@
 import json
 import logging
 import uuid
-from datetime import date as _date
+from datetime import date as _date, timedelta
 
 from backend.core.config import settings
 from backend.core.vehicle_client import VehicleClient, VehicleClientError
@@ -699,4 +699,167 @@ async def propose_set_vehicle_active(vehicle_name: str, active: bool) -> str:
     return json.dumps({
         "type": "vehicle_status", "id": action_id,
         "vehicle_name": resolved_name, "active": active,
+    })
+
+
+async def _get_monthly_cost_and_distance(
+    client: VehicleClient,
+    vehicle_id: int,
+    months: int,
+) -> list[dict]:
+    """One entry per calendar month with any vehicle_log activity.
+
+    total_cost sums cost_total across every entry_type in that month.
+    total_distance_km sums the full-tank-to-full-tank fuel intervals
+    (reusing _get_fuel_intervals) that fall within that month.
+
+    months=0 means all time; otherwise only the most recent `months` months
+    are returned.
+    """
+    rows = await client.get_log(vehicle_id, limit=500)
+    intervals = await _get_fuel_intervals(client, vehicle_id, 0)
+
+    monthly: dict[str, dict] = {}
+
+    for r in rows:
+        month = (r.get("date") or "")[:7]
+        if not month:
+            continue
+        bucket = monthly.setdefault(month, {"total_cost": 0.0, "total_distance_km": 0.0})
+        bucket["total_cost"] += float(r.get("cost_total") or 0)
+
+    for iv in intervals:
+        month = (iv.get("date") or "")[:7]
+        if not month:
+            continue
+        bucket = monthly.setdefault(month, {"total_cost": 0.0, "total_distance_km": 0.0})
+        bucket["total_distance_km"] += iv["distance_km"]
+
+    result = [
+        {
+            "month": m,
+            "total_cost": round(monthly[m]["total_cost"], 2),
+            "total_distance_km": round(monthly[m]["total_distance_km"], 2),
+        }
+        for m in sorted(monthly)
+    ]
+
+    if months > 0:
+        result = result[-months:]
+
+    return result
+
+
+async def get_vehicle_cost_per_km_chart(
+    vehicle_name: str = "",
+    months: int = 12,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> str:
+    """Return cost per km by calendar month as a line chart."""
+    client = _get_client()
+
+    matched, error = await _resolve_vehicle(client, vehicle_name)
+    if error:
+        return json.dumps({"type": "error", "message": error})
+    display_name = matched["name"]
+    vehicle_id = matched["id"]
+
+    monthly = await _get_monthly_cost_and_distance(client, vehicle_id, months)
+    points = []
+    for m in monthly:
+        if m["total_distance_km"] > 0:
+            points.append({
+                "x": m["month"] + "-01",
+                "y": round(m["total_cost"] / m["total_distance_km"], 3),
+            })
+
+    return json.dumps({
+        "type": "chart",
+        "chart_type": "line",
+        "title": f"Cost per km — {display_name.title()}",
+        "data": {
+            "series": [{"label": "€/km", "color": "#F59E0B", "points": points}],
+            "empty_message": "No monthly distance data yet — log a few fill-ups to see cost per km.",
+        },
+        "refetch": _vehicle_line_chart_refetch(
+            "/vehicle/cost-per-km-chart", display_name, months, points
+        ),
+    })
+
+
+async def get_vehicle_monthly_cost_chart(
+    vehicle_name: str = "",
+    months: int = 12,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> str:
+    """Return total monthly vehicle cost as a line chart."""
+    client = _get_client()
+
+    matched, error = await _resolve_vehicle(client, vehicle_name)
+    if error:
+        return json.dumps({"type": "error", "message": error})
+    display_name = matched["name"]
+    vehicle_id = matched["id"]
+
+    monthly = await _get_monthly_cost_and_distance(client, vehicle_id, months)
+    points = [
+        {"x": m["month"] + "-01", "y": m["total_cost"]}
+        for m in monthly
+    ]
+
+    return json.dumps({
+        "type": "chart",
+        "chart_type": "line",
+        "title": f"Monthly Cost — {display_name.title()}",
+        "data": {
+            "series": [{"label": "€", "color": "#F59E0B", "points": points}],
+            "empty_message": "No monthly cost data yet — log some fuel or service entries.",
+        },
+        "refetch": _vehicle_line_chart_refetch(
+            "/vehicle/monthly-cost-chart", display_name, months, points
+        ),
+    })
+
+
+async def get_vehicle_mileage_chart(
+    vehicle_name: str = "",
+    months: int = 12,
+    start_date: str | None = None,
+    end_date: str | None = None,
+) -> str:
+    """Return odometer readings from every individual log entry as a line chart."""
+    client = _get_client()
+
+    matched, error = await _resolve_vehicle(client, vehicle_name)
+    if error:
+        return json.dumps({"type": "error", "message": error})
+    display_name = matched["name"]
+    vehicle_id = matched["id"]
+
+    rows = await client.get_log(vehicle_id, limit=500)
+    points = []
+    for r in sorted(rows, key=lambda r: (r.get("date") or "")):
+        date_str = (r.get("date") or "")[:10]
+        odo = r.get("odo_km")
+        if not date_str or odo is None:
+            continue
+        if start_date and date_str < start_date:
+            continue
+        if end_date and date_str > end_date:
+            continue
+        points.append({"x": date_str, "y": float(odo)})
+
+    return json.dumps({
+        "type": "chart",
+        "chart_type": "line",
+        "title": f"Mileage — {display_name.title()}",
+        "data": {
+            "series": [{"label": "km", "color": "#22C55E", "points": points}],
+            "empty_message": "No odometer readings logged yet.",
+        },
+        "refetch": _vehicle_line_chart_refetch(
+            "/vehicle/mileage-chart", display_name, months, points
+        ),
     })

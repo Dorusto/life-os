@@ -15,9 +15,16 @@ class VehicleUpsertRequest(BaseModel):
     fuel_type: str = "petrol"
     active: int = 1
     vehicle_type: str = "car"
+    purchase_price: float | None = None
+    purchase_date: str | None = None
+    vehicle_class: str | None = None
+    annual_depreciation_pct: float | None = None
+    salvage_floor_pct: float | None = None
+    manual_mileage: float | None = None
 
 
 class VehiclePatchRequest(BaseModel):
+    name: str | None = None
     vehicle_type: str | None = None
     apk_due: str | None = None
     insurance_due: str | None = None
@@ -27,6 +34,12 @@ class VehiclePatchRequest(BaseModel):
     last_service_date: str | None = None
     active: int | None = None
     apk_required: bool | None = None
+    purchase_price: float | None = None
+    purchase_date: str | None = None
+    vehicle_class: str | None = None
+    annual_depreciation_pct: float | None = None
+    salvage_floor_pct: float | None = None
+    manual_mileage: float | None = None
 
 
 class VehicleLogEntry(BaseModel):
@@ -59,6 +72,14 @@ class LogInsertResult(BaseModel):
 
 class VehicleUpsertResult(BaseModel):
     id: int
+
+
+class VehicleValueOverrideRequest(BaseModel):
+    mode: str
+    value: float
+    direction: str | None = None
+    date: str
+    note: str | None = None
 
 
 class DeleteResult(BaseModel):

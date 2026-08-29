@@ -57,3 +57,51 @@ async def vehicle_costs_summary(
 ):
     from backend.tools.finance.vehicle import get_vehicle_costs_summary
     return await get_vehicle_costs_summary(period=period)
+
+
+@router.get("/vehicle/cost-per-km-chart")
+async def vehicle_cost_per_km_chart(
+    vehicle_name: str = "",
+    months: int = 12,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    current_user: str = Depends(get_current_user),
+):
+    from backend.tools.finance.vehicle import get_vehicle_cost_per_km_chart
+
+    result = await get_vehicle_cost_per_km_chart(
+        vehicle_name=vehicle_name, months=months, start_date=start_date, end_date=end_date
+    )
+    return json.loads(result)
+
+
+@router.get("/vehicle/monthly-cost-chart")
+async def vehicle_monthly_cost_chart(
+    vehicle_name: str = "",
+    months: int = 12,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    current_user: str = Depends(get_current_user),
+):
+    from backend.tools.finance.vehicle import get_vehicle_monthly_cost_chart
+
+    result = await get_vehicle_monthly_cost_chart(
+        vehicle_name=vehicle_name, months=months, start_date=start_date, end_date=end_date
+    )
+    return json.loads(result)
+
+
+@router.get("/vehicle/mileage-chart")
+async def vehicle_mileage_chart(
+    vehicle_name: str = "",
+    months: int = 12,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    current_user: str = Depends(get_current_user),
+):
+    from backend.tools.finance.vehicle import get_vehicle_mileage_chart
+
+    result = await get_vehicle_mileage_chart(
+        vehicle_name=vehicle_name, months=months, start_date=start_date, end_date=end_date
+    )
+    return json.loads(result)

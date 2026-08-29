@@ -175,3 +175,33 @@ class VehicleClient:
             raise FastAPIHTTPException(
                 status_code=e.response.status_code, detail=detail
             )
+
+    async def create_value_override(
+        self,
+        vehicle_id: int,
+        mode: str,
+        value: float,
+        direction: str | None,
+        date: str,
+        note: str | None,
+    ) -> dict | None:
+        """Create or apply a vehicle value override."""
+        payload = {
+            "mode": mode,
+            "value": value,
+            "direction": direction,
+            "date": date,
+            "note": note,
+        }
+        return await self._post(f"/vehicles/{vehicle_id}/value-override", json=payload)
+
+    async def get_value_history(self, vehicle_id: int) -> list[dict]:
+        """Return value override history for a vehicle."""
+        result = await self._get(f"/vehicles/{vehicle_id}/value-history")
+        return result if isinstance(result, list) else []
+
+    async def get_value_projection(self, vehicle_id: int, years: int = 12) -> dict | None:
+        """Return value projection for a vehicle, or None on 404."""
+        return await self._get(
+            f"/vehicles/{vehicle_id}/value-projection", params={"years": years}
+        )
