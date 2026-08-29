@@ -93,6 +93,16 @@ def init_db(db_path: str | None = None) -> None:
                 created_at TEXT DEFAULT (datetime('now')),
                 UNIQUE(vehicle_id, fuelio_unique_id, entry_type)
             );
+
+            CREATE TABLE IF NOT EXISTS vehicle_value_overrides (
+                id INTEGER PRIMARY KEY,
+                vehicle_id INTEGER REFERENCES vehicles(id),
+                value REAL NOT NULL,
+                date TEXT NOT NULL,
+                note TEXT,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+
         """)
         conn.commit()
 
