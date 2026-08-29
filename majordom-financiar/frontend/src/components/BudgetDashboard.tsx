@@ -91,7 +91,7 @@ export default function BudgetDashboard({ categories, month, year }: Props) {
   function openCategoryTransactions(category: BudgetCategory) {
     navigate('/transactions', {
       state: {
-        categoryId: category.category_id,
+        categoryIds: [category.category_id],
         budgetMonth: month,
         budgetYear: year,
       },

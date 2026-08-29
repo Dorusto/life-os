@@ -2177,7 +2177,7 @@ class ActualBudgetClient:
         self, limit: int = 20, start_date: date | None = None, end_date: date | None = None,
         account_id: str | None = None,
         offset: int = 0,
-        category_id: str | None = None,
+        category_ids: list[str] | None = None,
         payee: str | None = None,
         uncategorized_only: bool = False,
         amount_min: float | None = None,
@@ -2272,8 +2272,8 @@ class ActualBudgetClient:
                 # Filters applied on the normalized dict list (#184) — several
                 # (payee substring, uncategorized) need the already-normalized
                 # fields rather than the raw actualpy `tx` object.
-                if category_id is not None:
-                    result = [t for t in result if t["category_id"] == category_id]
+                if category_ids:
+                    result = [t for t in result if t["category_id"] in category_ids]
                 if payee is not None:
                     needle = payee.casefold()
                     result = [t for t in result if needle in (t["merchant"] or "").casefold()]

@@ -240,7 +240,7 @@ export interface TransactionFilters {
   limit?: number
   offset?: number
   accountId?: string
-  categoryId?: string
+  categoryIds?: string[]
   payee?: string
   uncategorizedOnly?: boolean
   amountMin?: number
@@ -255,7 +255,9 @@ export async function getTransactionsFiltered(filters: TransactionFilters): Prom
   if (filters.limit !== undefined) qs.set('limit', String(filters.limit))
   if (filters.offset !== undefined) qs.set('offset', String(filters.offset))
   if (filters.accountId) qs.set('account_id', filters.accountId)
-  if (filters.categoryId) qs.set('category_id', filters.categoryId)
+  for (const id of filters.categoryIds ?? []) {
+    qs.append('category_id', id)
+  }
   if (filters.payee) qs.set('payee', filters.payee)
   if (filters.uncategorizedOnly) qs.set('uncategorized_only', 'true')
   if (filters.amountMin !== undefined) qs.set('amount_min', String(filters.amountMin))
