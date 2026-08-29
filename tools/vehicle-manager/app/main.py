@@ -6,6 +6,7 @@ logic currently in majordom-financiar/backend/.
 This service lives on the internal Docker network only (no auth layer).
 """
 import logging
+from datetime import date
 
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
@@ -15,10 +16,13 @@ from app.database import (
     insert_vehicle_log_entries, get_vehicle_log, get_log_entry,
     delete_log_entry, get_last_fuel_entry, get_vehicle_stats_data,
     get_db_path,
+    insert_value_override, get_value_overrides, update_current_value,
 )
+from app import depreciation, majordom_client
 from app.models import (
     DeleteResult, FuelioImportResult, HealthResponse, LogInsertResult,
     VehicleLogEntry, VehicleUpsertRequest, VehiclePatchRequest, VehicleUpsertResult,
+    VehicleValueOverrideRequest,
 )
 from app.fuelio_parser import parse_csv, derive_vehicle_reminder_fields
 
@@ -74,7 +78,29 @@ async def get_vehicle_by_id(vehicle_id: int):
 @app.post("/vehicles", response_model=VehicleUpsertResult)
 async def create_vehicle(body: VehicleUpsertRequest):
     """Upsert by (name, plate) case-insensitive match. Returns {id: int}."""
-    vid = upsert_vehicle(body.model_dump())
+    data = body.model_dump()
+    vid = upsert_vehicle(data)
+
+    purchase_price = data.get("purchase_price")
+    purchase_date = data.get("purchase_date")
+    if purchase_price is not None and purchase_date:
+        current_value = depreciation.compute_current_value(
+            purchase_price=purchase_price,
+            purchase_date=purchase_date,
+            vehicle_class=data.get("vehicle_class"),
+            annual_depreciation_pct=data.get("annual_depreciation_pct"),
+            salvage_floor_pct=data.get("salvage_floor_pct") or 10.0,
+        )
+        synced_id = await majordom_client.sync_vehicle_account(
+            name=data.get("name", "Unknown Vehicle"),
+            current_value=current_value,
+            ab_account_id=None,
+        )
+        # synced_id is None on any sync failure — never overwrite a real link
+        # (there isn't one yet here, but keep the same safe pattern as the
+        # update/override call sites below, so this can't regress later).
+        update_current_value(vid, current_value, synced_id)
+
     return {"id": vid}
 
 
@@ -87,12 +113,122 @@ async def update_vehicle(vehicle_id: int, body: VehiclePatchRequest):
     found = patch_vehicle(vehicle_id, updates)
     if not found:
         raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    vehicle = get_vehicle(vehicle_id)
+    if vehicle is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    relevant_fields = {
+        "name", "purchase_price", "purchase_date", "vehicle_class",
+        "annual_depreciation_pct", "salvage_floor_pct",
+    }
+    if any(k in updates for k in relevant_fields):
+        purchase_price = vehicle.get("purchase_price")
+        purchase_date = vehicle.get("purchase_date")
+        if purchase_price is not None and purchase_date:
+            current_value = depreciation.compute_current_value(
+                purchase_price=purchase_price,
+                purchase_date=purchase_date,
+                vehicle_class=vehicle.get("vehicle_class"),
+                annual_depreciation_pct=vehicle.get("annual_depreciation_pct"),
+                salvage_floor_pct=vehicle.get("salvage_floor_pct") or 10.0,
+            )
+            existing_ab_account_id = vehicle.get("ab_account_id")
+            synced_id = await majordom_client.sync_vehicle_account(
+                name=vehicle.get("name", "Unknown Vehicle"),
+                current_value=current_value,
+                ab_account_id=existing_ab_account_id,
+            )
+            # synced_id is None on any sync failure — keep the existing link
+            # rather than wiping it, otherwise a transient majordom-api outage
+            # permanently severs this vehicle's AB account and the next sync
+            # would create a duplicate account instead of updating the real one.
+            update_current_value(vehicle_id, current_value, synced_id or existing_ab_account_id)
+
     return get_vehicle(vehicle_id)
 
 
 # ---------------------------------------------------------------------------
 # Vehicle Log
 # ---------------------------------------------------------------------------
+
+@app.post("/vehicles/{vehicle_id}/value-override")
+async def create_value_override(vehicle_id: int, body: VehicleValueOverrideRequest):
+    """Apply a manual correction to the vehicle's current value."""
+    vehicle = get_vehicle(vehicle_id)
+    if vehicle is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    current = vehicle.get("current_value") or 0.0
+
+    if body.mode == "set":
+        resulting = body.value
+    elif body.mode == "adjust":
+        if body.direction not in ("up", "down"):
+            raise HTTPException(status_code=400, detail="direction must be 'up' or 'down' for adjust mode")
+        resulting = current + (body.value if body.direction == "up" else -body.value)
+    else:
+        raise HTTPException(status_code=400, detail="mode must be 'set' or 'adjust'")
+
+    insert_value_override(vehicle_id, resulting, body.date, body.note)
+
+    existing_ab_account_id = vehicle.get("ab_account_id")
+    synced_id = await majordom_client.sync_vehicle_account(
+        name=vehicle["name"],
+        current_value=resulting,
+        ab_account_id=existing_ab_account_id,
+    )
+    # See update_vehicle's comment — never let a failed sync wipe a real link.
+    final_ab_account_id = synced_id or existing_ab_account_id
+    update_current_value(vehicle_id, resulting, final_ab_account_id)
+
+    return get_vehicle(vehicle_id) or {
+        "vehicle_id": vehicle_id,
+        "current_value": resulting,
+        "ab_account_id": final_ab_account_id,
+    }
+
+
+@app.get("/vehicles/{vehicle_id}/value-history")
+async def value_history(vehicle_id: int):
+    """Manual value corrections for a vehicle, newest first."""
+    if get_vehicle(vehicle_id) is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    return get_value_overrides(vehicle_id)
+
+
+@app.get("/vehicles/{vehicle_id}/value-projection")
+async def value_projection(vehicle_id: int, years: int = 12):
+    v = get_vehicle(vehicle_id)
+    if v is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    purchase_price = v.get("purchase_price")
+    purchase_date = v.get("purchase_date")
+    if purchase_price is None or not purchase_date:
+        raise HTTPException(status_code=404, detail="Vehicle value tracking is not configured")
+
+    salvage_floor_pct = v.get("salvage_floor_pct") or 10.0
+    salvage_floor = purchase_price * salvage_floor_pct / 100
+
+    overrides = get_value_overrides(vehicle_id)
+    overrides_oldest_first = list(reversed(overrides))
+
+    return {
+        "purchase": {"date": purchase_date, "value": purchase_price},
+        "today": {"date": date.today().isoformat(), "value": v.get("current_value")},
+        "salvage_floor": salvage_floor,
+        "curve": depreciation.project_value_curve(
+            purchase_price=purchase_price,
+            purchase_date=purchase_date,
+            vehicle_class=v.get("vehicle_class"),
+            annual_depreciation_pct=v.get("annual_depreciation_pct"),
+            salvage_floor_pct=salvage_floor_pct,
+            years_ahead=years,
+        ),
+        "overrides": [{"date": o["date"], "value": o["value"]} for o in overrides_oldest_first],
+    }
+
 
 @app.get("/vehicles/{vehicle_id}/log")
 async def list_vehicle_log(vehicle_id: int, limit: int = 10, entry_type: str | None = None):
