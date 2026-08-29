@@ -27,6 +27,26 @@ function fmt(n: number): string {
   return n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+function pad2(n: number): string {
+  return String(n).padStart(2, '0')
+}
+
+/**
+ * This widget always shows the real current calendar month (no per-widget
+ * period picker) — category/group clicks must filter Transactions to that
+ * same month, or old transactions from other months show up alongside it.
+ */
+function currentMonthRange(): { dateFrom: string; dateTo: string } {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = now.getMonth()
+  const lastDay = new Date(year, month + 1, 0).getDate()
+  return {
+    dateFrom: `${year}-${pad2(month + 1)}-01`,
+    dateTo: `${year}-${pad2(month + 1)}-${pad2(lastDay)}`,
+  }
+}
+
 export default function BudgetDashboard({ categories, editing, onDataChange }: Props) {
   const navigate = useNavigate()
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
@@ -129,7 +149,8 @@ export default function BudgetDashboard({ categories, editing, onDataChange }: P
   function openCategoryTransactions(category: BudgetCategory) {
     navigate('/transactions', {
       state: {
-        categoryId: category.category_id,
+        categoryIds: [category.category_id],
+        ...currentMonthRange(),
       },
     })
   }
@@ -139,6 +160,7 @@ export default function BudgetDashboard({ categories, editing, onDataChange }: P
     navigate('/transactions', {
       state: {
         categoryIds: cats.map(cat => cat.category_id),
+        ...currentMonthRange(),
       },
     })
   }

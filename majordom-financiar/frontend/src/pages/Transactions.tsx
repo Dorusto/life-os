@@ -5,6 +5,7 @@ import { Filter, List, Loader2, Table2, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import BottomSheet from '../components/BottomSheet'
+import CategoryFilterTree from '../components/CategoryFilterTree'
 import {
   bulkUpdateCategory,
   getAccountList,
@@ -23,7 +24,7 @@ interface FiltersState {
   dateFrom: string
   dateTo: string
   accountId: string
-  categoryId: string
+  categoryIds: string[]
   payee: string
   amountMin: string
   amountMax: string
@@ -34,7 +35,7 @@ const EMPTY_FILTERS: FiltersState = {
   dateFrom: '',
   dateTo: '',
   accountId: '',
-  categoryId: '',
+  categoryIds: [],
   payee: '',
   amountMin: '',
   amountMax: '',
@@ -73,8 +74,14 @@ export default function TransactionsPage() {
   const navigate = useNavigate()
   const [view, setView] = useState<View>(loadViewPref)
   const getInitialFilters = (): FiltersState => {
-    const categoryId = location.state?.categoryId
-    return categoryId ? { ...EMPTY_FILTERS, categoryId } : EMPTY_FILTERS
+    const categoryIds = location.state?.categoryIds
+    if (!categoryIds) return EMPTY_FILTERS
+    return {
+      ...EMPTY_FILTERS,
+      categoryIds,
+      dateFrom: location.state?.dateFrom ?? EMPTY_FILTERS.dateFrom,
+      dateTo: location.state?.dateTo ?? EMPTY_FILTERS.dateTo,
+    }
   }
   const [applied, setApplied] = useState<FiltersState>(getInitialFilters)
   const [draft, setDraft] = useState<FiltersState>(getInitialFilters)
@@ -97,7 +104,7 @@ export default function TransactionsPage() {
   // If we arrived via a category click, clear the router state after reading it
   // so that back/forward navigation doesn't re-apply an old filter unexpectedly.
   useEffect(() => {
-    if (location.state?.categoryId) {
+    if (location.state?.categoryIds) {
       navigate(location.pathname, { replace: true, state: null })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -127,7 +134,7 @@ export default function TransactionsPage() {
         limit: LIMIT,
         offset,
         accountId: applied.accountId || undefined,
-        categoryId: applied.categoryId || undefined,
+        categoryIds: applied.categoryIds.length ? applied.categoryIds : undefined,
         payee: applied.payee || undefined,
         uncategorizedOnly,
         amountMin: applied.amountMin === '' ? undefined : Number(applied.amountMin),
@@ -440,21 +447,11 @@ export default function TransactionsPage() {
             </select>
           </label>
 
-          <label className="flex flex-col gap-1 text-muted text-xs">
-            Category
-            <select
-              value={draft.categoryId}
-              onChange={e => setDraft({ ...draft, categoryId: e.target.value })}
-              className={INPUT_CLS}
-            >
-              <option value="">Any category</option>
-              {categories?.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <CategoryFilterTree
+            categories={categories ?? []}
+            selected={draft.categoryIds}
+            onChange={ids => setDraft({ ...draft, categoryIds: ids })}
+          />
 
           <label className="flex flex-col gap-1 text-muted text-xs">
             Payee
