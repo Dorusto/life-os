@@ -84,6 +84,15 @@ async def create_vehicle(body: VehicleUpsertRequest):
     purchase_price = data.get("purchase_price")
     purchase_date = data.get("purchase_date")
     if purchase_price is not None and purchase_date:
+        # upsert_vehicle() UPDATEs an existing row (matched by name+plate) as
+        # often as it INSERTs a new one — e.g. every re-import of the same
+        # Fuelio CSV. Re-reading here to find any ab_account_id it already
+        # had is required: passing None unconditionally would tell
+        # sync_vehicle_account() to always create a fresh AB account,
+        # orphaning the previous one as a duplicate on every re-upsert.
+        existing_vehicle = get_vehicle(vid)
+        existing_ab_account_id = (existing_vehicle or {}).get("ab_account_id")
+
         current_value = depreciation.compute_current_value(
             purchase_price=purchase_price,
             purchase_date=purchase_date,
@@ -94,12 +103,11 @@ async def create_vehicle(body: VehicleUpsertRequest):
         synced_id = await majordom_client.sync_vehicle_account(
             name=data.get("name", "Unknown Vehicle"),
             current_value=current_value,
-            ab_account_id=None,
+            ab_account_id=existing_ab_account_id,
         )
-        # synced_id is None on any sync failure — never overwrite a real link
-        # (there isn't one yet here, but keep the same safe pattern as the
-        # update/override call sites below, so this can't regress later).
-        update_current_value(vid, current_value, synced_id)
+        # synced_id is None on any sync failure — keep the existing link
+        # rather than wiping it (same reasoning as update_vehicle below).
+        update_current_value(vid, current_value, synced_id or existing_ab_account_id)
 
     return {"id": vid}
 
