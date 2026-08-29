@@ -12,7 +12,6 @@ import {
   getCostPerKmChart,
   getMonthlyCostChart,
   getMileageChart,
-  type Vehicle,
   type ValueHistoryEntry,
 } from '../lib/vehicleValueApi'
 import EditVehicleModal from '../components/vehicles/EditVehicleModal'
@@ -147,7 +146,7 @@ export default function VehicleDetail() {
       ? ((totalDepreciation ?? 0) / purchasePrice) * 100
       : null
 
-  const curveLast = projection?.curve?.at(-1)
+  const curveLast = projection?.curve?.length ? projection.curve[projection.curve.length - 1] : undefined
   const projectionYears = projection?.curve ? projection.curve.length - 1 : 0
   const additionalDeclinePct =
     curveLast && currentValue !== 0
