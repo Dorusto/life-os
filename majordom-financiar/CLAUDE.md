@@ -12,7 +12,15 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 3. Ask what we're working on if not specified
 ```
 
-> ### ▶️ Picked-up work — start here (set 2026-08-30, remove when done)
+> ### 🧭 Direction — read `docs/product-plan.md` before picking up anything
+>
+> Development had drifted into reactive work (fix what surfaced, add UI where it felt missing).
+> `docs/product-plan.md` holds the product position and the phased plan that stops that. **Every
+> task must answer: which phase does this serve, and what does it make Majordom notice or do on
+> its own?** If the honest answer is "none, but it bothered me" → parking lot, not now.
+> The position in one line: *everything else in this space stores or displays; Majordom notices.*
+>
+> ### ▶️ Picked-up work — Phase A, start here (set 2026-08-30, remove when done)
 >
 > **Decided: [#222](https://github.com/Dorusto/life-os/issues/222) — finish the adapter layer.**
 > Route the eleven modules under `backend/api/` through `get_provider()`. The reason is no longer

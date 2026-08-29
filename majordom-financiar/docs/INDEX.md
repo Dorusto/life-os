@@ -40,6 +40,7 @@
 ## Quick reference
 
 - **What's next to build** → `gh issue list --label tier-2` (GitHub, see `.claude/rules/priority-tracking.md`) · `docs/roadmap.md` (milestones)
+- **What we're building and why, in what order** → `docs/product-plan.md` (product position + phases; read before picking up work)
 - **Why was X decided this way** → `docs/decisions.md`
 - **Where the codebase currently leaks** → `docs/audit-2026-08.md` (four-phase audit: collaboration setup, backend, frontend, UX — findings map to issues #211-#222)
 - **What did we fix last week** → `docs/sessions/INDEX.md`
