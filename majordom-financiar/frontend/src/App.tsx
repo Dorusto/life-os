@@ -8,6 +8,7 @@ import Accounts from './pages/Accounts'
 import AccountDetail from './pages/AccountDetail'
 import TransactionsPage from './pages/Transactions'
 import AnalyticsPage from './pages/Analytics'
+import Planned from './pages/Planned'
 import SettingsPage from './pages/Settings'
 import ReceiptFlow from './pages/ReceiptFlow'
 import ImportPage from './pages/ImportPage'
@@ -126,6 +127,14 @@ function Layout() {
           element={
             <ProtectedRoute>
               <AnalyticsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/planned"
+          element={
+            <ProtectedRoute>
+              <Planned />
             </ProtectedRoute>
           }
         />

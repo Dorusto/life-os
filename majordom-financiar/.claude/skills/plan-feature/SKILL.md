@@ -37,6 +37,14 @@ Repeat this check mid-implementation. If the code reveals something unexpected �
 
 If the feature has meaningful variants (1 generic tool vs N specific tools, library vs pure code, single endpoint vs multiple), present the trade-offs in 2-3 lines and get confirmation before proceeding. Never discover the simpler approach existed after the fact.
 
+## 7a — Implementing directly? Fork instead of blocking the conversation
+
+"Implement directly" (per step 7 / CLAUDE.md's collaboration rules) means Claude does the work instead of DeepSeek — it does not mean doing it inline and going silent on Doru mid-session. Once the plan is confirmed, launch a Claude Code fork (`Agent` tool, `subagent_type: "fork"`) to do the actual implementation in the background, and keep talking with Doru in the main conversation while it runs. Established 2026-08-29 after a live session where Doru asked for exactly this mid-implementation.
+
+- The fork already has the full conversation context (the plan, the research, the file reads) — the prompt only needs to be a clear, self-contained *directive*: exact files, exact patterns/line ranges already found, critical rules already identified in steps 1-6, and a "Done when" checklist. Don't make the fork re-derive research already done in the main thread.
+- Explicitly tell the fork not to commit — Doru reviews the diff and confirms it works before any commit, same as any other implementation (`CLAUDE.md`'s commit rule doesn't change just because a fork did the typing).
+- This doesn't apply to a DeepSeek delegation (step 8) — DeepSeek prompts are saved to a file and run by Doru himself, already async by construction. It applies specifically to "implement directly" tasks, which otherwise block the whole conversation on tool-call turns until finished.
+
 ## 8 — If delegating to DeepSeek
 
 8a. Include every rule found in steps 1-6 EXPLICITLY in the prompt under `## Critical Rules` — DeepSeek does not read other files.

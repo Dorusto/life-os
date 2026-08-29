@@ -1,9 +1,13 @@
 import { NavLink } from 'react-router-dom'
-import { LayoutGrid, Layers, Table2, MessageCircle, BarChart3 } from 'lucide-react'
+import { LayoutGrid, Layers, Table2, MessageCircle, BarChart3, CalendarClock } from 'lucide-react'
 
 /**
- * Bottom navigation bar — 5 persistent tabs (decisions.md#nav-five-tabs),
- * replacing the earlier 2-tab (Home + Majordom) structure.
+ * Bottom navigation bar — 6 persistent tabs (decisions.md#planned-tab-added,
+ * superseding the earlier 2026-08-28 #nav-five-tabs entry which deliberately
+ * left Planned out in favor of Majordom taking that slot). Doru asked for a
+ * persistent Planned tab after reviewing the MoneyMatter reference again —
+ * a button-launched page (the #184 pattern) didn't feel right for something
+ * meant to be a primary destination, not a secondary drill-down.
  * Hidden on /login and /receipt (full-screen flows).
  * CSV import and Photo capture are reached via the + Add button in headers.
  *
@@ -15,6 +19,7 @@ const tabs = [
   { to: '/', icon: LayoutGrid, label: 'Dashboard' },
   { to: '/accounts', icon: Layers, label: 'Accounts' },
   { to: '/transactions', icon: Table2, label: 'Transactions' },
+  { to: '/planned', icon: CalendarClock, label: 'Planned' },
   { to: '/chat', icon: MessageCircle, label: 'Majordom' },
   { to: '/analytics', icon: BarChart3, label: 'Analytics' },
 ]

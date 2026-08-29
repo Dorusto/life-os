@@ -428,6 +428,8 @@ Both exist for categories today (structure via `CategoryOverviewCard`, amounts v
 <a id="nav-five-tabs"></a>
 ### Navigation — 5 tabs, not 2
 
+**Superseded by:** [Planned tab added — 6 tabs, not 5](#planned-tab-added) (2026-08-29) — Doru asked for a persistent Planned tab after all, once Financial Goals needed its own dedicated page.
+
 **Date:** 2026-08-28 (same session as the universal transaction UI mockup, later in the same day)
 
 **Decision:** Bottom nav is Dashboard / Accounts / Transactions / Majordom / Analytics — 5 persistent tabs, mirroring MoneyMatter's own bar (Dashboard/Accounts/Transactions/Planned/Analytics, with Majordom taking the "Planned" slot since chat stays the app's core differentiator). Home is renamed Dashboard and becomes widget-based with a MoneyMatter-style Customize mode (add/remove/resize widgets).
@@ -970,3 +972,20 @@ there is a recurring cost) — the full reasoning lives here instead, per this r
 "no auto-memory, decisions go in `CLAUDE.md` or `decisions.md`" rule. Ironic but
 deliberate: the fix for "the protocol got expensive" should not itself make the protocol
 file permanently heavier.
+
+---
+
+<a id="planned-tab-added"></a>
+### Planned tab added — 6 tabs, not 5
+
+**Supersedes (partially):** [Navigation — 5 tabs, not 2](#nav-five-tabs) (2026-08-28) — that entry deliberately left Planned out of the bottom nav, giving its slot to Majordom instead ("chat stays the app's core differentiator"). This entry reverses that specific call for Planned only; Majordom keeps its own tab, nothing else about the 5-tab decision changes.
+
+**Date:** 2026-08-29
+
+**Decision:** Bottom nav becomes Dashboard / Accounts / Transactions / Planned / Majordom / Analytics — 6 persistent tabs. New `Planned` tab (`CalendarClock` icon, `/planned` route) hosts Financial Goals as a dedicated full-screen page (`frontend/src/pages/Planned.tsx`), reusing the same `GoalsSection` component also rendered as the existing Dashboard widget — not a duplicate implementation, not a replacement (Financial Goals stays on Dashboard too, toggleable via Customize as before).
+
+**Why:** raised by Doru reviewing the MoneyMatter reference again — the Financial Goals widget's older card style (label-above-separate-accent-cards) no longer matched the new single-card widget shell every other Dashboard widget uses (`TrendWidget`, `LatestTransactionsWidget`, etc.), and moving it into its own page needed a real nav entry point. A button-launched full-screen page (the #184 pattern, proposed first) was considered and rejected — Doru's read was that this doesn't fit that pattern: #184's transaction table is a secondary drill-down reached occasionally, while Planned is meant to be a primary destination checked regularly, closer to Accounts/Transactions than to a one-off full-screen flow.
+
+**Also decided the same session — write path stays chat-mediated, just without the typing/navigation step.** Doru pushed back on "everything must go through typed chat" as a general principle — agreed there's no reason a structured input (name, amount, deadline) needs a free-text round trip. The fix implemented is narrow, not a new write path: the "+ New goal" button opens a form (`frontend/src/components/NewGoalSheet.tsx`) that constructs a natural-language message from the form fields and submits it to the existing `/chat` endpoint in the background (`sendChatMessageStreaming`, no visible transcript), then renders the existing `GoalProposalCard` confirmation card inline once the stream returns a `goal_proposal`. `finance__set_account_goal` was already in `_PROPOSAL_TOOLS` — no backend changes, no new endpoint, the "LLM = translator, logic = backend" principle (`docs/learn/10-chat-tools.md`) is unaffected. This is a UI-level shortcut around free-text typing, not a bypass of the confirmation-card write pattern (`architecture.md`'s "all write tools → confirmation card" rule still holds — the card is still shown, still editable, still requires an explicit confirm).
+
+**Rejected:** keeping Financial Goals as a button-launched page under Dashboard (didn't fit — see above); building a new non-chat write endpoint for goal creation (bigger scope, not needed — the existing tool/proposal machinery already does everything required, the only real complaint was the typing/navigation step, not the underlying mechanism).
