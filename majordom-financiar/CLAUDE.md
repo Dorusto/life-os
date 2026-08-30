@@ -49,17 +49,20 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 >
 > ### 🔄 Phase C in progress (updated 2026-08-30)
 >
-> First of three named capabilities shipped: **#116** (month-end unreconciled sweep) as the Inbox's
-> third occupant — mark-reconciled-by-account, mirrors occupant #2's pattern, see
-> `docs/decisions.md#inbox-occupant-3-unreconciled`. **Next candidate, scoped but not yet
-> implemented:** #110 (budget realism — one-off vs. recurring per category) — recommended v1 scope
-> is detect+flag only (no new category-level goal mechanism), since #110's "propose a sinking fund"
-> action would otherwise build half of #111's own mechanism early; #111 stays the owner of that.
-> #112/#124/#41/#42 remain unscoped Phase C candidates.
+> Two of three named capabilities shipped: **#116** (month-end unreconciled sweep, occupant #3,
+> `docs/decisions.md#inbox-occupant-3-unreconciled`) and **#110** (budget realism — one-off vs.
+> recurring per category, occupant #4, `docs/decisions.md#inbox-occupant-4-budget-realism`; v1
+> scope was detect+flag + `#one-off` tagging only, no new category-level goal mechanism — #111
+> stays the owner of that). #112/#124/#41/#42 remain unscoped Phase C candidates.
 >
 > Also opened this session, explicitly deferred: **#241** (NotificationBell + Settings access
 > missing from the Majordom/chat tab — real UI conflict with `Chat.tsx`'s existing header buttons,
-> not scoped, pick up "when we get there" per Doru).
+> not scoped, pick up "when we get there" per Doru), **#242** (`resolve_transfer_duplicate()`
+> discards payee/category/date from the bank-synced side it deletes — a real data-loss bug, plus a
+> related inline-edit request for the Duplicates review card).
+>
+> **Before picking anything else off this list: check `CLAUDE.local.md` for a gate note set at the
+> end of this session.**
 
 ---
 
