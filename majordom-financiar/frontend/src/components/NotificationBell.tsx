@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Bell, ChevronRight, Copy, Tags } from 'lucide-react'
-import { getHomePending, getDuplicateMonths, getUncategorizedGroups } from '../lib/api'
+import { Bell, ChevronRight, Copy, Tags, Landmark } from 'lucide-react'
+import { getHomePending, getDuplicateMonths, getUncategorizedGroups, getUnreconciledGroups } from '../lib/api'
 import IconButton from './IconButton'
 import BottomSheet from './BottomSheet'
 
 const PENDING_TAGS: Record<string, { label: string; className: string }> = {
-  unreconciled: { label: 'finance', className: 'bg-info-dim text-info' },
   over_budget: { label: 'finance', className: 'bg-info-dim text-info' },
   vehicle_reminder: { label: 'vehicle', className: 'bg-attention-dim text-attention' },
 }
@@ -38,9 +37,15 @@ export default function NotificationBell() {
     queryFn: () => getUncategorizedGroups(),
     staleTime: 120_000,
   })
+  const { data: unreconciledGroups } = useQuery({
+    queryKey: ['unreconciled-groups'],
+    queryFn: () => getUnreconciledGroups(),
+    staleTime: 120_000,
+  })
   const duplicateCount = duplicateMonths?.reduce((sum, m) => sum + m.count, 0) ?? 0
   const uncategorizedCount = uncategorizedGroups?.length ?? 0
-  const totalCount = (pendingItems?.length ?? 0) + (duplicateCount > 0 ? 1 : 0) + (uncategorizedCount > 0 ? 1 : 0)
+  const unreconciledCount = unreconciledGroups?.length ?? 0
+  const totalCount = (pendingItems?.length ?? 0) + (duplicateCount > 0 ? 1 : 0) + (uncategorizedCount > 0 ? 1 : 0) + (unreconciledCount > 0 ? 1 : 0)
 
   return (
     <>
@@ -79,6 +84,18 @@ export default function NotificationBell() {
                 <Tags size={16} className="text-info flex-shrink-0" />
                 <span className="flex-1 text-white text-sm">
                   {uncategorizedCount} payee{uncategorizedCount !== 1 ? 's' : ''} to categorize
+                </span>
+                <ChevronRight size={14} className="text-muted flex-shrink-0" />
+              </button>
+            )}
+            {unreconciledCount > 0 && (
+              <button
+                onClick={() => { setOpen(false); navigate('/unreconciled-review') }}
+                className="w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-white/5 transition-colors"
+              >
+                <Landmark size={16} className="text-info flex-shrink-0" />
+                <span className="flex-1 text-white text-sm">
+                  {unreconciledCount} account{unreconciledCount !== 1 ? 's' : ''} to reconcile
                 </span>
                 <ChevronRight size={14} className="text-muted flex-shrink-0" />
               </button>

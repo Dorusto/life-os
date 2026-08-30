@@ -1128,3 +1128,35 @@ Already independently documented before this session connected it to #181's risk
 **Open question, not resolved this session:** whether Phase B's own done-condition ("the first thing you see is what it found... not a dashboard you have to interpret") is fully met by a bell that still requires one tap to open, versus something more prominent on the Home/Dashboard landing view. Flagged to Doru, not decided — revisit before considering Phase B fully closed.
 
 **Implemented via a Claude Code fork** (backend + 4 frontend files, non-obvious card/dismiss conventions — a poor DeepSeek fit per the collaboration rules' >2-coupled-files guidance). Live-verified end to end on the local fixture stack: confirm categorizes in AB and removes the card; cancel persists in `memory.db` and survives a full reload; the two bugs above were caught by that live testing, not by the diff review alone.
+
+---
+
+<a id="phase-b-closed-bell-sufficient"></a>
+### Phase B closed — the bell stays sufficient, no Home banner added
+
+**Date:** 2026-08-30
+
+**Context:** the open question left by occupant #2's session (above) — whether `NotificationBell` alone satisfies Phase B's done-condition ("the first thing you see is what it found... not a dashboard you interpret"), or needs something more prominent on the Home/Dashboard landing view.
+
+**Decision:** the bell is sufficient. Phase B is fully closed. Reasoning, from Doru's own ask for a recommendation rather than a forced choice: the product-plan.md quote's intent is about *content*, not tap-count — the contrast is with a dashboard of numbers the user has to interpret themselves, not with "requires exactly zero taps." Every item behind the bell already carries a proposal + proof + one-tap confirm (Phase B's stronger, explicitly-stated requirement — "every item in the Inbox must carry its own proof"), which is the actual bar the done-condition is testing for. A Home banner would show the same data with one fewer tap, not add anything Phase B cares about. The bell's badge is already visible on every tab's header, not hidden.
+
+**Rejected:** a Home-screen card/banner surfacing top findings without a tap. Cost (new UI + duplicated data-fetching) for a one-tap savings, right when Phase C is the actual growth area — same "no plugin framework, extract only from what's evidenced" discipline product-plan.md already applies to Phase C's own capabilities.
+
+**Reopen only with new evidence:** if real day-to-day use surfaces genuine friction (not a hypothetical), revisit then — not by re-litigating this call speculatively.
+
+---
+
+<a id="inbox-occupant-3-unreconciled"></a>
+### Inbox occupant #3 (unreconciled-by-account, #116) — reused occupant #2's card/dismiss pattern, and fixed two pre-existing filter gaps in count_unreconciled() along the way
+
+**Date:** 2026-08-30
+
+**Context:** `docs/product-plan.md` Phase C's third named example (month-end uncategorised/unreconciled sweep — the "uncategorised" half was already occupant #2; this closes the "unreconciled" half, previously a text-only chat-prefill item in `get_pending_items()`). Blocker #101 (CSV import not setting `cleared=True`) was already closed.
+
+**Decision:** grouped by **account**, not payee — `count_unreconciled()`'s existing filter already excludes bank-synced accounts (they self-resolve), so only manual/CSV accounts ever show up, typically 1-2 accounts with many rows each. New `list_unreconciled_groups()` (single query, grouped in Python — deliberately avoids the N+1 pitfall architecture.md rule 32 documents, rather than depending on the cached-read connection to paper over a per-group loop) and `mark_account_reconciled()` (bulk `cleared=True` per account) in `client.py`, wired through all three `FinanceProvider` layers. New `GET /home/unreconciled/groups`, third `dismissed_findings` finding_type (`unreconciled_account`, keyed on `account_id`), new `mark_reconciled` branch in `category_actions.py`'s confirm/cancel, new `mark_reconciled` branch in `CategoryActionCard.tsx` (no editable fields — a whole-account bulk confirm, same shape as the pre-existing `bank_resync`/`set_budget_carryover` static-text cards), new `UnreconciledReviewPage.tsx` mirroring `UncategorizedReviewPage.tsx`, new `NotificationBell` row. The old text-prompt `unreconciled` item in `get_pending_items()` and `NotificationBell`'s `PENDING_TAGS.unreconciled` were retired in the same task.
+
+**Two real bugs found live-testing in browser** (the fork itself only verified via API calls + build checks, no browser access — the main session did a full click-through afterward and caught these): `count_unreconciled()` (a method that predates this session) never excluded closed/tombstoned accounts or system-generated bookkeeping rows (`starting_balance_flag`, and separately a "Starting Balance"-named payee found live with the flag unset — fixture-data quirk, checked both ways defensively) or `[Balance Adjustment]` rows — invisible as a bug while it was just a number in a passive chat-prefill nudge, but immediately visible and confusing once wrapped in an actionable confirm card (two identical "Duster" cards — one a tombstoned duplicate account — each offering to "reconcile" a €13k Starting Balance row). Fixed by adding the same exclusions `_compute_monthly_totals()` already applies for the same reason (these are ledger bookkeeping, not real transactions), across all three new/existing methods so the badge count, the list, and what actually gets marked cleared can never disagree. Also found: `propose_balance_adjustment()` creates its correction transaction without `cleared=True` — the same gap #101 fixed for CSV import, left as a filter-side exclusion here rather than fixed at the source (out of scope for this session).
+
+**Dead code removed in the same task, found by the pre-commit review, not the fork:** `count_unreconciled()` itself (across all three `FinanceProvider` layers) was left orphaned after `NotificationBell` switched to `list_unreconciled_groups().length` for the badge count — zero remaining callers anywhere in the repo. Removed post-review, before commit, per `duplication-prevention.md`.
+
+**Implemented via a Claude Code fork**, live-verified by the fork via API calls and build checks (`check_provider_wiring.py`, `tsc --noEmit`, prod build) — no browser access in that environment. The main session then did a full manual click-through on the local fixture stack (confirm/cancel/reload-persistence, occupants #1/#2 unaffected), which is where the two bugs above were actually caught — the fork's own report explicitly flagged the missing browser pass and recommended it before commit.

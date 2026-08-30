@@ -15,6 +15,7 @@ import ReceiptFlow from './pages/ReceiptFlow'
 import ImportPage from './pages/ImportPage'
 import DuplicatesReviewPage from './pages/DuplicatesReviewPage'
 import UncategorizedReviewPage from './pages/UncategorizedReviewPage'
+import UnreconciledReviewPage from './pages/UnreconciledReviewPage'
 import Chat, { type Message, INITIAL_MESSAGES } from './pages/Chat'
 import { getChatHistory } from './lib/api'
 import BottomNav from './components/BottomNav'
@@ -185,6 +186,14 @@ function Layout() {
           element={
             <ProtectedRoute>
               <UncategorizedReviewPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/unreconciled-review"
+          element={
+            <ProtectedRoute>
+              <UnreconciledReviewPage />
             </ProtectedRoute>
           }
         />

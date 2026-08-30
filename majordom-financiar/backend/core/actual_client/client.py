@@ -2518,29 +2518,113 @@ class ActualBudgetClient:
                 )
         return await self._run(_count)
 
-    async def count_unreconciled(self) -> int:
+    async def list_unreconciled_groups(self) -> list[dict]:
         """
-        Count transactions not yet marked cleared, excluding accounts with a
-        live bank sync link (account_sync_source set — gocardless/simplefin).
-        Those self-resolve at the next sync, so flagging them is noise; only
-        manual/CSV-only accounts (e.g. crypto.com) genuinely stay
-        unreconciled until fixed by hand.
+        Unreconciled transactions grouped by account (Inbox's third finding
+        type, #116) — the Inbox badge count is this list's length, not a
+        separate count query (a prior count_unreconciled() was removed here
+        since NotificationBell switched to this method for both the badge
+        and the review page, leaving it with no callers). Single query,
+        grouped in Python — deliberately avoids the N+1 pitfall
+        architecture.md rule 32 documents, rather than depending on the
+        cached read connection to paper over a per-group loop.
+
+        Excludes accounts with a live bank sync link (account_sync_source
+        set — gocardless/simplefin; those self-resolve at the next sync, so
+        flagging them is noise — only manual/CSV-only accounts genuinely
+        stay unreconciled until fixed by hand), closed/tombstoned accounts
+        (a deleted account's leftover rows aren't actionable), and two
+        kinds of system-generated bookkeeping rows that were never real
+        purchases: starting-balance rows (checked both via
+        starting_balance_flag AND the payee name "Starting Balance", since
+        a fixture-data account was found live with the flag unset but the
+        payee still literally named "Starting Balance" — belt and
+        suspenders, matching how "[Balance Adjustment]" below is also
+        text-matched rather than trusted to a single flag) and
+        "[Balance Adjustment]" rows (self-created reconciliation
+        corrections) — same reasoning _compute_monthly_totals() already
+        applies for excluding both from spending totals. Found live
+        building #116: a tombstoned "Duster" account and a live one both
+        named "Duster" each had their own Starting Balance row counted as
+        "needs reconciliation", and propose_balance_adjustment() creates
+        its correction transaction without cleared=True (same gap #101
+        fixed for CSV import), so every past balance adjustment would
+        otherwise sit here permanently.
         """
-        def _count():
-            from actual.database import Transactions, Accounts
-            with self._get_cached_read_actual() as actual:
-                return (
-                    actual.session.query(Transactions)
+        def _fetch():
+            from actual.database import Transactions, Accounts, Payees
+            with self._get_actual() as actual:
+                rows = (
+                    actual.session.query(Transactions, Accounts, Payees)
                     .join(Accounts, Transactions.acct == Accounts.id)
+                    .outerjoin(Payees, Transactions.payee_id == Payees.id)
                     .filter(
                         Transactions.cleared == False,
                         Transactions.tombstone == 0,
                         Transactions.is_parent == 0,
+                        Transactions.starting_balance_flag == 0,
+                        Accounts.tombstone == 0,
                         (Accounts.account_sync_source == None) | (Accounts.account_sync_source == ""),
+                        (Transactions.notes == None) | (~Transactions.notes.like("%[Balance Adjustment]%")),
+                        (Payees.name == None) | (Payees.name != "Starting Balance"),
                     )
-                    .count()
+                    .order_by(Accounts.name, Transactions.date.desc())
+                    .all()
                 )
-        return await self._run(_count)
+
+                groups: dict[str, dict] = {}
+                for tx, acct, payee in rows:
+                    g = groups.setdefault(acct.id, {
+                        "account_id": acct.id,
+                        "account_name": acct.name,
+                        "count": 0,
+                        "transactions": [],
+                    })
+                    g["count"] += 1
+                    if len(g["transactions"]) < 20:
+                        g["transactions"].append({
+                            "date": tx.get_date().isoformat(),
+                            "amount": abs(float(tx.amount or 0)) / 100,
+                            "notes": tx.notes or (payee.name if payee else ""),
+                        })
+                return sorted(groups.values(), key=lambda g: g["account_name"])
+        return await self._run(_fetch)
+
+    async def mark_account_reconciled(self, account_id: str) -> int:
+        """
+        Bulk-mark every currently-unreconciled transaction in one account as
+        cleared. Same filter as list_unreconciled_groups() so a group's
+        displayed count always matches what actually gets updated. Returns
+        count of updated transactions.
+        """
+        def _update():
+            from actual.database import Transactions, Accounts, Payees
+            with self._get_actual() as actual:
+                txs = (
+                    actual.session.query(Transactions)
+                    .join(Accounts, Transactions.acct == Accounts.id)
+                    .outerjoin(Payees, Transactions.payee_id == Payees.id)
+                    .filter(
+                        Transactions.acct == account_id,
+                        Transactions.cleared == False,
+                        Transactions.tombstone == 0,
+                        Transactions.is_parent == 0,
+                        Transactions.starting_balance_flag == 0,
+                        Accounts.tombstone == 0,
+                        (Accounts.account_sync_source == None) | (Accounts.account_sync_source == ""),
+                        (Transactions.notes == None) | (~Transactions.notes.like("%[Balance Adjustment]%")),
+                        (Payees.name == None) | (Payees.name != "Starting Balance"),
+                    )
+                    .all()
+                )
+                count = 0
+                for tx in txs:
+                    tx.cleared = True
+                    count += 1
+                if count:
+                    actual.commit()
+                return count
+        return await self._run(_update)
 
     async def get_account_sync_status(self) -> list[dict]:
         """

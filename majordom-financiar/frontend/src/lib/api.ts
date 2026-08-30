@@ -747,6 +747,13 @@ export async function getUncategorizedGroups(): Promise<CategoryActionData[]> {
   return res.items
 }
 
+// --- Unreconciled-by-account review (Inbox occupant #3, Phase C, #116) ---
+
+export async function getUnreconciledGroups(): Promise<CategoryActionData[]> {
+  const res = await request<{ items: CategoryActionData[] }>('/home/unreconciled/groups')
+  return res.items
+}
+
 export type BudgetPeriod = 'month' | '3m' | '6m' | '12m'
 
 export interface BudgetPeriodMonth {
@@ -986,7 +993,7 @@ export interface FireModelValues {
 
 export interface CategoryActionData {
   id: string
-  action: 'rename' | 'delete' | 'create' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'bank_resync' | 'set_fire_model' | 'tag_transaction'
+  action: 'rename' | 'delete' | 'create' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'bank_resync' | 'set_fire_model' | 'tag_transaction' | 'mark_reconciled'
   category_name: string
   new_name?: string
   group_name?: string
@@ -1022,6 +1029,8 @@ export interface CategoryActionData {
   date?: string
   merchant?: string
   amount?: number
+  // mark_reconciled fields:
+  account_id?: string
 }
 
 export async function confirmCategoryAction(

@@ -237,6 +237,9 @@ async def confirm_category_action(
             tag = override.tag or action["tag"]
             await client.add_transaction_tag(action["transaction_id"], tag)
             message = f"Tagged transaction with '{tag}'."
+        elif action["action"] == "mark_reconciled":
+            count = await client.mark_account_reconciled(action["account_id"])
+            message = f"Marked {count} transaction(s) reconciled for '{action['account_name']}'."
         else:
             raise HTTPException(status_code=400, detail=f"Unknown action: {action['action']}")
     except ValueError as e:
@@ -398,13 +401,16 @@ async def cancel_category_action(
     current_user: str = Depends(get_current_user),
 ):
     action = action_store.get(action_id)
-    if action and action["action"] in ("merge_duplicate", "resolve_transfer_duplicate", "categorize_with_rule"):
+    if action and action["action"] in ("merge_duplicate", "resolve_transfer_duplicate", "categorize_with_rule", "mark_reconciled"):
         if action["action"] == "merge_duplicate":
             finding_key = f"{action['manual_id']}:{action['synced_id']}"
             finding_type = "duplicate_pair"
         elif action["action"] == "resolve_transfer_duplicate":
             finding_key = f"{action['transfer_leg_id']}:{action['synced_dup_id']}"
             finding_type = "duplicate_pair"
+        elif action["action"] == "mark_reconciled":
+            finding_key = action.get("account_id")
+            finding_type = "unreconciled_account"
         else:
             # payee_id is only present on categorize_with_rule actions built from
             # the uncategorized-groups Inbox endpoint — a chat-originated one

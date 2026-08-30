@@ -36,18 +36,30 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 > `rule_match_prefix`, `_financial_id`). **Portfolio** stays core scope (not optional) — the
 > calculation layer belongs in Majordom, market price data source is the open dependency.
 >
-> ### 🔄 Phase B in progress (updated 2026-08-30)
+> ### ✅ Phase B complete (closed 2026-08-30)
 >
 > Both named occupants shipped: duplicate-pair review (persisted dismiss) and uncategorized-by-payee
 > (one-tap categorize+dismiss, see `docs/decisions.md#inbox-occupant-2-uncategorized-payee`) — both
 > reachable from `NotificationBell` rather than "the Inbox" as one dedicated screen; that pattern
-> was a deliberate call, not a shortcut (reasoning in the same decisions.md entry). **Open, not
-> decided:** whether that satisfies Phase B's own done-condition ("the first thing you see is what
-> it found... not a dashboard you interpret") or needs something more prominent on Home — ask Doru
-> before treating Phase B as fully closed. **Next candidate for Phase C** (per `product-plan.md`'s
-> own named examples): #116 (month-end uncategorized+unreconciled sweep) — its blocker #101 is
-> already closed, and it directly extends this session's work (the `cleared`-field query pattern,
-> and closes out `unreconciled` as the other item still routing through the old chat-prefill path).
+> was a deliberate call, not a shortcut (reasoning in the same decisions.md entry). **The open
+> question from that session (whether the bell alone satisfies Phase B's done-condition, or needs
+> something more prominent on Home) is now resolved: the bell stays sufficient, no Home banner —
+> reasoning in `docs/decisions.md#phase-b-closed-bell-sufficient`.** Phase B is fully closed; do not
+> reopen the Home-banner question without new evidence of real friction.
+>
+> ### 🔄 Phase C in progress (updated 2026-08-30)
+>
+> First of three named capabilities shipped: **#116** (month-end unreconciled sweep) as the Inbox's
+> third occupant — mark-reconciled-by-account, mirrors occupant #2's pattern, see
+> `docs/decisions.md#inbox-occupant-3-unreconciled`. **Next candidate, scoped but not yet
+> implemented:** #110 (budget realism — one-off vs. recurring per category) — recommended v1 scope
+> is detect+flag only (no new category-level goal mechanism), since #110's "propose a sinking fund"
+> action would otherwise build half of #111's own mechanism early; #111 stays the owner of that.
+> #112/#124/#41/#42 remain unscoped Phase C candidates.
+>
+> Also opened this session, explicitly deferred: **#241** (NotificationBell + Settings access
+> missing from the Majordom/chat tab — real UI conflict with `Chat.tsx`'s existing header buttons,
+> not scoped, pick up "when we get there" per Doru).
 
 ---
 

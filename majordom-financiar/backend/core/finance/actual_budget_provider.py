@@ -191,8 +191,11 @@ class ActualBudgetProvider:
     async def count_uncategorized(self) -> int:
         return await self._client().count_uncategorized()
 
-    async def count_unreconciled(self) -> int:
-        return await self._client().count_unreconciled()
+    async def list_unreconciled_groups(self) -> list[dict]:
+        return await self._client().list_unreconciled_groups()
+
+    async def mark_account_reconciled(self, account_id: str) -> int:
+        return await self._client().mark_account_reconciled(account_id)
 
     async def get_account_sync_status(self) -> list[dict]:
         return await self._client().get_account_sync_status()

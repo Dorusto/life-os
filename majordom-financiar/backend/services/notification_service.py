@@ -801,17 +801,10 @@ async def get_pending_items() -> list[dict]:
     # docs/product-plan.md Phase B) — no longer listed here as a generic
     # chat-prefill item.
 
-    # Unreconciled transactions
-    try:
-        count = await client.count_unreconciled()
-        if count > 0:
-            items.append({
-                "type": "unreconciled",
-                "text": f"{count} unreconciled transaction{'s' if count != 1 else ''}",
-                "prompt": "show me unreconciled transactions",
-            })
-    except Exception as e:
-        logger.warning("get_pending_items: unreconciled check failed: %s", e)
+    # Unreconciled transactions have their own dedicated Inbox surface now too
+    # (NotificationBell's "N account(s) to reconcile" row -> /unreconciled-review,
+    # docs/product-plan.md Phase C, #116) — no longer listed here as a generic
+    # chat-prefill item.
 
     # Over-budget categories this month
     try:

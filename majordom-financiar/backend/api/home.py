@@ -198,6 +198,47 @@ async def get_uncategorized_group_actions(current_user: str = Depends(get_curren
     return {"items": items}
 
 
+@router.get("/home/unreconciled/groups")
+async def get_unreconciled_group_actions(current_user: str = Depends(get_current_user)):
+    """
+    Unreconciled transactions grouped by account, each wrapped as a
+    mark_reconciled proposal — the Inbox's third finding type (Phase C, #116,
+    docs/product-plan.md). Mirrors /home/uncategorized/groups, grouped by
+    account instead of payee.
+    """
+    from backend.tools import category_actions as action_store
+
+    client = get_provider()
+    try:
+        groups = await client.list_unreconciled_groups()
+    except Exception as e:
+        logger.error("Failed to fetch unreconciled groups: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Could not fetch unreconciled groups")
+
+    dismissed_keys = MemoryDB(settings.memory.db_path).get_dismissed_finding_keys("unreconciled_account")
+
+    items = []
+    for g in groups:
+        if g["account_id"] in dismissed_keys:
+            continue
+        action_id = uuid4().hex[:8]
+        action_store.store(action_id, {
+            "action": "mark_reconciled",
+            "account_id": g["account_id"],
+            "account_name": g["account_name"],
+            "count": g["count"],
+        })
+        items.append({
+            "type": "category_action",
+            "id": action_id,
+            "action": "mark_reconciled",
+            "account_name": g["account_name"],
+            "count": g["count"],
+            "transactions": g["transactions"],
+        })
+    return {"items": items}
+
+
 _PERIOD_MONTHS = {"3m": 3, "6m": 6, "12m": 12}
 _MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
