@@ -359,6 +359,12 @@ Never repair a broken/near-duplicate transfer leg by calling `set_transaction_pa
 
 Without one, the browser silently renders the first real `<option>` as if selected while the bound React state stays `''` — the field *looks* filled in but isn't. Found in `CategoryActionCard.tsx`'s category picker: `categorize_with_rule` proposals with no suggested category (`category_name: ""`) showed the first entry in `available_categories` as if chosen, while `confirmDisabled` (correctly checking `!selectedCategory`) kept Categorize disabled — button looked live but did nothing, no visible reason why. Never hit before because the chat-originated flow (`propose_categorize_with_rule`) always supplies an explicit category name; the Inbox's uncategorized-groups endpoint (#32 above) was the first caller that could produce an empty one. Fix: render `{!selectedCategory && <option value="" disabled>Select a category…</option>}` before mapping the real options.
 
+### 34. Reusing an existing query filter for a new user-facing action inherits that filter's pre-existing gaps — audit it, don't just copy it
+
+A filter that was correct enough for a passive background count can be silently wrong once the same data drives an actionable, per-row confirm card. Found building the Inbox's unreconciled-by-account endpoint (#116, Phase C): `count_unreconciled()` (a method that predates that session, used only as a number in a chat-prefill nudge) never excluded closed/tombstoned accounts or system-generated bookkeeping rows (`starting_balance_flag`, `[Balance Adjustment]`-noted rows) — harmless as a background count nobody scrutinized, but confusing the moment the same query grouped those rows into a card offering to "reconcile" a tombstoned account's opening-balance transaction. `check_provider_wiring.py`, `tsc --noEmit`, and a build all passed throughout; only a manual browser click-through against real fixture data surfaced it.
+
+Before reusing an existing filter/query for a new caller that changes what the data is used for (not just re-displaying it — e.g. background count → actionable list, read-only display → something the user can confirm/write), re-derive whether every excluded/included case still makes sense for the new use, rather than trusting the filter's track record in its original, lower-stakes context. Treat this as its own mid-implementation checkpoint per the `/plan-feature` skill's "not a one-time gate" section.
+
 ---
 
 ## Main Flows
