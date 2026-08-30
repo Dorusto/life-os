@@ -71,6 +71,7 @@ export default function DuplicatesReviewPage() {
     try {
       await cancelCategoryAction(pair.action_id)
       setHandledIds(prev => new Set(prev).add(pair.action_id))
+      invalidateCounts()
     } finally {
       setBusyId(null)
     }

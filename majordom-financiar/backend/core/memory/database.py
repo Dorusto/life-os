@@ -112,6 +112,13 @@ class MemoryDB:
                     last_reminded_at TEXT NOT NULL DEFAULT (datetime('now'))
                 );
 
+                CREATE TABLE IF NOT EXISTS dismissed_findings (
+                    finding_type  TEXT NOT NULL,
+                    finding_key   TEXT NOT NULL,
+                    dismissed_at  TEXT NOT NULL DEFAULT (datetime('now')),
+                    PRIMARY KEY (finding_type, finding_key)
+                );
+
                 CREATE TABLE IF NOT EXISTS chat_history (
                     id        INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id   TEXT NOT NULL,
@@ -506,6 +513,32 @@ class MemoryDB:
                   AND notified_at <= datetime('now', ?)
             """, (f"-{older_than_days} days",))
             conn.commit()
+        finally:
+            conn.close()
+
+    # --- Dismissed Findings ---
+
+    def dismiss_finding(self, finding_type: str, finding_key: str):
+        """Persist a dismissal for a finding so it doesn't reappear later."""
+        conn = self._get_conn()
+        try:
+            conn.execute(
+                "INSERT OR IGNORE INTO dismissed_findings (finding_type, finding_key) VALUES (?, ?)",
+                (finding_type, finding_key),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def get_dismissed_finding_keys(self, finding_type: str) -> set[str]:
+        """Return all dismissed finding keys for a given finding type."""
+        conn = self._get_conn()
+        try:
+            rows = conn.execute(
+                "SELECT finding_key FROM dismissed_findings WHERE finding_type = ?",
+                (finding_type,),
+            ).fetchall()
+            return {row["finding_key"] for row in rows}
         finally:
             conn.close()
 

@@ -8,6 +8,8 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from backend.api.auth import get_current_user
 from backend.core.actual_client.client import _calc_fire
+from backend.core.config import settings
+from backend.core.memory.database import MemoryDB
 from backend.core.finance.provider import get_provider
 
 logger = logging.getLogger(__name__)
@@ -76,11 +78,16 @@ async def get_duplicate_months(current_user: str = Depends(get_current_user)):
     except Exception as e:
         logger.error("Failed to fetch duplicate months: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Could not fetch duplicates")
-    months = [
-        {"month": m, "count": len(pairs)}
-        for m, pairs in by_month.items()
-        if pairs
-    ]
+
+    dismissed_keys = MemoryDB(settings.memory.db_path).get_dismissed_finding_keys("duplicate_pair")
+    months = []
+    for m, pairs in by_month.items():
+        visible_pairs = [
+            p for p in pairs
+            if f"{p['manual']['id']}:{p['synced']['id']}" not in dismissed_keys
+        ]
+        if visible_pairs:
+            months.append({"month": m, "count": len(visible_pairs)})
     months.sort(key=lambda x: x["month"], reverse=True)  # newest first (YYYY-MM sorts lexically)
     return {"months": months}
 
@@ -103,7 +110,12 @@ async def get_duplicate_pairs(month: str, current_user: str = Depends(get_curren
     except Exception as e:
         logger.error("Failed to fetch duplicate pairs for %s: %s", month, e, exc_info=True)
         raise HTTPException(status_code=500, detail="Could not fetch duplicates")
-    pairs = by_month.get(month, [])
+
+    dismissed_keys = MemoryDB(settings.memory.db_path).get_dismissed_finding_keys("duplicate_pair")
+    pairs = [
+        p for p in by_month.get(month, [])
+        if f"{p['manual']['id']}:{p['synced']['id']}" not in dismissed_keys
+    ]
     result = []
     for pair in pairs:
         action_id = uuid4().hex[:8]

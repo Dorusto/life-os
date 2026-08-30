@@ -10,6 +10,8 @@ from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
 from backend.tools import category_actions as action_store
+from backend.core.config import settings
+from backend.core.memory.database import MemoryDB
 from backend.core.finance.provider import get_provider
 
 logger = logging.getLogger(__name__)
@@ -395,5 +397,12 @@ async def cancel_category_action(
     action_id: str,
     current_user: str = Depends(get_current_user),
 ):
+    action = action_store.get(action_id)
+    if action and action["action"] in ("merge_duplicate", "resolve_transfer_duplicate"):
+        if action["action"] == "merge_duplicate":
+            finding_key = f"{action['manual_id']}:{action['synced_id']}"
+        else:
+            finding_key = f"{action['transfer_leg_id']}:{action['synced_dup_id']}"
+        MemoryDB(settings.memory.db_path).dismiss_finding("duplicate_pair", finding_key)
     action_store.delete(action_id)
     return {"cancelled": True}
