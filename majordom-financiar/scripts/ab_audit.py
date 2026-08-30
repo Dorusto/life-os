@@ -18,7 +18,7 @@ Usage (local machine, outside Docker — override the Tailscale IP for your LXC)
     ... python3 scripts/ab_audit.py broken_transfers
 
 Usage (inside the container, .env already points at the right host):
-    docker exec -it majordom-financiar-majordom-1 python scripts/ab_audit.py
+    docker exec -it majordom-api python scripts/ab_audit.py
 """
 import os
 import sys
