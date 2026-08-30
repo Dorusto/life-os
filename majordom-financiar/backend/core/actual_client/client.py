@@ -6,6 +6,7 @@ Client for Actual Budget using the official actualpy library.
 import asyncio
 import hashlib
 import logging
+import time
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
@@ -21,6 +22,31 @@ ACCOUNT_TYPES = ("Cash", "Investment", "Vehicle", "Loan", "Rental")
 # (#142, e.g. /api/home vs /api/home/pending firing together on Home page load).
 # One process-wide lock serializes all actualpy access regardless of client instance.
 _actual_lock = asyncio.Lock()
+
+# Shared short-lived READ-ONLY connection cache (#223) — see
+# ActualBudgetClient._get_cached_read_actual() for why and how this is safe.
+# Module-level like _actual_lock above: there is one Actual Budget instance
+# for the whole app, so one shared cache slot is correct, not per-client-instance.
+_cached_read_actual = None
+_cached_read_expires_at: float = 0.0
+_READ_CACHE_TTL_SECONDS = 4.0
+
+
+class _CachedReadHandle:
+    """
+    Thin context manager standing in for `with self._get_actual() as actual:`
+    at read-only call sites, so they need zero other changes. Unlike the real
+    Actual.__exit__, this deliberately does NOT close the connection on exit —
+    it stays open and shared until _get_cached_read_actual()'s TTL expires.
+    """
+    def __init__(self, actual):
+        self._actual = actual
+
+    def __enter__(self):
+        return self._actual
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        return False
 
 
 def rule_match_prefix(payee_name: str) -> str:
@@ -658,6 +684,36 @@ class ActualBudgetClient:
             file=self.sync_id,
         )
 
+    def _get_cached_read_actual(self):
+        """
+        Short-lived (a few seconds) shared READ-ONLY connection, reused across
+        near-simultaneous read calls — e.g. one Dashboard render's ~8 parallel
+        queries — instead of each opening its own fresh login + full budget
+        download from scratch. #223 measured a ~13s Dashboard load dominated
+        by exactly that repeated login+download, not by any single slow query.
+
+        Only for methods that never write (never call actual.commit()) — a
+        write must keep using self._get_actual() directly, so every write
+        stays on its own fully-isolated, stateless connection, same as today.
+
+        No extra locking needed: every call to this already runs inside
+        _run()'s single-worker executor behind the module-level _actual_lock,
+        so only one caller is ever in here at a time.
+        """
+        global _cached_read_actual, _cached_read_expires_at
+        now = time.monotonic()
+        if _cached_read_actual is None or now >= _cached_read_expires_at:
+            if _cached_read_actual is not None:
+                try:
+                    _cached_read_actual.__exit__(None, None, None)
+                except Exception:
+                    logger.warning("Failed to close expired cached read connection", exc_info=True)
+            actual = self._get_actual()
+            actual.__enter__()
+            _cached_read_actual = actual
+            _cached_read_expires_at = now + _READ_CACHE_TTL_SECONDS
+        return _CachedReadHandle(_cached_read_actual)
+
     async def _run(self, func):
         loop = asyncio.get_event_loop()
         async with _actual_lock:
@@ -666,8 +722,7 @@ class ActualBudgetClient:
     async def get_accounts(self) -> list[Account]:
         def _get():
             from actual.queries import get_accounts, get_transactions
-            with self._get_actual() as actual:
-                actual.download_budget()
+            with self._get_cached_read_actual() as actual:
                 accounts = get_accounts(actual.session)
                 result = []
                 for acc in accounts:
@@ -732,8 +787,7 @@ class ActualBudgetClient:
             from datetime import date as _date, timedelta
             from actual.queries import get_transactions
 
-            with self._get_actual() as actual:
-                actual.download_budget()
+            with self._get_cached_read_actual() as actual:
 
                 off_budget = False if scope == "on_budget" else None
                 txs = get_transactions(actual.session, off_budget=off_budget)
@@ -799,7 +853,6 @@ class ActualBudgetClient:
             import calendar
 
             with self._get_actual() as actual:
-                actual.download_budget()
 
                 # Previous month-end date for balance_prev_month_end
                 today = _date.today()
@@ -846,7 +899,6 @@ class ActualBudgetClient:
         def _get():
             from actual.queries import get_transactions
             with self._get_actual() as actual:
-                actual.download_budget()
                 today = date.today()
                 return get_transactions(actual.session, start_date=today, end_date=today)
         return await self._run(_get)
@@ -865,7 +917,6 @@ class ActualBudgetClient:
         def _get():
             from actual.queries import get_categories
             with self._get_actual() as actual:
-                actual.download_budget()
                 cats = get_categories(actual.session)
                 return [
                     Category(
@@ -895,7 +946,6 @@ class ActualBudgetClient:
             end = _date(year, month, last_day)
 
             with self._get_actual() as actual:
-                actual.download_budget()
                 txs = get_transactions(actual.session, start_date=start, end_date=end)
                 totals = _compute_monthly_totals(actual.session, txs)
                 return {"month": month, "year": year, **totals}
@@ -920,7 +970,6 @@ class ActualBudgetClient:
             from datetime import date as _date
 
             with self._get_actual() as actual:
-                actual.download_budget()
                 results = []
                 for month, year in months:
                     start = _date(year, month, 1)
@@ -954,7 +1003,6 @@ class ActualBudgetClient:
                 get_categories,
             )
             with self._get_actual() as actual:
-                actual.download_budget()
 
                 imported_id = uuid.uuid4().hex[:16]
 
@@ -1010,8 +1058,7 @@ class ActualBudgetClient:
             last_day = calendar.monthrange(year, month)[1]
             end = _date(year, month, last_day)
 
-            with self._get_actual() as actual:
-                actual.download_budget()
+            with self._get_cached_read_actual() as actual:
                 txs = get_transactions(actual.session, start_date=start, end_date=end)
                 all_cats = get_categories(actual.session)  # non-tombstoned only
                 return _compute_budget_vs_spent(actual.session, txs, all_cats, year, month)
@@ -1039,7 +1086,6 @@ class ActualBudgetClient:
             end = _date(year, month, last_day)
 
             with self._get_actual() as actual:
-                actual.download_budget()
                 txs = get_transactions(actual.session, start_date=start, end_date=end)
                 all_cats = [c for c in get_categories(actual.session) if not getattr(c, "is_income", False)]
                 result = _compute_budget_vs_spent(actual.session, txs, all_cats, year, month, include_zero=True)
@@ -1053,7 +1099,6 @@ class ActualBudgetClient:
         def _delete():
             from actual.database import Transactions
             with self._get_actual() as actual:
-                actual.download_budget()
                 tx = actual.session.query(Transactions).filter(
                     Transactions.financial_id == financial_id,
                     Transactions.tombstone == 0,
@@ -1073,7 +1118,6 @@ class ActualBudgetClient:
             from actual.queries import get_or_create_category
             from actual.database import Transactions
             with self._get_actual() as actual:
-                actual.download_budget()
                 tx = actual.session.query(Transactions).filter(
                     Transactions.financial_id == financial_id,
                     Transactions.tombstone == 0,
@@ -1102,7 +1146,6 @@ class ActualBudgetClient:
         def _update():
             from actual.database import Transactions
             with self._get_actual() as actual:
-                actual.download_budget()
                 tx = actual.session.query(Transactions).filter(
                     Transactions.id == transaction_id,
                     Transactions.tombstone == 0,
@@ -1132,7 +1175,6 @@ class ActualBudgetClient:
         def _update():
             from actual.database import Transactions
             with self._get_actual() as actual:
-                actual.download_budget()
                 txs = actual.session.query(Transactions).filter(
                     Transactions.financial_id.in_(financial_ids),
                     Transactions.tombstone == 0,
@@ -1177,7 +1219,6 @@ class ActualBudgetClient:
             from actual.queries import create_split, get_categories
             from actual.database import Transactions
             with self._get_actual() as actual:
-                actual.download_budget()
 
                 tx = actual.session.query(Transactions).filter(
                     Transactions.id == transaction_id,
@@ -1241,7 +1282,6 @@ class ActualBudgetClient:
             from datetime import timedelta
             from actual.database import Transactions, Payees
             with self._get_actual() as actual:
-                actual.download_budget()
                 window_start = date - timedelta(days=date_window_days)
                 window_end = date + timedelta(days=date_window_days)
                 candidates = (
@@ -1292,7 +1332,6 @@ class ActualBudgetClient:
             from actual.queries import get_or_create_category
             from actual.database import Transactions
             with self._get_actual() as actual:
-                actual.download_budget()
                 tx = actual.session.query(Transactions).filter(
                     Transactions.financial_id == financial_id,
                     Transactions.tombstone == 0,
@@ -1321,7 +1360,6 @@ class ActualBudgetClient:
         def _get():
             from actual.queries import get_categories, get_category_groups, get_transactions
             with self._get_actual() as actual:
-                actual.download_budget()
                 existing_ids = {
                     tx.financial_id
                     for tx in get_transactions(actual.session)
@@ -1375,7 +1413,6 @@ class ActualBudgetClient:
             )
 
             with self._get_actual() as actual:
-                actual.download_budget()
 
                 # Build dedup map: financial_id → transaction (for merge checks)
                 existing_tx_map = {
@@ -1513,7 +1550,6 @@ class ActualBudgetClient:
             from actual.database import Accounts
 
             with self._get_actual() as actual:
-                actual.download_budget()
 
                 acc = actual.session.query(Accounts).filter(
                     Accounts.id == account_id, Accounts.tombstone == 0
@@ -1543,7 +1579,6 @@ class ActualBudgetClient:
             from actual.queries import create_transaction, get_account, get_transactions
 
             with self._get_actual() as actual:
-                actual.download_budget()
 
                 acc = get_account(actual.session, account_id)
                 if not acc or acc.tombstone:
@@ -1597,7 +1632,6 @@ class ActualBudgetClient:
             import uuid
 
             with self._get_actual() as actual:
-                actual.download_budget()
 
                 acc = actual.session.query(Accounts).filter(
                     Accounts.id == account_id, Accounts.tombstone == 0
@@ -1642,7 +1676,6 @@ class ActualBudgetClient:
         def _get():
             from actual.queries import get_accounts
             with self._get_actual() as actual:
-                actual.download_budget()
                 accounts = get_accounts(actual.session)
                 return _compute_goal_progress(actual.session, accounts)
         return await self._run(_get)
@@ -1672,8 +1705,7 @@ class ActualBudgetClient:
             prev_end = _date(prev_year, prev_month, prev_last_day)
             prev_end_int = int(prev_end.strftime("%Y%m%d"))
 
-            with self._get_actual() as actual:
-                actual.download_budget()  # once only
+            with self._get_cached_read_actual() as actual:
 
                 # 1. Accounts (needed for net worth + FIRE)
                 accounts_data = get_accounts(actual.session)
@@ -1779,7 +1811,6 @@ class ActualBudgetClient:
             import re
             from actual.queries import get_accounts
             with self._get_actual() as actual:
-                actual.download_budget()
                 accounts = get_accounts(actual.session)
                 acc = next(
                     (a for a in accounts if a.name.lower() == account_name.lower() and not a.closed),
@@ -1828,7 +1859,6 @@ class ActualBudgetClient:
             import re
             from actual.database import Accounts
             with self._get_actual() as actual:
-                actual.download_budget()
                 acc = actual.session.query(Accounts).filter(
                     Accounts.id == account_id,
                     Accounts.tombstone == 0,
@@ -1857,7 +1887,6 @@ class ActualBudgetClient:
             from actual.queries import create_account as _create_account
             from decimal import Decimal
             with self._get_actual() as actual:
-                actual.download_budget()
                 acc = _create_account(
                     actual.session,
                     name=name,
@@ -1874,7 +1903,6 @@ class ActualBudgetClient:
         def _create():
             from actual.queries import create_category_group as _create_group
             with self._get_actual() as actual:
-                actual.download_budget()
                 group = _create_group(actual.session, name=name)
                 actual.commit()
                 logger.info(f"Category group created: {name} (id={group.id})")
@@ -1886,7 +1914,6 @@ class ActualBudgetClient:
         def _get():
             from actual.queries import get_category_groups
             with self._get_actual() as actual:
-                actual.download_budget()
                 groups = get_category_groups(actual.session)
                 return [g.name for g in groups if not g.tombstone and g.name]
         return await self._run(_get)
@@ -1896,7 +1923,6 @@ class ActualBudgetClient:
         def _create():
             from actual.queries import create_category as _create_cat
             with self._get_actual() as actual:
-                actual.download_budget()
                 cat = _create_cat(actual.session, name=name, group_name=group_name)
                 actual.commit()
                 logger.info(f"Category created: {name} in group {group_name}")
@@ -1908,7 +1934,6 @@ class ActualBudgetClient:
         def _delete():
             from actual.queries import get_category
             with self._get_actual() as actual:
-                actual.download_budget()
                 cat = get_category(actual.session, name)
                 if not cat:
                     raise ValueError(f"Category not found: {name}")
@@ -1927,7 +1952,6 @@ class ActualBudgetClient:
             from actual.queries import get_categories
 
             with self._get_actual() as actual:
-                actual.download_budget()
 
                 # Block deletion if any non-tombstoned category still lives in it
                 living_categories = [
@@ -1960,7 +1984,6 @@ class ActualBudgetClient:
         def _rename():
             from actual.database import Accounts
             with self._get_actual() as actual:
-                actual.download_budget()
                 acc = actual.session.query(Accounts).filter(
                     Accounts.id == account_id,
                     Accounts.tombstone == 0,
@@ -1977,7 +2000,6 @@ class ActualBudgetClient:
         def _rename():
             from actual.queries import get_category
             with self._get_actual() as actual:
-                actual.download_budget()
                 cat = get_category(actual.session, old_name)
                 if not cat:
                     raise ValueError(f"Category not found: {old_name}")
@@ -1991,7 +2013,6 @@ class ActualBudgetClient:
         def _rename():
             from actual.database import CategoryGroups
             with self._get_actual() as actual:
-                actual.download_budget()
                 group = (
                     actual.session.query(CategoryGroups)
                     .filter(CategoryGroups.name == old_name, CategoryGroups.tombstone == 0)
@@ -2027,7 +2048,6 @@ class ActualBudgetClient:
             amount_op = "isapprox" if is_income else "is"
 
             with self._get_actual() as actual:
-                actual.download_budget()
                 sched = _create_schedule(
                     actual.session,
                     date=schedule_cfg,
@@ -2093,7 +2113,6 @@ class ActualBudgetClient:
             )
 
             with self._get_actual() as actual:
-                actual.download_budget()
 
                 # Resolve accounts
                 from_acct = get_account(actual.session, from_account_id)
@@ -2143,7 +2162,6 @@ class ActualBudgetClient:
         def _get():
             from actual.database import Transactions
             with self._get_actual() as actual:
-                actual.download_budget()
                 tx = actual.session.query(Transactions).filter(
                     Transactions.id == transaction_id,
                     Transactions.tombstone == 0,
@@ -2186,7 +2204,6 @@ class ActualBudgetClient:
             from actual.queries import get_account, set_transaction_payee
 
             with self._get_actual() as actual:
-                actual.download_budget()
                 tx = actual.session.query(Transactions).filter(
                     Transactions.id == transaction_id,
                     Transactions.tombstone == 0,
@@ -2243,7 +2260,6 @@ class ActualBudgetClient:
             from actual.queries import get_accounts, get_transactions, get_categories
 
             with self._get_actual() as actual:
-                actual.download_budget()
 
                 # 1. Accounts — same logic as get_accounts()
                 accounts_data = get_accounts(actual.session)
@@ -2386,8 +2402,7 @@ class ActualBudgetClient:
         """
         def _get():
             from actual.queries import get_transactions, get_accounts
-            with self._get_actual() as actual:
-                actual.download_budget()
+            with self._get_cached_read_actual() as actual:
                 if account_id is not None:
                     matched = next(
                         (a for a in get_accounts(actual.session) if str(a.id) == account_id),
@@ -2476,8 +2491,7 @@ class ActualBudgetClient:
         """Count all transactions without a category (expenses and income, excludes transfers)."""
         def _count():
             from actual.database import Transactions
-            with self._get_actual() as actual:
-                actual.download_budget()
+            with self._get_cached_read_actual() as actual:
                 return (
                     actual.session.query(Transactions)
                     .filter(
@@ -2500,8 +2514,7 @@ class ActualBudgetClient:
         """
         def _count():
             from actual.database import Transactions, Accounts
-            with self._get_actual() as actual:
-                actual.download_budget()
+            with self._get_cached_read_actual() as actual:
                 return (
                     actual.session.query(Transactions)
                     .join(Accounts, Transactions.acct == Accounts.id)
@@ -2527,7 +2540,6 @@ class ActualBudgetClient:
         def _get():
             from actual.queries import get_accounts, get_transactions
             with self._get_actual() as actual:
-                actual.download_budget()
                 accounts = get_accounts(actual.session)
                 result = []
                 for acc in accounts:
@@ -2555,7 +2567,6 @@ class ActualBudgetClient:
         def _sync():
             from actual.queries import get_account
             with self._get_actual() as actual:
-                actual.download_budget()
                 acc = get_account(actual.session, account_name)
                 if not acc:
                     raise ValueError(f"Account not found: {account_name}")
@@ -2574,7 +2585,6 @@ class ActualBudgetClient:
         def _sync():
             from actual.queries import get_accounts
             with self._get_actual() as actual:
-                actual.download_budget()
                 accounts = [a for a in get_accounts(actual.session) if not a.closed and a.account_sync_source]
                 new_transactions = 0
                 failed: list[str] = []
@@ -2616,8 +2626,7 @@ class ActualBudgetClient:
         """
         def _get() -> dict[str, list[dict]]:
             from actual.queries import get_accounts
-            with self._get_actual() as actual:
-                actual.download_budget()
+            with self._get_cached_read_actual() as actual:
                 accounts = [a for a in get_accounts(actual.session) if not a.closed and a.account_sync_source]
                 by_month: dict[str, list[dict]] = {}
                 for acc in accounts:
@@ -2648,7 +2657,6 @@ class ActualBudgetClient:
         def _merge() -> bool:
             from actual.database import Transactions
             with self._get_actual() as actual:
-                actual.download_budget()
                 manual = actual.session.query(Transactions).filter(
                     Transactions.id == manual_id,
                     Transactions.tombstone == 0,
@@ -2689,7 +2697,6 @@ class ActualBudgetClient:
         def _count():
             from actual.database import Transactions, Payees
             with self._get_actual() as actual:
-                actual.download_budget()
                 q = (
                     actual.session.query(Transactions)
                     .join(Payees, Transactions.payee_id == Payees.id, isouter=True)
@@ -2716,7 +2723,6 @@ class ActualBudgetClient:
         def _list():
             from actual.database import Transactions, Payees
             with self._get_actual() as actual:
-                actual.download_budget()
                 q = (
                     actual.session.query(Transactions)
                     .join(Payees, Transactions.payee_id == Payees.id, isouter=True)
@@ -2756,7 +2762,6 @@ class ActualBudgetClient:
             from actual.database import Transactions, Payees, Categories
             from sqlalchemy import func
             with self._get_actual() as actual:
-                actual.download_budget()
                 rows = (
                     actual.session.query(
                         Payees.id.label("payee_id"),
@@ -2872,7 +2877,6 @@ class ActualBudgetClient:
 
         def _inner():
             with self._get_actual() as actual:
-                actual.download_budget()
                 tag_pattern = tag if tag.startswith("#") else f"#{tag}"
                 rows = (
                     actual.session.query(Transactions, Payees.name, Categories.name)
@@ -2961,7 +2965,6 @@ class ActualBudgetClient:
             from actual.rules import Rule, Condition, Action
             from actual.queries import create_rule
             with self._get_actual() as actual:
-                actual.download_budget()
                 rule = Rule(
                     conditions=[
                         Condition(
@@ -2995,7 +2998,6 @@ class ActualBudgetClient:
             from actual.rules import Rule, Condition, Action
             from actual.queries import create_rule
             with self._get_actual() as actual:
-                actual.download_budget()
                 rule = Rule(
                     conditions=[
                         Condition(
@@ -3030,7 +3032,6 @@ class ActualBudgetClient:
             from actual.rules import Rule, Condition, Action
             from actual.queries import create_rule, get_account
             with self._get_actual() as actual:
-                actual.download_budget()
                 to_acct = get_account(actual.session, target_account_id)
                 if not to_acct:
                     raise ValueError(f"Target account not found: {target_account_id}")
@@ -3075,7 +3076,6 @@ class ActualBudgetClient:
             from actual.rules import ActionType
 
             with self._get_actual() as actual:
-                actual.download_budget()
                 ruleset = get_ruleset(actual.session)
                 if not ruleset.rules:
                     return [None] * len(candidates)
@@ -3144,7 +3144,6 @@ class ActualBudgetClient:
         def _update():
             from actual.database import Transactions, Payees, Categories
             with self._get_actual() as actual:
-                actual.download_budget()
                 cat = actual.session.query(Categories).filter(
                     Categories.id == category_id,
                     Categories.tombstone == 0,
@@ -3203,7 +3202,6 @@ class ActualBudgetClient:
 
             yyyymm = year * 100 + month
             with self._get_actual() as actual:
-                actual.download_budget()
 
                 all_cats = get_categories(actual.session)
                 notes_by_id = {
@@ -3279,7 +3277,6 @@ class ActualBudgetClient:
         def _set():
             from actual.queries import create_budget, get_budget, get_category
             with self._get_actual() as actual:
-                actual.download_budget()
                 cat = get_category(actual.session, category_name)
                 if not cat:
                     raise ValueError(f"Category not found: {category_name}")
@@ -3306,7 +3303,6 @@ class ActualBudgetClient:
         def _set():
             from actual.queries import get_budget, get_category, create_budget
             with self._get_actual() as actual:
-                actual.download_budget()
                 cat = get_category(actual.session, category_name)
                 if not cat:
                     raise ValueError(f"Category not found: {category_name}")
@@ -3328,7 +3324,6 @@ class ActualBudgetClient:
         def _get():
             from actual.queries import get_payees, get_transactions
             with self._get_actual() as actual:
-                actual.download_budget()
                 result = []
                 for p in get_payees(actual.session):
                     if p.tombstone:
@@ -3357,7 +3352,6 @@ class ActualBudgetClient:
         def _get():
             from actual.queries import get_schedules
             with self._get_actual() as actual:
-                actual.download_budget()
                 return [
                     {"id": str(s.id), "name": s.name or "Unnamed", "active": bool(s.active)}
                     for s in get_schedules(actual.session)

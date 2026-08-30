@@ -39,10 +39,14 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 >    already concluded in `decisions.md#sure-budget-parity-evaluation`. The `sure-migration-trigger-check`
 >    cloud routine (`/schedule`) has also been stopped by Doru — Sure no longer runs anywhere in
 >    this setup, so there's nothing left for that tripwire to watch.
-> 1. **[#223](https://github.com/Dorusto/life-os/issues/223) — measure the chart lag** (~30 min).
->    All 67 client methods re-open the budget, with no cache. If that's the cause, Actual Budget
->    isn't slow — Majordom's integration is, and the same pattern would follow any backend. Do
->    this before anything makes the engine look worse than it is.
+> 1. ~~**[#223](https://github.com/Dorusto/life-os/issues/223) — measure the chart lag**~~ **done
+>    2026-08-30** — confirmed it's Majordom's integration, not Actual Budget: every method opened a
+>    brand-new connection (full login + full re-download) with zero reuse, serialized behind one
+>    lock. Fixed: removed a genuine duplicate `download_budget()` call found in all 62 call sites,
+>    plus a 4s shared read-only connection for the 8 methods the Dashboard hits (writes untouched).
+>    Dashboard load ~13s → ~9s live-measured. Remaining cost split into
+>    [#227](https://github.com/Dorusto/life-os/issues/227) (a duplicate fetch + two methods with
+>    real, unrelated compute cost) — not blocking #213/#222.
 > 2. **[#213](https://github.com/Dorusto/life-os/issues/213) — wire the mechanisms in** (~1h).
 >    Track the pre-commit hook and fix the scanner's path. The audit's highest-leverage finding,
 >    and it protects every refactor after it.

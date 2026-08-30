@@ -120,7 +120,6 @@ The entire backend is **async** (FastAPI + asyncio). `ActualBudgetClient` runs s
 async def get_accounts(self) -> list[Account]:
     def _get():
         with self._get_actual() as actual:
-            actual.download_budget()
             return actual.get_accounts()
     return await self._run(_get)
 
@@ -133,7 +132,9 @@ async def get_accounts(self):
 ### 2. actualpy — operation order is mandatory
 ```python
 with self._get_actual() as actual:
-    actual.download_budget()   # always first
+    # actualpy's own __enter__() already calls download_budget() for you —
+    # do NOT call it again explicitly here (found during #223: every one of
+    # the 62 call sites was downloading the budget twice per operation).
     # ... operations ...
     actual.commit()            # always last, for any write
 ```

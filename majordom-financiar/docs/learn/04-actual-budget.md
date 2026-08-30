@@ -10,18 +10,20 @@ Actual Budget can manage multiple "budget files" (like separate databases). `ACT
 
 ## What `download_budget()` does on every operation
 
-actualpy re-downloads the current state of the budget before each operation. Inefficient but safe — guarantees you're working with fresh data. If you added something from the web UI and the backend doesn't know about it, it doesn't matter — next call sees everything.
+actualpy re-downloads the current state of the budget before each operation — **automatically**, inside `Actual.__enter__()`, the moment you enter `with self._get_actual() as actual:`. Inefficient but safe — guarantees you're working with fresh data. If you added something from the web UI and the backend doesn't know about it, it doesn't matter — next call sees everything.
+
+**Don't call `actual.download_budget()` again explicitly inside the `with` block** — it already ran on entry. Every one of the 62 call sites in `client.py` did this until #223 found it (2026-08-30): each operation was downloading and re-importing the entire budget file twice, which was a large share of the measured Dashboard chart lag.
 
 ## actualpy operation order — MANDATORY
 
 ```python
 with self._get_actual() as actual:
-    actual.download_budget()   # ALWAYS first
+    # download_budget() already ran here, via __enter__() — don't call it again
     # ... operations ...
     actual.commit()            # ALWAYS last for any write
 ```
 
-Never skip `download_budget()` or `commit()`.
+Never skip `commit()`, and never call `download_budget()` a second time inside the same `with` block.
 
 ## Naming quirks in actualpy
 
