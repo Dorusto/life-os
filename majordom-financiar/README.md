@@ -50,6 +50,28 @@ You don't learn Actual Budget. You don't configure categories. You don't set up 
 
 ---
 
+## Screenshots
+
+<table>
+<tr>
+<td><img src="docs/screenshots/dashboard-goals.jpg" width="260" alt="Dashboard — financial goals"/></td>
+<td><img src="docs/screenshots/dashboard-balance.jpg" width="260" alt="Dashboard — balance trend and expenses breakdown"/></td>
+<td><img src="docs/screenshots/transactions.jpg" width="260" alt="Transactions list"/></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/accounts.jpg" width="260" alt="Accounts overview"/></td>
+<td><img src="docs/screenshots/majordom-chat.jpg" width="260" alt="Majordom chat assistant"/></td>
+<td><img src="docs/screenshots/vehicle-value.jpg" width="260" alt="Vehicle depreciation tracking"/></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/vehicle-stats.jpg" width="260" alt="Vehicle cost per km and mileage"/></td>
+</tr>
+</table>
+
+*Shown with fictitious sample data, generated locally for demo purposes — not real financial data.*
+
+---
+
 ## Prerequisites
 
 - A machine that runs 24/7 (Linux recommended — Raspberry Pi, NAS, home server, VPS)
