@@ -31,10 +31,15 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 >
 > **Run in this order — the first two change what the third looks like:**
 >
-> 0. **[#220](https://github.com/Dorusto/life-os/issues/220) — revoke the Telegram token** and
->    remove the orphaned container. Live right now, ~10 min, not a coding task. Also stop the
->    `sure-migration-trigger-check` cloud routine (`/schedule`) — Doru's call, and Sure is no
->    longer the axis this turns on.
+> 0. ~~**[#220](https://github.com/Dorusto/life-os/issues/220) — revoke the Telegram token**~~
+>    **done 2026-08-30** — container stopped/removed, token revoked, confirmed no orphan on the
+>    LXC, `--remove-orphans` added to the deploy pipeline. While investigating, also found and
+>    fully deleted an unrelated Sure trial stack running on the LXC since 2026-05-31 (containers,
+>    volumes, network, images, `/opt/sure` config) — the Sure/Ghostfolio evaluation it supported is
+>    already concluded in `decisions.md#sure-budget-parity-evaluation`. **Still open, Doru's call:**
+>    stop the `sure-migration-trigger-check` cloud routine (`/schedule`) — Sure no longer runs
+>    anywhere in this setup, so the tripwire it watches for has even less to trigger on now, but
+>    stopping it is a separate decision from deleting the trial deployment.
 > 1. **[#223](https://github.com/Dorusto/life-os/issues/223) — measure the chart lag** (~30 min).
 >    All 67 client methods re-open the budget, with no cache. If that's the cause, Actual Budget
 >    isn't slow — Majordom's integration is, and the same pattern would follow any backend. Do
@@ -164,6 +169,8 @@ Found during an external review of `architecture.md`/`decisions.md` for a course
 ## End-of-task protocol
 
 **When the user confirms something works, before reporting the task as done:** run the `/task-complete` skill (`.claude/skills/task-complete/SKILL.md`). Covers the pre-commit review, commit, issue-closing, roadmap/session-log updates, and the setup-self-improvement check — not optional, and not duplicated here.
+
+**The trigger is "about to run `gh issue close`," not "this was a coding feature."** Missed once (2026-08-30, #220) on an ops task — stop/remove a container, revoke a token — that never passed through an explicit "the user confirms it works" moment the way a feature review does, so the skill's usual trigger phrase didn't fire in the moment. Caught only because the user asked directly. Any session ending in `gh issue close`, coding or not, runs this first.
 
 ---
 
