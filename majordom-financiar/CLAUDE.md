@@ -36,10 +36,9 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 >    LXC, `--remove-orphans` added to the deploy pipeline. While investigating, also found and
 >    fully deleted an unrelated Sure trial stack running on the LXC since 2026-05-31 (containers,
 >    volumes, network, images, `/opt/sure` config) — the Sure/Ghostfolio evaluation it supported is
->    already concluded in `decisions.md#sure-budget-parity-evaluation`. **Still open, Doru's call:**
->    stop the `sure-migration-trigger-check` cloud routine (`/schedule`) — Sure no longer runs
->    anywhere in this setup, so the tripwire it watches for has even less to trigger on now, but
->    stopping it is a separate decision from deleting the trial deployment.
+>    already concluded in `decisions.md#sure-budget-parity-evaluation`. The `sure-migration-trigger-check`
+>    cloud routine (`/schedule`) has also been stopped by Doru — Sure no longer runs anywhere in
+>    this setup, so there's nothing left for that tripwire to watch.
 > 1. **[#223](https://github.com/Dorusto/life-os/issues/223) — measure the chart lag** (~30 min).
 >    All 67 client methods re-open the budget, with no cache. If that's the cause, Actual Budget
 >    isn't slow — Majordom's integration is, and the same pattern would follow any backend. Do
