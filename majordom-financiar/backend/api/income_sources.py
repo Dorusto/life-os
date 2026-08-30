@@ -19,13 +19,8 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
-from backend.core.actual_client import ActualBudgetClient
-from backend.core.config import settings
+from backend.core.finance.provider import get_provider
 
-
-def _get_client() -> ActualBudgetClient:
-    cfg = settings.actual
-    return ActualBudgetClient(url=cfg.url, password=cfg.password, sync_id=cfg.sync_id)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -73,7 +68,7 @@ async def create_income_source(
          CSV imports auto-detect this payee as a transfer, using Actual Budget's own
          transfer mechanism — no separate Majordom-side storage needed (#99).
     """
-    client = _get_client()
+    client = get_provider()
 
     # Check for an existing rule already covering this payee before creating
     # anything new — avoids duplicate rules (and duplicate categories, for

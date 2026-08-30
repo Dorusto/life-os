@@ -20,52 +20,21 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 > its own?** If the honest answer is "none, but it bothered me" → parking lot, not now.
 > The position in one line: *everything else in this space stores or displays; Majordom notices.*
 >
-> ### ▶️ Picked-up work — Phase A, start here (set 2026-08-30, remove when done)
+> ### ✅ Phase A complete (set 2026-08-30, done 2026-08-30)
 >
-> **Decided: [#222](https://github.com/Dorusto/life-os/issues/222) — finish the adapter layer.**
-> Route the eleven modules under `backend/api/` through `get_provider()`. The reason is no longer
-> a Sure hedge: Doru wants Majordom usable by other people, who won't all run Actual Budget
-> (candidates now include Beancount, hledger, or his own engine). Staying on Actual Budget for now
-> is not a commitment — **finishing the adapter is what makes changing engines cheap later**, which
-> is the actual goal. Supersede `decisions.md#financeprovider-abstraction` with this reasoning.
+> All 4 items closed same-day: #220 (Telegram token), #223 (chart lag), #213 (mechanisms wired
+> in), #222 (FinanceProvider adapter — all 11 `backend/api/*.py` modules + `tools/finance/vehicle.py`
+> now route through `get_provider()`, see `docs/decisions.md#financeprovider-adapter-finished`).
+> Full reasoning/history for #222's "why" (portfolio core-scope, adapter-for-modularity-not-Sure)
+> is in that decisions.md entry, not repeated here.
 >
-> **Run in this order — the first two change what the third looks like:**
->
-> 0. ~~**[#220](https://github.com/Dorusto/life-os/issues/220) — revoke the Telegram token**~~
->    **done 2026-08-30** — container stopped/removed, token revoked, confirmed no orphan on the
->    LXC, `--remove-orphans` added to the deploy pipeline. While investigating, also found and
->    fully deleted an unrelated Sure trial stack running on the LXC since 2026-05-31 (containers,
->    volumes, network, images, `/opt/sure` config) — the Sure/Ghostfolio evaluation it supported is
->    already concluded in `decisions.md#sure-budget-parity-evaluation`. The `sure-migration-trigger-check`
->    cloud routine (`/schedule`) has also been stopped by Doru — Sure no longer runs anywhere in
->    this setup, so there's nothing left for that tripwire to watch.
-> 1. ~~**[#223](https://github.com/Dorusto/life-os/issues/223) — measure the chart lag**~~ **done
->    2026-08-30** — confirmed it's Majordom's integration, not Actual Budget: every method opened a
->    brand-new connection (full login + full re-download) with zero reuse, serialized behind one
->    lock. Fixed: removed a genuine duplicate `download_budget()` call found in all 62 call sites,
->    plus a 4s shared read-only connection for the 8 methods the Dashboard hits (writes untouched).
->    Dashboard load ~13s → ~9s live-measured. Remaining cost split into
->    [#227](https://github.com/Dorusto/life-os/issues/227) (a duplicate fetch + two methods with
->    real, unrelated compute cost) — not blocking #213/#222.
-> 2. ~~**[#213](https://github.com/Dorusto/life-os/issues/213) — wire the mechanisms in**~~ **done
->    2026-08-30** — pre-commit hook tracked (`scripts/hooks/pre-commit` + `core.hooksPath`), and a
->    real Claude Code `PostToolUse` hook now runs the private-data scanner automatically after any
->    markdown edit, instead of depending on remembering to run it by hand.
-> 3. **#222 itself** — the eleven modules. Main work. Not before 1 and 2.
->
-> **Good to delegate in parallel** (`/delegate-by-complexity`, Aider): #214 (three HTTP layers,
-> divergent 401 handling) and #215 (40 copy-pasted handlers in `Chat.tsx`). Both are self-contained
-> and independently verifiable — named in the audit as the best delegation candidates.
->
-> **Related, don't attribute to the engine:** [#157](https://github.com/Dorusto/life-os/issues/157)
-> (HTTPS/reverse proxy — the connection friction Doru blames on Actual Budget is a deployment gap)
-> and [#190](https://github.com/Dorusto/life-os/issues/190) (setup wizard — the one friction that
-> *is* real, since a new user shouldn't have to configure Actual Budget by hand).
->
-> **Portfolio is core scope now**, not optional — Doru: seeing his investments in Majordom is
-> "actually the point of it". Build the calculation layer in Majordom (see the closing comment on
-> #4 for why that's a reasonable build, unlike building a budgeting engine). The real dependency
-> is market price data, which needs its own decision.
+> **Still open, worth picking up next** (check `gh issue list` for current state): #214 (three HTTP
+> layers, divergent 401 handling) and #215 (40 copy-pasted handlers in `Chat.tsx`) — both good
+> `/delegate-by-complexity` candidates. #157 (HTTPS/reverse proxy) and #190 (setup wizard) — related
+> to the Actual-Budget connection friction, not caused by the engine itself. #216, retitled to
+> track only its unresolved half (private helpers crossing layers — `_calc_fire`, `_load_fire_model`,
+> `rule_match_prefix`, `_financial_id`). **Portfolio** stays core scope (not optional) — the
+> calculation layer belongs in Majordom, market price data source is the open dependency.
 
 ---
 

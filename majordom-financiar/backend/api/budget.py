@@ -9,8 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
-from backend.core.actual_client import ActualBudgetClient
-from backend.core.config import settings
+from backend.core.finance.provider import get_provider
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -23,14 +22,6 @@ class RebalanceRequest(BaseModel):
     month: str = ""       # "YYYY-MM" or empty for current month
     new_source_budget: float
     new_destination_budget: float
-
-
-def _get_client() -> ActualBudgetClient:
-    return ActualBudgetClient(
-        url=settings.actual.url,
-        password=settings.actual.password,
-        sync_id=settings.actual.sync_id,
-    )
 
 
 @router.post("/budget/rebalance")
@@ -50,7 +41,7 @@ async def apply_rebalance(
     else:
         target_month = date.today().replace(day=1)
 
-    client = _get_client()
+    client = get_provider()
 
     try:
         await client.set_budget_amount(req.source_category, req.new_source_budget, target_month)

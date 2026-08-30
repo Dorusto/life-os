@@ -15,8 +15,8 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
-from backend.core.actual_client import ActualBudgetClient
 from backend.core.config import settings
+from backend.core.finance.provider import get_provider
 from backend.core.memory.database import MemoryDB
 
 logger = logging.getLogger(__name__)
@@ -74,11 +74,7 @@ async def setup_status(current_user: str = Depends(get_current_user)):
     db = MemoryDB(db_path=settings.memory.db_path)
     completed = db.get_preference(SETUP_KEY) == "1"
 
-    client = ActualBudgetClient(
-        url=settings.actual.url,
-        password=settings.actual.password,
-        sync_id=settings.actual.sync_id,
-    )
+    client = get_provider()
     try:
         accounts = await client.get_accounts()
         account_list = [AccountInfo(id=a.id, name=a.name, balance=a.balance) for a in accounts]
@@ -97,11 +93,7 @@ async def setup_complete(
     db = MemoryDB(db_path=settings.memory.db_path)
     adjustments: list[AdjustmentResult] = []
 
-    client = ActualBudgetClient(
-        url=settings.actual.url,
-        password=settings.actual.password,
-        sync_id=settings.actual.sync_id,
-    )
+    client = get_provider()
 
     if body.path == "today" and (body.balances or body.new_accounts):
         # Create new accounts first, then adjust their balance
@@ -157,7 +149,7 @@ _DEFAULT_GROUPS: list[tuple[str, list[str]]] = [
 ]
 
 
-async def _ensure_default_categories(client: ActualBudgetClient) -> None:
+async def _ensure_default_categories(client) -> None:
     # Checking "any categories exist" isn't enough — Actual Budget seeds its own
     # default template (Food/General/Bills/Bills (Flexible)/Savings) on every new
     # budget created via its UI, so `existing` is never empty on a fresh install

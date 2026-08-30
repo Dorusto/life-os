@@ -133,7 +133,7 @@ Replaces backlog items: *"Rules sync with AB"* and *"Bulk recategorization via c
 
 ### ✅ M5.2 — FinanceProvider abstraction
 
-Tool layer decoupled from ActualBudgetClient via Protocol. `FINANCE_BACKEND=sure` switches provider with no tool code changes. Scope: `actual_budget.py`, `category_actions.py`, `notification_service.py`. API layer (transactions, accounts, etc.) deferred to M6 extraction.
+Tool layer decoupled from ActualBudgetClient via Protocol. `FINANCE_BACKEND=sure` switches provider with no tool code changes. Scope: `actual_budget.py`, `category_actions.py`, `notification_service.py`. **API layer routing done 2026-08-30 ([#222](https://github.com/Dorusto/life-os/issues/222)):** all 11 `backend/api/*.py` modules (accounts, transactions, budget, etc.) plus `tools/finance/vehicle.py` now go through `get_provider()` too — see `docs/decisions.md#financeprovider-adapter-finished`. Extracting `finance/` as an independent HTTP service (M6.2, row 6.2 below) is still separate, unstarted work.
 
 ---
 

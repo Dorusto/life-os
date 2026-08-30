@@ -7,15 +7,23 @@ otherwise get_provider() raises AttributeError the first time a chat tool
 calls it (#126).
 
 Deliberately scoped to every actual call site of get_provider() across
-backend/**, NOT every public ActualBudgetClient method — this codebase has two separate access patterns: backend/api/*.py
-REST routes instantiate ActualBudgetClient directly (no Provider abstraction
-involved, by design — they're Actual-Budget-specific implementation detail,
-not meant to be swappable), while backend/tools/finance/actual_budget.py (the
-LLM tool layer) goes through get_provider() so a future FinanceProvider swap
-(e.g. Sure) only touches one place. A first version of this script checked
-ALL public ActualBudgetClient methods and produced 14 false positives — none
-of those 14 are called via get_provider() anywhere, they're REST-only or
-unused. Only the get_provider() path can ever hit the #126 AttributeError.
+backend/**, NOT every public ActualBudgetClient method — a method that exists
+on ActualBudgetClient but is never reached through get_provider() anywhere
+can't hit the #126 AttributeError, so checking it would only produce false
+positives. A first version of this script checked ALL public
+ActualBudgetClient methods and produced exactly that: 14 false positives from
+methods that were, at the time, only reachable via backend/api/*.py REST
+routes constructing ActualBudgetClient directly instead of going through
+get_provider() — narrowed to the get_provider()-only scope below.
+
+That direct-construction bypass was itself a bug, not a design choice — see
+architecture.md rule 29's "Superseded 2026-08-30" note. #222 (2026-08-30)
+converted all of backend/api/*.py to go through get_provider() too, so this
+script's scope now covers them like everywhere else. Note the scope here is
+call sites, not files — a file can be fully converted and still correctly
+produce zero findings from this script if none of its methods happen to be
+new/unwired, which was already normal before #222 for files that only called
+already-wired methods.
 
 This gotcha was already written down in plan-feature's known-gotchas list
 and is an explicit review item in pre-commit-review.md — neither stopped it

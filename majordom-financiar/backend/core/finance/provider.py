@@ -39,6 +39,14 @@ class FinanceProvider(Protocol):
 
     async def get_recent_transactions(
         self, limit: int = 20, start_date: date | None = None, end_date: date | None = None,
+        account_id: str | None = None,
+        offset: int = 0,
+        category_ids: list[str] | None = None,
+        payee: str | None = None,
+        uncategorized_only: bool = False,
+        amount_min: float | None = None,
+        amount_max: float | None = None,
+        is_expense: bool | None = None,
     ) -> list[dict]: ...
 
     async def add_transaction(
@@ -55,6 +63,27 @@ class FinanceProvider(Protocol):
     async def adjust_account_balance(
         self, account_id: str, target_balance: float
     ) -> float: ...
+
+    async def get_home_data(
+        self, month: int | None = None, year: int | None = None
+    ) -> dict: ...
+
+    async def get_monthly_totals_batch(self, months: list[tuple[int, int]]) -> list[dict]: ...
+
+    async def create_account(
+        self, name: str, initial_balance: float = 0.0, off_budget: bool = False
+    ) -> object: ...
+
+    async def create_transfer(
+        self,
+        from_account_id: str,
+        to_account_id: str,
+        amount: float,
+        tx_date: date,
+        notes: str = "",
+    ) -> dict: ...
+
+    async def set_account_type(self, account_id: str, account_type: str) -> str: ...
 
     async def close_account(self, account_id: str) -> str: ...
 
@@ -173,6 +202,18 @@ class FinanceProvider(Protocol):
     async def get_balance_history(
         self, scope: str = "total", days: int = 30, end_date: str | None = None
     ) -> list[dict]: ...
+
+    async def bulk_update_category(self, financial_ids: list[str], category_id: str) -> int: ...
+
+    async def get_payees(self) -> list[dict]: ...
+
+    async def get_schedules(self) -> list[dict]: ...
+
+    async def split_transaction(self, transaction_id: str, splits: list[dict]) -> dict: ...
+
+    async def rename_account(self, account_id: str, new_name: str) -> None: ...
+
+    async def delete_transaction(self, financial_id: str) -> bool: ...
 
 
 def get_provider() -> FinanceProvider:

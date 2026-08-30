@@ -10,8 +10,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
-from backend.core.actual_client import ActualBudgetClient
-from backend.core.config import settings
+from backend.core.finance.provider import get_provider
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -48,18 +47,10 @@ class SetAccountTypeRequest(BaseModel):
     account_type: str
 
 
-def _get_client() -> ActualBudgetClient:
-    return ActualBudgetClient(
-        url=settings.actual.url,
-        password=settings.actual.password,
-        sync_id=settings.actual.sync_id,
-    )
-
-
 @router.get("/accounts", response_model=list[AccountListItem])
 async def list_accounts(current_user: str = Depends(get_current_user)):
     """Return all (non-closed) accounts with off_budget distinction."""
-    client = _get_client()
+    client = get_provider()
     accounts = await client.get_accounts()
     return [
         AccountListItem(
@@ -80,7 +71,7 @@ async def get_balance_history(
     """Return a daily running balance series for the requested scope."""
     if scope not in ("total", "on_budget"):
         raise HTTPException(status_code=400, detail="scope must be 'total' or 'on_budget'")
-    client = _get_client()
+    client = get_provider()
     return await client.get_balance_history(scope, days, end_date)
 
 
@@ -92,7 +83,7 @@ async def create_account(
     """Create a new account in Actual Budget — e.g. from the CSV import account selector."""
     if not body.name.strip():
         raise HTTPException(status_code=400, detail="Account name is required")
-    client = _get_client()
+    client = get_provider()
     try:
         created = await client.create_account(
             body.name.strip(),
@@ -119,7 +110,7 @@ async def transfer_money(
     except ValueError:
         raise HTTPException(status_code=400, detail=f"Invalid date: {body.date}")
 
-    client = _get_client()
+    client = get_provider()
 
     to_account_id = body.to_account_id
     created_account_name: str | None = None
@@ -165,7 +156,7 @@ async def set_account_type(
     current_user: str = Depends(get_current_user),
 ):
     """Set the account category (Cash / Investment / Vehicle / Loan / Rental) as a TYPE: tag in AB notes."""
-    client = _get_client()
+    client = get_provider()
     try:
         await client.set_account_type(account_id, body.account_type)
     except ValueError as e:

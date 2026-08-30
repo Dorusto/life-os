@@ -7,21 +7,12 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException
 
 from backend.api.auth import get_current_user
-from backend.core.actual_client import ActualBudgetClient
 from backend.core.actual_client.client import _calc_fire
-from backend.core.config import settings
+from backend.core.finance.provider import get_provider
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-
-def _get_client() -> ActualBudgetClient:
-    return ActualBudgetClient(
-        url=settings.actual.url,
-        password=settings.actual.password,
-        sync_id=settings.actual.sync_id,
-    )
 
 
 @router.get("/home")
@@ -30,7 +21,7 @@ async def get_home(
     year: int | None = None,
     current_user: str = Depends(get_current_user),
 ):
-    client = _get_client()
+    client = get_provider()
     try:
         data = await client.get_home_data(month=month, year=year)
     except Exception as e:
@@ -65,7 +56,7 @@ async def sync_accounts(current_user: str = Depends(get_current_user)):
     entry point. Same underlying action as the `finance__sync_accounts`
     chat tool (backend/tools/finance/actual_budget.py).
     """
-    client = _get_client()
+    client = get_provider()
     try:
         return await client.run_bank_resync_all()
     except Exception as e:
@@ -80,7 +71,6 @@ async def get_duplicate_months(current_user: str = Depends(get_current_user)):
     newest first, zero-count months excluded — feeds the Home header badge +
     the review screen's month list.
     """
-    from backend.core.finance.provider import get_provider
     try:
         by_month = await get_provider().get_duplicate_transactions_by_month()
     except Exception as e:
@@ -103,7 +93,6 @@ async def get_duplicate_pairs(month: str, current_user: str = Depends(get_curren
     /cancel endpoints can drive it — returns the `action_id` so the frontend can
     reference it without duplicating any proposal-store logic.
     """
-    from backend.core.finance.provider import get_provider
     from backend.tools import category_actions as action_store
     # Basic shape guard — keep it lightweight, matching the existing plain-dict
     # convention in category_actions' confirm dispatch (no Pydantic validation).
@@ -148,7 +137,7 @@ async def get_budget_period(
     """
     from datetime import date as _date
 
-    client = _get_client()
+    client = get_provider()
     today = _date.today()
     ref_month = month or today.month
     ref_year = year or today.year

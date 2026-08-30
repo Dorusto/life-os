@@ -9,19 +9,10 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from backend.api.auth import get_current_user
 from backend.tools import balance_adjustments as adj_store
-from backend.core.actual_client import ActualBudgetClient
-from backend.core.config import settings
+from backend.core.finance.provider import get_provider
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-
-def _get_client() -> ActualBudgetClient:
-    return ActualBudgetClient(
-        url=settings.actual.url,
-        password=settings.actual.password,
-        sync_id=settings.actual.sync_id,
-    )
 
 
 @router.post("/balance-adjustments/{proposal_id}/confirm")
@@ -39,7 +30,7 @@ async def confirm_balance_adjustment(
     current_balance = proposal["current_balance"]
 
     try:
-        client = _get_client()
+        client = get_provider()
         diff = await client.adjust_account_balance(account_id, real_balance)
     except Exception as e:
         logger.error("Failed to confirm balance adjustment %s: %s", proposal_id, e)

@@ -5,6 +5,7 @@ import uuid
 from datetime import date as _date, timedelta
 
 from backend.core.config import settings
+from backend.core.finance.provider import get_provider
 from backend.core.vehicle_client import VehicleClient, VehicleClientError
 
 logger = logging.getLogger(__name__)
@@ -12,15 +13,6 @@ logger = logging.getLogger(__name__)
 
 def _get_client() -> VehicleClient:
     return VehicleClient(base_url=settings.vehicle_manager.url)
-
-
-def _get_actual_client():
-    from backend.core.actual_client import ActualBudgetClient
-    return ActualBudgetClient(
-        url=settings.actual.url,
-        password=settings.actual.password,
-        sync_id=settings.actual.sync_id,
-    )
 
 
 async def _resolve_vehicle(client: VehicleClient, vehicle_name: str = "") -> tuple[dict | None, str | None]:
@@ -88,7 +80,7 @@ async def log_refuel(
     accounts_list = []
     categories_list = []
     try:
-        actual = _get_actual_client()
+        actual = get_provider()
         import asyncio
         accounts, ab_cats = await asyncio.gather(
             actual.get_accounts(),

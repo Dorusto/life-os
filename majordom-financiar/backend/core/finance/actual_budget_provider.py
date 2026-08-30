@@ -62,8 +62,21 @@ class ActualBudgetProvider:
 
     async def get_recent_transactions(
         self, limit: int = 20, start_date: date | None = None, end_date: date | None = None,
+        account_id: str | None = None,
+        offset: int = 0,
+        category_ids: list[str] | None = None,
+        payee: str | None = None,
+        uncategorized_only: bool = False,
+        amount_min: float | None = None,
+        amount_max: float | None = None,
+        is_expense: bool | None = None,
     ) -> list[dict]:
-        return await self._client().get_recent_transactions(limit=limit, start_date=start_date, end_date=end_date)
+        return await self._client().get_recent_transactions(
+            limit=limit, start_date=start_date, end_date=end_date,
+            account_id=account_id, offset=offset, category_ids=category_ids,
+            payee=payee, uncategorized_only=uncategorized_only,
+            amount_min=amount_min, amount_max=amount_max, is_expense=is_expense,
+        )
 
     async def add_transaction(
         self,
@@ -91,6 +104,38 @@ class ActualBudgetProvider:
         return await self._client().adjust_account_balance(
             account_id, target_balance
         )
+
+    async def get_home_data(
+        self, month: int | None = None, year: int | None = None
+    ) -> dict:
+        return await self._client().get_home_data(month=month, year=year)
+
+    async def get_monthly_totals_batch(self, months: list[tuple[int, int]]) -> list[dict]:
+        return await self._client().get_monthly_totals_batch(months)
+
+    async def create_account(
+        self, name: str, initial_balance: float = 0.0, off_budget: bool = False
+    ) -> object:
+        return await self._client().create_account(name, initial_balance, off_budget)
+
+    async def create_transfer(
+        self,
+        from_account_id: str,
+        to_account_id: str,
+        amount: float,
+        tx_date: date,
+        notes: str = "",
+    ) -> dict:
+        return await self._client().create_transfer(
+            from_account_id=from_account_id,
+            to_account_id=to_account_id,
+            amount=amount,
+            tx_date=tx_date,
+            notes=notes,
+        )
+
+    async def set_account_type(self, account_id: str, account_type: str) -> str:
+        return await self._client().set_account_type(account_id, account_type)
 
     async def close_account(self, account_id: str) -> str:
         return await self._client().close_account(account_id)
@@ -202,6 +247,24 @@ class ActualBudgetProvider:
         self, scope: str = "total", days: int = 30, end_date: str | None = None
     ) -> list[dict]:
         return await self._client().get_balance_history(scope, days, end_date)
+
+    async def bulk_update_category(self, financial_ids: list[str], category_id: str) -> int:
+        return await self._client().bulk_update_category(financial_ids, category_id)
+
+    async def get_payees(self) -> list[dict]:
+        return await self._client().get_payees()
+
+    async def get_schedules(self) -> list[dict]:
+        return await self._client().get_schedules()
+
+    async def split_transaction(self, transaction_id: str, splits: list[dict]) -> dict:
+        return await self._client().split_transaction(transaction_id, splits)
+
+    async def rename_account(self, account_id: str, new_name: str) -> None:
+        return await self._client().rename_account(account_id, new_name)
+
+    async def delete_transaction(self, financial_id: str) -> bool:
+        return await self._client().delete_transaction(financial_id)
 
     async def create_payee_rule(
         self, payee_name_prefix: str, category_id: str

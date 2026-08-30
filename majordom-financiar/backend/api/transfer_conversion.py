@@ -9,19 +9,10 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from backend.api.auth import get_current_user
 from backend.tools import transfer_conversion as store
-from backend.core.actual_client import ActualBudgetClient
-from backend.core.config import settings
+from backend.core.finance.provider import get_provider
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
-
-
-def _get_client() -> ActualBudgetClient:
-    return ActualBudgetClient(
-        url=settings.actual.url,
-        password=settings.actual.password,
-        sync_id=settings.actual.sync_id,
-    )
 
 
 @router.post("/transfer-conversion/{proposal_id}/confirm")
@@ -38,7 +29,7 @@ async def confirm_transfer_conversion(
     target_account_name = proposal["target_account_name"]
 
     try:
-        client = _get_client()
+        client = get_provider()
         result = await client.convert_transaction_to_transfer(transaction_id, target_account_id)
     except Exception as e:
         logger.error("Failed to confirm transfer conversion %s: %s", proposal_id, e)

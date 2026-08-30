@@ -21,8 +21,8 @@ from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
 from backend.api.receipts import ConfirmResponse, NearDuplicateMatch
-from backend.core.actual_client import ActualBudgetClient
 from backend.core.config import settings
+from backend.core.finance.provider import get_provider
 from backend.services.receipt_service import ReceiptService
 
 logger = logging.getLogger(__name__)
@@ -89,11 +89,7 @@ async def list_transactions(
     passes the full set of optional filters. `limit`'s cap was raised to 200 rows
     so a full table page can request more than the Home/widget callers ever needed.
     """
-    client = ActualBudgetClient(
-        url=settings.actual.url,
-        password=settings.actual.password,
-        sync_id=settings.actual.sync_id,
-    )
+    client = get_provider()
 
     start = _parse_date(start_date) if start_date else None
     end = _parse_date(end_date) if end_date else None
@@ -156,11 +152,7 @@ async def bulk_update_category(
     if not body.financial_ids:
         raise HTTPException(status_code=400, detail="financial_ids must not be empty")
 
-    client = ActualBudgetClient(
-        url=settings.actual.url,
-        password=settings.actual.password,
-        sync_id=settings.actual.sync_id,
-    )
+    client = get_provider()
 
     try:
         updated = await client.bulk_update_category(
@@ -252,11 +244,7 @@ class CategoryItem(BaseModel):
 
 @router.get("/categories", response_model=list[CategoryItem])
 async def list_categories(current_user: str = Depends(get_current_user)):
-    client = ActualBudgetClient(
-        url=settings.actual.url,
-        password=settings.actual.password,
-        sync_id=settings.actual.sync_id,
-    )
+    client = get_provider()
     try:
         cats = await client.get_categories()
     except Exception as e:
@@ -293,11 +281,7 @@ async def split_transaction(
     if len(body.splits) < 2:
         raise HTTPException(status_code=400, detail="A split needs at least 2 lines")
 
-    client = ActualBudgetClient(
-        url=settings.actual.url,
-        password=settings.actual.password,
-        sync_id=settings.actual.sync_id,
-    )
+    client = get_provider()
     try:
         result = await client.split_transaction(
             transaction_id, [s.model_dump() for s in body.splits]
@@ -313,11 +297,7 @@ async def split_transaction(
 
 @router.get("/category-groups", response_model=list[str])
 async def list_category_groups(current_user: str = Depends(get_current_user)):
-    client = ActualBudgetClient(
-        url=settings.actual.url,
-        password=settings.actual.password,
-        sync_id=settings.actual.sync_id,
-    )
+    client = get_provider()
     try:
         return await client.get_category_groups()
     except Exception as e:
@@ -340,11 +320,7 @@ class ScheduleItem(BaseModel):
 @router.get("/payees", response_model=list[PayeeItem])
 async def list_payees(current_user: str = Depends(get_current_user)):
     """Return all payees with their transaction counts (settings screen)."""
-    client = ActualBudgetClient(
-        url=settings.actual.url,
-        password=settings.actual.password,
-        sync_id=settings.actual.sync_id,
-    )
+    client = get_provider()
     try:
         return await client.get_payees()
     except Exception as e:
@@ -355,11 +331,7 @@ async def list_payees(current_user: str = Depends(get_current_user)):
 @router.get("/schedules", response_model=list[ScheduleItem])
 async def list_schedules(current_user: str = Depends(get_current_user)):
     """Return all scheduled transactions (settings screen)."""
-    client = ActualBudgetClient(
-        url=settings.actual.url,
-        password=settings.actual.password,
-        sync_id=settings.actual.sync_id,
-    )
+    client = get_provider()
     try:
         return await client.get_schedules()
     except Exception as e:

@@ -212,7 +212,10 @@ Sure checklist (budget allocation parity, MCP server) is deferred until the eval
 
 ---
 
+<a id="financeprovider-abstraction"></a>
 ### FinanceProvider abstraction — REST API, not direct library calls
+
+**Superseded by:** [Adapter finished for real — #222](#financeprovider-adapter-finished) (2026-08-30) — the interface existed but 11 `backend/api/*.py` modules bypassed it by constructing `ActualBudgetClient` directly; #222 closed that gap and the reasoning for finishing it changed from a Sure hedge to general backend swappability.
 
 **Date:** 2026-06-03
 
@@ -1049,3 +1052,22 @@ file permanently heavier.
 **Decision:** don't implement either the automatic-inclusion fix or the picker now. Doru confirmed, once he saw the actual current behavior, that this isn't a current priority. Re-scoped and retitled the issue to describe the real ask (manual picker), downgraded `tier-2` → `tier-3`, and recorded the full technical findings (both root causes, the AB/`actualpy` "nothing precomputes this" finding, the planned `include_income` shape) as an issue comment so the research isn't lost whenever it's picked back up.
 
 **Also confirmed while investigating:** neither Actual Budget nor `actualpy` precompute an "actual received/spent per category" figure anywhere — `zero_budgets`/`reflect_budgets` only ever store the *planned* amount, and `queries.py` has no equivalent read helper. Every consumer, including AB's own web UI, derives it by summing transactions at read time — this codebase already does exactly that for expenses (`_compute_budget_vs_spent`'s `spent_by_category` loop); income would need the mirror of it, not something fetchable from an existing field.
+
+---
+
+<a id="financeprovider-adapter-finished"></a>
+### #222 — FinanceProvider adapter finished for real, all 11 API modules routed through get_provider()
+
+**Date:** 2026-08-30
+
+**Context:** [Adapter created](#financeprovider-abstraction) (2026-06-03) but never fully wired — an audit the same session #222 was opened in (`decisions.md#financeprovider-abstraction`, F12, 2026-08-29) found 11 `backend/api/*.py` modules plus `tools/finance/vehicle.py` still constructing `ActualBudgetClient` directly, bypassing `get_provider()` entirely. `CLAUDE.md`'s Phase A reframed *why* finishing it matters: no longer a Sure-migration hedge (that evaluation concluded AB stays, see `#sure-budget-parity-evaluation`) but general backend swappability — Doru wants Majordom usable by people who won't all run Actual Budget (hledger/beancount/a custom engine are now live candidates, see the competitive-reference discussion on #222 re: Accountant24).
+
+**Decision:** routed all 11 modules (`accounts.py`, `home.py`, `budget.py`, `transactions.py`, `setup.py`, `close_account.py`, `transfer_conversion.py`, `balance_adjustments.py`, `income_sources.py`, `vehicle_accounts_internal.py`, `vehicle_log_actions.py`) plus `tools/finance/vehicle.py` through `get_provider()`. 3 done directly by Claude (`accounts.py`, `home.py`, `transactions.py` — higher complexity: new Protocol methods, a non-obvious FIRE-calc convention, and the signature-drift bug below), 7 delegated in 3 parallel Aider/DeepSeek-Flash batches via `delegate-by-complexity` (all correct on the first pass, ~$0.05 total). Every touched method live-tested against the local fixture stack; `scripts/check_provider_wiring.py` passes (58 methods).
+
+**Bug found along the way, not just wiring:** `get_recent_transactions` existed on all 3 layers (Protocol/Provider/Client) so the mechanical checker reported it healthy, but the Protocol/Provider signatures only forwarded 3 of the real client's 10 parameters — 7 filters (`offset`, `account_id`, `category_ids`, `payee`, `uncategorized_only`, `amount_min`, `amount_max`, `is_expense`) would have been silently dropped the moment `transactions.py` routed through `get_provider()`. Fixed by widening both signatures to match the client exactly. `check_provider_wiring.py` only verifies a method *exists* on all 3 layers, not that its *signature* matches — this class of bug needs a human or a live functional test to catch. See `architecture.md` rule 29's "Superseded 2026-08-30" note.
+
+**#216 (`_get_client()` duplicated 8x + private helpers crossing layers) — only half-resolved:** the `_get_client()` duplication (F13) is gone automatically now that every file goes through `get_provider()`. The private-helper-crossing-layers half (F14: `_calc_fire`, `_load_fire_model`, `rule_match_prefix`, `_financial_id`) is untouched by #222 — scoped #216 down to F14 only rather than closing it as a full duplicate.
+
+**Also fixed:** `architecture.md` rule 29 and `check_provider_wiring.py`'s own docstring both used to say REST routes in `backend/api/*.py` were "by design" not meant to go through `get_provider()`. That was accurate only as a snapshot of the code the day it was written (2026-08-28, one day before the audit that opened #222) — not a deliberate architectural boundary. Both updated to describe the current, real state instead.
+
+**Not done here:** no change to `FINANCE_BACKEND` itself, no second `FinanceProvider` implementation — #222 was purely about making the existing single-implementation adapter actually load-bearing everywhere, not about building a second backend.

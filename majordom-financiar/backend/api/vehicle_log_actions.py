@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from backend.api.auth import get_current_user
 from backend.tools import vehicle_log_actions as action_store
 from backend.core.config import settings
-from backend.core.actual_client import ActualBudgetClient
+from backend.core.finance.provider import get_provider
 from backend.core.vehicle_client import VehicleClient, VehicleClientError
 
 logger = logging.getLogger(__name__)
@@ -53,11 +53,7 @@ async def confirm_vehicle_log_action(
     # from photo/text (today onward) are linked to an AB transaction (#83).
     ab_deleted = False
     if financial_id:
-        client_ab = ActualBudgetClient(
-            url=settings.actual.url,
-            password=settings.actual.password,
-            sync_id=settings.actual.sync_id,
-        )
+        client_ab = get_provider()
         try:
             ab_deleted = await client_ab.delete_transaction(financial_id)
         except Exception as e:
