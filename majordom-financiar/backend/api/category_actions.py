@@ -216,6 +216,21 @@ async def confirm_category_action(
                     detail="One side of the duplicate pair is missing — it may already have been merged."
                 )
             message = "Merged duplicate — kept the bank-synced transaction, removed the manual entry."
+        elif action["action"] == "resolve_transfer_duplicate":
+            result = await client.resolve_transfer_duplicate(
+                action["transfer_leg_id"],
+                action["synced_dup_id"],
+            )
+            if not result.get("success"):
+                raise HTTPException(
+                    status_code=404,
+                    detail="One side of the transfer duplicate is missing — it may already have been resolved."
+                )
+            message = (
+                f"Transfer to/from {result['account_name']} was already recorded — removed the duplicate "
+                f"bank-sync entry, kept the linked transfer. {result['account_name']} balance: "
+                f"€{result['balance_before']:.2f} → €{result['balance_after']:.2f}."
+            )
         elif action["action"] == "tag_transaction":
             tag = override.tag or action["tag"]
             await client.add_transaction_tag(action["transaction_id"], tag)

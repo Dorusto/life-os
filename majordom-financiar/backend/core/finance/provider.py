@@ -138,6 +138,10 @@ class FinanceProvider(Protocol):
         self, manual_id: str, synced_id: str
     ) -> bool: ...
 
+    async def resolve_transfer_duplicate(
+        self, transfer_leg_id: str, synced_dup_id: str
+    ) -> dict: ...
+
     async def count_uncategorized_by_payee(self, payee: str, notes_contains: str = "") -> int: ...
 
     async def list_uncategorized_by_payee(

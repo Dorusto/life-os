@@ -107,11 +107,20 @@ async def get_duplicate_pairs(month: str, current_user: str = Depends(get_curren
     result = []
     for pair in pairs:
         action_id = uuid4().hex[:8]
-        action_store.store(action_id, {
-            "action": "merge_duplicate",
-            "manual_id": pair["manual"]["id"],
-            "synced_id": pair["synced"]["id"],
-        })
+        if pair.get("kind") == "transfer":
+            # The "manual" side is a linked transfer leg (#229) — merging it away
+            # like an ordinary duplicate would break the transfer link.
+            action_store.store(action_id, {
+                "action": "resolve_transfer_duplicate",
+                "transfer_leg_id": pair["manual"]["id"],
+                "synced_dup_id": pair["synced"]["id"],
+            })
+        else:
+            action_store.store(action_id, {
+                "action": "merge_duplicate",
+                "manual_id": pair["manual"]["id"],
+                "synced_id": pair["synced"]["id"],
+            })
         result.append({"action_id": action_id, **pair})
     result.sort(key=lambda p: p["synced"]["date"], reverse=True)
     return {"month": month, "pairs": result}

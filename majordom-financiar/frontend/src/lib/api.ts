@@ -725,6 +725,7 @@ export interface DuplicatePair {
   action_id: string
   manual: DuplicateTransactionSide
   synced: DuplicateTransactionSide
+  kind: 'manual_sync' | 'transfer'
 }
 
 export async function getDuplicateMonths(): Promise<DuplicateMonth[]> {

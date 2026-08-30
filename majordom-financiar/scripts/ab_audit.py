@@ -2,9 +2,10 @@
 """
 Read-only Actual Budget audit — finds accounts where the AB balance and the
 cleared-only balance diverge (pending/uncleared transactions hiding in the
-total), dumps transaction detail for a given account, and flags likely
+total), dumps transaction detail for a given account, flags likely
 manual-vs-bank-sync duplicate pairs (anticipated a transfer manually, then
-the real bank-synced transaction landed separately without being merged).
+the real bank-synced transaction landed separately without being merged),
+and finds transfers whose link was already broken by a bad merge (#229).
 
 Never writes to Actual Budget. Reconciliation itself stays manual/confirmed
 by the user in the AB UI (`docs/decisions.md` — Majordom never writes without
@@ -14,6 +15,7 @@ Usage (local machine, outside Docker — override the Tailscale IP for your LXC)
     ACTUAL_BUDGET_URL=http://100.117.109.97:5006 ACTUAL_BUDGET_TOKEN=... python3 scripts/ab_audit.py
     ... python3 scripts/ab_audit.py detail "BUNQ Car" "Revolut Doru"
     ... python3 scripts/ab_audit.py dupes
+    ... python3 scripts/ab_audit.py broken_transfers
 
 Usage (inside the container, .env already points at the right host):
     docker exec -it majordom-financiar-majordom-1 python scripts/ab_audit.py
@@ -95,6 +97,34 @@ def detail(env, account_names):
                 )
 
 
+def broken_transfers(env):
+    """Read-only: find transactions with transferred_id set whose counterpart
+    is missing or tombstoned — a link broken by a prior bad merge (see #229).
+
+    `Transactions.transfer` is a relationship that only resolves when the
+    counterpart row exists and isn't tombstoned (join condition includes
+    `tombstone == 0`) — so `transferred_id` set but `transfer is None` is
+    exactly the broken-link signal, no manual lookup needed."""
+    from actual.queries import get_accounts, get_transactions
+
+    with _connect(env) as actual:
+        accounts = [a for a in get_accounts(actual.session) if not a.closed]
+        total = 0
+        for a in accounts:
+            txs = get_transactions(actual.session, account=a)
+            broken = [t for t in txs if t.transferred_id and not t.transfer]
+            if not broken:
+                continue
+            print(f"\n=== {a.name} ===")
+            for t in broken:
+                print(
+                    f"  BROKEN TRANSFER LINK: {t.date} | {t.get_amount():>10.2f} | "
+                    f"cleared={t.cleared} | dangling transferred_id={t.transferred_id}"
+                )
+                total += 1
+        print(f"\nTotal broken transfer links: {total}")
+
+
 def dupes(env, window_days=7):
     """Flag uncleared manual transactions that look like an earlier stand-in
     for a later bank-synced cleared transaction: same account, same amount,
@@ -153,5 +183,7 @@ if __name__ == "__main__":
         detail(env, sys.argv[2:])
     elif len(sys.argv) > 1 and sys.argv[1] == "dupes":
         dupes(env)
+    elif len(sys.argv) > 1 and sys.argv[1] == "broken_transfers":
+        broken_transfers(env)
     else:
         sweep(env)

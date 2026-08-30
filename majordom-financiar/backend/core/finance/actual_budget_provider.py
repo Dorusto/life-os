@@ -213,6 +213,13 @@ class ActualBudgetProvider:
             manual_id, synced_id
         )
 
+    async def resolve_transfer_duplicate(
+        self, transfer_leg_id: str, synced_dup_id: str
+    ) -> dict:
+        return await self._client().resolve_transfer_duplicate(
+            transfer_leg_id, synced_dup_id
+        )
+
     async def count_uncategorized_by_payee(self, payee: str, notes_contains: str = "") -> int:
         return await self._client().count_uncategorized_by_payee(payee, notes_contains)
 

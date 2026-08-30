@@ -183,22 +183,24 @@ function DuplicatePairCard({
   onConfirm: () => void
   onCancel: () => void
 }) {
+  const isTransfer = pair.kind === 'transfer'
   return (
     <Card variant="list-item" accentColor="#F59E0B" accentSide="left">
       <div className="grid grid-cols-2 gap-3">
-        <SideBlock title="Manual entry" side={pair.manual} />
-        <SideBlock title="Bank-synced" side={pair.synced} keep />
+        <SideBlock title={isTransfer ? 'Transfer' : 'Manual entry'} side={pair.manual} keep={isTransfer} />
+        <SideBlock title="Bank-synced" side={pair.synced} keep={!isTransfer} />
       </div>
       <p className="text-xs text-attention mt-3 px-1">
-        Double-check every detail before confirming — this deletes the manual entry.
-        Its category/notes are copied onto the bank-synced transaction first, if missing.
+        {isTransfer
+          ? 'This is one side of a transfer — resolving keeps the transfer linked and removes the duplicate bank-sync entry instead. Your account balance is checked before and after.'
+          : 'Double-check every detail before confirming — this deletes the manual entry. Its category/notes are copied onto the bank-synced transaction first, if missing.'}
       </p>
       <div className="mt-4">
         <ActionCardButtons
           onConfirm={onConfirm}
           onCancel={onCancel}
           loading={busy}
-          confirmLabel="Merge"
+          confirmLabel={isTransfer ? 'Resolve' : 'Merge'}
           confirmIcon={GitCompareArrows}
         />
       </div>

@@ -160,7 +160,16 @@ def _find_duplicate_candidates(
     ``financial_id`` is in that set are returned (used at sync time to restrict
     results to transactions this sync just imported).
 
-    Returns a list of ``{"manual": {...}, "synced": {...}}`` dicts.
+    Each pair carries a ``"kind"`` (#229): ``"manual_sync"`` for the ordinary case
+    above, or ``"transfer"`` when the "manual" side is actually a linked transfer leg
+    (``transferred_id`` set — e.g. left uncleared by ``convert_transaction_to_transfer()``
+    and never absorbed by the destination account's own bank sync). Blindly tombstoning
+    that side (the old #181 behavior) breaks the transfer link and corrupts both
+    accounts' balances — see #229. If the "synced" side is ALSO a transfer leg, the
+    pair is ambiguous (two real transfers, not a transfer-vs-duplicate) and is skipped
+    entirely, left for manual resolution in the Actual Budget UI.
+
+    Returns a list of ``{"manual": {...}, "synced": {...}, "kind": ...}`` dicts.
     """
     from actual.database import Transactions
     txs = (
@@ -183,13 +192,18 @@ def _find_duplicate_candidates(
 
     pairs = []
     for group in by_amount.values():
-        manuals = [t for t in group if not t.cleared]
+        manuals = [t for t in group if not t.cleared or t.transferred_id]
         synceds = [t for t in group if t.cleared]
         for m in manuals:
             for s in synceds:
+                if m.id == s.id:
+                    continue
                 if newly_synced_ids is not None and s.financial_id not in newly_synced_ids:
                     continue
-                pairs.append({"manual": _tx_side_dict(m), "synced": _tx_side_dict(s)})
+                if m.transferred_id and s.transferred_id:
+                    continue  # two real transfer legs — ambiguous, skip (#229)
+                kind = "transfer" if m.transferred_id else "manual_sync"
+                pairs.append({"manual": _tx_side_dict(m), "synced": _tx_side_dict(s), "kind": kind})
     return pairs
 
 
@@ -2686,6 +2700,78 @@ class ActualBudgetClient:
                 )
                 return True
         return await self._run(_merge)
+
+    async def resolve_transfer_duplicate(
+        self, transfer_leg_id: str, synced_dup_id: str
+    ) -> dict:
+        """
+        Resolve a transfer-linked duplicate pair (#229) in one atomic commit.
+
+        Unlike ``merge_duplicate_transaction()``, the side that must survive here is
+        the transfer leg (``transferred_id`` set) — deleting it would break the
+        transfer's link to its counterpart in the other account and corrupt both
+        accounts' balances. So this keeps the transfer leg, copies `financial_id`/
+        `notes` from the synced duplicate onto it only if missing (never overwrite),
+        marks it cleared, and tombstones the synced duplicate instead.
+
+        Never touches `transferred_id` on either side — the link is already correct.
+        Deliberately does not call `set_transaction_payee()`/`create_transaction
+        (process_payee=True)`, which would auto-create a *new* linked transaction
+        instead of reusing the existing one (see #120's documented gotcha).
+
+        Returns ``{"success": False}`` if either side couldn't be found (e.g.
+        already handled). On success, returns balance proof for the account both
+        transactions live in — the counterpart account (other side of the transfer)
+        is untouched by this write.
+        """
+        def _resolve() -> dict:
+            from actual.database import Transactions
+            with self._get_actual() as actual:
+                transfer_leg = actual.session.query(Transactions).filter(
+                    Transactions.id == transfer_leg_id,
+                    Transactions.tombstone == 0,
+                ).first()
+                synced_dup = actual.session.query(Transactions).filter(
+                    Transactions.id == synced_dup_id,
+                    Transactions.tombstone == 0,
+                ).first()
+                if not transfer_leg or not synced_dup:
+                    logger.warning(
+                        "Transfer duplicate resolve failed — one side missing: "
+                        "transfer_leg=%s synced_dup=%s",
+                        transfer_leg_id, synced_dup_id,
+                    )
+                    return {"success": False}
+                if not transfer_leg.transferred_id:
+                    raise ValueError(
+                        f"Transaction {transfer_leg_id} is not a transfer leg "
+                        "(no transferred_id) — wrong pair for resolve_transfer_duplicate."
+                    )
+                acc = transfer_leg.account
+                balance_before = acc.balance
+
+                if (not transfer_leg.financial_id) and synced_dup.financial_id:
+                    transfer_leg.financial_id = synced_dup.financial_id
+                if (not transfer_leg.notes) and synced_dup.notes:
+                    transfer_leg.notes = synced_dup.notes
+                transfer_leg.cleared = True
+                synced_dup.tombstone = 1
+                actual.commit()
+
+                balance_after = acc.balance
+                logger.info(
+                    "Resolved transfer duplicate — kept transfer leg %s, removed "
+                    "synced duplicate %s (account %s: %.2f -> %.2f)",
+                    transfer_leg_id, synced_dup_id, acc.name, balance_before, balance_after,
+                )
+                return {
+                    "success": True,
+                    "account_id": str(acc.id),
+                    "account_name": acc.name,
+                    "balance_before": round(float(balance_before), 2),
+                    "balance_after": round(float(balance_after), 2),
+                }
+        return await self._run(_resolve)
 
     async def count_uncategorized_by_payee(self, payee: str, notes_contains: str = "") -> int:
         """
