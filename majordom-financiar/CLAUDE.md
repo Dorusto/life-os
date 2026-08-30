@@ -90,16 +90,20 @@ For backend hot-reload during dev, a local `docker-compose.override.yml` (gitign
 
 ---
 
-## Second Brain sync (stale rule, corrected 2026-08-30)
+## Second Brain sync (corrected 2026-08-30 — a one-line pointer, not a status table)
 
-The vault's `10_PROJECTS/10_Life_OS/CLAUDE.md` no longer has a hand-maintained "Status Majordom"
-section to update — it was removed 2026-08-29 for the same reason `priority-tracking.md` exists
-here: it duplicated the repo's own roadmap, went ~8 weeks stale, and nobody noticed until the
-staleness was worse than having no note at all. That file now points explicitly at `gh issue list`
-and this repo's own docs as the source of truth, with a rule telling Claude not to assert Majordom's
-status without running that command first. **Nothing to sync here anymore** — keeping GitHub issues,
-`docs/decisions.md`, and `docs/sessions/` accurate (the normal `/task-complete` steps) already keeps
-the vault's pointer correct, since it never asserts state on its own.
+The vault's `10_PROJECTS/10_Life_OS/CLAUDE.md` dropped its old "Status Majordom" section
+2026-08-29 (duplicated the repo's roadmap, went ~8 weeks stale, nobody noticed until the note
+admitting it was stale had itself been sitting there for a week). Doru flagged that dropping it
+entirely still left Second Brain sessions with no fast way to see "what changed" without running
+`gh` commands — fair, since that was the whole point of syncing in the first place.
+
+**The fix, not a reversion:** on completing any milestone or major feature, **overwrite** (never
+append to) the single last-sync-date line near the top of that vault file's current-state section —
+one line: the date, a one-sentence summary of what shipped, and what's next. It cannot drift into
+an 8-week-stale multi-paragraph table because it never grows; each sync replaces the whole line.
+Full detail stays exactly where it already lived (`gh issue list`, `docs/decisions.md`,
+`docs/sessions/`) — this is a pointer to that, not a duplicate of it.
 
 ---
 
