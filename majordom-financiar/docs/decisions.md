@@ -1107,3 +1107,24 @@ Already independently documented before this session connected it to #181's risk
 **Why a generic shape now, ahead of a second real use case:** normally extracted only at the second occurrence (`duplication-prevention.md`), but Phase B's spec already names the second occupant explicitly — uncategorised-transactions-by-payee — so this isn't speculative in the way the rule is meant to guard against, just building the table shape one finding type early.
 
 **Implemented via** `delegate-by-complexity` (Aider/DeepSeek Pro), 4 files. Live-verified on the local fixture stack: cancelling a pair writes the row, survives a full page reload (the test month's pair count dropped by exactly one), confirm/merge path unaffected.
+
+---
+
+<a id="inbox-occupant-2-uncategorized-payee"></a>
+### Inbox occupant #2 (uncategorized-by-payee) — reused the existing categorize_with_rule mechanism, kept the "bell + dedicated page" pattern instead of building a single Inbox screen
+
+**Date:** 2026-08-30
+
+**Context:** `docs/product-plan.md` Phase B's second named occupant. Before writing any code, `get_uncategorized_groups()`, the `categorize_with_rule` action (backend/api/category_actions.py), and `CategoryActionCard.tsx` turned out to already implement almost the entire mechanism — built for the existing chat flow (`propose_categorize_with_rule`). The only real gap was that it was only reachable by typing a chat command.
+
+**Decision:** new `GET /home/uncategorized/groups` (backend/api/home.py) wraps each payee group from `get_uncategorized_groups()` into the existing `categorize_with_rule` action directly — no new action type, no LLM involved. `dismissed_findings` (see above) gained its second wired `finding_type`, `"uncategorized_payee"`, keyed on `payee_id` (a `Payees.id` UUID — identity, not financial data, same reasoning as `duplicate_pair`'s transaction-id keys). `cancel_category_action` extended to dismiss on this action type too, guarded on `payee_id` being present (the chat-originated path didn't carry it before this session — added there too, for consistency, so a chat-typed cancel also persists).
+
+**Frontend pattern, decided implicitly and confirmed by Doru approving the plan before implementation:** a dedicated `NotificationBell` row → dedicated full-page review screen (`UncategorizedReviewPage.tsx`), mirroring `DuplicatesReviewPage.tsx` exactly rather than building Phase B's literally-named "Inbox itself" as one unified queue screen. Reasoning: `NotificationBell` already *is* the consolidated "what needs attention" surface (`#nav-five-tabs` — it deliberately replaced separate header icons), so a second finding type funneling through it satisfies the same architecture, not a compromise on it. Two occupants with differing internal shapes (month-drill-down for duplicates vs. a flat list for payee groups) didn't justify a shared abstraction yet — extract only at a real third occurrence with a shape that actually repeats (`duplication-prevention.md`).
+
+**Two real bugs found and fixed during live verification** (both are now `architecture.md` rules 32 and 33): `list_uncategorized_by_payee()` wasn't using the cached read connection, so the new endpoint's per-group loop cost ~8-10s for 27 groups instead of ~1.6s; `CategoryActionCard`'s category `<select>` had no placeholder for an empty `selectedCategory`, so a group with no suggested category looked like it had one selected while Categorize stayed correctly-but-invisibly disabled.
+
+**Retired in the same task** (`duplication-prevention.md`): the generic `"uncategorized"` item in `get_pending_items()` (chat-prefill path) — removed now that the dedicated surface exists, not left in "just in case."
+
+**Open question, not resolved this session:** whether Phase B's own done-condition ("the first thing you see is what it found... not a dashboard you have to interpret") is fully met by a bell that still requires one tap to open, versus something more prominent on the Home/Dashboard landing view. Flagged to Doru, not decided — revisit before considering Phase B fully closed.
+
+**Implemented via a Claude Code fork** (backend + 4 frontend files, non-obvious card/dismiss conventions — a poor DeepSeek fit per the collaboration rules' >2-coupled-files guidance). Live-verified end to end on the local fixture stack: confirm categorizes in AB and removes the card; cancel persists in `memory.db` and survives a full reload; the two bugs above were caught by that live testing, not by the diff review alone.

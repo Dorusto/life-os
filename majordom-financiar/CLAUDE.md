@@ -35,6 +35,19 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 > track only its unresolved half (private helpers crossing layers — `_calc_fire`, `_load_fire_model`,
 > `rule_match_prefix`, `_financial_id`). **Portfolio** stays core scope (not optional) — the
 > calculation layer belongs in Majordom, market price data source is the open dependency.
+>
+> ### 🔄 Phase B in progress (updated 2026-08-30)
+>
+> Both named occupants shipped: duplicate-pair review (persisted dismiss) and uncategorized-by-payee
+> (one-tap categorize+dismiss, see `docs/decisions.md#inbox-occupant-2-uncategorized-payee`) — both
+> reachable from `NotificationBell` rather than "the Inbox" as one dedicated screen; that pattern
+> was a deliberate call, not a shortcut (reasoning in the same decisions.md entry). **Open, not
+> decided:** whether that satisfies Phase B's own done-condition ("the first thing you see is what
+> it found... not a dashboard you interpret") or needs something more prominent on Home — ask Doru
+> before treating Phase B as fully closed. **Next candidate for Phase C** (per `product-plan.md`'s
+> own named examples): #116 (month-end uncategorized+unreconciled sweep) — its blocker #101 is
+> already closed, and it directly extends this session's work (the `cleared`-field query pattern,
+> and closes out `unreconciled` as the other item still routing through the old chat-prefill path).
 
 ---
 
@@ -77,13 +90,16 @@ For backend hot-reload during dev, a local `docker-compose.override.yml` (gitign
 
 ---
 
-## Second Brain sync
+## Second Brain sync (stale rule, corrected 2026-08-30)
 
-On completing any milestone (a full M or a major feature), update **both** locations:
-1. `docs/roadmap.md` — the feature's status (✅ / 🔄 / 🔲)
-2. `/home/doru/Sync/Obsidian/Second_Brain/10_PROJECTS/10_Life_OS/CLAUDE.md` — the "Status Majordom" section
-
-Skipping this leaves Second Brain out of sync, and YouTube/Business strategy sessions end up working from stale data.
+The vault's `10_PROJECTS/10_Life_OS/CLAUDE.md` no longer has a hand-maintained "Status Majordom"
+section to update — it was removed 2026-08-29 for the same reason `priority-tracking.md` exists
+here: it duplicated the repo's own roadmap, went ~8 weeks stale, and nobody noticed until the
+staleness was worse than having no note at all. That file now points explicitly at `gh issue list`
+and this repo's own docs as the source of truth, with a rule telling Claude not to assert Majordom's
+status without running that command first. **Nothing to sync here anymore** — keeping GitHub issues,
+`docs/decisions.md`, and `docs/sessions/` accurate (the normal `/task-complete` steps) already keeps
+the vault's pointer correct, since it never asserts state on its own.
 
 ---
 

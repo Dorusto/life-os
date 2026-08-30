@@ -351,6 +351,14 @@ Any code that finds "similar" transactions by amount/date/`cleared` state (dupli
 
 Never repair a broken/near-duplicate transfer leg by calling `set_transaction_payee()` or `create_transaction(process_payee=True)` on an already-existing transaction — that auto-creates a *new* linked transaction instead of reusing the existing link (see #120's investigation of `actualpy/queries.py`). The only safe repair is direct field manipulation (copy `financial_id`/notes if missing, set `cleared`) — never touching `transferred_id` itself.
 
+### 32. Any read-only `ActualBudgetClient` method that a new endpoint might call in a loop must use `_get_cached_read_actual()`, not `_get_actual()`
+
+`_get_actual()` opens a fresh login + full budget download every call — fine for a single call, expensive when looped. Found building the Inbox's uncategorized-groups endpoint (Phase B, docs/product-plan.md): it calls `list_uncategorized_by_payee()` once per payee group to build each proposal's preview, and that method used `_get_actual()` — 27 groups meant 27 full download cycles, ~8-10s to load. `_get_cached_read_actual()` (added for #223's Dashboard fix) already exists for exactly this — a short-lived (4s TTL) shared read connection reused across near-simultaneous read calls. Switched, page load dropped to ~1.6s. Before adding an endpoint that calls any existing read-only client method inside a loop, check whether that method already uses the cached connection — if not, switch it (it's read-only by definition, safe to share).
+
+### 33. A controlled `<select>` bound to a value that can be `''` needs an explicit placeholder `<option value="">`
+
+Without one, the browser silently renders the first real `<option>` as if selected while the bound React state stays `''` — the field *looks* filled in but isn't. Found in `CategoryActionCard.tsx`'s category picker: `categorize_with_rule` proposals with no suggested category (`category_name: ""`) showed the first entry in `available_categories` as if chosen, while `confirmDisabled` (correctly checking `!selectedCategory`) kept Categorize disabled — button looked live but did nothing, no visible reason why. Never hit before because the chat-originated flow (`propose_categorize_with_rule`) always supplies an explicit category name; the Inbox's uncategorized-groups endpoint (#32 above) was the first caller that could produce an empty one. Fix: render `{!selectedCategory && <option value="" disabled>Select a category…</option>}` before mapping the real options.
+
 ---
 
 ## Main Flows
