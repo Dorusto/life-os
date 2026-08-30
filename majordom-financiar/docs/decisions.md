@@ -1092,3 +1092,18 @@ Already independently documented before this session connected it to #181's risk
 **Not in scope here:** #120's actual feature (linking two transactions that were never linked to begin with) and #117's general reconciliation-gap detection — this fix only prevents #181's merge from destroying an *already-linked* transfer pair.
 
 **Live-verified** against the local fixture stack (not committed until confirmed): constructed the exact transfer + colliding bank-sync-duplicate scenario, confirmed the transfer leg survives with `transferred_id` unchanged, the duplicate is removed, and the balance delta matches exactly. Re-verified the pre-existing non-transfer duplicate merge path is unaffected.
+
+---
+
+<a id="dismissed-findings-generic-table"></a>
+### Persisted dismiss for duplicate-transaction pairs — generic `dismissed_findings` table, wired for one finding type
+
+**Date:** 2026-08-30
+
+**Context:** `docs/product-plan.md` Phase B ("The Inbox") requires dismissals to be remembered permanently — cancelling a duplicate pair in the Duplicates review screen only deleted the ephemeral proposal, so the pair reappeared on the next fetch since `_find_duplicate_candidates()` recomputes live from Actual Budget data. Left open deliberately at #181 (`docs/sessions/2026-W22.md`), this was the next planned step.
+
+**Decision:** a generic `dismissed_findings(finding_type, finding_key, dismissed_at)` table in `MemoryDB` (mirrors the existing `pending_review` pattern), but only one `finding_type` is actually wired right now: `"duplicate_pair"`. Its key is `f"{manual_id}:{synced_id}"` (or `transfer_leg_id:synced_dup_id` for the transfer-kind bucket) — the transaction rows' own `.id` values, never `financial_id` (architecture.md rule 28) and never amount/date/merchant (rule 5). Filtering happens in `backend/api/home.py`'s two duplicate endpoints, not in `client.py` — the actualpy layer stays pure/read-only, with no `MemoryDB` coupling. The write side hooks into the existing generic `cancel_category_action` endpoint (shared by every proposal type in the app), gated strictly on `action["action"] in ("merge_duplicate", "resolve_transfer_duplicate")` so no other action type's cancel behavior changes.
+
+**Why a generic shape now, ahead of a second real use case:** normally extracted only at the second occurrence (`duplication-prevention.md`), but Phase B's spec already names the second occupant explicitly — uncategorised-transactions-by-payee — so this isn't speculative in the way the rule is meant to guard against, just building the table shape one finding type early.
+
+**Implemented via** `delegate-by-complexity` (Aider/DeepSeek Pro), 4 files. Live-verified on the local fixture stack: cancelling a pair writes the row, survives a full page reload (the test month's pair count dropped by exactly one), confirm/merge path unaffected.
