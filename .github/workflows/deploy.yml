@@ -27,7 +27,7 @@ jobs:
           cd "$MAJORDOM_PATH/majordom-financiar"
           docker compose build --no-cache majordom-api majordom-web vehicle-manager
           for i in 1 2 3; do
-            docker compose up -d && exit 0
+            docker compose up -d --remove-orphans && exit 0
             echo "docker compose up -d failed (attempt $i), retrying after port release..."
             sleep 5
           done
