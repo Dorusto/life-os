@@ -226,6 +226,11 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
                 onChange={e => setSelectedCategory(e.target.value)}
                 className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
               >
+                {/* No suggested category (Inbox groups without AB history) leaves
+                    selectedCategory === '' — without this option, a bare <select>
+                    falls back to visually showing its first real option while the
+                    bound value stays '', making Categorize look enabled-but-inert. */}
+                {!selectedCategory && <option value="" disabled>Select a category…</option>}
                 {data.available_categories.map(c => (
                   <option key={c} value={c}>{c}</option>
                 ))}

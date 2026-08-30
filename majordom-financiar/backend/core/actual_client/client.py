@@ -2805,10 +2805,14 @@ class ActualBudgetClient:
         Return the actual uncategorized transactions matching `payee` (and
         `notes_contains` if set), for confirmation-card preview — so the user
         can see exactly what will be affected instead of just a count.
+
+        Cached read connection (#223's pattern): the Inbox's uncategorized-groups
+        endpoint calls this once per payee group in a loop, so an uncached
+        connection here means one full login+download per group.
         """
         def _list():
             from actual.database import Transactions, Payees
-            with self._get_actual() as actual:
+            with self._get_cached_read_actual() as actual:
                 q = (
                     actual.session.query(Transactions)
                     .join(Payees, Transactions.payee_id == Payees.id, isouter=True)

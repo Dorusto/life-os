@@ -1499,11 +1499,15 @@ async def propose_categorize_with_rule(payee: str, category_name: str, notes_con
     from backend.core.actual_client.client import rule_match_prefix
     rule_prefix = rule_match_prefix(payee)
 
-    # Check consistency: look up the payee in AB history
+    # Check consistency: look up the payee in AB history. Also captures payee_id
+    # so a later cancel can persist a dismiss (dismissed_findings, finding_type
+    # "uncategorized_payee") the same way the Inbox-originated flow does.
     is_consistent = True
+    payee_id = None
     for g in groups:
         if g["payee_name"].lower() == payee.lower() or payee.lower() in g["payee_name"].lower():
             is_consistent = g["is_consistent"]
+            payee_id = g["payee_id"]
             break
 
     # Preview the actual affected transactions so the user can verify before
@@ -1518,6 +1522,7 @@ async def propose_categorize_with_rule(payee: str, category_name: str, notes_con
     action_store.store(action_id, {
         "action": "categorize_with_rule",
         "payee": payee,
+        "payee_id": payee_id,
         "category_id": exact.id,
         "category_name": exact.name,
         "count": count,

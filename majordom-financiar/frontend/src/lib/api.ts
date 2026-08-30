@@ -740,6 +740,13 @@ export async function getDuplicatePairs(month: string): Promise<DuplicatePair[]>
   return res.pairs
 }
 
+// --- Uncategorized-by-payee review (Inbox occupant #2, Phase B) ---
+
+export async function getUncategorizedGroups(): Promise<CategoryActionData[]> {
+  const res = await request<{ items: CategoryActionData[] }>('/home/uncategorized/groups')
+  return res.items
+}
+
 export type BudgetPeriod = 'month' | '3m' | '6m' | '12m'
 
 export interface BudgetPeriodMonth {

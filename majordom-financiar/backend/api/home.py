@@ -138,6 +138,66 @@ async def get_duplicate_pairs(month: str, current_user: str = Depends(get_curren
     return {"month": month, "pairs": result}
 
 
+@router.get("/home/uncategorized/groups")
+async def get_uncategorized_group_actions(current_user: str = Depends(get_current_user)):
+    """
+    Uncategorized transactions grouped by payee, each wrapped as a categorize_with_rule
+    proposal — the Inbox's second finding type (Phase B, docs/product-plan.md). Mirrors
+    /home/duplicates/months+/{month} but flat: no natural month grouping for payees.
+    """
+    from backend.tools import category_actions as action_store
+
+    client = get_provider()
+    try:
+        groups = await client.get_uncategorized_groups()
+        categories = await client.get_categories()
+    except Exception as e:
+        logger.error("Failed to fetch uncategorized groups: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Could not fetch uncategorized groups")
+
+    dismissed_keys = MemoryDB(settings.memory.db_path).get_dismissed_finding_keys("uncategorized_payee")
+    categories_map = {c.id: c.name for c in categories}
+    name_to_id = {c.name: c.id for c in categories}
+    available_categories = [c.name for c in categories]
+
+    items = []
+    for g in groups:
+        if g["payee_id"] in dismissed_keys:
+            continue
+        try:
+            preview = await client.list_uncategorized_by_payee(g["payee_name"], limit=20)
+        except Exception as e:
+            logger.warning("Preview fetch failed for payee '%s': %s", g["payee_name"], e)
+            preview = []
+        action_id = uuid4().hex[:8]
+        action_store.store(action_id, {
+            "action": "categorize_with_rule",
+            "payee": g["payee_name"],
+            "payee_id": g["payee_id"],
+            "category_id": name_to_id.get(g["suggested_category"]),
+            "category_name": g["suggested_category"] or "",
+            "count": g["count"],
+            "rule_prefix": g["rule_prefix"],
+            "is_consistent": g["is_consistent"],
+            "categories_map": categories_map,
+            "notes_contains": "",
+        })
+        items.append({
+            "type": "category_action",
+            "id": action_id,
+            "action": "categorize_with_rule",
+            "payee": g["payee_name"],
+            "count": g["count"],
+            "category_name": g["suggested_category"] or "",
+            "rule_prefix": g["rule_prefix"],
+            "is_consistent": g["is_consistent"],
+            "notes_contains": "",
+            "transactions": preview,
+            "available_categories": available_categories,
+        })
+    return {"items": items}
+
+
 _PERIOD_MONTHS = {"3m": 3, "6m": 6, "12m": 12}
 _MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 

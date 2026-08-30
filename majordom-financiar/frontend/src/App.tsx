@@ -14,6 +14,7 @@ import SettingsPage from './pages/Settings'
 import ReceiptFlow from './pages/ReceiptFlow'
 import ImportPage from './pages/ImportPage'
 import DuplicatesReviewPage from './pages/DuplicatesReviewPage'
+import UncategorizedReviewPage from './pages/UncategorizedReviewPage'
 import Chat, { type Message, INITIAL_MESSAGES } from './pages/Chat'
 import { getChatHistory } from './lib/api'
 import BottomNav from './components/BottomNav'
@@ -176,6 +177,14 @@ function Layout() {
           element={
             <ProtectedRoute>
               <DuplicatesReviewPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/uncategorized-review"
+          element={
+            <ProtectedRoute>
+              <UncategorizedReviewPage />
             </ProtectedRoute>
           }
         />

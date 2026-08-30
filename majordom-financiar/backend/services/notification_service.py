@@ -195,8 +195,8 @@ async def _check_uncategorized_transactions(db: MemoryDB) -> str | None:
         return None
 
     return (
-        f"You have {count} uncategorized transaction{'s' if count > 1 else ''}. "
-        f"Say 'review uncategorized transactions' to categorize them."
+        f"You have {count} uncategorized transaction{'s' if count > 1 else ''} waiting — "
+        f"open Majordom to review and confirm in one tap."
     )
 
 
@@ -796,17 +796,10 @@ async def get_pending_items() -> list[dict]:
     items: list[dict] = []
     client = get_provider()
 
-    # Uncategorized transactions
-    try:
-        count = await client.count_uncategorized()
-        if count > 0:
-            items.append({
-                "type": "uncategorized",
-                "text": f"{count} uncategorized transaction{'s' if count != 1 else ''}",
-                "prompt": "review uncategorized transactions",
-            })
-    except Exception as e:
-        logger.warning("get_pending_items: uncategorized check failed: %s", e)
+    # Uncategorized transactions have their own dedicated Inbox surface now
+    # (NotificationBell's "N payees to categorize" row -> /uncategorized-review,
+    # docs/product-plan.md Phase B) — no longer listed here as a generic
+    # chat-prefill item.
 
     # Unreconciled transactions
     try:

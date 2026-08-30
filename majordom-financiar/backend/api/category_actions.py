@@ -398,11 +398,20 @@ async def cancel_category_action(
     current_user: str = Depends(get_current_user),
 ):
     action = action_store.get(action_id)
-    if action and action["action"] in ("merge_duplicate", "resolve_transfer_duplicate"):
+    if action and action["action"] in ("merge_duplicate", "resolve_transfer_duplicate", "categorize_with_rule"):
         if action["action"] == "merge_duplicate":
             finding_key = f"{action['manual_id']}:{action['synced_id']}"
-        else:
+            finding_type = "duplicate_pair"
+        elif action["action"] == "resolve_transfer_duplicate":
             finding_key = f"{action['transfer_leg_id']}:{action['synced_dup_id']}"
-        MemoryDB(settings.memory.db_path).dismiss_finding("duplicate_pair", finding_key)
+            finding_type = "duplicate_pair"
+        else:
+            # payee_id is only present on categorize_with_rule actions built from
+            # the uncategorized-groups Inbox endpoint — a chat-originated one
+            # without it (old proposals still in flight) just skips the dismiss.
+            finding_key = action.get("payee_id")
+            finding_type = "uncategorized_payee"
+        if finding_key:
+            MemoryDB(settings.memory.db_path).dismiss_finding(finding_type, finding_key)
     action_store.delete(action_id)
     return {"cancelled": True}
