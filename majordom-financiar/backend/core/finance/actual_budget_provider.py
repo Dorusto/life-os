@@ -197,6 +197,9 @@ class ActualBudgetProvider:
     async def mark_account_reconciled(self, account_id: str) -> int:
         return await self._client().mark_account_reconciled(account_id)
 
+    async def list_budget_realism_flags(self, trailing_months: int = 6) -> list[dict]:
+        return await self._client().list_budget_realism_flags(trailing_months)
+
     async def get_account_sync_status(self) -> list[dict]:
         return await self._client().get_account_sync_status()
 

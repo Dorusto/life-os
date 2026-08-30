@@ -754,6 +754,13 @@ export async function getUnreconciledGroups(): Promise<CategoryActionData[]> {
   return res.items
 }
 
+// --- Budget realism review (Inbox occupant #4, Phase C, #110) ---
+
+export async function getBudgetRealismFlags(): Promise<CategoryActionData[]> {
+  const res = await request<{ items: CategoryActionData[] }>('/home/budget-realism/flags')
+  return res.items
+}
+
 export type BudgetPeriod = 'month' | '3m' | '6m' | '12m'
 
 export interface BudgetPeriodMonth {
@@ -993,7 +1000,7 @@ export interface FireModelValues {
 
 export interface CategoryActionData {
   id: string
-  action: 'rename' | 'delete' | 'create' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'bank_resync' | 'set_fire_model' | 'tag_transaction' | 'mark_reconciled'
+  action: 'rename' | 'delete' | 'create' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'bank_resync' | 'set_fire_model' | 'tag_transaction' | 'mark_reconciled' | 'mark_budget_outlier'
   category_name: string
   new_name?: string
   group_name?: string
@@ -1031,6 +1038,14 @@ export interface CategoryActionData {
   amount?: number
   // mark_reconciled fields:
   account_id?: string
+  // mark_budget_outlier fields:
+  budgeted?: number
+  actual?: number
+  trailing_average?: number
+  outlier_amount?: number
+  outlier_date?: string
+  outlier_notes?: string
+  recurring_amount?: number
 }
 
 export async function confirmCategoryAction(

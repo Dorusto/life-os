@@ -996,6 +996,135 @@ class ActualBudgetClient:
 
         return await self._run(_get)
 
+    async def list_budget_realism_flags(self, trailing_months: int = 6) -> list[dict]:
+        """
+        Flag categories where the most recently closed month's overspend is
+        driven by a single disproportionate transaction rather than genuine
+        recurring overspending (#110, Phase C — the "House repairing" case:
+        budgeted 100€/month, one month had a 939€ one-off stove purchase on
+        top of ~80€ real recurring spend, and the honest fix isn't "raise the
+        budget", it's separating the one-off).
+
+        One `_get_actual()` session, transactions for all months fetched in a
+        loop inside it — same fix `get_monthly_totals_batch()` documents
+        above (calling a per-month method in a Python-level loop means one
+        login per month, which trips Actual Budget's own rate limit).
+
+        Per-month category totals reuse the shared `_compute_monthly_totals()`
+        helper (architecture.md rule 20) rather than re-deriving the
+        aggregation; the tombstoned-category remap is applied the same way
+        `_compute_budget_vs_spent()` already does, so a renamed/merged
+        category's spending doesn't show up as a spurious `Deleted:xxxxxxxx`
+        ghost category diluting the trailing average. The target month's
+        budgeted amount also reuses `_compute_budget_vs_spent()`.
+
+        A category is flagged only if: it has a positive budget this month,
+        this month's actual spend exceeds that budget, there's at least one
+        month of nonzero trailing spend to compare against, and a single
+        transaction in the category this month is at least 5x the average of
+        the category's *other* transactions that month (the "one-off vs
+        recurring" signal from the issue — not just "over budget", which is
+        too common to be a useful flag on its own).
+        """
+        def _fetch():
+            import calendar
+            from datetime import timedelta
+            from actual.queries import get_transactions, get_categories
+            with self._get_actual() as actual:
+                today = date.today()
+                # Target = the most recently fully-closed calendar month.
+                target = today.replace(day=1) - timedelta(days=1)
+                target_year, target_month = target.year, target.month
+
+                months: list[tuple[int, int]] = []
+                y, m = target_year, target_month
+                for _ in range(trailing_months + 1):
+                    months.append((m, y))
+                    m -= 1
+                    if m == 0:
+                        m = 12
+                        y -= 1
+                months.reverse()  # oldest first, target last
+
+                all_cats = get_categories(actual.session)
+                # _compute_monthly_totals() already remaps tombstoned categories
+                # onto their living equivalent internally (its own "categories"
+                # result only has live ids) — but that remap isn't applied to the
+                # raw transaction list itself, so the per-transaction outlier scan
+                # below needs its own id_remap to match a transaction still
+                # pointing at a dead category_id to the same live cat_id key.
+                _dead_names, id_remap = _tombstoned_category_remap(actual.session, all_cats)
+
+                month_by_cat: list[dict[str, dict]] = []  # one dict per month, oldest first
+                target_txs = None
+                for mo, yr in months:
+                    start = date(yr, mo, 1)
+                    last_day = calendar.monthrange(yr, mo)[1]
+                    end = date(yr, mo, last_day)
+                    txs = get_transactions(actual.session, start_date=start, end_date=end)
+                    totals = _compute_monthly_totals(actual.session, txs)
+                    month_by_cat.append(totals["categories"])
+                    if (mo, yr) == (target_month, target_year):
+                        target_txs = txs
+
+                budget_rows = _compute_budget_vs_spent(actual.session, target_txs, all_cats, target_year, target_month)
+                budgeted_by_cat = {row["category_id"]: row["budgeted"] for row in budget_rows}
+
+                trailing = month_by_cat[:-1]
+                target_data = month_by_cat[-1]
+
+                flags = []
+                for cat_id, cat_info in target_data.items():
+                    if cat_id == "uncategorized":
+                        continue
+                    budgeted = budgeted_by_cat.get(cat_id, 0.0)
+                    if budgeted <= 0:
+                        continue
+                    current = cat_info["total"]
+                    if current <= budgeted:
+                        continue
+
+                    trailing_totals = [m.get(cat_id, {}).get("total", 0.0) for m in trailing]
+                    nonzero = [t for t in trailing_totals if t > 0]
+                    if not nonzero:
+                        continue
+                    trailing_average = sum(nonzero) / len(nonzero)
+
+                    cat_txs = [
+                        tx for tx in target_txs
+                        if id_remap.get(str(tx.category_id), str(tx.category_id)) == cat_id
+                        and not tx.tombstone
+                        and not tx.transferred_id
+                        and not (tx.notes and "[Balance Adjustment]" in tx.notes)
+                        and float(tx.amount or 0) < 0
+                    ]
+                    if len(cat_txs) < 2:
+                        continue
+                    cat_txs.sort(key=lambda tx: abs(float(tx.amount or 0)), reverse=True)
+                    amounts = [abs(float(tx.amount or 0)) / 100 for tx in cat_txs]
+                    largest = amounts[0]
+                    rest_avg = sum(amounts[1:]) / len(amounts[1:])
+                    if rest_avg <= 0 or largest < 5 * rest_avg:
+                        continue
+
+                    outlier_tx = cat_txs[0]
+                    flags.append({
+                        "category_id": cat_id,
+                        "category_name": cat_info["name"],
+                        "budgeted": round(budgeted, 2),
+                        "actual": round(current, 2),
+                        "trailing_average": round(trailing_average, 2),
+                        "outlier_transaction_id": str(outlier_tx.id),
+                        "outlier_amount": round(largest, 2),
+                        "outlier_date": outlier_tx.get_date().isoformat(),
+                        "outlier_notes": outlier_tx.notes or (outlier_tx.payee.name if outlier_tx.payee else ""),
+                        "recurring_amount": round(current - largest, 2),
+                    })
+
+                flags.sort(key=lambda f: f["outlier_amount"], reverse=True)
+                return flags
+        return await self._run(_fetch)
+
     async def add_transaction(
         self,
         account_id: str,

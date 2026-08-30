@@ -76,12 +76,13 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const isSetFireModel = data.action === 'set_fire_model'
   const isTagTransaction = data.action === 'tag_transaction'
   const isMarkReconciled = data.action === 'mark_reconciled'
+  const isMarkBudgetOutlier = data.action === 'mark_budget_outlier'
 
   return (
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
       <div>
         <p className="text-white font-medium">
-          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetBudget ? 'Set budget amount?' : isCategorizeWithRule ? 'Categorize transactions?' : isSetBudgetCarryover ? `${data.enabled ? 'Enable' : 'Disable'} rollover overspending?` : isBankResync ? 'Resync bank account?' : isSetFireModel ? 'Update FIRE assumptions?' : isTagTransaction ? 'Tag transaction?' : isMarkReconciled ? 'Mark transactions reconciled?' : 'Rename category?'}
+          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetBudget ? 'Set budget amount?' : isCategorizeWithRule ? 'Categorize transactions?' : isSetBudgetCarryover ? `${data.enabled ? 'Enable' : 'Disable'} rollover overspending?` : isBankResync ? 'Resync bank account?' : isSetFireModel ? 'Update FIRE assumptions?' : isTagTransaction ? 'Tag transaction?' : isMarkReconciled ? 'Mark transactions reconciled?' : isMarkBudgetOutlier ? 'One-off distorting this category?' : 'Rename category?'}
         </p>
         {isTagTransaction && (
           <p className="text-muted text-sm mt-0.5">
@@ -136,7 +137,28 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
             ))}
           </div>
         )}
-        {!isDelete && !isCreate && !isSetBudget && !isCategorizeWithRule && !isSetBudgetCarryover && !isBankResync && !isSetFireModel && !isTagTransaction && !isMarkReconciled && (
+        {isMarkBudgetOutlier && (
+          <div className="space-y-2 mt-0.5">
+            <p className="text-muted text-sm">
+              <span className="text-white">{data.category_name}</span>
+              {' — budgeted '}{formatCurrency(data.budgeted ?? 0)}
+              {', actual '}{formatCurrency(data.actual ?? 0)}
+              {', usual monthly average '}{formatCurrency(data.trailing_average ?? 0)}.
+            </p>
+            <div className="bg-background border border-border rounded-xl px-2.5 py-2 space-y-1">
+              <div className="flex items-center justify-between gap-2 text-xs">
+                <span className="text-muted whitespace-nowrap">{data.outlier_date?.slice(5)}</span>
+                {data.outlier_notes && <span className="text-muted truncate flex-1">{data.outlier_notes}</span>}
+                <span className="text-white whitespace-nowrap">{formatCurrency(data.outlier_amount ?? 0)}</span>
+              </div>
+            </div>
+            <p className="text-muted text-xs">
+              Excluding this transaction, {data.category_name} would be {formatCurrency(data.recurring_amount ?? 0)}
+              {' — '}{(data.recurring_amount ?? 0) <= (data.budgeted ?? 0) ? 'within budget' : 'still over budget'}.
+            </p>
+          </div>
+        )}
+        {!isDelete && !isCreate && !isSetBudget && !isCategorizeWithRule && !isSetBudgetCarryover && !isBankResync && !isSetFireModel && !isTagTransaction && !isMarkReconciled && !isMarkBudgetOutlier && (
           <p className="text-muted text-sm mt-0.5">
             <span className="text-white">{data.category_name}</span>
             {' → '}
@@ -343,7 +365,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         loading={loading}
         variant={isDelete ? 'danger' : 'default'}
         confirmDisabled={(isCreate && !categoryName) || (isSetBudget && !budgetAmount) || (isCategorizeWithRule && (!payee || !selectedCategory)) || (isTagTransaction && tag.trim() === '#')}
-        confirmLabel={isDelete ? 'Delete' : isCreate ? 'Create' : isSetBudget ? 'Set budget' : isCategorizeWithRule ? 'Categorize' : isTagTransaction ? 'Tag' : isMarkReconciled ? 'Mark reconciled' : isSetBudgetCarryover || isBankResync || isSetFireModel ? 'Confirm' : 'Rename'}
+        confirmLabel={isDelete ? 'Delete' : isCreate ? 'Create' : isSetBudget ? 'Set budget' : isCategorizeWithRule ? 'Categorize' : isTagTransaction ? 'Tag' : isMarkReconciled ? 'Mark reconciled' : isMarkBudgetOutlier ? 'Tag as one-off' : isSetBudgetCarryover || isBankResync || isSetFireModel ? 'Confirm' : 'Rename'}
       />
     </div>
   )

@@ -239,6 +239,57 @@ async def get_unreconciled_group_actions(current_user: str = Depends(get_current
     return {"items": items}
 
 
+@router.get("/home/budget-realism/flags")
+async def get_budget_realism_flags(current_user: str = Depends(get_current_user)):
+    """
+    Categories where the most recently closed month's overspend is driven by
+    a single one-off transaction rather than genuine recurring overspending —
+    the Inbox's fourth finding type (Phase C, #110, docs/product-plan.md).
+    """
+    from backend.tools import category_actions as action_store
+
+    client = get_provider()
+    try:
+        flags = await client.list_budget_realism_flags()
+    except Exception as e:
+        logger.error("Failed to fetch budget realism flags: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Could not fetch budget realism flags")
+
+    dismissed_keys = MemoryDB(settings.memory.db_path).get_dismissed_finding_keys("budget_outlier")
+
+    items = []
+    for f in flags:
+        if f["outlier_transaction_id"] in dismissed_keys:
+            continue
+        action_id = uuid4().hex[:8]
+        action_store.store(action_id, {
+            "action": "mark_budget_outlier",
+            "outlier_transaction_id": f["outlier_transaction_id"],
+            "category_name": f["category_name"],
+            "budgeted": f["budgeted"],
+            "actual": f["actual"],
+            "trailing_average": f["trailing_average"],
+            "outlier_amount": f["outlier_amount"],
+            "outlier_date": f["outlier_date"],
+            "outlier_notes": f["outlier_notes"],
+            "recurring_amount": f["recurring_amount"],
+        })
+        items.append({
+            "type": "category_action",
+            "id": action_id,
+            "action": "mark_budget_outlier",
+            "category_name": f["category_name"],
+            "budgeted": f["budgeted"],
+            "actual": f["actual"],
+            "trailing_average": f["trailing_average"],
+            "outlier_amount": f["outlier_amount"],
+            "outlier_date": f["outlier_date"],
+            "outlier_notes": f["outlier_notes"],
+            "recurring_amount": f["recurring_amount"],
+        })
+    return {"items": items}
+
+
 _PERIOD_MONTHS = {"3m": 3, "6m": 6, "12m": 12}
 _MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 

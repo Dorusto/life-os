@@ -240,6 +240,29 @@ async def confirm_category_action(
         elif action["action"] == "mark_reconciled":
             count = await client.mark_account_reconciled(action["account_id"])
             message = f"Marked {count} transaction(s) reconciled for '{action['account_name']}'."
+        elif action["action"] == "mark_budget_outlier":
+            # Local import: `set_fire_model` below also locally imports MemoryDB/
+            # settings, which makes both names local to this whole function per
+            # Python's scoping rules — referencing the module-level import here
+            # instead raises UnboundLocalError. Found live: confirm returned a
+            # 500 with exactly that error.
+            from backend.core.config import settings as _settings
+            from backend.core.memory.database import MemoryDB as _MemoryDB
+
+            await client.add_transaction_tag(action["outlier_transaction_id"], "#one-off")
+            # Unlike mark_reconciled/categorize_with_rule, tagging doesn't change
+            # any of the conditions list_budget_realism_flags() checks (budgeted,
+            # actual, outlier ratio) — without an explicit dismiss here, the same
+            # transaction would flag again on every future fetch even after being
+            # tagged. Found live: the confirmed card didn't disappear, just grew
+            # "#one-off" in its notes.
+            _MemoryDB(_settings.memory.db_path).dismiss_finding(
+                "budget_outlier", action["outlier_transaction_id"]
+            )
+            message = (
+                f"Tagged {action['category_name']}'s €{action['outlier_amount']:.2f} transaction "
+                f"as #one-off — it won't count toward future averages."
+            )
         else:
             raise HTTPException(status_code=400, detail=f"Unknown action: {action['action']}")
     except ValueError as e:
@@ -401,7 +424,7 @@ async def cancel_category_action(
     current_user: str = Depends(get_current_user),
 ):
     action = action_store.get(action_id)
-    if action and action["action"] in ("merge_duplicate", "resolve_transfer_duplicate", "categorize_with_rule", "mark_reconciled"):
+    if action and action["action"] in ("merge_duplicate", "resolve_transfer_duplicate", "categorize_with_rule", "mark_reconciled", "mark_budget_outlier"):
         if action["action"] == "merge_duplicate":
             finding_key = f"{action['manual_id']}:{action['synced_id']}"
             finding_type = "duplicate_pair"
@@ -411,6 +434,9 @@ async def cancel_category_action(
         elif action["action"] == "mark_reconciled":
             finding_key = action.get("account_id")
             finding_type = "unreconciled_account"
+        elif action["action"] == "mark_budget_outlier":
+            finding_key = action.get("outlier_transaction_id")
+            finding_type = "budget_outlier"
         else:
             # payee_id is only present on categorize_with_rule actions built from
             # the uncategorized-groups Inbox endpoint — a chat-originated one
