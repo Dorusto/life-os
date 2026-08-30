@@ -1071,3 +1071,24 @@ file permanently heavier.
 **Also fixed:** `architecture.md` rule 29 and `check_provider_wiring.py`'s own docstring both used to say REST routes in `backend/api/*.py` were "by design" not meant to go through `get_provider()`. That was accurate only as a snapshot of the code the day it was written (2026-08-28, one day before the audit that opened #222) — not a deliberate architectural boundary. Both updated to describe the current, real state instead.
 
 **Not done here:** no change to `FINANCE_BACKEND` itself, no second `FinanceProvider` implementation — #222 was purely about making the existing single-implementation adapter actually load-bearing everywhere, not about building a second backend.
+
+---
+
+<a id="229-transfer-blind-duplicate-merge-fixed"></a>
+### #229 — duplicate-merge (#181) was transfer-blind, could corrupt account balances
+
+**Date:** 2026-08-30
+
+**Context:** reported live by Doru — repeated ING → Revolut transfers where Revolut ended up with two entries (the transfer's own linked leg, plus a genuine second row from Revolut's own bank sync), and confirming the "duplicate merge" in the existing #181 review screen made account balances stop matching the real bank. Traced to `_find_duplicate_candidates()`/`merge_duplicate_transaction()` matching purely on `cleared` state (one uncleared "manual" side, one cleared "synced" side, same exact amount) with zero awareness of `Transactions.transferred_id`. When the "manual" side was actually a linked transfer leg — left uncleared by `convert_transaction_to_transfer()` (#144) when the original transaction wasn't cleared — the old merge tombstoned it, breaking the transfer link: the counterpart account's leg was left pointing at a dead `transferred_id`, and the amount stopped being recognized as a transfer at all.
+
+Already independently documented before this session connected it to #181's risk: `docs/learn/08-transfers.md`'s "Duplicate placeholder pattern" gotcha, and a 2026-08-02 comment on #117 describing the identical pattern as a reconciliation "suspect." Cross-referenced #120 (linking two never-linked transactions across accounts — a different feature, shares the same low-level safety rule) and #102 (a related, already-fixed CSV-import-path bug from a different trigger).
+
+**Decision:** `_find_duplicate_candidates()` tags every pair with a `"kind"` (`"manual_sync"` or `"transfer"`, based on whether either side has `transferred_id` set; a pair where *both* sides are transfer legs is ambiguous and skipped entirely, left for manual resolution in the AB UI). Transfer-kind pairs route to a new `resolve_transfer_duplicate()` — keeps the transfer leg, copies the synced duplicate's `financial_id`/notes onto it only if missing, marks it cleared, tombstones the duplicate. `transferred_id` itself is never touched, and `set_transaction_payee()`/`process_payee=True` are deliberately never called on an existing pair (per #120's documented gotcha — that machinery creates a *new* linked transaction instead of reusing the link). The confirmation card now shows real before/after account balance as proof (`#every-proposed-action-needs-verifiable-proof`), with distinct copy from the generic duplicate case so the user understands this preserves a transfer rather than deleting a stray entry.
+
+**Also done:** extended the existing `scripts/ab_audit.py` (already had a read-only `dupes` diagnostic) with a `broken_transfers` subcommand — finds transfer links already broken by merges made before this fix existed, reusing actualpy's own `Transactions.transfer` relationship (resolves to `None` exactly when the counterpart is missing/tombstoned) rather than a manual lookup.
+
+**Known precision trade-off, accepted rather than fixed:** the `"transfer"` bucket's matching condition (`not t.cleared or t.transferred_id`) means a *cleared* transfer leg can now theoretically pair with an unrelated cleared transaction of the same exact amount, which the old code (requiring one side uncleared) never considered. This is a candidate-surfacing precision loss, not a safety regression — nothing auto-executes, every pair still requires explicit user confirmation with balance proof shown first, same as the existing #181 flow. Revisit (e.g. gate on the transfer leg lacking its own `financial_id`) only if this turns out noisy in practice.
+
+**Not in scope here:** #120's actual feature (linking two transactions that were never linked to begin with) and #117's general reconciliation-gap detection — this fix only prevents #181's merge from destroying an *already-linked* transfer pair.
+
+**Live-verified** against the local fixture stack (not committed until confirmed): constructed the exact transfer + colliding bank-sync-duplicate scenario, confirmed the transfer leg survives with `transferred_id` unchanged, the duplicate is removed, and the balance delta matches exactly. Re-verified the pre-existing non-transfer duplicate merge path is unaffected.

@@ -40,15 +40,17 @@ In `CsvImportCard`, rows with `Code=GT` appear pre-checked as "Transfer?" with a
 
 ## How to record a transfer in actualpy
 
-```python
-# Method 1 — create_transfer() directly
-# (API may vary — check actualpy docs)
+Verified 2026-08-30 against the installed `actualpy` source (`~/.local/lib/python3.14/site-packages/actual/`), during the #229 investigation.
 
-# Method 2 — via payee with transfer_acct
-# When a payee has transfer_acct set, set_transaction_payee() automatically
-# creates the second side of the transfer
-# actualpy handles the linking internally
-```
+**Method 1 — `create_transfer(session, date, source_account, dest_account, amount, notes)`** (`queries.py`). Creates both legs directly, cross-links `transferred_id` both ways. Takes no `imported_id`/`cleared` params — set them on the returned `(source_tx, dest_tx)` objects yourself if needed (see #102's fix, `client.py`'s CSV-import transfer path).
+
+**Method 2 — via a transfer payee.** A payee can have `transfer_acct` set (pointing at another account); `set_transaction_payee(session, transaction, payee)` detects this and auto-creates the linked counterpart transaction (`transferred_id` set both ways), negated amount, category cleared for on-budget targets. This is what `create_transaction(..., process_payee=True)` (the default) calls internally, and what this repo's own `create_transfer()`/`convert_transaction_to_transfer()` (`client.py`) both use.
+
+**Gotcha confirmed by #229: the auto-created counterpart leg inherits `cleared` from the transaction being given the transfer payee** (`transfer.cleared = bool(transaction.cleared)`), not `True` unconditionally. If the original transaction is uncleared when it gets the transfer payee (e.g. `convert_transaction_to_transfer()` on a manually-added, not-yet-cleared transaction), the counterpart leg lands uncleared too — an unreconciled placeholder that a later, unmatched bank sync can collide with (see "Duplicate placeholder pattern" below, and `architecture.md` rule 31).
+
+**Never call `set_transaction_payee()`/`create_transaction(process_payee=True)` on a transaction that's already linked** (`transferred_id` already set) — it creates a *third*, new linked transaction instead of reusing the existing pair (confirmed while investigating #120). Repairing/updating an existing transfer leg needs direct field manipulation instead.
+
+**actualpy's own bank-sync reconciliation** (`run_bank_sync()` → `reconcile_transaction()` → `match_transaction()`, `queries.py`) tries to absorb each newly-synced transaction into an existing one before creating a new row: strongest match is `imported_id`/`financial_id`; otherwise same exact amount + same account within ±7 days, preferring same payee but falling back to nearest date regardless of payee. This is designed to catch exactly the "uncleared transfer placeholder, then the real sync arrives" case — when it *does* work, no duplicate ever appears. #229's duplicates are the cases where this match failed (exact trigger not fully pinned down — likely amount/date-window edge cases) and a second row was created instead.
 
 ## Transfer between on-budget and off-budget account
 
@@ -86,4 +88,4 @@ Different mechanism than the CSV `Code=GT` detection above — applies to bank-s
 
 **`cleared` is not a uniform trust signal.** Bank-synced account: uncleared ≈ likely a manual placeholder duplicate. Manually-administered account: uncleared just means "never checked off" — a real transaction. Never bulk-act on an "uncleared" filter without checking which regime applies per account.
 
-**Duplicate placeholder pattern:** initiating a transfer conversationally often leaves a manual placeholder (to see the budget update immediately); days later bank sync brings the real transaction in as a new entry, placeholder never removed — same amount, both accounts silently misaligned vs. real bank balance. Any transfer-creation flow should avoid the separate placeholder, or mark it and offer to reconcile once the synced pair arrives.
+**Duplicate placeholder pattern:** initiating a transfer conversationally often leaves a manual placeholder (to see the budget update immediately); days later bank sync brings the real transaction in as a new entry, placeholder never removed — same amount, both accounts silently misaligned vs. real bank balance. Any transfer-creation flow should avoid the separate placeholder, or mark it and offer to reconcile once the synced pair arrives. **This pattern used to be actively dangerous, not just cosmetic:** the #181 duplicate-merge review screen would offer this exact pair for merging and, if confirmed, delete the transfer leg itself — breaking the transfer link. Fixed in #229 (`architecture.md` rule 31) — the review screen now recognizes a transfer leg and always keeps it, never the other way around.
