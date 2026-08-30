@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 -c \"import json,sys; d=json.load(sys.stdin); print(d.get('tool_input',{}).get('file_path') or d.get('tool_response',{}).get('filePath') or '')\" | { read -r f; if [[ \"$f\" == *.md ]]; then ROOT=$(git -C \"$(dirname \"$f\")\" rev-parse --show-toplevel 2>/dev/null); if [[ -n \"$ROOT\" && -x \"$ROOT/scripts/check-private-data.sh\" ]]; then OUT_RAW=$(bash \"$ROOT/scripts/check-private-data.sh\" 2>&1); CODE=$?; if [[ $CODE -ne 0 ]]; then OUT=$(printf '%s' \"$OUT_RAW\" | sed -E 's/\\x1b\\[[0-9;]*m//g'); python3 -c \"import json,sys; print(json.dumps({'decision':'block','reason':sys.argv[1]}))\" \"$OUT\"; fi; fi; fi; }",
+            "statusMessage": "Scanning edited markdown for private data...",
+            "timeout": 20
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -47,9 +47,10 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 >    Dashboard load ~13s → ~9s live-measured. Remaining cost split into
 >    [#227](https://github.com/Dorusto/life-os/issues/227) (a duplicate fetch + two methods with
 >    real, unrelated compute cost) — not blocking #213/#222.
-> 2. **[#213](https://github.com/Dorusto/life-os/issues/213) — wire the mechanisms in** (~1h).
->    Track the pre-commit hook and fix the scanner's path. The audit's highest-leverage finding,
->    and it protects every refactor after it.
+> 2. ~~**[#213](https://github.com/Dorusto/life-os/issues/213) — wire the mechanisms in**~~ **done
+>    2026-08-30** — pre-commit hook tracked (`scripts/hooks/pre-commit` + `core.hooksPath`), and a
+>    real Claude Code `PostToolUse` hook now runs the private-data scanner automatically after any
+>    markdown edit, instead of depending on remembering to run it by hand.
 > 3. **#222 itself** — the eleven modules. Main work. Not before 1 and 2.
 >
 > **Good to delegate in parallel** (`/delegate-by-complexity`, Aider): #214 (three HTTP layers,
@@ -100,6 +101,8 @@ Full details in `docs/architecture.md`. Summary:
 ## New dev machine setup
 
 Cloning the repo is not enough on its own — git auth, `.env`, Docker, Ollama/LLM endpoint, and local-only gitignored files (`.claude/settings.local.json`, `PLANNING.md`, `PRIVATE_context.md`) all need separate setup. Deployment steps (LXC / plain Docker / Coolify): see `DEPLOY.md`.
+
+**Install the pre-commit hook** (not automatic on clone — `core.hooksPath` is a local git config, not a tracked file): `git config core.hooksPath scripts/hooks` from the repo root. Without this, the tracked hook at `scripts/hooks/pre-commit` (commit-timestamp check, `check_provider_wiring.py`, private-data scanner) never runs (#213).
 
 For backend hot-reload during dev, a local `docker-compose.override.yml` (gitignored, never committed) can bind-mount `backend/` into `majordom-api` and run uvicorn with `--reload` — `docker compose up` picks it up automatically by name, and production is unaffected because the file doesn't exist there. Each dev machine creates its own copy if wanted.
 
