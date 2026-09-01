@@ -169,27 +169,63 @@ an action". Build the channel once, and every later capability is small.
 
 ---
 
-### Phase C — Three capabilities, then the pattern
+### Phase C — Zero-touch administration
 
-**Objective:** fill the Inbox with genuine judgement, then extract the module shape from what
-actually repeats.
+**Re-scoped 2026-08-30**, in a dedicated scope/realism session triggered by the gate note in
+`CLAUDE.local.md`. The original framing ("pick three from `intelligence-cluster`") picked tasks by
+*cluster membership*, not by what Doru actually needed next — #110 and #116 shipped, real and
+useful, but administration still fell on him because the criterion never asked "does this remove
+a reason to open Actual Budget." Doru's own words, verbatim, on what he wants first: *"nu mai vreau
+sa administrez [...] daca majordom nu o face, sunt nevoit sa intru in ab sa o fac manual, nu vreau
+sa ma mai ating de ab."* Coaching/goal-budgeting (the Scandinavia-trip example) is real and wanted,
+but explicitly second, in his own priority order.
 
-**Belongs here if:** it makes Majordom notice something about *your* money that a generic tool
-couldn't.
+**Objective:** Doru never opens Actual Budget directly. Categorising, reconciling, and tracking
+recurring transactions all happen through Majordom, as a proposal with a one-tap confirm.
 
-- Pick three from the `intelligence-cluster` (#110, #111, #112, #116, #124, #41, #42) — e.g.
-  budget realism per category, sinking-fund detection for large predictable expenses, month-end
-  uncategorised/unreconciled sweep
-- Build all three the ordinary way. **No plugin framework.**
-- While writing the second and third, watch what they genuinely share: how they get data, how a
-  finding is shaped, how it reaches the Inbox
-- **Then** extract the coach-module pattern from what repeated (#224)
+**Confirmed, not negotiable:** *"orice automatizare vreau sa fie confirmata de mine, nu vreau sa
+faca el pe la spatele meu, vreau sa fiu constient de orice se intampla."* Zero-touch means zero
+*manual AB work*, not zero visibility — every item here still lands as an Inbox finding with a
+confirm, same mechanism Phase B already built. Nothing here is fire-and-forget.
+
+**Belongs here if:** it removes a reason Doru would otherwise have to open Actual Budget himself.
+
+Ordered — this is a sequence, not a menu:
+1. **#172 — trust prerequisite. Shipped 2026-09-01** (`docs/decisions.md#172-fabrication-root-cause-missing-temperature`).
+   Chat can currently fabricate plausible-looking finance data instead of calling the real tool.
+   Every later confirm-card in this phase is worthless if what it shows can't be trusted to be
+   real. Fix first, before building anything else on top.
+2. **#241 — shipped 2026-09-01.** Wired the already-shipped Inbox occupants (#2
+   uncategorised-by-payee, #3 unreconciled, #4 budget realism) into the chat tab's own header, not
+   just the standalone bell — `NotificationBell` + `Settings` now visible directly, `Chat.tsx`'s
+   pre-existing Clear/Help moved into a new `⋮` overflow sheet to make room, matching the other
+   tabs' icon count. The mechanism exists; it wasn't reaching Doru from where he actually spends
+   his time.
+3. **#117 — next up.** Assisted reconciliation: find *which* transaction explains a balance mismatch against
+   the bank, don't just offer to paper over it with an adjustment. Builds directly on the
+   already-shipped unreconciled sweep (#116).
+4. **#41, rescoped** — recurring-transaction lifecycle, not just a monthly review nudge: detect a
+   repeating payee/amount and propose creating an AB Schedule for it; detect one that stopped
+   repeating and propose removing it. Both as one-tap confirms. The original issue text (a
+   monthly "want to review them?" notification) undersells what's needed here — rescope before
+   dispatching, don't implement it as first written.
+
+**Explicitly not in this phase — Phase C2 instead:** #113/#124 (end-to-end goal budgeting via
+chat, the Scandinavia-trip example) and the rest of the coaching-shaped `intelligence-cluster`
+(#111, #42, #112, #167/#177). All real, already scoped, already wanted — just not first. Pick
+these up once administration is at zero, not interleaved with it. Doru's own sequencing: this
+phase → Phase C2 (coaching/intelligence) → UI/chart polish (the `deferred-opportunistic` backlog,
+#231-240) → revisit Phase D (portfolio) placement then.
+
+Extracting the coach-module pattern (#224) still matters, but now happens naturally once C2's
+items exist — no need to force it out of three administration tasks that don't actually share a
+judgement shape with each other.
 
 Governed throughout by `decisions.md#coach-not-consultant`: projection inputs stay user-editable,
 nothing is presented as advice about specific investments.
 
-**Done when:** adding a fourth capability is a small, obvious piece of work — and the module
-pattern was extracted from evidence, not designed from imagination.
+**Done when:** Doru can go a full month without opening Actual Budget directly — only
+confirming or correcting what Majordom already brought to him.
 
 ---
 
