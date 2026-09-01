@@ -94,7 +94,7 @@ Dedicated UI tab (mileage/consumption/cost-per-km/monthly-cost charts + purchase
 | 4.2 | Budget alert (after each transaction) | ✅ |
 | 4.3 | Income variance alert | ✅ |
 | 4.4 | Goal risk alert (weekly) | ✅ |
-| 4.5 | Recurring expense audit (monthly) — push on 1st of month: "You have 8 recurring charges: Netflix €15, Ziggo €45… Want to review?" | 🔲 See [#41](https://github.com/Dorusto/life-os/issues/41) |
+| 4.5 | Recurring expense audit — rescoped from a monthly push notification into a real create/deactivate lifecycle (Phase C, #41): detect a repeating payee+account pattern with no Schedule yet, propose creating one; detect an active Schedule AB itself considers overdue, propose deactivating it | ✅ |
 | 4.6 | Vehicle reminders bundled in daily digest | ✅ |
 | 4.7 | Market correction alert (ETF dip) | 🔲 See [#42](https://github.com/Dorusto/life-os/issues/42) |
 | 4.8 | Savings goals progress bars | ✅ |

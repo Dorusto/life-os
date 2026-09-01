@@ -201,14 +201,20 @@ Ordered — this is a sequence, not a menu:
    pre-existing Clear/Help moved into a new `⋮` overflow sheet to make room, matching the other
    tabs' icon count. The mechanism exists; it wasn't reaching Doru from where he actually spends
    his time.
-3. **#117 — next up.** Assisted reconciliation: find *which* transaction explains a balance mismatch against
-   the bank, don't just offer to paper over it with an adjustment. Builds directly on the
-   already-shipped unreconciled sweep (#116).
-4. **#41, rescoped** — recurring-transaction lifecycle, not just a monthly review nudge: detect a
-   repeating payee/amount and propose creating an AB Schedule for it; detect one that stopped
-   repeating and propose removing it. Both as one-tap confirms. The original issue text (a
-   monthly "want to review them?" notification) undersells what's needed here — rescope before
-   dispatching, don't implement it as first written.
+3. **#117 — shipped 2026-09-01.** Assisted reconciliation: `finance__get_reconciliation_suspects`
+   (uncleared transactions, recent transactions, duplicate-pair candidates) now runs before
+   `finance__propose_balance_adjustment` ever offers to paper over a gap — live-verified via a real
+   chat conversation, adjustment presented as one option among several, not the first response.
+4. **#41, rescoped — shipped 2026-09-01.** Recurring-transaction lifecycle, not just a monthly
+   review nudge: `find_recurring_candidates()`/`find_stale_schedules()` detect a repeating
+   payee+account pattern with no AB Schedule yet (propose creating one) and an active Schedule AB
+   itself considers overdue (propose deactivating it). Both as one-tap confirms via
+   `RecurringReviewPage.tsx`. Found and fixed a real bug along the way: the pre-existing, never-used
+   `create_schedule()` left new schedules inactive by default (architecture.md rule 36).
+
+**All four items in this phase's ordered sequence are now shipped.** The phase's own "Done when"
+below is a real-world usage outcome, not something a commit can assert — revisit it after Doru has
+actually gone through a normal month using these flows, not immediately after shipping them.
 
 **Explicitly not in this phase — Phase C2 instead:** #113/#124 (end-to-end goal budgeting via
 chat, the Scandinavia-trip example) and the rest of the coaching-shaped `intelligence-cluster`

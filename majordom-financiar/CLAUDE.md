@@ -47,28 +47,27 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 > reasoning in `docs/decisions.md#phase-b-closed-bell-sufficient`.** Phase B is fully closed; do not
 > reopen the Home-banner question without new evidence of real friction.
 >
-> ### 🔄 Phase C in progress — re-scoped 2026-08-30 as "Zero-touch administration"
+> ### ✅ Phase C shipped — re-scoped 2026-08-30 as "Zero-touch administration", closed 2026-09-01
 >
-> Two of three originally-named capabilities shipped: **#116** (month-end unreconciled sweep,
-> occupant #3, `docs/decisions.md#inbox-occupant-3-unreconciled`) and **#110** (budget realism,
-> occupant #4, `docs/decisions.md#inbox-occupant-4-budget-realism`). After a dedicated
-> scope/realism session, the phase's driving criterion changed from "pick 3 from
-> `intelligence-cluster`" to "removes a reason Doru has to open Actual Budget directly" — full
-> reasoning and the ordered list (#172 → #241 → #117 → #41 rescoped) live in
-> `docs/product-plan.md`'s Phase C, not duplicated here. #113/#124 and the rest of the
-> coaching-shaped cluster are real and scoped but deliberately Phase C2, picked up only once
-> administration is at zero.
+> All four items in the ordered sequence (#172 → #241 → #117 → #41 rescoped) shipped 2026-09-01 —
+> full reasoning lives in `docs/product-plan.md`'s Phase C, not duplicated here. #117 (assisted
+> reconciliation — investigate before offering a balance adjustment) and #41 (recurring-transaction
+> create/deactivate lifecycle, not just a review nudge) were the last two; both live-tested end to
+> end (#117 via a real chat conversation, #41 via actual browser clicks on both new confirm cards),
+> not just a passing build. #41 also surfaced a real bug — the pre-existing, never-used
+> `create_schedule()` left new schedules inactive by default (architecture.md rule 36).
 >
-> **#172 and #241 both shipped 2026-09-01** — trust prerequisite (missing LLM `temperature`,
-> `docs/decisions.md#172-fabrication-root-cause-missing-temperature`) and NotificationBell/Settings
-> reach from the Majordom tab header. **#117 (assisted reconciliation) is next** in the sequence.
+> **Phase C's own "Done when" (a full month without opening AB directly) is a usage outcome, not
+> something a commit can assert** — don't mark it further done, just don't reopen it either without
+> new evidence it isn't holding. #113/#124 and the rest of the coaching-shaped cluster (Phase C2)
+> are next, once there's been time to see whether administration actually reached zero.
 >
 > Still open, unrelated to the re-scope: **#242** (`resolve_transfer_duplicate()` discards
 > payee/category/date from the bank-synced side it deletes — a real data-loss bug, plus a related
-> inline-edit request for the Duplicates review card).
->
-> **Gate resolved 2026-08-30** — the scope/realism discussion happened; see `CLAUDE.local.md` for
-> the short outcome note.
+> inline-edit request for the Duplicates review card). **#245** (opened 2026-09-01, follow-up from
+> an unplanned mid-session perf interrupt — Home page load still ~20s, root cause is per-call
+> compute in `get_home_data`/`get_budget_status` per #227, not connection overhead; that part's
+> already fixed).
 
 ---
 
