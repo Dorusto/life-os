@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Loader2, Check } from 'lucide-react'
 import { confirmFuelReceipt, type ReceiptDraft, type FuelConfirmResponse, type VehicleOption, type AccountOption, type Category, type NearDuplicateMatch } from '../lib/api'
-import { getToken } from '../lib/auth'
+import { authFetch } from '../lib/auth'
 import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 
 // Helper: get base URL for API calls
@@ -111,13 +111,9 @@ export default function FuelReceiptCard({
       if (confirmEndpoint) {
         // Text mode — POST directly to custom endpoint. Notes are typed
         // manually here (no OCR uncertainty), so no near-duplicate check.
-        const token = getToken()
-        const res = await fetch(`${BASE}${confirmEndpoint}`, {
+        const res = await authFetch(`${BASE}${confirmEndpoint}`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         })
         if (!res.ok) {

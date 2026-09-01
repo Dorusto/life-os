@@ -1,23 +1,12 @@
-import { authFetch, clearAuth } from './auth'
+import { authFetch, ApiError } from './auth'
 import type { LineData } from '../components/Chart'
+
+export { ApiError }
 
 const BASE = '/api'
 
-export class ApiError extends Error {
-  constructor(public status: number, message: string) {
-    super(message)
-    this.name = 'ApiError'
-  }
-}
-
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await authFetch(`${BASE}${path}`, options)
-
-  if (res.status === 401) {
-    clearAuth()
-    window.location.href = '/login'
-    throw new ApiError(401, 'Session expired')
-  }
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }))

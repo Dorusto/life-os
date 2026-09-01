@@ -9,7 +9,7 @@
  *   5. Backend stores it — APScheduler will use it to deliver daily notifications
  */
 
-import { getToken } from './auth'
+import { authFetch } from './auth'
 
 function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
   const padding = '='.repeat((4 - (base64.length % 4)) % 4)
@@ -22,7 +22,7 @@ function urlBase64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
 }
 
 async function getVapidPublicKey(): Promise<string> {
-  const res = await fetch('/api/push/vapid-public-key')
+  const res = await authFetch('/api/push/vapid-public-key')
   if (!res.ok) throw new Error('Could not fetch VAPID public key')
   const data = await res.json()
   return data.public_key
@@ -30,13 +30,9 @@ async function getVapidPublicKey(): Promise<string> {
 
 async function saveSubscription(sub: PushSubscription): Promise<void> {
   const json = sub.toJSON()
-  const token = getToken()
-  await fetch('/api/push/subscribe', {
+  await authFetch('/api/push/subscribe', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       endpoint: json.endpoint,
       p256dh: json.keys?.p256dh ?? '',

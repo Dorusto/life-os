@@ -7,19 +7,14 @@
  * Components never call fetch() directly — they call functions from this file.
  */
 
-import { getToken, clearAuth } from './auth'
+import { authFetch, ApiError } from './auth'
 import type { LineData } from '../components/Chart'
+
+export { ApiError }
 
 // In production, API calls go to /api/* (same origin, proxied by Nginx).
 // In local dev (npm run dev), Vite proxies /api/* to localhost:8000.
 const BASE = '/api'
-
-class ApiError extends Error {
-  constructor(public status: number, message: string) {
-    super(message)
-    this.name = 'ApiError'
-  }
-}
 
 /**
  * Base fetch wrapper — attaches JWT token and handles 401 (auto logout).
@@ -28,27 +23,7 @@ async function request<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token = getToken()
-
-  const headers: Record<string, string> = {
-    ...(options.headers as Record<string, string>),
-  }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-  // Don't set Content-Type for FormData — browser sets it with the boundary
-  if (!(options.body instanceof FormData)) {
-    headers['Content-Type'] = 'application/json'
-  }
-
-  const res = await fetch(`${BASE}${path}`, { ...options, headers })
-
-  if (res.status === 401) {
-    // Token expired or invalid — clear local auth and reload to login screen
-    clearAuth()
-    window.location.href = '/login'
-    throw new ApiError(401, 'Session expired')
-  }
+  const res = await authFetch(`${BASE}${path}`, options)
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }))
@@ -182,11 +157,11 @@ export interface AccountListItem {
 // --- Auth ---
 
 export async function login(username: string, password: string): Promise<TokenResponse> {
-  const res = await fetch(`${BASE}/auth/login`, {
+  const res = await authFetch(`${BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
-  })
+  }, { redirectOn401: false })
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: 'Login failed' }))
@@ -549,32 +524,19 @@ export async function sendChatMessage(
   message: string,
   history: { role: string; content: string }[],
 ): Promise<{ reply: string }> {
-  const token = getToken()
-  const headers: Record<string, string> = {}
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-  headers['Content-Type'] = 'application/json'
-  
   const body = JSON.stringify({ message, history })
-  
-  const res = await fetch(`${BASE}/chat`, {
+
+  const res = await authFetch(`${BASE}/chat`, {
     method: 'POST',
-    headers,
+    headers: { 'Content-Type': 'application/json' },
     body,
   })
-  
-  if (res.status === 401) {
-    clearAuth()
-    window.location.href = '/login'
-    throw new ApiError(401, 'Session expired')
-  }
-  
+
   if (!res.ok) {
     const errorBody = await res.json().catch(() => ({ detail: res.statusText }))
     throw new ApiError(res.status, errorBody.detail || 'Request failed')
   }
-  
+
   const reader = res.body?.getReader()
   if (!reader) {
     throw new ApiError(500, 'No response body')
@@ -599,29 +561,15 @@ export async function sendChatMessageStreaming(
   onComplete: () => void,
   onError: (error: string) => void
 ): Promise<void> {
-  const token = getToken()
-  const headers: Record<string, string> = {}
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-  headers['Content-Type'] = 'application/json'
-  
   const body = JSON.stringify({ message, history })
-  
+
   try {
-    const res = await fetch(`${BASE}/chat`, {
+    const res = await authFetch(`${BASE}/chat`, {
       method: 'POST',
-      headers,
+      headers: { 'Content-Type': 'application/json' },
       body,
     })
-    
-    if (res.status === 401) {
-      clearAuth()
-      window.location.href = '/login'
-      onError('Session expired')
-      return
-    }
-    
+
     if (!res.ok) {
       const errorBody = await res.json().catch(() => ({ detail: res.statusText }))
       onError(errorBody.detail || 'Request failed')

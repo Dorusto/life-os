@@ -28,6 +28,13 @@ export function clearAuth(): void {
   localStorage.removeItem(USERNAME_KEY)
 }
 
+export class ApiError extends Error {
+  constructor(public status: number, message: string) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
 export function isAuthenticated(): boolean {
   const token = getToken()
   if (!token) return false
@@ -46,7 +53,11 @@ export function isAuthenticated(): boolean {
  * Authenticated fetch wrapper that automatically adds the JWT token.
  * Returns the raw Response object for streaming or custom handling.
  */
-export async function authFetch(input: RequestInfo, init?: RequestInit): Promise<Response> {
+export async function authFetch(
+  input: RequestInfo,
+  init?: RequestInit,
+  opts?: { redirectOn401?: boolean }
+): Promise<Response> {
   const token = getToken()
   const headers = new Headers(init?.headers)
   if (token) {
@@ -60,11 +71,15 @@ export async function authFetch(input: RequestInfo, init?: RequestInit): Promise
     ...init,
     headers,
   })
-  if (res.status === 401) {
+  if (res.status === 401 && opts?.redirectOn401 !== false) {
     // Token expired or invalid — clear local auth and redirect to login
     clearAuth()
     window.location.href = '/login'
-    throw new Error('Session expired')
+    throw new ApiError(401, 'Session expired')
   }
+  // redirectOn401: false — a 401 here isn't a session issue (e.g. a login
+  // attempt, where it means "wrong password"). Return the response as-is so
+  // the caller reads the real error detail from the body, same as any other
+  // non-ok response.
   return res
 }
