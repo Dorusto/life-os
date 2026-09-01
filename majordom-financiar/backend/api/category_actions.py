@@ -200,17 +200,32 @@ async def confirm_category_action(
             )
             message = f"Goal set for #{tag_name}: €{total_amount:.2f} by {by_month}."
         elif action["action"] == "clear_reached_goals":
+            # Constrain any override to the already-verified reached-goal names
+            # stored at propose time (propose_clear_reached_goals re-checks
+            # each name against get_reached_goal_categories() before storing
+            # them) — don't let the confirm step re-open that check to an
+            # unverified name.
+            valid_names = set(action["category_names"])
             names = (
-                override.selected_category_names
+                [n for n in override.selected_category_names if n in valid_names]
                 if override.selected_category_names is not None
                 else action["category_names"]
             )
+            cleared = []
+            errors = []
             for name in names:
-                await client.clear_category_goal_template(name)
-            message = (
-                f"Goal template cleared for: {', '.join(names)}."
-                if names else "No categories selected."
-            )
+                try:
+                    await client.clear_category_goal_template(name)
+                    cleared.append(name)
+                except Exception as e:
+                    logger.warning("Failed to clear goal template for '%s': %s", name, e)
+                    errors.append(name)
+            if cleared:
+                message = f"Goal template cleared for: {', '.join(cleared)}."
+                if errors:
+                    message += f" Failed for: {', '.join(errors)}."
+            else:
+                message = "No categories selected." if not names else f"Failed to clear: {', '.join(errors)}."
         elif action["action"] == "bank_resync":
             acc_name = action["account_name"]
             count = await client.run_bank_resync(acc_name)
