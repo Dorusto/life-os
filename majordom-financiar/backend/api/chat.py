@@ -122,6 +122,13 @@ Use `finance__*` tools when the user mentions money, budget, transactions, accou
   - To update just the deadline or description on a goal that already exists — omit target entirely, it carries over automatically. Do NOT ask the user to restate the amount.
     - "set the description for my ING Savings goal to: Emergency fund" → finance__set_account_goal(account_name="ING Savings", note="Emergency fund")
 - To answer questions about spending, balances, or budget: call the appropriate finance__get_* tool first, then answer based on the result.
+- When the user asks for account balances, or you need an account's id/name for a transfer or another tool — call finance__get_accounts immediately. Never answer from memory or invent a balance.
+  - "what's my ING balance?" → finance__get_accounts()
+- When the user asks how much they spent, what their biggest expenses were, or wants a spending summary for a month — call finance__get_monthly_stats immediately, passing month/year if the user mentioned one.
+  - "how much did I spend in June?" → finance__get_monthly_stats(month=6, year=2026)
+  - "what did I spend this month" → finance__get_monthly_stats()
+- When the user asks about spending trends over several months, or wants to compare months — call finance__get_spending_history immediately, passing the number of months if implied by the question.
+  - "how's my spending trended over the last 6 months?" → finance__get_spending_history(months=6)
 - To list a category's or account's transactions — call finance__get_transactions immediately, passing month+year whenever a month is mentioned (e.g. "for June", "in July 2026") — the tool filters by date natively, never filter/guess yourself from an un-scoped call. `category` is for a BUDGET CATEGORY (e.g. "Groceries", "Housing"); `account` is only for a BANK ACCOUNT name — never pass a category name as `account` or vice versa.
   - "Show me my Groceries transactions for July 2026" → finance__get_transactions(category="Groceries", month=7, year=2026)
   - "what did I spend from ING this month" → finance__get_transactions(account="ING", month=<current>, year=<current>)
@@ -130,6 +137,8 @@ Use `finance__*` tools when the user mentions money, budget, transactions, accou
 - When the user asks about savings goal progress, how much more is needed to reach a target, or a goal's deadline/timeline — call finance__get_goals_chart immediately. Never answer that no goal is configured without calling this tool first.
   - "how much left until my savings goal?" → finance__get_goals_chart()
 - When the user asks for a spending chart/breakdown for a specific tag or trip (e.g. "#summer-trip", "how much did the Spain trip cost?") — call finance__get_tag_spending_chart immediately. Never describe a chart as text — always call the tool.
+- When the user asks for a per-order or per-job cost breakdown by tag, not a chart (e.g. "what's the net profit on #C002-GVoros?") — call finance__get_transactions_by_tag immediately. Answer with the net profit it returns directly, never recalculate it yourself.
+  - "how did the Spain trip cost/income net out under #summer-trip?" → finance__get_transactions_by_tag(tag="summer-trip")
 - When the user wants to change FIRE/retirement planning assumptions (return rate, horizon, monthly contribution, desired retirement spend) — call finance__propose_set_fire_model immediately, passing only the fields the user actually mentioned. Never describe it as text, never compute or state a new target yourself — the tool recalculates it.
   - "vreau sa ma pensionez peste 12 ani, cheltuiala lunara 2500" → finance__propose_set_fire_model(years_to_transition=12, desired_monthly_spend=2500)
   - "schimbă randamentul de acumulare la 10%" → finance__propose_set_fire_model(accumulation_return=0.10)
@@ -159,10 +168,19 @@ Use `vehicle__*` tools when the user mentions car, fuel, APK, ITP, insurance, mi
   - "I refueled 31L at Shell for €70, odo 51000" → vehicle__log_refuel(liters=31, total_eur=70, location="Shell", odo_km=51000)
   - "am alimentat 40L cu €80 din Tango" → vehicle__log_refuel(liters=40, total_eur=80, location="Tango")
   - "tanked up MyBike, 12L €22" → vehicle__log_refuel(liters=12, total_eur=22, vehicle_name="MyBike")
+- When the user asks to see refuel history or recent fill-ups for a vehicle — call vehicle__get_vehicle_log immediately. Never answer from memory.
+  - "show my last fill-ups for MyCar" → vehicle__get_vehicle_log(vehicle_name="MyCar")
+- When the user asks what vehicles they have, or before offering to mark one as sold/inactive — call vehicle__list_vehicles immediately. Never invent vehicle names from memory.
+- When the user says a vehicle is a motorcycle/car/other, or corrects its type (affects the emoji shown in notifications) — call vehicle__set_vehicle_type immediately. Never describe it as text.
+  - "MyBike is a motorcycle" → vehicle__set_vehicle_type(vehicle_name="MyBike", vehicle_type="motorcycle")
 
 ## System tools
 
 Use `system__*` tools when the user asks about notification settings or backup status — not a financial transaction or vehicle event.
+
+- When the user asks whether backups are running, when the last backup was, or wants reassurance their data is safe — call system__get_backup_status immediately. Read-only, never triggers or deletes a backup.
+- When the user asks to change, update, or set the daily financial summary notification time — call system__set_notification_time immediately. Executes immediately, no confirmation needed.
+  - "change notification to 21:30" → system__set_notification_time(time="21:30")
 
 Today's date: {date.today().isoformat()}
 """
@@ -212,6 +230,7 @@ async def _stream_with_tools(
             "stream": True,
             "tools": TOOLS,
             "tool_choice": "auto",
+            "temperature": 0.2,
         }
         headers = build_llm_headers(settings.ollama.api_key)
 
