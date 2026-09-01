@@ -3963,6 +3963,80 @@ class ActualBudgetClient:
                 return True
         return await self._run(_set)
 
+    async def set_category_goal_template(
+        self,
+        category_name: str,
+        goal_type: str,
+        amount: float,
+        by_month: str = "",
+        monthly_limit: float | None = None,
+    ) -> bool:
+        """Set an Actual Budget category goal template directly on the row.
+
+        This writes ``goal_def`` and ``template_settings`` together instead of
+        putting legacy ``#template`` text in the category's ``notes`` field.
+        AB's own source resets ``goal_def`` for any category whose
+        ``template_settings.source`` is not ``"ui"`` whenever its notes-based
+        template sync runs (e.g. on every "Apply/Overwrite Budget Template"
+        click), and raw notes text fails silently on syntax mistakes. Writing
+        both columns here is the same mechanism AB's own Budget Automations
+        form uses and makes the goal permanent/self-maintaining.
+
+        ``goal_type`` must be ``"by"`` (fixed total by target month) or
+        ``"simple"`` (fixed monthly amount, optionally capped at a cumulative
+        total budgeted-to-date). The ``monthly_limit`` parameter is only used
+        for ``"simple"`` goals.
+        """
+        def _set() -> bool:
+            import json
+            from actual.queries import get_category
+
+            if goal_type not in ("by", "simple"):
+                raise ValueError(
+                    f"Invalid goal_type: {goal_type!r}. Must be 'by' or 'simple'."
+                )
+            if goal_type == "by" and not by_month:
+                raise ValueError("by_month is required for goal_type='by'")
+
+            with self._get_actual() as actual:
+                cat = get_category(actual.session, category_name)
+                if not cat:
+                    raise ValueError(f"Category not found: {category_name}")
+
+                if goal_type == "by":
+                    template = {
+                        "type": "by",
+                        "amount": amount,
+                        "month": by_month,
+                        "priority": 1,
+                        "directive": "template",
+                    }
+                else:
+                    template = {
+                        "type": "simple",
+                        "monthly": amount,
+                        "priority": 1,
+                        "directive": "template",
+                    }
+                    if monthly_limit is not None:
+                        # ``limit`` is a cumulative total-budgeted-to-date cap
+                        # (per AB's engine), not a per-month cap. ``hold`` is
+                        # required by the type shape but its true live AB
+                        # meaning has not been independently verified; keeping
+                        # the safe-looking default False, not guessing True.
+                        template["limit"] = {
+                            "amount": monthly_limit,
+                            "hold": False,
+                            "period": "monthly",
+                        }
+
+                cat.goal_def = json.dumps([template])
+                cat.template_settings = {"source": "ui"}
+                actual.commit()
+                return True
+
+        return await self._run(_set)
+
     async def get_payees(self) -> list[dict]:
         """Return all non-tombstoned payees with their transaction counts.
 

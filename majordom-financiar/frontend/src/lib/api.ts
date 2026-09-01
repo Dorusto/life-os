@@ -1007,7 +1007,7 @@ export interface FireModelValues {
 
 export interface CategoryActionData {
   id: string
-  action: 'rename' | 'delete' | 'create' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'bank_resync' | 'set_fire_model' | 'tag_transaction' | 'mark_reconciled' | 'mark_budget_outlier' | 'create_schedule' | 'deactivate_schedule'
+  action: 'rename' | 'delete' | 'create' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'set_category_goal' | 'bank_resync' | 'set_fire_model' | 'tag_transaction' | 'mark_reconciled' | 'mark_budget_outlier' | 'create_schedule' | 'deactivate_schedule'
   category_name: string
   new_name?: string
   group_name?: string
@@ -1031,6 +1031,11 @@ export interface CategoryActionData {
   excluded_templates?: string[]
   // set_budget_carryover fields:
   enabled?: boolean
+  // set_category_goal fields:
+  goal_type?: 'by' | 'simple'
+  amount?: number
+  by_month?: string
+  monthly_limit?: number
   // bank_resync fields:
   account_name?: string
   last_sync?: string | null

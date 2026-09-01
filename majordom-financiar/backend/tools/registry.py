@@ -468,6 +468,31 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__propose_set_category_goal",
+            "description": (
+                "Propose setting a savings goal template on a budget category. "
+                "Use goal_type='by' when the user gives a fixed total amount and a target "
+                "month (e.g. 'save 2000€ for Dolomiti by July 2027'). Use goal_type='simple' "
+                "when the user gives a fixed monthly amount, optionally capped at a cumulative "
+                "total (e.g. 'put 200€ a month into Emergency fund' or 'until it reaches 5000€ total'). "
+                "A confirmation card appears — nothing is written until the user confirms."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "category_name": {"type": "string", "description": "The budget category name to attach the goal template to."},
+                    "goal_type": {"type": "string", "enum": ["by", "simple"], "description": "'by' = save a fixed total amount by a target month; 'simple' = a fixed amount budgeted every month, optionally capped at a cumulative total."},
+                    "amount": {"type": "number", "description": "Target total for goal_type='by', or monthly amount for goal_type='simple'."},
+                    "by_month": {"type": "string", "description": "Target month in YYYY-MM format. Required for goal_type='by', ignored for 'simple'."},
+                    "monthly_limit": {"type": "number", "description": "Optional cumulative total to stop at, only for goal_type='simple' — e.g. keep contributing until this category has received this much in total. Omit for an open-ended monthly contribution."},
+                },
+                "required": ["category_name", "goal_type", "amount"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "finance__propose_set_fire_model",
             "description": "Update FIRE/retirement planning assumptions (return rates, horizon, contribution, desired retirement spend). All parameters optional — pass only what the user mentioned. Shows a confirmation card with all current assumptions before writing anything.",
             "parameters": {
@@ -1281,6 +1306,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "finance__propose_set_budget_carryover":
         from backend.tools.finance.actual_budget import propose_set_budget_carryover
         return await propose_set_budget_carryover(**arguments)
+
+    if name == "finance__propose_set_category_goal":
+        from backend.tools.finance.actual_budget import propose_set_category_goal_template
+        return await propose_set_category_goal_template(**arguments)
 
     if name == "finance__propose_set_fire_model":
         from backend.tools.finance.actual_budget import propose_set_fire_model

@@ -15,6 +15,15 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const [budgetAmount, setBudgetAmount] = useState<string>(
     data.action === 'set_budget' ? String(data.new_amount ?? '') : ''
   )
+  const [goalAmount, setGoalAmount] = useState<string>(
+    data.action === 'set_category_goal' ? String(data.amount ?? '') : ''
+  )
+  const [goalByMonth, setGoalByMonth] = useState<string>(
+    data.action === 'set_category_goal' ? (data.by_month ?? '') : ''
+  )
+  const [goalMonthlyLimit, setGoalMonthlyLimit] = useState<string>(
+    data.action === 'set_category_goal' ? (data.monthly_limit !== undefined ? String(data.monthly_limit) : '') : ''
+  )
   const [payee, setPayee] = useState(data.payee ?? '')
   const [selectedCategory, setSelectedCategory] = useState(data.category_name ?? '')
   const [createRule, setCreateRule] = useState(data.is_consistent ?? true)
@@ -47,6 +56,15 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         overrides = { category_name: categoryName || data.category_name, group_name: groupName || data.group_name }
       } else if (data.action === 'set_budget') {
         overrides = { amount: parseFloat(budgetAmount) || data.new_amount }
+      } else if (data.action === 'set_category_goal') {
+        overrides = {
+          amount: parseFloat(goalAmount) || data.amount,
+          by_month: data.goal_type === 'by' ? (goalByMonth || data.by_month) : undefined,
+          monthly_limit: data.goal_type === 'simple' && goalMonthlyLimit !== ''
+            ? parseFloat(goalMonthlyLimit)
+            : data.monthly_limit,
+          goal_type: data.goal_type,
+        }
       } else if (data.action === 'categorize_with_rule') {
         overrides = { payee: payee || data.payee, category_name: selectedCategory || data.category_name, create_rule: createRule }
       } else if (data.action === 'tag_transaction') {
@@ -87,6 +105,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const isSetBudget = data.action === 'set_budget'
   const isCategorizeWithRule = data.action === 'categorize_with_rule'
   const isSetBudgetCarryover = data.action === 'set_budget_carryover'
+  const isSetCategoryGoal = data.action === 'set_category_goal'
   const isBankResync = data.action === 'bank_resync'
   const isSetFireModel = data.action === 'set_fire_model'
   const isTagTransaction = data.action === 'tag_transaction'
@@ -99,7 +118,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
       <div>
         <p className="text-white font-medium">
-          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetBudget ? 'Set budget amount?' : isCategorizeWithRule ? 'Categorize transactions?' : isSetBudgetCarryover ? `${data.enabled ? 'Enable' : 'Disable'} rollover overspending?` : isBankResync ? 'Resync bank account?' : isSetFireModel ? 'Update FIRE assumptions?' : isTagTransaction ? 'Tag transaction?' : isMarkReconciled ? 'Mark transactions reconciled?' : isMarkBudgetOutlier ? 'One-off distorting this category?' : isCreateSchedule ? 'Create recurring schedule?' : isDeactivateSchedule ? 'Deactivate schedule?' : 'Rename category?'}
+          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetBudget ? 'Set budget amount?' : isCategorizeWithRule ? 'Categorize transactions?' : isSetBudgetCarryover ? `${data.enabled ? 'Enable' : 'Disable'} rollover overspending?` : isSetCategoryGoal ? 'Set savings goal?' : isBankResync ? 'Resync bank account?' : isSetFireModel ? 'Update FIRE assumptions?' : isTagTransaction ? 'Tag transaction?' : isMarkReconciled ? 'Mark transactions reconciled?' : isMarkBudgetOutlier ? 'One-off distorting this category?' : isCreateSchedule ? 'Create recurring schedule?' : isDeactivateSchedule ? 'Deactivate schedule?' : 'Rename category?'}
         </p>
         {isTagTransaction && (
           <p className="text-muted text-sm mt-0.5">
@@ -115,6 +134,18 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
             {' — '}{data.enabled
               ? 'negative balances will carry over and reduce next month\'s available budget'
               : 'balances will reset to zero each month as usual'}
+          </p>
+        )}
+        {isSetCategoryGoal && (
+          <p className="text-muted text-sm mt-0.5">
+            <span className="text-white">{data.category_name}</span>
+            {' — '}
+            {data.goal_type === 'by'
+              ? `save ${formatCurrency(data.amount ?? 0)} by ${data.by_month || '?'}`
+              : `${formatCurrency(data.amount ?? 0)}/month`}
+            {data.goal_type === 'simple' && data.monthly_limit !== undefined && data.monthly_limit !== null && (
+              <span> until {formatCurrency(data.monthly_limit)} total</span>
+            )}
           </p>
         )}
         {isBankResync && (
@@ -201,7 +232,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
             {' — no matching transaction seen in '}{data.days_overdue}{' days (was due '}{data.next_date}{'). It will be turned off, not deleted.'}
           </p>
         )}
-        {!isDelete && !isCreate && !isSetBudget && !isCategorizeWithRule && !isSetBudgetCarryover && !isBankResync && !isSetFireModel && !isTagTransaction && !isMarkReconciled && !isMarkBudgetOutlier && !isCreateSchedule && !isDeactivateSchedule && (
+        {!isDelete && !isCreate && !isSetBudget && !isCategorizeWithRule && !isSetBudgetCarryover && !isSetCategoryGoal && !isBankResync && !isSetFireModel && !isTagTransaction && !isMarkReconciled && !isMarkBudgetOutlier && !isCreateSchedule && !isDeactivateSchedule && (
           <p className="text-muted text-sm mt-0.5">
             <span className="text-white">{data.category_name}</span>
             {' → '}
@@ -229,6 +260,49 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
               className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
             />
           </div>
+        </div>
+      )}
+
+      {isSetCategoryGoal && (
+        <div className="space-y-2">
+          <div className="space-y-1">
+            <p className="text-muted text-xs">
+              {data.goal_type === 'by' ? 'Target amount (€)' : 'Monthly amount (€)'}
+            </p>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={goalAmount}
+              onChange={e => setGoalAmount(e.target.value)}
+              className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+            />
+          </div>
+          {data.goal_type === 'by' ? (
+            <div className="space-y-1">
+              <p className="text-muted text-xs">Target month (YYYY-MM)</p>
+              <input
+                type="text"
+                value={goalByMonth}
+                onChange={e => setGoalByMonth(e.target.value)}
+                placeholder="YYYY-MM"
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              />
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <p className="text-muted text-xs">Cumulative cap — stop at total (€)</p>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={goalMonthlyLimit}
+                onChange={e => setGoalMonthlyLimit(e.target.value)}
+                placeholder="Optional"
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              />
+            </div>
+          )}
         </div>
       )}
 

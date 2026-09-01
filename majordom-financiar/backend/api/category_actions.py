@@ -38,6 +38,9 @@ class GoalOverride(BaseModel):
     accumulation_return: float | None = None
     decumulation_return: float | None = None
     desired_monthly_spend: float | None = None
+    goal_type: str | None = None
+    by_month: str | None = None
+    monthly_limit: float | None = None
 
 
 @router.post("/category-actions/{action_id}/confirm")
@@ -159,6 +162,24 @@ async def confirm_category_action(
             target_month = _date.fromisoformat(month_str)
             await client.set_budget_carryover(cat_name, target_month, enabled)
             message = f"Rollover overspending {'enabled' if enabled else 'disabled'} for '{cat_name}' ({month_str[:7]})."
+        elif action["action"] == "set_category_goal":
+            goal_type = override.goal_type if override.goal_type is not None else action["goal_type"]
+            by_month = override.by_month if override.by_month is not None else action.get("by_month", "")
+            monthly_limit = override.monthly_limit if override.monthly_limit is not None else action.get("monthly_limit")
+            amount = override.amount if override.amount is not None else action["amount"]
+            cat_name = override.category_name or action["category_name"]
+            await client.set_category_goal_template(
+                cat_name, goal_type, amount, by_month, monthly_limit,
+            )
+            if goal_type == "by":
+                target_month = by_month or "no target month"
+                message = f"Goal set for '{cat_name}': save €{amount:.2f} by {target_month}."
+            else:
+                message = f"Goal set for '{cat_name}': €{amount:.2f}/month"
+                if monthly_limit is not None:
+                    message += f" until €{monthly_limit:.2f} total."
+                else:
+                    message += "."
         elif action["action"] == "bank_resync":
             acc_name = action["account_name"]
             count = await client.run_bank_resync(acc_name)

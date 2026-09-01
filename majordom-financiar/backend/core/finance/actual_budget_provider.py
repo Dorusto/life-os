@@ -188,6 +188,13 @@ class ActualBudgetProvider:
     async def set_budget_carryover(self, category_name: str, month: date, enabled: bool) -> bool:
         return await self._client().set_budget_carryover(category_name, month, enabled)
 
+    async def set_category_goal_template(
+        self, category_name: str, goal_type: str, amount: float, by_month: str = "", monthly_limit: float | None = None
+    ) -> bool:
+        return await self._client().set_category_goal_template(
+            category_name, goal_type, amount, by_month, monthly_limit,
+        )
+
     async def count_uncategorized(self) -> int:
         return await self._client().count_uncategorized()
 

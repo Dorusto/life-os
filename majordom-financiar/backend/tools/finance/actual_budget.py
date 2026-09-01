@@ -1202,6 +1202,68 @@ async def propose_set_budget_carryover(category_name: str, enabled: bool, month:
     })
 
 
+async def propose_set_category_goal_template(
+    category_name: str,
+    goal_type: str,
+    amount: float,
+    by_month: str = "",
+    monthly_limit: float | None = None,
+) -> str:
+    """Propose setting a savings goal template on a budget category.
+
+    Does NOT write to Actual Budget yet — returns a confirmation card.
+    `goal_type` is either ``"by"`` (fixed total by target month) or
+    ``"simple"`` (fixed monthly amount, optionally capped at a cumulative total).
+    """
+    import uuid
+    from difflib import get_close_matches
+    from backend.tools import category_actions as action_store
+
+    if goal_type not in ("by", "simple"):
+        return json.dumps({
+            "type": "error",
+            "message": f"Invalid goal_type: {goal_type!r}. Must be 'by' or 'simple'.",
+        })
+
+    if goal_type == "by" and not by_month:
+        return json.dumps({
+            "type": "error",
+            "message": "A target month (by_month) is required for goal_type='by'.",
+        })
+
+    client = get_provider()
+    cats = await client.get_categories()
+    cat_names = [c.name for c in cats]
+    exact = next((n for n in cat_names if n.lower() == category_name.lower()), None)
+    resolved = exact or (get_close_matches(category_name, cat_names, n=1, cutoff=0.6) or [None])[0]
+    if not resolved:
+        return json.dumps({
+            "type": "error",
+            "message": f"Category not found: {category_name!r}. Available: {', '.join(cat_names)}",
+        })
+
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {
+        "action": "set_category_goal",
+        "category_name": resolved,
+        "goal_type": goal_type,
+        "amount": amount,
+        "by_month": by_month,
+        "monthly_limit": monthly_limit,
+    })
+
+    return json.dumps({
+        "type": "category_action",
+        "id": action_id,
+        "action": "set_category_goal",
+        "category_name": resolved,
+        "goal_type": goal_type,
+        "amount": amount,
+        "by_month": by_month,
+        "monthly_limit": monthly_limit,
+    })
+
+
 async def propose_set_fire_model(
     years_to_transition: float | None = None,
     years_in_retirement: float | None = None,
