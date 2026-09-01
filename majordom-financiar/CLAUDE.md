@@ -29,8 +29,9 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 > is in that decisions.md entry, not repeated here.
 >
 > **Still open, worth picking up next** (check `gh issue list` for current state): #214 (three HTTP
-> layers, divergent 401 handling) and #215 (40 copy-pasted handlers in `Chat.tsx`) — both good
-> `/delegate-by-complexity` candidates. #157 (HTTPS/reverse proxy) and #190 (setup wizard) — related
+> layers, divergent 401 handling) — good `/delegate-by-complexity` candidate. #215 closed
+> 2026-09-02 (`Chat.tsx` lookup-table dispatch, see `docs/product-plan.md`'s "Refactor debt"
+> section). #157 (HTTPS/reverse proxy) and #190 (setup wizard) — related
 > to the Actual-Budget connection friction, not caused by the engine itself. #216, retitled to
 > track only its unresolved half (private helpers crossing layers — `_calc_fire`, `_load_fire_model`,
 > `rule_match_prefix`, `_financial_id`). **Portfolio** stays core scope (not optional) — the

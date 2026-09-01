@@ -278,6 +278,33 @@ are the reason.
 
 ---
 
+### Refactor debt — where it lands
+
+Added 2026-09-02. Four items were pure refactor debt (#214, #215, #216, #217), not phase-scoped
+features, plus one real bug in already-shipped Phase B code (#242). Rather than a cleanup phase,
+each is placed where the code is about to get touched anyway — cheaper to fix in passing than as
+its own initiative:
+
+- **#215 — closed 2026-09-02**, ahead of Phase C2 as planned (`Chat.tsx`'s 40 copy-pasted handlers
+  replaced by a `replaceWithStatus`/`cancelAt` pair + a role→renderer lookup table; dispatched to
+  Aider/DeepSeek Flash, reviewed line-by-line against every one of the 21 branches, `tsc --noEmit`
+  clean, live-verified in browser). Goal-budgeting (#113/#124) can now add card types without
+  multiplying the pattern that was just fixed.
+- **#216** (private FIRE helpers crossing layers: `_calc_fire`, `_load_fire_model`,
+  `rule_match_prefix`, `_financial_id`) — fix when Phase D's FIRE/Expense Coverage coaching
+  (#167/#177) is built. That's the next point those helpers get extended, not before.
+- **#214** (three HTTP layers, divergent 401 handling) and **#217** (12 silently swallowed
+  exceptions) — no phase naturally touches these. Opportunistic `/delegate-by-complexity`
+  candidates for a lull between features; not a blocker for anything above.
+- **#242** (`resolve_transfer_duplicate()` discards payee/category/date from the deleted side) —
+  different category: an active data-loss bug in shipped Phase B code, not debt. Fix on its own
+  schedule, independent of phase sequencing — sooner if the loss is hit again in real use.
+
+Matches `.claude/rules/priority-tracking.md`: sequencing rationale lives here in prose; issue-level
+status stays on GitHub.
+
+---
+
 ## 4. What this plan deliberately does not do
 
 - **No new dashboard widgets** unless they surface something from the Inbox. The Dashboard is
