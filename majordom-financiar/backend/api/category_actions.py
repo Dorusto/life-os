@@ -29,7 +29,8 @@ class GoalOverride(BaseModel):
     create_rule: bool | None = None
     day_of_month: int | None = None
     schedule_name: str | None = None
-    category_amounts: dict[str, float] | None = None  # budget_copy: category_id -> edited amount
+    category_amounts: dict[str, float] | None = None  # budget_copy: category_id -> edited amount; goal_budget_plan: category_name -> edited amount
+    selected_category_names: list[str] | None = None  # clear_reached_goals: checked category names; None = all in the stored proposal
     tag: str | None = None  # tag_transaction: edited #tag value
     # FIRE model overrides
     years_to_transition: float | None = None
@@ -180,6 +181,45 @@ async def confirm_category_action(
                     message += f" until €{monthly_limit:.2f} total."
                 else:
                     message += "."
+        elif action["action"] == "goal_budget_plan":
+            from datetime import date as _date
+
+            overrides = override.category_amounts or {}
+            all_cats = await client.get_categories()
+            existing_names = {
+                c.name.lower() for c in all_cats
+                if c.group_name.lower() == action["group_name"].lower()
+            }
+            results = []
+            for item in action["items"]:
+                cat_name = item["category_name"]
+                final_amount = overrides.get(cat_name, item["amount"])
+                if cat_name.lower() not in existing_names:
+                    await client.create_category(cat_name, action["group_name"])
+                await client.set_category_goal_template(
+                    cat_name, "by", final_amount, action["by_month"],
+                )
+                await client.set_budget_carryover(
+                    cat_name, _date.today().replace(day=1), True,
+                )
+                results.append((cat_name, final_amount))
+            message = (
+                f"Goal budget set for '{action['goal_name']}': "
+                + ", ".join(f"{n} €{a:.2f}" for n, a in results)
+                + f" (by {action['by_month']})."
+            )
+        elif action["action"] == "clear_reached_goals":
+            names = (
+                override.selected_category_names
+                if override.selected_category_names is not None
+                else action["category_names"]
+            )
+            for name in names:
+                await client.clear_category_goal_template(name)
+            message = (
+                f"Goal template cleared for: {', '.join(names)}."
+                if names else "No categories selected."
+            )
         elif action["action"] == "bank_resync":
             acc_name = action["account_name"]
             count = await client.run_bank_resync(acc_name)

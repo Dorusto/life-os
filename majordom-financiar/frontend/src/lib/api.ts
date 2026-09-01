@@ -1007,7 +1007,7 @@ export interface FireModelValues {
 
 export interface CategoryActionData {
   id: string
-  action: 'rename' | 'delete' | 'create' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'set_category_goal' | 'bank_resync' | 'set_fire_model' | 'tag_transaction' | 'mark_reconciled' | 'mark_budget_outlier' | 'create_schedule' | 'deactivate_schedule'
+  action: 'rename' | 'delete' | 'create' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'set_category_goal' | 'bank_resync' | 'set_fire_model' | 'tag_transaction' | 'mark_reconciled' | 'mark_budget_outlier' | 'create_schedule' | 'deactivate_schedule' | 'goal_budget_plan' | 'clear_reached_goals'
   category_name: string
   new_name?: string
   group_name?: string
@@ -1071,6 +1071,12 @@ export interface CategoryActionData {
   schedule_name?: string
   next_date?: string
   days_overdue?: number
+  // goal_budget_plan fields:
+  goal_name?: string
+  items?: { category_name: string; amount: number; exists?: boolean }[]
+  // clear_reached_goals fields:
+  category_names?: string[]
+  reached_categories?: { category_name: string; group_name: string; target_amount: number; target_month: string }[]
 }
 
 export async function confirmCategoryAction(
@@ -1084,6 +1090,7 @@ export async function confirmCategoryAction(
     tag?: string;
     day_of_month?: number;
     schedule_name?: string;
+    selected_category_names?: string[];
   }
 ): Promise<{ message: string; monthly_needed?: number | null }> {
   return request(`/category-actions/${id}/confirm`, {

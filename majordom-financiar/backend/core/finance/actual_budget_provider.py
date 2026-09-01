@@ -195,6 +195,12 @@ class ActualBudgetProvider:
             category_name, goal_type, amount, by_month, monthly_limit,
         )
 
+    async def get_reached_goal_categories(self) -> list[dict]:
+        return await self._client().get_reached_goal_categories()
+
+    async def clear_category_goal_template(self, category_name: str) -> bool:
+        return await self._client().clear_category_goal_template(category_name)
+
     async def count_uncategorized(self) -> int:
         return await self._client().count_uncategorized()
 

@@ -1264,6 +1264,134 @@ async def propose_set_category_goal_template(
     })
 
 
+async def propose_goal_budget_plan(
+    goal_name: str,
+    total_amount: float,
+    by_month: str,
+    category_splits: list[dict],
+    group_name: str = "",
+) -> str:
+    """Propose a compound goal-budgeting plan across multiple subcategories.
+
+    `category_splits` is `[{"category_name": ..., "amount": ...}, ...]` —
+    already decided by the LLM caller, not validated against `total_amount`
+    here (every amount is editable on the confirmation card). Creates missing
+    categories in `group_name` (defaults to `goal_name`), writes each one's
+    "by" goal template, and enables rollover — all in a SINGLE confirmation
+    card, not one card per category.
+    """
+    import uuid
+    from backend.tools import category_actions as action_store
+
+    if not category_splits:
+        return json.dumps({
+            "type": "error",
+            "message": "No category splits provided for the goal budget plan.",
+        })
+
+    resolved_group = group_name.strip() if group_name and group_name.strip() else goal_name
+
+    client = get_provider()
+    cats = await client.get_categories()
+    existing = {(c.name.lower(), c.group_name.lower()) for c in cats}
+
+    items = []
+    for split in category_splits:
+        cat_name = split.get("category_name", "")
+        amount = split.get("amount", 0)
+        if not cat_name:
+            continue
+        items.append({
+            "category_name": cat_name,
+            "amount": amount,
+            "exists": (cat_name.lower(), resolved_group.lower()) in existing,
+        })
+
+    if not items:
+        return json.dumps({
+            "type": "error",
+            "message": "No valid category splits (each needs a category_name).",
+        })
+
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {
+        "action": "goal_budget_plan",
+        "goal_name": goal_name,
+        "group_name": resolved_group,
+        "by_month": by_month,
+        "items": items,
+    })
+
+    return json.dumps({
+        "type": "category_action",
+        "id": action_id,
+        "action": "goal_budget_plan",
+        "goal_name": goal_name,
+        "group_name": resolved_group,
+        "by_month": by_month,
+        "items": items,
+    })
+
+
+async def get_reached_goals() -> str:
+    """Check for savings-goal categories whose target month has already passed.
+
+    Read-only query — does NOT propose a card. An empty result is normal
+    (no goals reached), not an error.
+    """
+    client = get_provider()
+    reached = await client.get_reached_goal_categories()
+    return json.dumps({"type": "reached_goals", "categories": reached})
+
+
+async def propose_clear_reached_goals(category_names: list[str]) -> str:
+    """Propose clearing the goal template on one or more reached-goal categories.
+
+    Does NOT write to Actual Budget yet — returns a confirmation card. Names
+    that no longer show up as reached (e.g. already cleaned up) are silently
+    skipped rather than erroring.
+    """
+    import uuid
+    from backend.tools import category_actions as action_store
+
+    if not category_names:
+        return json.dumps({
+            "type": "error",
+            "message": "No category names provided to clean up.",
+        })
+
+    client = get_provider()
+    reached = await client.get_reached_goal_categories()
+    by_name = {r["category_name"].lower(): r for r in reached}
+
+    reached_categories = []
+    names_to_clear = []
+    for name in category_names:
+        match = by_name.get(name.lower())
+        if match:
+            reached_categories.append(match)
+            names_to_clear.append(match["category_name"])
+
+    if not names_to_clear:
+        return json.dumps({
+            "type": "error",
+            "message": "None of the given categories currently have a reached goal to clean up.",
+        })
+
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {
+        "action": "clear_reached_goals",
+        "category_names": names_to_clear,
+    })
+
+    return json.dumps({
+        "type": "category_action",
+        "id": action_id,
+        "action": "clear_reached_goals",
+        "reached_categories": reached_categories,
+    })
+
+
 async def propose_set_fire_model(
     years_to_transition: float | None = None,
     years_in_retirement: float | None = None,

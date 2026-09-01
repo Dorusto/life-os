@@ -20,6 +20,8 @@ import CategoryActionCard from '../components/CategoryActionCard'
 import CategoryOverviewCard from '../components/CategoryOverviewCard'
 import BudgetOverviewCard from '../components/BudgetOverviewCard'
 import BudgetCopyCard from '../components/BudgetCopyCard'
+import GoalBudgetPlanCard from '../components/GoalBudgetPlanCard'
+import ReachedGoalsCard from '../components/ReachedGoalsCard'
 import GoalProposalCard, { GoalProposalData } from '../components/GoalProposalCard'
 import VehicleLogActionCard from '../components/VehicleLogActionCard'
 import VehicleReminderCard from '../components/VehicleReminderCard'
@@ -303,6 +305,24 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
       if (msg.categoryAction.action === 'budget_copy') {
         return (
           <BudgetCopyCard
+            data={msg.categoryAction}
+            onConfirmed={(message) => replaceWithStatus(idx, message)}
+            onCancelled={() => cancelAt(idx)}
+          />
+        )
+      }
+      if (msg.categoryAction.action === 'goal_budget_plan') {
+        return (
+          <GoalBudgetPlanCard
+            data={msg.categoryAction}
+            onConfirmed={(message) => replaceWithStatus(idx, message)}
+            onCancelled={() => cancelAt(idx)}
+          />
+        )
+      }
+      if (msg.categoryAction.action === 'clear_reached_goals') {
+        return (
+          <ReachedGoalsCard
             data={msg.categoryAction}
             onConfirmed={(message) => replaceWithStatus(idx, message)}
             onCancelled={() => cancelAt(idx)}

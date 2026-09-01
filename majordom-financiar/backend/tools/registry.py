@@ -493,6 +493,68 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__propose_goal_budget_plan",
+            "description": (
+                "Propose a compound goal-budgeting plan: creates missing categories, writes a "
+                "'by' goal template on each, and enables rollover for all of them — in ONE "
+                "confirmation card. Use when the user names a total amount, a target date, AND "
+                "multiple subcategories to split it across (e.g. 'budget €2000 for Dolomiti by "
+                "July 2027, split across lodging/transport/food/fun'). Nothing is written until "
+                "the user confirms."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "goal_name": {"type": "string", "description": "Name of the overall goal/trip, e.g. 'Dolomiti'."},
+                    "total_amount": {"type": "number", "description": "Total target amount across all subcategories, in EUR."},
+                    "by_month": {"type": "string", "description": "Target month in YYYY-MM format."},
+                    "category_splits": {
+                        "type": "array",
+                        "description": "The subcategories and their target amounts. Split the total_amount across them yourself — equally if the user gave no ratios, or following whatever proportions the user did state. Doesn't need to be exact, the user can edit amounts before confirming.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "category_name": {"type": "string"},
+                                "amount": {"type": "number"},
+                            },
+                            "required": ["category_name", "amount"],
+                        },
+                    },
+                    "group_name": {"type": "string", "description": "Category group to create the subcategories in. Omit to default to goal_name."},
+                },
+                "required": ["goal_name", "total_amount", "by_month", "category_splits"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "finance__get_reached_goals",
+            "description": "Check for savings-goal categories whose target month has already passed. Read-only — use when the user asks to check if any goals are finished/done, or naturally when discussing budget templates/goals. An empty result is normal, not an error.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "finance__propose_clear_reached_goals",
+            "description": "Propose clearing the goal template on one or more categories whose goal has already been reached, so it stops blocking 'Overwrite with budget template' in Actual Budget. Call only after the user has confirmed which category name(s) to clean up from a finance__get_reached_goals result already shown this conversation. A confirmation card appears — nothing is written until the user confirms.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "category_names": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Names of the reached-goal categories to clean up.",
+                    },
+                },
+                "required": ["category_names"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "finance__propose_set_fire_model",
             "description": "Update FIRE/retirement planning assumptions (return rates, horizon, contribution, desired retirement spend). All parameters optional — pass only what the user mentioned. Shows a confirmation card with all current assumptions before writing anything.",
             "parameters": {
@@ -1310,6 +1372,18 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "finance__propose_set_category_goal":
         from backend.tools.finance.actual_budget import propose_set_category_goal_template
         return await propose_set_category_goal_template(**arguments)
+
+    if name == "finance__propose_goal_budget_plan":
+        from backend.tools.finance.actual_budget import propose_goal_budget_plan
+        return await propose_goal_budget_plan(**arguments)
+
+    if name == "finance__get_reached_goals":
+        from backend.tools.finance.actual_budget import get_reached_goals
+        return await get_reached_goals()
+
+    if name == "finance__propose_clear_reached_goals":
+        from backend.tools.finance.actual_budget import propose_clear_reached_goals
+        return await propose_clear_reached_goals(**arguments)
 
     if name == "finance__propose_set_fire_model":
         from backend.tools.finance.actual_budget import propose_set_fire_model
