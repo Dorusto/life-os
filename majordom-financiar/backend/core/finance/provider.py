@@ -227,6 +227,29 @@ class FinanceProvider(Protocol):
 
     async def delete_transaction(self, financial_id: str) -> bool: ...
 
+    async def create_schedule(
+        self,
+        name: str,
+        amount: float,
+        day_of_month: int,
+        account_id: str,
+        is_income: bool = False,
+    ) -> str: ...
+
+    async def find_recurring_candidates(
+        self,
+        lookback_months: int = 4,
+        min_months_present: int = 3,
+        amount_tolerance: float = 0.05,
+    ) -> list[dict]: ...
+
+    async def find_stale_schedules(
+        self,
+        overdue_days: int = 45,
+    ) -> list[dict]: ...
+
+    async def set_schedule_active(self, schedule_id: str, active: bool) -> None: ...
+
 
 def get_provider() -> FinanceProvider:
     """Return a FinanceProvider instance based on the FINANCE_BACKEND env var."""

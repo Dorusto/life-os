@@ -353,3 +353,34 @@ class ActualBudgetProvider:
         return await self._client().convert_transaction_to_transfer(
             transaction_id, target_account_id
         )
+
+    async def create_schedule(
+        self,
+        name: str,
+        amount: float,
+        day_of_month: int,
+        account_id: str,
+        is_income: bool = False,
+    ) -> str:
+        return await self._client().create_schedule(
+            name, amount, day_of_month, account_id, is_income,
+        )
+
+    async def find_recurring_candidates(
+        self,
+        lookback_months: int = 4,
+        min_months_present: int = 3,
+        amount_tolerance: float = 0.05,
+    ) -> list[dict]:
+        return await self._client().find_recurring_candidates(
+            lookback_months, min_months_present, amount_tolerance,
+        )
+
+    async def find_stale_schedules(
+        self,
+        overdue_days: int = 45,
+    ) -> list[dict]:
+        return await self._client().find_stale_schedules(overdue_days)
+
+    async def set_schedule_active(self, schedule_id: str, active: bool) -> None:
+        return await self._client().set_schedule_active(schedule_id, active)

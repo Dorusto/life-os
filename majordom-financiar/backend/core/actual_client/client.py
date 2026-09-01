@@ -1173,6 +1173,197 @@ class ActualBudgetClient:
                 return flags
         return await self._run(_fetch)
 
+    async def find_recurring_candidates(
+        self,
+        lookback_months: int = 4,
+        min_months_present: int = 3,
+        amount_tolerance: float = 0.05,
+    ) -> list[dict]:
+        """
+        Find payee+account transaction groups that repeat monthly but have no
+        AB Schedule linking them yet. Read-only — uses the cached read
+        connection, never commits.
+        """
+        def _fetch():
+            from datetime import timedelta
+            from actual.queries import get_transactions
+
+            with self._get_cached_read_actual() as actual:
+                today = date.today()
+                # Last fully-closed calendar month end.
+                target_end = today.replace(day=1) - timedelta(days=1)
+
+                start_month = target_end.month
+                start_year = target_end.year
+                for _ in range(lookback_months - 1):
+                    start_month -= 1
+                    if start_month == 0:
+                        start_month = 12
+                        start_year -= 1
+                window_start = date(start_year, start_month, 1)
+
+                txs = get_transactions(
+                    actual.session,
+                    start_date=window_start,
+                    end_date=target_end,
+                )
+
+                # Exclude soft-deleted rows, parent split rows, transfer legs,
+                # and anything already linked to an AB Schedule.
+                eligible = [
+                    tx for tx in txs
+                    if not tx.tombstone
+                    and tx.is_parent == 0
+                    and tx.transferred_id is None
+                    and getattr(tx, "schedule", None) is None
+                ]
+
+                groups: dict[tuple, list] = defaultdict(list)
+                for tx in eligible:
+                    if tx.payee_id is None or tx.acct is None:
+                        continue
+                    groups[(tx.payee_id, tx.acct)].append(tx)
+
+                candidates = []
+                for (payee_id, acct_id), group_txs in groups.items():
+                    month_set = {
+                        (tx.get_date().year, tx.get_date().month)
+                        for tx in group_txs
+                        if tx.date is not None
+                    }
+                    if len(month_set) < min_months_present:
+                        continue
+
+                    amounts = [
+                        float(tx.amount or 0) / 100
+                        for tx in group_txs
+                        if tx.amount is not None
+                    ]
+                    if not amounts:
+                        continue
+
+                    # Never abs() when grouping same-direction recurring
+                    # transactions — a group containing both expenses and income
+                    # must be skipped entirely.
+                    all_positive = all(a > 0 for a in amounts)
+                    all_negative = all(a < 0 for a in amounts)
+                    if not (all_positive or all_negative):
+                        continue
+
+                    avg = sum(amounts) / len(amounts)
+                    if avg == 0:
+                        continue
+                    if any(
+                        abs(a - avg) / abs(avg) > amount_tolerance
+                        for a in amounts
+                    ):
+                        continue
+
+                    sorted_txs = sorted(
+                        group_txs, key=lambda tx: tx.date or 0, reverse=True
+                    )
+                    latest_tx = sorted_txs[0]
+                    payee_name = latest_tx.payee.name if latest_tx.payee else ""
+                    account_name = latest_tx.account.name if latest_tx.account else ""
+                    day_of_month = latest_tx.get_date().day
+
+                    sample = []
+                    for tx in sorted_txs[:3]:
+                        sample.append({
+                            "date": tx.get_date().isoformat(),
+                            "amount": abs(float(tx.amount or 0)) / 100,
+                        })
+
+                    candidates.append({
+                        "payee_id": str(payee_id),
+                        "payee_name": payee_name,
+                        "account_id": str(acct_id),
+                        "account_name": account_name,
+                        "months_present": len(month_set),
+                        "avg_amount": round(avg, 2),
+                        "is_income": avg > 0,
+                        "suggested_day_of_month": day_of_month,
+                        "sample_transactions": sample,
+                    })
+
+                candidates.sort(
+                    key=lambda c: c["sample_transactions"][0]["date"]
+                    if c["sample_transactions"] else "",
+                    reverse=True,
+                )
+                return candidates[:20]
+
+        return await self._run(_fetch)
+
+    async def find_stale_schedules(self, overdue_days: int = 45) -> list[dict]:
+        """
+        Return active Schedules whose next sync date is more than
+        ``overdue_days`` in the past. Read-only.
+        """
+        def _fetch():
+            from actual.database import Schedules, SchedulesNextDate
+
+            with self._get_cached_read_actual() as actual:
+                rows = (
+                    actual.session.query(Schedules, SchedulesNextDate)
+                    .join(SchedulesNextDate, SchedulesNextDate.schedule_id == Schedules.id)
+                    .filter(
+                        Schedules.active == 1,
+                        Schedules.tombstone == 0,
+                        SchedulesNextDate.tombstone == 0,
+                    )
+                    .all()
+                )
+
+                today = date.today()
+                stale = []
+                for sched, sched_next in rows:
+                    raw_next = getattr(sched_next, "local_next_date", None)
+                    if raw_next is None:
+                        continue
+                    try:
+                        n_int = int(raw_next)
+                    except (TypeError, ValueError):
+                        continue
+
+                    next_d = date(
+                        n_int // 10000,
+                        (n_int // 100) % 100,
+                        n_int % 100,
+                    )
+                    days_overdue = (today - next_d).days
+                    if days_overdue > overdue_days:
+                        stale.append({
+                            "schedule_id": str(sched.id),
+                            "name": sched.name or "Unnamed",
+                            "next_date": next_d.isoformat(),
+                            "days_overdue": days_overdue,
+                        })
+
+                return stale
+
+        return await self._run(_fetch)
+
+    async def set_schedule_active(self, schedule_id: str, active: bool) -> None:
+        """
+        Set ``active`` on an existing schedule. Write path — commits.
+        """
+        def _set():
+            from actual.database import Schedules
+
+            with self._get_actual() as actual:
+                sched = actual.session.query(Schedules).filter(
+                    Schedules.id == schedule_id,
+                    Schedules.tombstone == 0,
+                ).first()
+                if not sched:
+                    raise ValueError(f"Schedule not found: {schedule_id}")
+
+                sched.active = 1 if active else 0
+                actual.commit()
+
+        return await self._run(_set)
+
     async def add_transaction(
         self,
         account_id: str,

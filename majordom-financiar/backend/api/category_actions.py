@@ -27,6 +27,8 @@ class GoalOverride(BaseModel):
     amount: float | None = None
     payee: str | None = None
     create_rule: bool | None = None
+    day_of_month: int | None = None
+    schedule_name: str | None = None
     category_amounts: dict[str, float] | None = None  # budget_copy: category_id -> edited amount
     tag: str | None = None  # tag_transaction: edited #tag value
     # FIRE model overrides
@@ -263,6 +265,38 @@ async def confirm_category_action(
                 f"Tagged {action['category_name']}'s €{action['outlier_amount']:.2f} transaction "
                 f"as #one-off — it won't count toward future averages."
             )
+        elif action["action"] == "create_schedule":
+            # Local imports: another branch in this same function already imports
+            # MemoryDB/settings, making those names local to the whole function.
+            # Reference the aliased names here to avoid UnboundLocalError.
+            from backend.core.config import settings as _settings
+            from backend.core.memory.database import MemoryDB as _MemoryDB
+
+            name = override.schedule_name or action["payee_name"]
+            amount = override.amount if override.amount is not None else action["avg_amount"]
+            day_of_month = override.day_of_month or action["suggested_day_of_month"]
+            await client.create_schedule(
+                name=name,
+                amount=abs(amount),
+                day_of_month=day_of_month,
+                account_id=action["account_id"],
+                is_income=action["is_income"],
+            )
+            # Creating the schedule only affects future transactions — it does
+            # not retroactively link the old transactions that triggered the
+            # finding, so without this explicit dismiss the same group would
+            # flag again on the next fetch.
+            _MemoryDB(_settings.memory.db_path).dismiss_finding(
+                "recurring_candidate",
+                f"{action['payee_id']}:{action['account_id']}",
+            )
+            message = f"Schedule created: {name} — €{abs(amount):.2f}/month on day {day_of_month}."
+        elif action["action"] == "deactivate_schedule":
+            await client.set_schedule_active(action["schedule_id"], active=False)
+            message = (
+                f"Deactivated schedule: {action['schedule_name']} "
+                f"(overdue {action['days_overdue']} days)."
+            )
         else:
             raise HTTPException(status_code=400, detail=f"Unknown action: {action['action']}")
     except ValueError as e:
@@ -424,7 +458,7 @@ async def cancel_category_action(
     current_user: str = Depends(get_current_user),
 ):
     action = action_store.get(action_id)
-    if action and action["action"] in ("merge_duplicate", "resolve_transfer_duplicate", "categorize_with_rule", "mark_reconciled", "mark_budget_outlier"):
+    if action and action["action"] in ("merge_duplicate", "resolve_transfer_duplicate", "categorize_with_rule", "mark_reconciled", "mark_budget_outlier", "create_schedule"):
         if action["action"] == "merge_duplicate":
             finding_key = f"{action['manual_id']}:{action['synced_id']}"
             finding_type = "duplicate_pair"
@@ -437,6 +471,9 @@ async def cancel_category_action(
         elif action["action"] == "mark_budget_outlier":
             finding_key = action.get("outlier_transaction_id")
             finding_type = "budget_outlier"
+        elif action["action"] == "create_schedule":
+            finding_key = f"{action.get('payee_id')}:{action.get('account_id')}"
+            finding_type = "recurring_candidate"
         else:
             # payee_id is only present on categorize_with_rule actions built from
             # the uncategorized-groups Inbox endpoint — a chat-originated one

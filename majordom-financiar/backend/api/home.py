@@ -290,6 +290,87 @@ async def get_budget_realism_flags(current_user: str = Depends(get_current_user)
     return {"items": items}
 
 
+@router.get("/home/recurring")
+async def get_recurring_actions(current_user: str = Depends(get_current_user)):
+    """
+    Two-in-one Inbox feed for recurring-transaction lifecycle findings:
+      1. new_candidates — repeated payee+account groups that have no AB Schedule yet
+      2. stale            — active Schedules that stopped matching real transactions
+
+    Same proposal-store + dismiss-key pattern as the other /home/* finding
+    endpoints immediately above this one.
+    """
+    from backend.tools import category_actions as action_store
+
+    client = get_provider()
+    try:
+        candidates = await client.find_recurring_candidates()
+        stale_schedules = await client.find_stale_schedules()
+    except Exception as e:
+        logger.error("Failed to fetch recurring findings: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail="Could not fetch recurring findings")
+
+    dismissed_candidates = MemoryDB(settings.memory.db_path).get_dismissed_finding_keys(
+        "recurring_candidate"
+    )
+    dismissed_stale = MemoryDB(settings.memory.db_path).get_dismissed_finding_keys(
+        "recurring_stale"
+    )
+
+    new_candidates = []
+    for c in candidates:
+        key = f"{c['payee_id']}:{c['account_id']}"
+        if key in dismissed_candidates:
+            continue
+        action_id = uuid4().hex[:8]
+        action_store.store(action_id, {
+            "action": "create_schedule",
+            "payee_id": c["payee_id"],
+            "payee_name": c["payee_name"],
+            "account_id": c["account_id"],
+            "account_name": c["account_name"],
+            "avg_amount": c["avg_amount"],
+            "is_income": c["is_income"],
+            "suggested_day_of_month": c["suggested_day_of_month"],
+        })
+        new_candidates.append({
+            "type": "category_action",
+            "id": action_id,
+            "action": "create_schedule",
+            "payee_id": c["payee_id"],
+            "payee_name": c["payee_name"],
+            "account_id": c["account_id"],
+            "account_name": c["account_name"],
+            "avg_amount": c["avg_amount"],
+            "is_income": c["is_income"],
+            "suggested_day_of_month": c["suggested_day_of_month"],
+        })
+
+    stale_items = []
+    for s in stale_schedules:
+        if s["schedule_id"] in dismissed_stale:
+            continue
+        action_id = uuid4().hex[:8]
+        action_store.store(action_id, {
+            "action": "deactivate_schedule",
+            "schedule_id": s["schedule_id"],
+            "schedule_name": s["name"],
+            "next_date": s["next_date"],
+            "days_overdue": s["days_overdue"],
+        })
+        stale_items.append({
+            "type": "category_action",
+            "id": action_id,
+            "action": "deactivate_schedule",
+            "schedule_id": s["schedule_id"],
+            "schedule_name": s["name"],
+            "next_date": s["next_date"],
+            "days_overdue": s["days_overdue"],
+        })
+
+    return {"new_candidates": new_candidates, "stale": stale_items}
+
+
 _PERIOD_MONTHS = {"3m": 3, "6m": 6, "12m": 12}
 _MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
