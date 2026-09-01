@@ -21,6 +21,15 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const [tag, setTag] = useState(data.tag ?? '')
   const [loading, setLoading] = useState(false)
 
+  // create_schedule editable fields
+  const [scheduleName, setScheduleName] = useState(data.action === 'create_schedule' ? (data.payee_name ?? '') : '')
+  const [scheduleAmount, setScheduleAmount] = useState<string>(
+    data.action === 'create_schedule' ? String(Math.abs(data.avg_amount ?? 0)) : ''
+  )
+  const [scheduleDay, setScheduleDay] = useState<string>(
+    data.action === 'create_schedule' ? String(data.suggested_day_of_month ?? 1) : ''
+  )
+
   // FIRE model editable fields
   const fireNew = data.new ?? data.current
   const [fireYearsToTransition, setFireYearsToTransition] = useState(String(fireNew?.years_to_transition ?? ''))
@@ -51,6 +60,12 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
           decumulation_return: parseFloat(fireDecumulationReturn) / 100,
           desired_monthly_spend: parseFloat(fireDesiredMonthlySpend),
         }
+      } else if (data.action === 'create_schedule') {
+        overrides = {
+          schedule_name: scheduleName || data.payee_name,
+          amount: parseFloat(scheduleAmount) || Math.abs(data.avg_amount ?? 0),
+          day_of_month: parseInt(scheduleDay, 10) || data.suggested_day_of_month,
+        }
       }
       const result = await confirmCategoryAction(data.id, overrides as any)
       onConfirmed(result.message)
@@ -77,12 +92,14 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const isTagTransaction = data.action === 'tag_transaction'
   const isMarkReconciled = data.action === 'mark_reconciled'
   const isMarkBudgetOutlier = data.action === 'mark_budget_outlier'
+  const isCreateSchedule = data.action === 'create_schedule'
+  const isDeactivateSchedule = data.action === 'deactivate_schedule'
 
   return (
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
       <div>
         <p className="text-white font-medium">
-          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetBudget ? 'Set budget amount?' : isCategorizeWithRule ? 'Categorize transactions?' : isSetBudgetCarryover ? `${data.enabled ? 'Enable' : 'Disable'} rollover overspending?` : isBankResync ? 'Resync bank account?' : isSetFireModel ? 'Update FIRE assumptions?' : isTagTransaction ? 'Tag transaction?' : isMarkReconciled ? 'Mark transactions reconciled?' : isMarkBudgetOutlier ? 'One-off distorting this category?' : 'Rename category?'}
+          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetBudget ? 'Set budget amount?' : isCategorizeWithRule ? 'Categorize transactions?' : isSetBudgetCarryover ? `${data.enabled ? 'Enable' : 'Disable'} rollover overspending?` : isBankResync ? 'Resync bank account?' : isSetFireModel ? 'Update FIRE assumptions?' : isTagTransaction ? 'Tag transaction?' : isMarkReconciled ? 'Mark transactions reconciled?' : isMarkBudgetOutlier ? 'One-off distorting this category?' : isCreateSchedule ? 'Create recurring schedule?' : isDeactivateSchedule ? 'Deactivate schedule?' : 'Rename category?'}
         </p>
         {isTagTransaction && (
           <p className="text-muted text-sm mt-0.5">
@@ -158,7 +175,33 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
             </p>
           </div>
         )}
-        {!isDelete && !isCreate && !isSetBudget && !isCategorizeWithRule && !isSetBudgetCarryover && !isBankResync && !isSetFireModel && !isTagTransaction && !isMarkReconciled && !isMarkBudgetOutlier && (
+        {isCreateSchedule && (
+          <div className="space-y-2 mt-0.5">
+            <p className="text-muted text-sm">
+              <span className="text-white">{data.payee_name}</span>
+              {' · '}<span className="text-white">{data.account_name}</span>
+              {' — seen '}{data.months_present}{' of the last few months, ~'}
+              {formatCurrency(Math.abs(data.avg_amount ?? 0))}{' each time'}
+            </p>
+            {data.sample_transactions && data.sample_transactions.length > 0 && (
+              <div className="bg-background border border-border rounded-xl px-2.5 py-2 space-y-1">
+                {data.sample_transactions.map((tx, i) => (
+                  <div key={i} className="flex items-center justify-between gap-2 text-xs">
+                    <span className="text-muted whitespace-nowrap">{tx.date.slice(5)}</span>
+                    <span className="text-white whitespace-nowrap">{formatCurrency(tx.amount)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {isDeactivateSchedule && (
+          <p className="text-muted text-sm mt-0.5">
+            <span className="text-white">{data.schedule_name}</span>
+            {' — no matching transaction seen in '}{data.days_overdue}{' days (was due '}{data.next_date}{'). It will be turned off, not deleted.'}
+          </p>
+        )}
+        {!isDelete && !isCreate && !isSetBudget && !isCategorizeWithRule && !isSetBudgetCarryover && !isBankResync && !isSetFireModel && !isTagTransaction && !isMarkReconciled && !isMarkBudgetOutlier && !isCreateSchedule && !isDeactivateSchedule && (
           <p className="text-muted text-sm mt-0.5">
             <span className="text-white">{data.category_name}</span>
             {' → '}
@@ -359,13 +402,51 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         </div>
       )}
 
+      {isCreateSchedule && (
+        <div className="space-y-2">
+          <div className="space-y-1">
+            <p className="text-muted text-xs">Schedule name</p>
+            <input
+              type="text"
+              value={scheduleName}
+              onChange={e => setScheduleName(e.target.value)}
+              className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+            />
+          </div>
+          <div className="flex gap-2">
+            <div className="flex-1 space-y-1">
+              <p className="text-muted text-xs">Amount (€)</p>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={scheduleAmount}
+                onChange={e => setScheduleAmount(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              />
+            </div>
+            <div className="w-24 space-y-1">
+              <p className="text-muted text-xs">Day</p>
+              <input
+                type="number"
+                min="1"
+                max="31"
+                value={scheduleDay}
+                onChange={e => setScheduleDay(e.target.value)}
+                className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       <ActionCardButtons
         onConfirm={handleConfirm}
         onCancel={handleCancel}
         loading={loading}
         variant={isDelete ? 'danger' : 'default'}
-        confirmDisabled={(isCreate && !categoryName) || (isSetBudget && !budgetAmount) || (isCategorizeWithRule && (!payee || !selectedCategory)) || (isTagTransaction && tag.trim() === '#')}
-        confirmLabel={isDelete ? 'Delete' : isCreate ? 'Create' : isSetBudget ? 'Set budget' : isCategorizeWithRule ? 'Categorize' : isTagTransaction ? 'Tag' : isMarkReconciled ? 'Mark reconciled' : isMarkBudgetOutlier ? 'Tag as one-off' : isSetBudgetCarryover || isBankResync || isSetFireModel ? 'Confirm' : 'Rename'}
+        confirmDisabled={(isCreate && !categoryName) || (isSetBudget && !budgetAmount) || (isCategorizeWithRule && (!payee || !selectedCategory)) || (isTagTransaction && tag.trim() === '#') || (isCreateSchedule && (!scheduleName.trim() || !scheduleAmount))}
+        confirmLabel={isDelete ? 'Delete' : isCreate ? 'Create' : isSetBudget ? 'Set budget' : isCategorizeWithRule ? 'Categorize' : isTagTransaction ? 'Tag' : isMarkReconciled ? 'Mark reconciled' : isMarkBudgetOutlier ? 'Tag as one-off' : isCreateSchedule ? 'Create schedule' : isDeactivateSchedule ? 'Deactivate' : isSetBudgetCarryover || isBankResync || isSetFireModel ? 'Confirm' : 'Rename'}
       />
     </div>
   )

@@ -17,6 +17,7 @@ import DuplicatesReviewPage from './pages/DuplicatesReviewPage'
 import UncategorizedReviewPage from './pages/UncategorizedReviewPage'
 import UnreconciledReviewPage from './pages/UnreconciledReviewPage'
 import BudgetRealismReviewPage from './pages/BudgetRealismReviewPage'
+import RecurringReviewPage from './pages/RecurringReviewPage'
 import Chat, { type Message, INITIAL_MESSAGES } from './pages/Chat'
 import { getChatHistory } from './lib/api'
 import BottomNav from './components/BottomNav'
@@ -203,6 +204,14 @@ function Layout() {
           element={
             <ProtectedRoute>
               <BudgetRealismReviewPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/recurring-review"
+          element={
+            <ProtectedRoute>
+              <RecurringReviewPage />
             </ProtectedRoute>
           }
         />

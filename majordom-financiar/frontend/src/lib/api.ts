@@ -761,6 +761,13 @@ export async function getBudgetRealismFlags(): Promise<CategoryActionData[]> {
   return res.items
 }
 
+// --- Recurring-transaction lifecycle review (Inbox occupant, Phase C, #41) ---
+
+export async function getRecurringFindings(): Promise<{ newCandidates: CategoryActionData[]; stale: CategoryActionData[] }> {
+  const res = await request<{ new_candidates: CategoryActionData[]; stale: CategoryActionData[] }>('/home/recurring')
+  return { newCandidates: res.new_candidates, stale: res.stale }
+}
+
 export type BudgetPeriod = 'month' | '3m' | '6m' | '12m'
 
 export interface BudgetPeriodMonth {
@@ -1000,7 +1007,7 @@ export interface FireModelValues {
 
 export interface CategoryActionData {
   id: string
-  action: 'rename' | 'delete' | 'create' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'bank_resync' | 'set_fire_model' | 'tag_transaction' | 'mark_reconciled' | 'mark_budget_outlier'
+  action: 'rename' | 'delete' | 'create' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'bank_resync' | 'set_fire_model' | 'tag_transaction' | 'mark_reconciled' | 'mark_budget_outlier' | 'create_schedule' | 'deactivate_schedule'
   category_name: string
   new_name?: string
   group_name?: string
@@ -1046,6 +1053,19 @@ export interface CategoryActionData {
   outlier_date?: string
   outlier_notes?: string
   recurring_amount?: number
+  // create_schedule fields:
+  payee_id?: string
+  payee_name?: string
+  avg_amount?: number
+  is_income?: boolean
+  suggested_day_of_month?: number
+  months_present?: number
+  sample_transactions?: { date: string; amount: number }[]
+  // deactivate_schedule fields:
+  schedule_id?: string
+  schedule_name?: string
+  next_date?: string
+  days_overdue?: number
 }
 
 export async function confirmCategoryAction(
@@ -1057,6 +1077,8 @@ export async function confirmCategoryAction(
     accumulation_return?: number; decumulation_return?: number; desired_monthly_spend?: number;
     note?: string | null;
     tag?: string;
+    day_of_month?: number;
+    schedule_name?: string;
   }
 ): Promise<{ message: string; monthly_needed?: number | null }> {
   return request(`/category-actions/${id}/confirm`, {

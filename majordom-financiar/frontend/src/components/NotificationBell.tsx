@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Bell, ChevronRight, Copy, Tags, Landmark, TrendingUp } from 'lucide-react'
-import { getHomePending, getDuplicateMonths, getUncategorizedGroups, getUnreconciledGroups, getBudgetRealismFlags } from '../lib/api'
+import { Bell, ChevronRight, Copy, Tags, Landmark, TrendingUp, Repeat } from 'lucide-react'
+import { getHomePending, getDuplicateMonths, getUncategorizedGroups, getUnreconciledGroups, getBudgetRealismFlags, getRecurringFindings } from '../lib/api'
 import IconButton from './IconButton'
 import BottomSheet from './BottomSheet'
 
@@ -47,11 +47,17 @@ export default function NotificationBell() {
     queryFn: () => getBudgetRealismFlags(),
     staleTime: 120_000,
   })
+  const { data: recurringFindings } = useQuery({
+    queryKey: ['recurring-findings'],
+    queryFn: () => getRecurringFindings(),
+    staleTime: 120_000,
+  })
   const duplicateCount = duplicateMonths?.reduce((sum, m) => sum + m.count, 0) ?? 0
   const uncategorizedCount = uncategorizedGroups?.length ?? 0
   const unreconciledCount = unreconciledGroups?.length ?? 0
   const budgetRealismCount = budgetRealismFlags?.length ?? 0
-  const totalCount = (pendingItems?.length ?? 0) + (duplicateCount > 0 ? 1 : 0) + (uncategorizedCount > 0 ? 1 : 0) + (unreconciledCount > 0 ? 1 : 0) + (budgetRealismCount > 0 ? 1 : 0)
+  const recurringCount = (recurringFindings?.newCandidates.length ?? 0) + (recurringFindings?.stale.length ?? 0)
+  const totalCount = (pendingItems?.length ?? 0) + (duplicateCount > 0 ? 1 : 0) + (uncategorizedCount > 0 ? 1 : 0) + (unreconciledCount > 0 ? 1 : 0) + (budgetRealismCount > 0 ? 1 : 0) + (recurringCount > 0 ? 1 : 0)
 
   return (
     <>
@@ -114,6 +120,18 @@ export default function NotificationBell() {
                 <TrendingUp size={16} className="text-info flex-shrink-0" />
                 <span className="flex-1 text-white text-sm">
                   {budgetRealismCount} categor{budgetRealismCount !== 1 ? 'ies' : 'y'} may be distorted by a one-off
+                </span>
+                <ChevronRight size={14} className="text-muted flex-shrink-0" />
+              </button>
+            )}
+            {recurringCount > 0 && (
+              <button
+                onClick={() => { setOpen(false); navigate('/recurring-review') }}
+                className="w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-white/5 transition-colors"
+              >
+                <Repeat size={16} className="text-info flex-shrink-0" />
+                <span className="flex-1 text-white text-sm">
+                  {recurringCount} recurring item{recurringCount !== 1 ? 's' : ''} to review
                 </span>
                 <ChevronRight size={14} className="text-muted flex-shrink-0" />
               </button>
