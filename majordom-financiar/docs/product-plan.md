@@ -298,9 +298,10 @@ its own initiative:
 - **#216** (private FIRE helpers crossing layers: `_calc_fire`, `_load_fire_model`,
   `rule_match_prefix`, `_financial_id`) — fix when Phase D's FIRE/Expense Coverage coaching
   (#167/#177) is built. That's the next point those helpers get extended, not before.
-- **#214** (three HTTP layers, divergent 401 handling) and **#217** (12 silently swallowed
-  exceptions) — no phase naturally touches these. Opportunistic `/delegate-by-complexity`
-  candidates for a lull between features; not a blocker for anything above.
+- **#214 — closed 2026-09-02** (three HTTP layers, divergent 401 handling, unified onto one
+  `authFetch()` transport + one `ApiError`; see `docs/decisions.md#214-authfetch-redirecton401-opt-out`).
+- **#217** (12 silently swallowed exceptions) — no phase naturally touches this. Opportunistic
+  `/delegate-by-complexity` candidate for a lull between features; not a blocker for anything above.
 - **#242** (`resolve_transfer_duplicate()` discards payee/category/date from the deleted side) —
   different category: an active data-loss bug in shipped Phase B code, not debt. Fix on its own
   schedule, independent of phase sequencing — sooner if the loss is hit again in real use.
