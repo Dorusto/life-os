@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Send, Plus, Camera, Image, FileText, HelpCircle, Trash2 } from 'lucide-react'
+import { Send, Plus, Camera, Image, FileText, HelpCircle, Trash2, MoreVertical, Settings } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, saveChatHistory, clearChatHistory, proposeSavingsBudget, type SetupAccount, type BalanceAdjustmentData, type CloseAccountData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type CategoryOverviewData, type BudgetOverviewData, type FuelConfirmResponse, type VehicleLogActionData, type VehicleReminderData, type VehicleStatusData, type TransferConversionData } from '../lib/api'
 import CsvImportCard from '../components/CsvImportCard'
@@ -28,6 +28,7 @@ import Chart from '../components/Chart'
 import PageHeader from '../components/PageHeader'
 import IconButton from '../components/IconButton'
 import BottomSheet from '../components/BottomSheet'
+import NotificationBell from '../components/NotificationBell'
 import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from '../lib/api'
 import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 
@@ -101,20 +102,21 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
   const [savedInput, setSavedInput] = useState('')
   const [showMediaMenu, setShowMediaMenu] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
+  const [showMenu, setShowMenu] = useState(false)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   // BottomSheet already locks document.body on open — this only needs to
   // additionally freeze the nested scrollable message list, which has its
   // own overflow-y-auto and would otherwise keep scrolling under the sheet.
   useEffect(() => {
     if (messagesContainerRef.current) {
-      messagesContainerRef.current.style.overflow = showHelp ? 'hidden' : ''
+      messagesContainerRef.current.style.overflow = (showHelp || showMenu) ? 'hidden' : ''
     }
     return () => {
       if (messagesContainerRef.current) {
         messagesContainerRef.current.style.overflow = ''
       }
     }
-  }, [showHelp])
+  }, [showHelp, showMenu])
   // Pre-fill the input from a "prefill" prompt passed via navigation state
   // (e.g. tapping a "Needs attention" item on Home) — never auto-sent, the
   // user reviews/edits before confirming, same as any other write action.
@@ -560,11 +562,33 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
         bordered
         actions={
           <>
-            <IconButton icon={Trash2} onClick={handleClearHistory} label="Clear chat history" variant="danger" />
-            <IconButton icon={HelpCircle} onClick={() => setShowHelp(true)} label="How to use Majordom" />
+            <IconButton icon={MoreVertical} onClick={() => setShowMenu(true)} label="More options" />
+            <NotificationBell />
+            <IconButton icon={Settings} onClick={() => navigate('/settings')} label="Settings" />
           </>
         }
       />
+
+      {/* Overflow menu — Clear history + Help, moved off the header to make room for
+          NotificationBell/Settings parity with the other tabs (#241). */}
+      <BottomSheet open={showMenu} onClose={() => setShowMenu(false)} title="More options">
+        <div className="-mx-6 border-t border-border divide-y divide-border">
+          <button
+            onClick={() => { setShowMenu(false); handleClearHistory() }}
+            className="w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-white/5 transition-colors"
+          >
+            <Trash2 size={16} className="text-danger flex-shrink-0" />
+            <span className="flex-1 text-white text-sm">Clear chat history</span>
+          </button>
+          <button
+            onClick={() => { setShowMenu(false); setShowHelp(true) }}
+            className="w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-white/5 transition-colors"
+          >
+            <HelpCircle size={16} className="text-muted flex-shrink-0" />
+            <span className="flex-1 text-white text-sm">How to use Majordom</span>
+          </button>
+        </div>
+      </BottomSheet>
 
       {/* Help modal */}
       <BottomSheet open={showHelp} onClose={() => setShowHelp(false)} title="How to use Majordom">
