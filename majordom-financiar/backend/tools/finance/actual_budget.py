@@ -809,6 +809,43 @@ async def propose_balance_adjustment(account_name: str, real_balance: float) -> 
     })
 
 
+async def get_reconciliation_suspects(
+    account_name: str, real_balance: float | None = None
+) -> str:
+    """
+    Read-only preflight before any blind balance adjustment.
+
+    Resolves the account and asks the provider for reconciliation suspects:
+    uncleared transactions, most recent transactions, and duplicate-pair
+    candidates — so the user can find the real cause of the gap instead of
+    hiding it with an adjustment.
+    """
+    import json
+
+    client = get_provider()
+    accounts = await client.get_accounts()
+
+    matched = _match_account(accounts, account_name)
+    if not matched:
+        names = ", ".join(a.name for a in accounts)
+        return json.dumps({
+            "type": "error",
+            "message": f"Account '{account_name}' not found. Available: {names}",
+        })
+
+    target_diff = round(real_balance - matched.balance, 2) if real_balance is not None else None
+    suspects = await client.get_reconciliation_suspects(matched.id, target_diff)
+
+    return json.dumps({
+        "type": "reconciliation_suspects",
+        "account_name": matched.name,
+        "current_balance": matched.balance,
+        "real_balance": real_balance,
+        "diff": target_diff,
+        **suspects,
+    })
+
+
 async def propose_transfer_conversion(
     transaction_id: str, target_account_id: str, target_account_name: str = ""
 ) -> str:

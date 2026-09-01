@@ -207,6 +207,44 @@ def _find_duplicate_candidates(
     return pairs
 
 
+def _unreconciled_filter_clauses(account_id: str | None = None, exclude_synced: bool = True) -> list:
+    """
+    Shared SQLAlchemy filter clauses for "uncleared / needs reconciliation"
+    transaction queries. Kept in one place so list_unreconciled_groups(),
+    mark_account_reconciled() and get_reconciliation_suspects() can't drift.
+
+    Includes the same exclusions as the two existing call sites:
+      - cleared == False
+      - non-tombstoned, non-parent, non-starting-balance rows
+      - non-tombstoned accounts
+      - [Balance Adjustment] reconciliation correction rows excluded
+      - "Starting Balance" payee rows excluded
+
+    When exclude_synced=True (default), also rejects manually-cleared rows on
+    accounts with a live bank sync link. Set exclude_synced=False when the
+    caller *specifically* wants uncleared rows on a bank-synced account — in
+    that regime uncleared≈manual placeholder duplicate, not simply unchecked.
+    """
+    from actual.database import Transactions, Accounts, Payees
+
+    clauses = [
+        Transactions.cleared == False,
+        Transactions.tombstone == 0,
+        Transactions.is_parent == 0,
+        Transactions.starting_balance_flag == 0,
+        Accounts.tombstone == 0,
+        (Transactions.notes == None) | (~Transactions.notes.like("%[Balance Adjustment]%")),
+        (Payees.name == None) | (Payees.name != "Starting Balance"),
+    ]
+    if account_id is not None:
+        clauses.append(Transactions.acct == account_id)
+    if exclude_synced:
+        clauses.append(
+            (Accounts.account_sync_source == None) | (Accounts.account_sync_source == "")
+        )
+    return clauses
+
+
 def _tombstoned_category_remap(session, all_cats) -> tuple[dict[str, str], dict[str, str]]:
     """Fuzzy-match tombstoned (deleted) category ids to a living category id.
 
@@ -2687,16 +2725,7 @@ class ActualBudgetClient:
                     actual.session.query(Transactions, Accounts, Payees)
                     .join(Accounts, Transactions.acct == Accounts.id)
                     .outerjoin(Payees, Transactions.payee_id == Payees.id)
-                    .filter(
-                        Transactions.cleared == False,
-                        Transactions.tombstone == 0,
-                        Transactions.is_parent == 0,
-                        Transactions.starting_balance_flag == 0,
-                        Accounts.tombstone == 0,
-                        (Accounts.account_sync_source == None) | (Accounts.account_sync_source == ""),
-                        (Transactions.notes == None) | (~Transactions.notes.like("%[Balance Adjustment]%")),
-                        (Payees.name == None) | (Payees.name != "Starting Balance"),
-                    )
+                    .filter(*_unreconciled_filter_clauses())
                     .order_by(Accounts.name, Transactions.date.desc())
                     .all()
                 )
@@ -2733,17 +2762,7 @@ class ActualBudgetClient:
                     actual.session.query(Transactions)
                     .join(Accounts, Transactions.acct == Accounts.id)
                     .outerjoin(Payees, Transactions.payee_id == Payees.id)
-                    .filter(
-                        Transactions.acct == account_id,
-                        Transactions.cleared == False,
-                        Transactions.tombstone == 0,
-                        Transactions.is_parent == 0,
-                        Transactions.starting_balance_flag == 0,
-                        Accounts.tombstone == 0,
-                        (Accounts.account_sync_source == None) | (Accounts.account_sync_source == ""),
-                        (Transactions.notes == None) | (~Transactions.notes.like("%[Balance Adjustment]%")),
-                        (Payees.name == None) | (Payees.name != "Starting Balance"),
-                    )
+                    .filter(*_unreconciled_filter_clauses(account_id=account_id))
                     .all()
                 )
                 count = 0
@@ -2861,6 +2880,127 @@ class ActualBudgetClient:
                         month_key = pair["synced"]["date"][:7]  # "YYYY-MM"
                         by_month.setdefault(month_key, []).append(pair)
                 return by_month
+        return await self._run(_get)
+
+    async def get_reconciliation_suspects(
+        self, account_id: str, target_diff: float | None = None
+    ) -> dict:
+        """
+        Read-only preflight data for investigating an account balance gap.
+
+        Returns:
+          account_regime    — "bank_synced" if the account has a live sync
+                              link, otherwise "manual"
+          unreconciled      — uncleared transactions on the account
+          recent            — most recent transactions regardless of cleared
+          duplicate_pairs   — manual vs bank-sync duplicate candidates
+
+        When target_diff is not None, every entry (and each duplicate pair,
+        scored by its larger side) gets a bool "likely_match" flag.
+        """
+        def _get():
+            from actual.database import Transactions, Accounts, Payees
+
+            with self._get_cached_read_actual() as actual:
+                account = actual.session.query(Accounts).filter(
+                    Accounts.id == account_id,
+                    Accounts.tombstone == 0,
+                ).first()
+                if not account:
+                    raise ValueError(f"Account not found: {account_id}")
+
+                # 1. Uncleared transactions — exclude_synced=False on purpose:
+                # on a bank-synced account these are exactly the manual-placeholder
+                # duplicates we want to surface, not a signal to hide.
+                unreconciled_rows = (
+                    actual.session.query(Transactions, Accounts, Payees)
+                    .join(Accounts, Transactions.acct == Accounts.id)
+                    .outerjoin(Payees, Transactions.payee_id == Payees.id)
+                    .filter(*_unreconciled_filter_clauses(
+                        account_id=account_id,
+                        exclude_synced=False,
+                    ))
+                    .order_by(Transactions.date.desc())
+                    .limit(15)
+                    .all()
+                )
+
+                unreconciled = []
+                unreconciled_ids = set()
+                for tx, _acct, payee in unreconciled_rows:
+                    entry = {
+                        "id": str(tx.id),
+                        "date": tx.get_date().isoformat(),
+                        "amount": round(abs(float(tx.amount or 0)) / 100, 2),
+                        "payee": payee.name if payee else "",
+                        "notes": tx.notes or "",
+                    }
+                    unreconciled.append(entry)
+                    unreconciled_ids.add(str(tx.id))
+
+                # 2. Recent transactions — any cleared state, deduped against
+                # the unreconciled list so a transaction is only shown once.
+                recent_rows = (
+                    actual.session.query(Transactions, Payees)
+                    .outerjoin(Payees, Transactions.payee_id == Payees.id)
+                    .filter(
+                        Transactions.acct == account_id,
+                        Transactions.tombstone == 0,
+                        Transactions.is_parent == 0,
+                    )
+                    .order_by(Transactions.date.desc())
+                    .limit(10)
+                    .all()
+                )
+
+                recent = []
+                for tx, payee in recent_rows:
+                    if str(tx.id) in unreconciled_ids:
+                        continue
+                    recent.append({
+                        "id": str(tx.id),
+                        "date": tx.get_date().isoformat(),
+                        "amount": round(abs(float(tx.amount or 0)) / 100, 2),
+                        "payee": payee.name if payee else "",
+                        "cleared": bool(tx.cleared),
+                    })
+
+                # 3. Duplicate-pair candidates — existing account-scoped finder,
+                # not a re-implementation.
+                duplicate_pairs = _find_duplicate_candidates(actual.session, account)[:10]
+
+                if target_diff is not None:
+                    target_abs = abs(target_diff)
+
+                    def _flag_entry(entry):
+                        entry["likely_match"] = (
+                            abs(entry["amount"] - target_abs) < 0.01
+                        )
+                        return entry
+
+                    unreconciled = [_flag_entry(e) for e in unreconciled]
+                    recent = [_flag_entry(e) for e in recent]
+
+                    for pair in duplicate_pairs:
+                        max_amount = max(
+                            pair["manual"]["amount"],
+                            pair["synced"]["amount"],
+                        )
+                        pair["likely_match"] = (
+                            abs(max_amount - target_abs) < 0.01
+                        )
+
+                return {
+                    "account_regime": (
+                        "bank_synced"
+                        if getattr(account, "account_sync_source", None)
+                        else "manual"
+                    ),
+                    "unreconciled": unreconciled,
+                    "recent": recent,
+                    "duplicate_pairs": duplicate_pairs,
+                }
+
         return await self._run(_get)
 
     async def merge_duplicate_transaction(

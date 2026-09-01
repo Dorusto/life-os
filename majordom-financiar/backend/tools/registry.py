@@ -632,6 +632,31 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__get_reconciliation_suspects",
+            "description": (
+                "List reconciliation suspects (uncleared transactions, recent transactions, "
+                "duplicate-pair candidates) for one account BEFORE proposing a blind balance "
+                "adjustment. Always call this first when investigating a balance discrepancy."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "account_name": {
+                        "type": "string",
+                        "description": "The name of the account to investigate, e.g. 'ING' or 'Revolut'.",
+                    },
+                    "real_balance": {
+                        "type": "number",
+                        "description": "The correct real-world balance in EUR, if known; omit if just checking for issues.",
+                    },
+                },
+                "required": ["account_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "finance__propose_transfer_conversion",
             "description": (
                 "Propose converting an existing transaction into a transfer to another account, "
@@ -1204,6 +1229,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "finance__propose_balance_adjustment":
         from backend.tools.finance.actual_budget import propose_balance_adjustment
         return await propose_balance_adjustment(**arguments)
+
+    if name == "finance__get_reconciliation_suspects":
+        from backend.tools.finance.actual_budget import get_reconciliation_suspects
+        return await get_reconciliation_suspects(**arguments)
 
     if name == "finance__propose_transfer_conversion":
         from backend.tools.finance.actual_budget import propose_transfer_conversion

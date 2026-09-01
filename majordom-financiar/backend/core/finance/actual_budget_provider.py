@@ -194,6 +194,13 @@ class ActualBudgetProvider:
     async def list_unreconciled_groups(self) -> list[dict]:
         return await self._client().list_unreconciled_groups()
 
+    async def get_reconciliation_suspects(
+        self, account_id: str, target_diff: float | None = None
+    ) -> dict:
+        return await self._client().get_reconciliation_suspects(
+            account_id, target_diff
+        )
+
     async def mark_account_reconciled(self, account_id: str) -> int:
         return await self._client().mark_account_reconciled(account_id)
 
