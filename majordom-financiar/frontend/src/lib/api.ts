@@ -1047,7 +1047,7 @@ export interface CategoryActionData {
   tag?: string
   date?: string
   merchant?: string
-  amount?: number
+  // amount: reuses the `amount?: number` field already declared above (set_category_goal fields)
   // mark_reconciled fields:
   account_id?: string
   // mark_budget_outlier fields:
