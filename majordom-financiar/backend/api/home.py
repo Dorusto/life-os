@@ -332,6 +332,7 @@ async def get_recurring_actions(current_user: str = Depends(get_current_user)):
             "avg_amount": c["avg_amount"],
             "is_income": c["is_income"],
             "suggested_day_of_month": c["suggested_day_of_month"],
+            "sample_transactions": c["sample_transactions"],
         })
         new_candidates.append({
             "type": "category_action",
@@ -344,6 +345,8 @@ async def get_recurring_actions(current_user: str = Depends(get_current_user)):
             "avg_amount": c["avg_amount"],
             "is_income": c["is_income"],
             "suggested_day_of_month": c["suggested_day_of_month"],
+            "months_present": c["months_present"],
+            "sample_transactions": c["sample_transactions"],
         })
 
     stale_items = []
