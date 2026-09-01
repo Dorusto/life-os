@@ -27,9 +27,19 @@ _actual_lock = asyncio.Lock()
 # ActualBudgetClient._get_cached_read_actual() for why and how this is safe.
 # Module-level like _actual_lock above: there is one Actual Budget instance
 # for the whole app, so one shared cache slot is correct, not per-client-instance.
+#
+# TTL raised 4.0 -> 20.0 (2026-09-01, live-measured against #227's still-open
+# gap): every AB call is serialized behind the single _actual_lock, and a Home
+# page load now fires ~10 read-only calls. At 4s, the cache kept expiring
+# mid-burst — by the time a queued call's turn came up, the prior call (some
+# costing 2-3s of real compute per #227) had already outlasted the window, so
+# it paid its own fresh login anyway. Measured live: a full Home burst spans
+# ~20-25s serialized. 20s covers one whole burst with one shared connection.
+# Worst case with a stale cache is a read up to 20s old on the Home screen —
+# never a write path (those always use _get_actual() directly, uncached).
 _cached_read_actual = None
 _cached_read_expires_at: float = 0.0
-_READ_CACHE_TTL_SECONDS = 4.0
+_READ_CACHE_TTL_SECONDS = 20.0
 
 
 class _CachedReadHandle:
@@ -1068,7 +1078,7 @@ class ActualBudgetClient:
             import calendar
             from datetime import timedelta
             from actual.queries import get_transactions, get_categories
-            with self._get_actual() as actual:
+            with self._get_cached_read_actual() as actual:
                 today = date.today()
                 # Target = the most recently fully-closed calendar month.
                 target = today.replace(day=1) - timedelta(days=1)
@@ -2720,7 +2730,7 @@ class ActualBudgetClient:
         """
         def _fetch():
             from actual.database import Transactions, Accounts, Payees
-            with self._get_actual() as actual:
+            with self._get_cached_read_actual() as actual:
                 rows = (
                     actual.session.query(Transactions, Accounts, Payees)
                     .join(Accounts, Transactions.acct == Accounts.id)
