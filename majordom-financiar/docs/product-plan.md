@@ -216,12 +216,17 @@ Ordered — this is a sequence, not a menu:
 below is a real-world usage outcome, not something a commit can assert — revisit it after Doru has
 actually gone through a normal month using these flows, not immediately after shipping them.
 
-**Explicitly not in this phase — Phase C2 instead:** #113/#124 (end-to-end goal budgeting via
-chat, the Scandinavia-trip example) and the rest of the coaching-shaped `intelligence-cluster`
-(#111, #42, #112, #167/#177). All real, already scoped, already wanted — just not first. Pick
-these up once administration is at zero, not interleaved with it. Doru's own sequencing: this
-phase → Phase C2 (coaching/intelligence) → UI/chart polish (the `deferred-opportunistic` backlog,
-#231-240) → revisit Phase D (portfolio) placement then.
+**Explicitly not in this phase — Phase C2 instead:** the rest of the coaching-shaped
+`intelligence-cluster` (#111, #42, #112, #167/#177). All real, already scoped, already wanted —
+just not first. Pick these up once administration is at zero, not interleaved with it. Doru's own
+sequencing: this phase → Phase C2 (coaching/intelligence) → UI/chart polish (the
+`deferred-opportunistic` backlog, #231-240) → revisit Phase D (portfolio) placement then.
+
+**#113 shipped 2026-09-02, ahead of this sequencing** — Doru asked for it directly mid-session,
+not as part of a planned C2 pickup. Redesigned significantly from its original text along the way
+(tag-based tracking against existing categories, not new per-goal categories — see
+`docs/decisions.md#113-tag-based-goal-redesign`). #124 stays open (only its goal-reached-cleanup
+gotcha resolved, not the Budget Automations UI item).
 
 Extracting the coach-module pattern (#224) still matters, but now happens naturally once C2's
 items exist — no need to force it out of three administration tasks that don't actually share a
