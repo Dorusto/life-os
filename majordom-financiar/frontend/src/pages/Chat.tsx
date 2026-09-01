@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, FormEvent } from 'react'
+import { useState, useRef, useEffect, useCallback, FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Send, Plus, Camera, Image, FileText, HelpCircle, Trash2, MoreVertical, Settings } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
@@ -134,6 +134,439 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const mediaMenuRef = useRef<HTMLDivElement>(null)
+
+  // Shared confirm/cancel handlers used by all “simple” card branches.
+  const replaceWithStatus = useCallback((idx: number, message: string) => {
+    setMessages(prev => prev.map((m, i) => i === idx ? { role: 'status' as const, content: message } : m))
+  }, [setMessages])
+
+  const cancelAt = useCallback((idx: number, message: string = 'Cancelled.') => {
+    setMessages(prev => prev.map((m, i) => i === idx ? { role: 'status' as const, content: message } : m))
+  }, [setMessages])
+
+  // Plain text bubble used as fallback when no card dispatch matches.
+  const renderDefaultMessage = (msg: Message): React.ReactNode => {
+    return (
+      <div className={`flex flex-col max-w-[80%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+        <div
+          className={`
+            px-4 py-3 text-sm leading-relaxed rounded-2xl
+            ${msg.role === 'user'
+              ? 'bg-accent text-white rounded-br-sm'
+              : 'bg-surface border border-border text-white rounded-bl-sm'
+            }
+          `}
+        >
+          {msg.role === 'assistant' ? (
+            <div className="[&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_ul]:my-1 [&_li]:my-0 [&_a]:text-accent [&_a]:underline">
+              <ReactMarkdown>{msg.content}</ReactMarkdown>
+            </div>
+          ) : (
+            msg.content
+          )}
+        </div>
+        {msg.ts && (
+          <span className="text-[10px] text-muted mt-1 px-1">
+            {new Date(msg.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        )}
+      </div>
+    )
+  }
+
+  // role → renderer lookup table. SIMPLE branches delegate to replaceWithStatus/cancelAt.
+  // BESPOKE branches reproduce their exact existing behaviour.
+  const CARD_RENDER: Record<string, (msg: Message, idx: number) => React.ReactNode | null> = {
+    status: (msg) => (
+      <p className="text-xs text-muted italic px-1">{msg.content}</p>
+    ),
+    budget_rebalance: (msg, idx) => {
+      if (!msg.budgetRebalance) return null
+      return (
+        <BudgetRebalanceCard
+          data={msg.budgetRebalance}
+          onConfirmed={(message) => replaceWithStatus(idx, message)}
+          onCancelled={() => cancelAt(idx)}
+        />
+      )
+    },
+    proposal: (msg, idx) => {
+      if (!msg.proposal) return null
+      return (
+        <ProposalCard
+          proposal={msg.proposal}
+          onConfirmed={(message) => replaceWithStatus(idx, message)}
+          onCancelled={() => cancelAt(idx)}
+        />
+      )
+    },
+    clarification: (msg, idx) => {
+      if (!msg.clarification) return null
+      return (
+        <ClarificationCard
+          question={msg.clarification.question}
+          options={msg.clarification.options}
+          onSelected={(option) => {
+            // Replace the card with the chosen option as plain text
+            setMessages(prev =>
+              prev.map((m, i) =>
+                i === idx ? { role: 'assistant' as const, content: option } : m
+              )
+            )
+            handleSendText(option)
+          }}
+        />
+      )
+    },
+    setup_balances: (msg, idx) => {
+      return (
+        <SetupBalancesCard
+          accounts={msg.setupAccounts || []}
+          onComplete={(message) => {
+            setMessages(prev => [
+              ...prev.map((m, i) =>
+                i === idx ? { role: 'status' as const, content: message } : m
+              ),
+              {
+                role: 'assistant' as const,
+                content: "You're all set! To keep your budget accurate, add transactions as you go — upload your bank's CSV or just tell me about expenses: *\"spent €45 at Lidl\"* and I'll record them. Try to do this at least once a week.",
+              },
+            ])
+          }}
+        />
+      )
+    },
+    account_transfer: (msg, idx) => {
+      if (!msg.accountTransfer) return null
+      return (
+        <AccountTransferCard
+          data={msg.accountTransfer}
+          onConfirmed={(message) => replaceWithStatus(idx, message)}
+          onCancelled={() => cancelAt(idx)}
+        />
+      )
+    },
+    balance_adjustment: (msg, idx) => {
+      if (!msg.balanceAdjustment) return null
+      return (
+        <BalanceAdjustmentCard
+          data={msg.balanceAdjustment}
+          onConfirmed={(message) => replaceWithStatus(idx, message)}
+          onCancelled={() => cancelAt(idx)}
+        />
+      )
+    },
+    transfer_conversion: (msg, idx) => {
+      if (!msg.transferConversion) return null
+      return (
+        <TransferConversionCard
+          data={msg.transferConversion}
+          onConfirmed={(message) => replaceWithStatus(idx, message)}
+          onCancelled={() => cancelAt(idx)}
+        />
+      )
+    },
+    close_account: (msg, idx) => {
+      if (!msg.closeAccount) return null
+      return (
+        <CloseAccountCard
+          data={msg.closeAccount}
+          onConfirmed={(message) => replaceWithStatus(idx, message)}
+          onCancelled={() => cancelAt(idx)}
+        />
+      )
+    },
+    budget_overview: (msg, idx) => {
+      if (!msg.budgetOverview) return null
+      return (
+        <BudgetOverviewCard
+          data={msg.budgetOverview}
+          onConfirmed={(message) => replaceWithStatus(idx, message)}
+          onCancelled={() => cancelAt(idx, 'Closed.')}
+        />
+      )
+    },
+    category_overview: (msg, idx) => {
+      if (!msg.categoryOverview) return null
+      return (
+        <CategoryOverviewCard
+          data={msg.categoryOverview}
+          onConfirmed={(message) => replaceWithStatus(idx, message)}
+          onCancelled={() => cancelAt(idx, 'Closed.')}
+        />
+      )
+    },
+    category_action: (msg, idx) => {
+      if (!msg.categoryAction) return null
+      // Budget-copy is the simple variant; all other actions use the bespoke handler
+      // that also handles chained offers (#76).
+      if (msg.categoryAction.action === 'budget_copy') {
+        return (
+          <BudgetCopyCard
+            data={msg.categoryAction}
+            onConfirmed={(message) => replaceWithStatus(idx, message)}
+            onCancelled={() => cancelAt(idx)}
+          />
+        )
+      }
+      return (
+        <CategoryActionCard
+          data={msg.categoryAction}
+          onConfirmed={(message) => {
+            // Chained cards persist themselves directly – see architecture.md rule 17.
+            if (msg.chainedOfferText) {
+              saveChatHistory([
+                { role: 'assistant', content: msg.chainedOfferText },
+                { role: 'status', content: message },
+              ]).catch(() => {})
+            }
+            setMessages(prev =>
+              prev.map((m, i) =>
+                i === idx ? { role: 'status' as const, content: message, _synced: !!msg.chainedOfferText } : m
+              )
+            )
+          }}
+          onCancelled={() => {
+            if (msg.chainedOfferText) {
+              saveChatHistory([
+                { role: 'assistant', content: msg.chainedOfferText },
+                { role: 'status', content: 'Cancelled.' },
+              ]).catch(() => {})
+            }
+            setMessages(prev =>
+              prev.map((m, i) =>
+                i === idx ? { role: 'status' as const, content: 'Cancelled.', _synced: !!msg.chainedOfferText } : m
+              )
+            )
+          }}
+        />
+      )
+    },
+    goal_proposal: (msg, idx) => {
+      if (!msg.goalProposal) return null
+      return (
+        <GoalProposalCard
+          data={msg.goalProposal}
+          onConfirmed={async (message, monthlyNeeded) => {
+            replaceWithStatus(idx, message)
+            if (monthlyNeeded && monthlyNeeded > 0) {
+              const offerText = `To reach this goal, you'd need to put aside ${formatCurrency(monthlyNeeded, { decimals: 0 })}/mo. Want to add that to your Savings budget?`
+              try {
+                const proposal = await proposeSavingsBudget(monthlyNeeded)
+                if ('type' in proposal && proposal.type === 'error') {
+                  setMessages(prev => [...prev, { role: 'status' as const, content: proposal.message }])
+                } else {
+                  setMessages(prev => [
+                    ...prev,
+                    { role: 'assistant' as const, content: offerText },
+                    {
+                      role: 'category_action' as const,
+                      content: '',
+                      categoryAction: proposal as CategoryActionData,
+                      chainedOfferText: offerText,
+                    },
+                  ])
+                }
+              } catch (err) {
+                setMessages(prev => [...prev, { role: 'status' as const, content: err instanceof Error ? err.message : 'Failed to prepare budget update.' }])
+              }
+            }
+          }}
+          onCancelled={() => cancelAt(idx)}
+        />
+      )
+    },
+    vehicle_log_action: (msg, idx) => {
+      if (!msg.vehicleLogAction) return null
+      return (
+        <VehicleLogActionCard
+          data={msg.vehicleLogAction}
+          onConfirmed={(message) => replaceWithStatus(idx, message)}
+          onCancelled={() => cancelAt(idx)}
+        />
+      )
+    },
+    vehicle_reminder: (msg, idx) => {
+      if (!msg.vehicleReminder) return null
+      return (
+        <VehicleReminderCard
+          data={msg.vehicleReminder}
+          onConfirmed={(message) => replaceWithStatus(idx, message)}
+          onCancelled={() => cancelAt(idx)}
+        />
+      )
+    },
+    vehicle_status: (msg, idx) => {
+      if (!msg.vehicleStatus) return null
+      return (
+        <VehicleStatusCard
+          data={msg.vehicleStatus}
+          onConfirmed={(message) => replaceWithStatus(idx, message)}
+          onCancelled={() => cancelAt(idx)}
+        />
+      )
+    },
+    chart: (msg) => {
+      if (!msg.chart) return null
+      return <Chart {...msg.chart} />
+    },
+    fuelio_import: (msg) => {
+      if (!msg.fuelioImport) return null
+      return <FuelioImportCard data={msg.fuelioImport} />
+    },
+    csv_import: (msg, idx) => {
+      if (!msg.csvImport) return null
+      return (
+        <CsvImportCard
+          data={msg.csvImport}
+          onConfirmed={(message, result) => {
+            // Replace the csv_import card with a status message
+            const newMessages: Message[] = [
+              { role: 'status' as const, content: message },
+            ]
+            // Append income_source cards for each unknown income row
+            if (result?.unknown_income_rows?.length) {
+              for (const row of result.unknown_income_rows) {
+                newMessages.push({
+                  role: 'income_source' as const,
+                  content: '',
+                  incomeRow: row,
+                })
+              }
+            }
+            setMessages(prev => {
+              const updated = prev.map((m, i) =>
+                i === idx ? newMessages[0] : m
+              )
+              // Append remaining new messages after the replaced one
+              for (let j = 1; j < newMessages.length; j++) {
+                updated.push(newMessages[j])
+              }
+              return updated
+            })
+          }}
+          onCancelled={() => cancelAt(idx, 'Import cancelled.')}
+        />
+      )
+    },
+    income_source: (msg, idx) => {
+      if (!msg.incomeRow) return null
+      return (
+        <IncomeSourceCard
+          payee={msg.incomeRow.payee}
+          amount={msg.incomeRow.amount}
+          date={msg.incomeRow.date}
+          onConfirmed={(message) => replaceWithStatus(idx, message)}
+          // Note: IncomeSourceCard deliberately has no onCancelled prop.
+        />
+      )
+    },
+    receipt: (msg, idx) => {
+      if (!msg.receipt) return null
+      // Show fuel stats after confirmation
+      if (msg.receipt.status === 'reviewing' && msg.receipt.fuelStats) {
+        return <PendingFuelStatsDisplay msg={msg.receipt} />
+      }
+      if (msg.receipt.status === 'reviewing' && msg.receipt.draft?.receipt_type === 'fuel' && msg.receipt.activeTab !== 'grocery') {
+        return (
+          <FuelReceiptCard
+            draft={msg.receipt.draft}
+            imageUrl={msg.receipt.imageUrl}
+            onConfirmed={(stats) => {
+              setMessages(prev =>
+                prev.map((m, i) =>
+                  i === idx
+                    ? {
+                        ...m,
+                        receipt: {
+                          ...m.receipt!,
+                          fuelStats: stats,
+                        },
+                      }
+                    : m
+                )
+              )
+            }}
+            onCancelled={() => cancelAt(idx, 'Receipt cancelled.')}
+            onSwitchToGrocery={() => {
+              setMessages(prev =>
+                prev.map((m, i) =>
+                  i === idx
+                    ? { ...m, receipt: { ...m.receipt!, activeTab: 'grocery' } }
+                    : m
+                )
+              )
+            }}
+          />
+        )
+      }
+      return (
+        <ReceiptCard
+          imageUrl={msg.receipt.imageUrl}
+          status={msg.receipt.status}
+          draft={msg.receipt.draft}
+          error={msg.receipt.error}
+          onSwitchToFuel={() => {
+            setMessages(prev =>
+              prev.map((m, i) =>
+                i === idx
+                  ? { ...m, receipt: { ...m.receipt!, activeTab: 'fuel' } }
+                  : m
+              )
+            )
+          }}
+          onConfirmed={(message) => replaceWithStatus(idx, message)}
+          onCancelled={() => cancelAt(idx, 'Receipt cancelled.')}
+        />
+      )
+    },
+    fuel_log: (msg, idx) => {
+      if (!msg.fuelLog) return null
+      if (msg.fuelLog.fuelStats) {
+        return <PendingFuelStatsDisplay draft={msg.fuelLog.draft} stats={msg.fuelLog.fuelStats} />
+      }
+      return (
+        <FuelReceiptCard
+          draft={msg.fuelLog.draft}
+          confirmEndpoint={`/vehicle/proposals/${msg.fuelLog.draft.receipt_id}/confirm`}
+          onConfirmed={(stats) => {
+            setMessages(prev =>
+              prev.map((m, i) =>
+                i === idx
+                  ? {
+                      ...m,
+                      fuelLog: {
+                        ...m.fuelLog!,
+                        fuelStats: stats,
+                      },
+                    }
+                  : m
+              )
+            )
+          }}
+          onCancelled={() => cancelAt(idx)}
+          onSwitchToGrocery={() => {
+            setMessages(prev =>
+              prev.map((m, i) =>
+                i === idx
+                  ? { role: 'receipt' as const, content: '', receipt: { status: 'reviewing' as const, draft: m.fuelLog!.draft, activeTab: 'grocery' as const } }
+                  : m
+              )
+            )
+          }}
+        />
+      )
+    },
+  }
+
+  const renderMessage = (msg: Message, idx: number): React.ReactNode => {
+    const render = CARD_RENDER[msg.role]
+    if (render) {
+      const output = render(msg, idx)
+      if (output !== null && output !== undefined) return output
+    }
+    return renderDefaultMessage(msg)
+  }
 
   // Scroll to bottom whenever messages change
   useEffect(() => {
@@ -667,542 +1100,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
             key={idx}
             className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
-            {msg.role === 'status' ? (
-              <p className="text-xs text-muted italic px-1">{msg.content}</p>
-            ) : msg.role === 'budget_rebalance' && msg.budgetRebalance ? (
-              <BudgetRebalanceCard
-                data={msg.budgetRebalance}
-                onConfirmed={(message) => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx
-                        ? { role: 'status' as const, content: message }
-                        : m
-                    )
-                  )
-                }}
-                onCancelled={() => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx
-                        ? { role: 'status' as const, content: 'Cancelled.' }
-                        : m
-                    )
-                  )
-                }}
-              />
-            ) : msg.role === 'proposal' && msg.proposal ? (
-              <ProposalCard
-                proposal={msg.proposal}
-                onConfirmed={(message) => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx
-                        ? { role: 'status' as const, content: message }
-                        : m
-                    )
-                  )
-                }}
-                onCancelled={() => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx
-                        ? { role: 'status' as const, content: 'Cancelled.' }
-                        : m
-                    )
-                  )
-                }}
-              />
-            ) : msg.role === 'clarification' && msg.clarification ? (
-              <ClarificationCard
-                question={msg.clarification.question}
-                options={msg.clarification.options}
-                onSelected={(option) => {
-                  // Replace the card with the chosen option as plain text
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'assistant' as const, content: option } : m
-                    )
-                  )
-                  handleSendText(option)
-                }}
-              />
-            ) : msg.role === 'setup_balances' ? (
-              <SetupBalancesCard
-                accounts={msg.setupAccounts || []}
-                onComplete={(message) => {
-                  setMessages(prev => [
-                    ...prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: message } : m
-                    ),
-                    {
-                      role: 'assistant' as const,
-                      content: "You're all set! To keep your budget accurate, add transactions as you go — upload your bank's CSV or just tell me about expenses: *\"spent €45 at Lidl\"* and I'll record them. Try to do this at least once a week.",
-                    },
-                  ])
-                }}
-              />
-            ) : msg.role === 'account_transfer' && msg.accountTransfer ? (
-              <AccountTransferCard
-                data={msg.accountTransfer}
-                onConfirmed={(message) => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx
-                        ? { role: 'status' as const, content: message }
-                        : m
-                    )
-                  )
-                }}
-                onCancelled={() => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx
-                        ? { role: 'status' as const, content: 'Cancelled.' }
-                        : m
-                    )
-                  )
-                }}
-              />
-            ) : msg.role === 'balance_adjustment' && msg.balanceAdjustment ? (
-              <BalanceAdjustmentCard
-                data={msg.balanceAdjustment}
-                onConfirmed={(message) => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx
-                        ? { role: 'status' as const, content: message }
-                        : m
-                    )
-                  )
-                }}
-                onCancelled={() => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx
-                        ? { role: 'status' as const, content: 'Cancelled.' }
-                        : m
-                    )
-                  )
-                }}
-              />
-            ) : msg.role === 'transfer_conversion' && msg.transferConversion ? (
-              <TransferConversionCard
-                data={msg.transferConversion}
-                onConfirmed={(message) => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx
-                        ? { role: 'status' as const, content: message }
-                        : m
-                    )
-                  )
-                }}
-                onCancelled={() => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx
-                        ? { role: 'status' as const, content: 'Cancelled.' }
-                        : m
-                    )
-                  )
-                }}
-              />
-            ) : msg.role === 'close_account' && msg.closeAccount ? (
-              <CloseAccountCard
-                data={msg.closeAccount}
-                onConfirmed={(message) => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx
-                        ? { role: 'status' as const, content: message }
-                        : m
-                    )
-                  )
-                }}
-                onCancelled={() => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx
-                        ? { role: 'status' as const, content: 'Cancelled.' }
-                        : m
-                    )
-                  )
-                }}
-              />
-            ) : msg.role === 'budget_overview' && msg.budgetOverview ? (
-              <BudgetOverviewCard
-                data={msg.budgetOverview}
-                onConfirmed={(message) => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: message } : m
-                    )
-                  )
-                }}
-                onCancelled={() => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: 'Closed.' } : m
-                    )
-                  )
-                }}
-              />
-            ) : msg.role === 'category_overview' && msg.categoryOverview ? (
-              <CategoryOverviewCard
-                data={msg.categoryOverview}
-                onConfirmed={(message) => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: message } : m
-                    )
-                  )
-                }}
-                onCancelled={() => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: 'Closed.' } : m
-                    )
-                  )
-                }}
-              />
-            ) : msg.role === 'category_action' && msg.categoryAction?.action === 'budget_copy' ? (
-              <BudgetCopyCard
-                data={msg.categoryAction}
-                onConfirmed={(message) => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: message } : m
-                    )
-                  )
-                }}
-                onCancelled={() => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: 'Cancelled.' } : m
-                    )
-                  )
-                }}
-              />
-            ) : msg.role === 'category_action' && msg.categoryAction ? (
-              <CategoryActionCard
-                data={msg.categoryAction}
-                onConfirmed={(message) => {
-                  // Chained cards (e.g. the savings-budget top-up offered after a goal is
-                  // set, #76) persist themselves — re-anchoring to the original user message
-                  // via the generic effect below would duplicate it in server history.
-                  if (msg.chainedOfferText) {
-                    saveChatHistory([
-                      { role: 'assistant', content: msg.chainedOfferText },
-                      { role: 'status', content: message },
-                    ]).catch(() => {})
-                  }
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: message, _synced: !!msg.chainedOfferText } : m
-                    )
-                  )
-                }}
-                onCancelled={() => {
-                  if (msg.chainedOfferText) {
-                    saveChatHistory([
-                      { role: 'assistant', content: msg.chainedOfferText },
-                      { role: 'status', content: 'Cancelled.' },
-                    ]).catch(() => {})
-                  }
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: 'Cancelled.', _synced: !!msg.chainedOfferText } : m
-                    )
-                  )
-                }}
-              />
-            ) : msg.role === 'goal_proposal' && msg.goalProposal ? (
-              <GoalProposalCard
-                data={msg.goalProposal}
-                onConfirmed={async (message, monthlyNeeded) => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: message } : m
-                    )
-                  )
-                  if (monthlyNeeded && monthlyNeeded > 0) {
-                    const offerText = `To reach this goal, you'd need to put aside ${formatCurrency(monthlyNeeded, { decimals: 0 })}/mo. Want to add that to your Savings budget?`
-                    try {
-                      const proposal = await proposeSavingsBudget(monthlyNeeded)
-                      if ('type' in proposal && proposal.type === 'error') {
-                        setMessages(prev => [...prev, { role: 'status' as const, content: proposal.message }])
-                      } else {
-                        setMessages(prev => [
-                          ...prev,
-                          { role: 'assistant' as const, content: offerText },
-                          {
-                            role: 'category_action' as const,
-                            content: '',
-                            categoryAction: proposal as CategoryActionData,
-                            chainedOfferText: offerText,
-                          },
-                        ])
-                      }
-                    } catch (err) {
-                      setMessages(prev => [...prev, { role: 'status' as const, content: err instanceof Error ? err.message : 'Failed to prepare budget update.' }])
-                    }
-                  }
-                }}
-                onCancelled={() => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: 'Cancelled.' } : m
-                    )
-                  )
-                }}
-              />
-            ) : msg.role === 'vehicle_log_action' && msg.vehicleLogAction ? (
-              <VehicleLogActionCard
-                data={msg.vehicleLogAction}
-                onConfirmed={(message) => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: message } : m
-                    )
-                  )
-                }}
-                onCancelled={() => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: 'Cancelled.' } : m
-                    )
-                  )
-                }}
-              />
-            ) : msg.role === 'vehicle_reminder' && msg.vehicleReminder ? (
-              <VehicleReminderCard
-                data={msg.vehicleReminder}
-                onConfirmed={(message) => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: message } : m
-                    )
-                  )
-                }}
-                onCancelled={() => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: 'Cancelled.' } : m
-                    )
-                  )
-                }}
-              />
-            ) : msg.role === 'vehicle_status' && msg.vehicleStatus ? (
-              <VehicleStatusCard
-                data={msg.vehicleStatus}
-                onConfirmed={(message) => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: message } : m
-                    )
-                  )
-                }}
-                onCancelled={() => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: 'Cancelled.' } : m
-                    )
-                  )
-                }}
-              />
-            ) : msg.role === 'chart' && msg.chart ? (
-              <Chart {...msg.chart} />
-            ) : msg.role === 'fuelio_import' && msg.fuelioImport ? (
-
-              <FuelioImportCard data={msg.fuelioImport} />
-            ) : msg.role === 'csv_import' && msg.csvImport ? (
-              <CsvImportCard
-                data={msg.csvImport}
-                onConfirmed={(message, result) => {
-                  // Replace the csv_import card with a status message
-                  const newMessages: Message[] = [
-                    { role: 'status' as const, content: message },
-                  ]
-                  // Append income_source cards for each unknown income row
-                  if (result?.unknown_income_rows?.length) {
-                    for (const row of result.unknown_income_rows) {
-                      newMessages.push({
-                        role: 'income_source' as const,
-                        content: '',
-                        incomeRow: row,
-                      })
-                    }
-                  }
-                  setMessages(prev => {
-                    const updated = prev.map((m, i) =>
-                      i === idx ? newMessages[0] : m
-                    )
-                    // Append remaining new messages after the replaced one
-                    for (let j = 1; j < newMessages.length; j++) {
-                      updated.push(newMessages[j])
-                    }
-                    return updated
-                  })
-                }}
-                onCancelled={() => {
-                  setMessages(prev =>
-                    prev.map((m, i) => i === idx ? { role: 'status' as const, content: 'Import cancelled.' } : m)
-                  )
-                }}
-              />
-            ) : msg.role === 'income_source' && msg.incomeRow ? (
-              <IncomeSourceCard
-                payee={msg.incomeRow.payee}
-                amount={msg.incomeRow.amount}
-                date={msg.incomeRow.date}
-                onConfirmed={(message) => {
-                  setMessages(prev =>
-                    prev.map((m, i) =>
-                      i === idx ? { role: 'status' as const, content: message } : m
-                    )
-                  )
-                }}
-              />
-            ) : msg.role === 'receipt' && msg.receipt ? (
-              // Show fuel stats after confirmation
-              msg.receipt.status === 'reviewing' && msg.receipt.fuelStats ? (
-                <PendingFuelStatsDisplay msg={msg.receipt} />
-              ) : msg.receipt.status === 'reviewing' && msg.receipt.draft?.receipt_type === 'fuel' && msg.receipt.activeTab !== 'grocery' ? (
-                <FuelReceiptCard
-                  draft={msg.receipt.draft}
-                  imageUrl={msg.receipt.imageUrl}
-                  onConfirmed={(stats) => {
-                    setMessages(prev =>
-                      prev.map((m, i) =>
-                        i === idx
-                          ? {
-                              ...m,
-                              receipt: {
-                                ...m.receipt!,
-                                fuelStats: stats,
-                              },
-                            }
-                          : m
-                      )
-                    )
-                  }}
-                  onCancelled={() => {
-                    setMessages(prev =>
-                      prev.map((m, i) =>
-                        i === idx ? { role: 'status' as const, content: 'Receipt cancelled.' } : m
-                      )
-                    )
-                  }}
-                  onSwitchToGrocery={() => {
-                    setMessages(prev =>
-                      prev.map((m, i) =>
-                        i === idx
-                          ? { ...m, receipt: { ...m.receipt!, activeTab: 'grocery' } }
-                          : m
-                      )
-                    )
-                  }}
-                />
-              ) : (
-                <ReceiptCard
-                  imageUrl={msg.receipt.imageUrl}
-                  status={msg.receipt.status}
-                  draft={msg.receipt.draft}
-                  error={msg.receipt.error}
-                  onSwitchToFuel={() => {
-                    setMessages(prev =>
-                      prev.map((m, i) =>
-                        i === idx
-                          ? { ...m, receipt: { ...m.receipt!, activeTab: 'fuel' } }
-                          : m
-                      )
-                    )
-                  }}
-                  onConfirmed={(message) => {
-                    setMessages(prev =>
-                      prev.map((m, i) =>
-                        i === idx ? { role: 'status' as const, content: message } : m
-                      )
-                    )
-                  }}
-                  onCancelled={() => {
-                    setMessages(prev =>
-                      prev.map((m, i) =>
-                        i === idx ? { role: 'status' as const, content: 'Receipt cancelled.' } : m
-                      )
-                    )
-                  }}
-                />
-              )
-            ) : msg.role === 'fuel_log' && msg.fuelLog ? (
-              // Show fuel stats after confirmation
-              msg.fuelLog.fuelStats ? (
-                <PendingFuelStatsDisplay draft={msg.fuelLog.draft} stats={msg.fuelLog.fuelStats} />
-              ) : (
-                <FuelReceiptCard
-                  draft={msg.fuelLog.draft}
-                  confirmEndpoint={`/vehicle/proposals/${msg.fuelLog.draft.receipt_id}/confirm`}
-                  onConfirmed={(stats) => {
-                    setMessages(prev =>
-                      prev.map((m, i) =>
-                        i === idx
-                          ? {
-                              ...m,
-                              fuelLog: {
-                                ...m.fuelLog!,
-                                fuelStats: stats,
-                              },
-                            }
-                          : m
-                      )
-                    )
-                  }}
-                  onCancelled={() => {
-                    setMessages(prev =>
-                      prev.map((m, i) =>
-                        i === idx ? { role: 'status' as const, content: 'Cancelled.' } : m
-                      )
-                    )
-                  }}
-                  onSwitchToGrocery={() => {
-                    setMessages(prev =>
-                      prev.map((m, i) =>
-                        i === idx
-                          ? { role: 'receipt' as const, content: '', receipt: { status: 'reviewing' as const, draft: m.fuelLog!.draft, activeTab: 'grocery' as const } }
-                          : m
-                      )
-                    )
-                  }}
-                />
-              )
-            ) : (
-
-              <div className={`flex flex-col max-w-[80%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                <div
-                  className={`
-                    px-4 py-3 text-sm leading-relaxed rounded-2xl
-                    ${msg.role === 'user'
-                      ? 'bg-accent text-white rounded-br-sm'
-                      : 'bg-surface border border-border text-white rounded-bl-sm'
-                    }
-                  `}
-                >
-                  {msg.role === 'assistant' ? (
-                    <div className="[&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_ul]:my-1 [&_li]:my-0 [&_a]:text-accent [&_a]:underline">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
-                    </div>
-                  ) : (
-                    msg.content
-                  )}
-                </div>
-                {msg.ts && (
-                  <span className="text-[10px] text-muted mt-1 px-1">
-                    {new Date(msg.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                )}
-              </div>
-            )}
+            {renderMessage(msg, idx)}
           </div>
         ))}
 
