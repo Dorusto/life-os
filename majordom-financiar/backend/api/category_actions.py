@@ -29,7 +29,7 @@ class GoalOverride(BaseModel):
     create_rule: bool | None = None
     day_of_month: int | None = None
     schedule_name: str | None = None
-    category_amounts: dict[str, float] | None = None  # budget_copy: category_id -> edited amount; goal_budget_plan: category_name -> edited amount
+    category_amounts: dict[str, float] | None = None  # budget_copy: category_id -> edited amount
     selected_category_names: list[str] | None = None  # clear_reached_goals: checked category names; None = all in the stored proposal
     tag: str | None = None  # tag_transaction: edited #tag value
     # FIRE model overrides
@@ -181,33 +181,24 @@ async def confirm_category_action(
                     message += f" until €{monthly_limit:.2f} total."
                 else:
                     message += "."
-        elif action["action"] == "goal_budget_plan":
-            from datetime import date as _date
+        elif action["action"] == "set_tag_goal":
+            # Aliased local import: `set_fire_model` below also locally imports
+            # MemoryDB/settings (unaliased), which makes those names local to
+            # the whole function — a bare `MemoryDB`/`settings` reference here
+            # would raise UnboundLocalError since this branch runs first.
+            import json as _json
+            from backend.core.memory.database import MemoryDB as _MemoryDB
+            from backend.core.config import settings as _settings
 
-            overrides = override.category_amounts or {}
-            all_cats = await client.get_categories()
-            existing_names = {
-                c.name.lower() for c in all_cats
-                if c.group_name.lower() == action["group_name"].lower()
-            }
-            results = []
-            for item in action["items"]:
-                cat_name = item["category_name"]
-                final_amount = overrides.get(cat_name, item["amount"])
-                if cat_name.lower() not in existing_names:
-                    await client.create_category(cat_name, action["group_name"])
-                await client.set_category_goal_template(
-                    cat_name, "by", final_amount, action["by_month"],
-                )
-                await client.set_budget_carryover(
-                    cat_name, _date.today().replace(day=1), True,
-                )
-                results.append((cat_name, final_amount))
-            message = (
-                f"Goal budget set for '{action['goal_name']}': "
-                + ", ".join(f"{n} €{a:.2f}" for n, a in results)
-                + f" (by {action['by_month']})."
+            tag_name = override.tag or action["tag"]
+            total_amount = override.amount if override.amount is not None else action["total_amount"]
+            by_month = override.by_month if override.by_month is not None else action["by_month"]
+            db = _MemoryDB(_settings.memory.db_path)
+            db.set_preference(
+                f"tag_goal:{tag_name.lower()}",
+                _json.dumps({"total_amount": total_amount, "by_month": by_month}),
             )
+            message = f"Goal set for #{tag_name}: €{total_amount:.2f} by {by_month}."
         elif action["action"] == "clear_reached_goals":
             names = (
                 override.selected_category_names

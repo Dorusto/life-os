@@ -1264,72 +1264,74 @@ async def propose_set_category_goal_template(
     })
 
 
-async def propose_goal_budget_plan(
-    goal_name: str,
-    total_amount: float,
-    by_month: str,
-    category_splits: list[dict],
-    group_name: str = "",
-) -> str:
-    """Propose a compound goal-budgeting plan across multiple subcategories.
+async def propose_set_tag_goal(tag: str, total_amount: float, by_month: str) -> str:
+    """Propose a spending target for a #tag (e.g. a trip) — does NOT create any
+    new categories. Transactions keep going into their normal existing
+    categories (Transport, Food, ...) and just get tagged (finance__propose_tag_transaction)
+    when they're part of the trip; the target is compared against actual
+    tagged spending via finance__get_tag_goal_progress.
 
-    `category_splits` is `[{"category_name": ..., "amount": ...}, ...]` —
-    already decided by the LLM caller, not validated against `total_amount`
-    here (every amount is editable on the confirmation card). Creates missing
-    categories in `group_name` (defaults to `goal_name`), writes each one's
-    "by" goal template, and enables rollover — all in a SINGLE confirmation
-    card, not one card per category.
+    Stored as a preference (a planning target, not financial data — Actual
+    Budget remains the source of truth for the transactions themselves).
     """
+    import json as _json
     import uuid
     from backend.tools import category_actions as action_store
+    from backend.core.config import settings
+    from backend.core.memory.database import MemoryDB
 
-    if not category_splits:
-        return json.dumps({
-            "type": "error",
-            "message": "No category splits provided for the goal budget plan.",
-        })
+    clean_tag = tag.lstrip("#").strip()
+    if not clean_tag:
+        return json.dumps({"type": "error", "message": "A tag name is required."})
 
-    resolved_group = group_name.strip() if group_name and group_name.strip() else goal_name
-
-    client = get_provider()
-    cats = await client.get_categories()
-    existing = {(c.name.lower(), c.group_name.lower()) for c in cats}
-
-    items = []
-    for split in category_splits:
-        cat_name = split.get("category_name", "")
-        amount = split.get("amount", 0)
-        if not cat_name:
-            continue
-        items.append({
-            "category_name": cat_name,
-            "amount": amount,
-            "exists": (cat_name.lower(), resolved_group.lower()) in existing,
-        })
-
-    if not items:
-        return json.dumps({
-            "type": "error",
-            "message": "No valid category splits (each needs a category_name).",
-        })
+    db = MemoryDB(settings.memory.db_path)
+    existing_raw = db.get_preference(f"tag_goal:{clean_tag.lower()}")
+    current = _json.loads(existing_raw) if existing_raw else None
 
     action_id = uuid.uuid4().hex[:8]
     action_store.store(action_id, {
-        "action": "goal_budget_plan",
-        "goal_name": goal_name,
-        "group_name": resolved_group,
+        "action": "set_tag_goal",
+        "tag": clean_tag,
+        "total_amount": total_amount,
         "by_month": by_month,
-        "items": items,
     })
 
     return json.dumps({
         "type": "category_action",
         "id": action_id,
-        "action": "goal_budget_plan",
-        "goal_name": goal_name,
-        "group_name": resolved_group,
+        "action": "set_tag_goal",
+        "tag": clean_tag,
+        "amount": total_amount,
         "by_month": by_month,
-        "items": items,
+        "current_tag_goal": current,
+    })
+
+
+async def get_tag_goal_progress(tag: str) -> str:
+    """Compare a tag's stored spending goal (if any) against actual tagged
+    spending so far, broken down by category. Read-only — no card."""
+    import json as _json
+    from backend.core.config import settings
+    from backend.core.memory.database import MemoryDB
+
+    clean_tag = tag.lstrip("#").strip()
+    db = MemoryDB(settings.memory.db_path)
+    raw = db.get_preference(f"tag_goal:{clean_tag.lower()}")
+    if not raw:
+        return json.dumps({"type": "tag_goal_progress", "tag": clean_tag, "goal_set": False})
+
+    goal = _json.loads(raw)
+    client = get_provider()
+    breakdown = await client.get_tag_category_breakdown(clean_tag)
+
+    return json.dumps({
+        "type": "tag_goal_progress",
+        "tag": clean_tag,
+        "goal_set": True,
+        "total_amount": goal["total_amount"],
+        "by_month": goal["by_month"],
+        "spent_so_far": breakdown["total_cost"],
+        "categories": breakdown["categories"],
     })
 
 

@@ -1007,7 +1007,7 @@ export interface FireModelValues {
 
 export interface CategoryActionData {
   id: string
-  action: 'rename' | 'delete' | 'create' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'set_category_goal' | 'bank_resync' | 'set_fire_model' | 'tag_transaction' | 'mark_reconciled' | 'mark_budget_outlier' | 'create_schedule' | 'deactivate_schedule' | 'goal_budget_plan' | 'clear_reached_goals'
+  action: 'rename' | 'delete' | 'create' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'set_category_goal' | 'bank_resync' | 'set_fire_model' | 'tag_transaction' | 'mark_reconciled' | 'mark_budget_outlier' | 'create_schedule' | 'deactivate_schedule' | 'set_tag_goal' | 'clear_reached_goals'
   category_name: string
   new_name?: string
   group_name?: string
@@ -1071,9 +1071,8 @@ export interface CategoryActionData {
   schedule_name?: string
   next_date?: string
   days_overdue?: number
-  // goal_budget_plan fields:
-  goal_name?: string
-  items?: { category_name: string; amount: number; exists?: boolean }[]
+  // set_tag_goal fields: reuses `tag` (tag_transaction), `amount`/`by_month` (set_category_goal) above
+  current_tag_goal?: { total_amount: number; by_month: string } | null
   // clear_reached_goals fields:
   category_names?: string[]
   reached_categories?: { category_name: string; group_name: string; target_amount: number; target_month: string }[]

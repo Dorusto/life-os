@@ -4031,7 +4031,12 @@ class ActualBudgetClient:
                         }
 
                 cat.goal_def = json.dumps([template])
-                cat.template_settings = {"source": "ui"}
+                # template_settings is declared JSON in actualpy's ORM model, but
+                # actualpy writes via its own CRDT sync path, not a normal SQLAlchemy
+                # commit — the JSON type's auto-serialization never runs, so a raw
+                # dict here hits sqlite3 with "Conversion not supported for datatype
+                # '<class 'dict'>'". Must be pre-serialized manually, same as goal_def.
+                cat.template_settings = json.dumps({"source": "ui"})
                 actual.commit()
                 return True
 

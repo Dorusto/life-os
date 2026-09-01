@@ -493,36 +493,37 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
-            "name": "finance__propose_goal_budget_plan",
+            "name": "finance__propose_set_tag_goal",
             "description": (
-                "Propose a compound goal-budgeting plan: creates missing categories, writes a "
-                "'by' goal template on each, and enables rollover for all of them — in ONE "
-                "confirmation card. Use when the user names a total amount, a target date, AND "
-                "multiple subcategories to split it across (e.g. 'budget €2000 for Dolomiti by "
-                "July 2027, split across lodging/transport/food/fun'). Nothing is written until "
-                "the user confirms."
+                "Propose a spending target for a #tag (e.g. a trip) — does NOT create any new "
+                "categories. Transactions stay in their normal existing categories and just get "
+                "tagged when they belong to the trip; the target is compared against actual "
+                "tagged spending via finance__get_tag_goal_progress. Use when the user names a "
+                "total amount and a target date for a trip/goal (e.g. 'budget €2000 for Dolomiti "
+                "by July 2027'). Nothing is written until the user confirms."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
-                    "goal_name": {"type": "string", "description": "Name of the overall goal/trip, e.g. 'Dolomiti'."},
-                    "total_amount": {"type": "number", "description": "Total target amount across all subcategories, in EUR."},
+                    "tag": {"type": "string", "description": "The tag name, without '#', e.g. 'Dolomiti'."},
+                    "total_amount": {"type": "number", "description": "Total target amount, in EUR."},
                     "by_month": {"type": "string", "description": "Target month in YYYY-MM format."},
-                    "category_splits": {
-                        "type": "array",
-                        "description": "The subcategories and their target amounts. Split the total_amount across them yourself — equally if the user gave no ratios, or following whatever proportions the user did state. Doesn't need to be exact, the user can edit amounts before confirming.",
-                        "items": {
-                            "type": "object",
-                            "properties": {
-                                "category_name": {"type": "string"},
-                                "amount": {"type": "number"},
-                            },
-                            "required": ["category_name", "amount"],
-                        },
-                    },
-                    "group_name": {"type": "string", "description": "Category group to create the subcategories in. Omit to default to goal_name."},
                 },
-                "required": ["goal_name", "total_amount", "by_month", "category_splits"],
+                "required": ["tag", "total_amount", "by_month"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "finance__get_tag_goal_progress",
+            "description": "Check progress against a tag's spending goal (if one was set) — actual tagged spending so far, broken down by category, vs. the target. Read-only. If no goal was ever set for the tag, returns goal_set=false, not an error.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "tag": {"type": "string", "description": "The tag name, without '#', e.g. 'Dolomiti'."},
+                },
+                "required": ["tag"],
             },
         },
     },
@@ -1373,9 +1374,13 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
         from backend.tools.finance.actual_budget import propose_set_category_goal_template
         return await propose_set_category_goal_template(**arguments)
 
-    if name == "finance__propose_goal_budget_plan":
-        from backend.tools.finance.actual_budget import propose_goal_budget_plan
-        return await propose_goal_budget_plan(**arguments)
+    if name == "finance__propose_set_tag_goal":
+        from backend.tools.finance.actual_budget import propose_set_tag_goal
+        return await propose_set_tag_goal(**arguments)
+
+    if name == "finance__get_tag_goal_progress":
+        from backend.tools.finance.actual_budget import get_tag_goal_progress
+        return await get_tag_goal_progress(**arguments)
 
     if name == "finance__get_reached_goals":
         from backend.tools.finance.actual_budget import get_reached_goals

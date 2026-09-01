@@ -24,6 +24,12 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const [goalMonthlyLimit, setGoalMonthlyLimit] = useState<string>(
     data.action === 'set_category_goal' ? (data.monthly_limit !== undefined ? String(data.monthly_limit) : '') : ''
   )
+  const [tagGoalAmount, setTagGoalAmount] = useState<string>(
+    data.action === 'set_tag_goal' ? String(data.amount ?? '') : ''
+  )
+  const [tagGoalByMonth, setTagGoalByMonth] = useState<string>(
+    data.action === 'set_tag_goal' ? (data.by_month ?? '') : ''
+  )
   const [payee, setPayee] = useState(data.payee ?? '')
   const [selectedCategory, setSelectedCategory] = useState(data.category_name ?? '')
   const [createRule, setCreateRule] = useState(data.is_consistent ?? true)
@@ -64,6 +70,12 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
             ? parseFloat(goalMonthlyLimit)
             : data.monthly_limit,
           goal_type: data.goal_type,
+        }
+      } else if (data.action === 'set_tag_goal') {
+        overrides = {
+          tag: data.tag,
+          amount: parseFloat(tagGoalAmount) || data.amount,
+          by_month: tagGoalByMonth || data.by_month,
         }
       } else if (data.action === 'categorize_with_rule') {
         overrides = { payee: payee || data.payee, category_name: selectedCategory || data.category_name, create_rule: createRule }
@@ -113,13 +125,23 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const isMarkBudgetOutlier = data.action === 'mark_budget_outlier'
   const isCreateSchedule = data.action === 'create_schedule'
   const isDeactivateSchedule = data.action === 'deactivate_schedule'
+  const isSetTagGoal = data.action === 'set_tag_goal'
 
   return (
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
       <div>
         <p className="text-white font-medium">
-          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetBudget ? 'Set budget amount?' : isCategorizeWithRule ? 'Categorize transactions?' : isSetBudgetCarryover ? `${data.enabled ? 'Enable' : 'Disable'} rollover overspending?` : isSetCategoryGoal ? 'Set savings goal?' : isBankResync ? 'Resync bank account?' : isSetFireModel ? 'Update FIRE assumptions?' : isTagTransaction ? 'Tag transaction?' : isMarkReconciled ? 'Mark transactions reconciled?' : isMarkBudgetOutlier ? 'One-off distorting this category?' : isCreateSchedule ? 'Create recurring schedule?' : isDeactivateSchedule ? 'Deactivate schedule?' : 'Rename category?'}
+          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetBudget ? 'Set budget amount?' : isCategorizeWithRule ? 'Categorize transactions?' : isSetBudgetCarryover ? `${data.enabled ? 'Enable' : 'Disable'} rollover overspending?` : isSetCategoryGoal ? 'Set savings goal?' : isSetTagGoal ? 'Set trip spending goal?' : isBankResync ? 'Resync bank account?' : isSetFireModel ? 'Update FIRE assumptions?' : isTagTransaction ? 'Tag transaction?' : isMarkReconciled ? 'Mark transactions reconciled?' : isMarkBudgetOutlier ? 'One-off distorting this category?' : isCreateSchedule ? 'Create recurring schedule?' : isDeactivateSchedule ? 'Deactivate schedule?' : 'Rename category?'}
         </p>
+        {isSetTagGoal && (
+          <p className="text-muted text-sm mt-0.5">
+            #<span className="text-white">{data.tag}</span>
+            {' — '}expenses stay in their normal categories, just tag them (e.g. "tag this as #{data.tag}") to track against this goal.
+            {data.current_tag_goal && (
+              <span> Currently €{data.current_tag_goal.total_amount.toFixed(2)} by {data.current_tag_goal.by_month}.</span>
+            )}
+          </p>
+        )}
         {isTagTransaction && (
           <p className="text-muted text-sm mt-0.5">
             <span className="text-white">{data.merchant}</span>
@@ -232,7 +254,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
             {' — no matching transaction seen in '}{data.days_overdue}{' days (was due '}{data.next_date}{'). It will be turned off, not deleted.'}
           </p>
         )}
-        {!isDelete && !isCreate && !isSetBudget && !isCategorizeWithRule && !isSetBudgetCarryover && !isSetCategoryGoal && !isBankResync && !isSetFireModel && !isTagTransaction && !isMarkReconciled && !isMarkBudgetOutlier && !isCreateSchedule && !isDeactivateSchedule && (
+        {!isDelete && !isCreate && !isSetBudget && !isCategorizeWithRule && !isSetBudgetCarryover && !isSetCategoryGoal && !isSetTagGoal && !isBankResync && !isSetFireModel && !isTagTransaction && !isMarkReconciled && !isMarkBudgetOutlier && !isCreateSchedule && !isDeactivateSchedule && (
           <p className="text-muted text-sm mt-0.5">
             <span className="text-white">{data.category_name}</span>
             {' → '}
@@ -303,6 +325,32 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
               />
             </div>
           )}
+        </div>
+      )}
+
+      {isSetTagGoal && (
+        <div className="space-y-2">
+          <div className="space-y-1">
+            <p className="text-muted text-xs">Target amount (€)</p>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              value={tagGoalAmount}
+              onChange={e => setTagGoalAmount(e.target.value)}
+              className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+            />
+          </div>
+          <div className="space-y-1">
+            <p className="text-muted text-xs">Target month (YYYY-MM)</p>
+            <input
+              type="text"
+              value={tagGoalByMonth}
+              onChange={e => setTagGoalByMonth(e.target.value)}
+              placeholder="YYYY-MM"
+              className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+            />
+          </div>
         </div>
       )}
 
@@ -519,8 +567,8 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         onCancel={handleCancel}
         loading={loading}
         variant={isDelete ? 'danger' : 'default'}
-        confirmDisabled={(isCreate && !categoryName) || (isSetBudget && !budgetAmount) || (isCategorizeWithRule && (!payee || !selectedCategory)) || (isTagTransaction && tag.trim() === '#') || (isCreateSchedule && (!scheduleName.trim() || !scheduleAmount))}
-        confirmLabel={isDelete ? 'Delete' : isCreate ? 'Create' : isSetBudget ? 'Set budget' : isCategorizeWithRule ? 'Categorize' : isTagTransaction ? 'Tag' : isMarkReconciled ? 'Mark reconciled' : isMarkBudgetOutlier ? 'Tag as one-off' : isCreateSchedule ? 'Create schedule' : isDeactivateSchedule ? 'Deactivate' : isSetBudgetCarryover || isBankResync || isSetFireModel ? 'Confirm' : 'Rename'}
+        confirmDisabled={(isCreate && !categoryName) || (isSetBudget && !budgetAmount) || (isCategorizeWithRule && (!payee || !selectedCategory)) || (isTagTransaction && tag.trim() === '#') || (isCreateSchedule && (!scheduleName.trim() || !scheduleAmount)) || (isSetTagGoal && (!tagGoalAmount || !tagGoalByMonth.trim()))}
+        confirmLabel={isDelete ? 'Delete' : isCreate ? 'Create' : isSetBudget ? 'Set budget' : isCategorizeWithRule ? 'Categorize' : isTagTransaction ? 'Tag' : isMarkReconciled ? 'Mark reconciled' : isMarkBudgetOutlier ? 'Tag as one-off' : isCreateSchedule ? 'Create schedule' : isDeactivateSchedule ? 'Deactivate' : isSetBudgetCarryover || isBankResync || isSetFireModel || isSetTagGoal || isSetCategoryGoal ? 'Confirm' : 'Rename'}
       />
     </div>
   )
