@@ -2438,6 +2438,11 @@ class ActualBudgetClient:
                     name=name,
                     account=account_id,
                 )
+                # actualpy's create_schedule() leaves the row inactive
+                # (Schedules.active server_default is 0) -- confirmed live
+                # 2026-09-01, a schedule created without this line never
+                # tracks future transactions.
+                sched.active = 1
                 actual.commit()
                 logger.info(f"Schedule created: {name} (€{amount} on day {day_of_month})")
                 return str(sched.id)
