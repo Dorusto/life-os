@@ -91,8 +91,8 @@ async def log_refuel(
             account_name = accounts[0].name
             accounts_list = [{"id": a.id, "name": a.name} for a in accounts]
         categories_list = [{"id": c.name, "name": c.name, "emoji": "📦"} for c in ab_cats]
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("AB accounts/categories fetch failed for refuel proposal dropdowns, using empty fallback lists: %s", e)
 
     # Default category: pick transport-related from AB, or fallback by vehicle type
     is_moto = matched and any(kw in matched["name"].lower() for kw in ["wabi", "honda", "suzuki", "yamaha", "moto"])

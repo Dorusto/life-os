@@ -194,7 +194,8 @@ class ReceiptParser:
                             f"Total found with pattern '{pattern}': {amount}"
                         )
                         return amount
-                except ValueError:
+                except ValueError as e:
+                    logger.debug("total-amount pattern didn't match, trying next pattern: %s", e)
                     continue
 
         # Fallback: look for the largest number in the last 10 lines
@@ -204,8 +205,8 @@ class ReceiptParser:
             for match in re.findall(r"(\d+[.,]\d{2})", line):
                 try:
                     amounts.append(float(match.replace(",", ".")))
-                except ValueError:
-                    pass
+                except ValueError as e:
+                    logger.debug("malformed number in fallback total-amount scan, skipping this match: %s", e)
 
         if amounts:
             # The total is usually the largest amount
@@ -229,7 +230,8 @@ class ReceiptParser:
                         if year < 100:
                             year += 2000
                         return date(year, int(groups[1]), int(groups[0]))
-                except (ValueError, IndexError):
+                except (ValueError, IndexError) as e:
+                    logger.debug("date pattern matched but captured groups aren't a valid date, trying next pattern: %s", e)
                     continue
 
         return date.today()  # Fallback: today's date

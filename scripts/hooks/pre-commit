@@ -49,4 +49,8 @@ if ! python3 "$ROOT/majordom-financiar/scripts/check_provider_wiring.py"; then
     exit 1
 fi
 
+if ! python3 "$ROOT/majordom-financiar/scripts/check_silent_exceptions.py"; then
+    exit 1
+fi
+
 exec "$ROOT/scripts/check-private-data.sh"

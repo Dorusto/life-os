@@ -280,7 +280,8 @@ async def preview_csv(
     for try_delim in dict.fromkeys([auto_delimiter, ";", ",", "\t"]):
         try:
             h, r = normalizer.parse_csv(raw, delimiter=try_delim, encoding=enc)
-        except Exception:
+        except Exception as e:
+            logger.debug("CSV parse failed with this delimiter, trying next: %s", e)
             continue
         if headers is None:
             headers, rows = h, r  # keep first parse as fallback

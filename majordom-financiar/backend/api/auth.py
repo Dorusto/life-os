@@ -84,7 +84,8 @@ def _decode_token(token: str) -> Optional[str]:
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         return payload.get("sub")
-    except JWTError:
+    except JWTError as e:
+        logger.debug("JWT decode failed (invalid or expired token): %s", e)
         return None
 
 

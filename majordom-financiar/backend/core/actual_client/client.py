@@ -348,8 +348,8 @@ def _compute_monthly_totals(session, txs) -> dict:
                 del by_category[dead_id]
             else:
                 by_category[dead_id]["name"] = dead_name or "Other"
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("tombstoned-category remap application failed, categories keep id-based fallback names: %s", e)
 
     return {
         "total": round(total, 2),
@@ -488,8 +488,8 @@ def _compute_budget_vs_spent(
                     session, _date(target_year, target_month, 1), cat_obj_map[cat_id],
                 )
                 budgeted = round(float(accumulated), 2)
-            except Exception:
-                pass
+            except Exception as e:
+                logger.debug("accumulated-budget lookup failed for this category, budgeted amount unchanged: %s", e)
         # Skip system/unbudgeted categories with no activity
         if not include_zero and budgeted == 0 and spent == 0:
             continue
@@ -863,8 +863,8 @@ class ActualBudgetClient:
                 if end_date is not None:
                     try:
                         today = _date.fromisoformat(end_date)
-                    except ValueError:
-                        pass  # invalid ISO stays today
+                    except ValueError as e:
+                        logger.debug("end_date isn't valid ISO format, falling back to today: %s", e)
                 start = today - timedelta(days=days - 1)
 
                 def _date_int(d: _date) -> int:
@@ -1323,7 +1323,8 @@ class ActualBudgetClient:
                         continue
                     try:
                         n_int = int(raw_next)
-                    except (TypeError, ValueError):
+                    except (TypeError, ValueError) as e:
+                        logger.debug("schedule local_next_date isn't a valid int, skipping this schedule: %s", e)
                         continue
 
                     next_d = date(
@@ -3879,8 +3880,8 @@ class ActualBudgetClient:
                         for row in rows:
                             if row[0]:
                                 budget_by_category[str(row[0])] += float(row[1] or 0) / 100
-                    except Exception:
-                        pass
+                    except Exception as e:
+                        logger.debug("reflect_budgets fallback query also failed, no budget data for this category this month: %s", e)
 
                 categories = []
                 excluded_templates = []
@@ -4066,7 +4067,8 @@ class ActualBudgetClient:
                         continue
                     try:
                         goals = json.loads(goal_def)
-                    except (json.JSONDecodeError, TypeError):
+                    except (json.JSONDecodeError, TypeError) as e:
+                        logger.debug("category goal_def isn't valid JSON, skipping this category's goal: %s", e)
                         continue
                     for entry in goals:
                         if not isinstance(entry, dict):
@@ -4078,7 +4080,8 @@ class ActualBudgetClient:
                             continue
                         try:
                             year, month = int(month_str[:4]), int(month_str[5:7])
-                        except (ValueError, IndexError):
+                        except (ValueError, IndexError) as e:
+                            logger.debug("goal entry month isn't a valid YYYY-MM string, skipping this entry: %s", e)
                             continue
                         target_yyyymm = year * 100 + month
                         if target_yyyymm >= this_yyyymm:

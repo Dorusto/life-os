@@ -27,6 +27,8 @@ Read the "Known gotchas" section at the bottom of `.claude/skills/plan-feature/S
 
 If the diff touches `backend/core/actual_client/client.py` or `backend/core/finance/*.py`: **run `python3 scripts/check_provider_wiring.py` instead of manually reasoning about the ActualBudgetClient/ActualBudgetProvider/FinanceProvider wiring gotcha** — this used to be a manual read-and-check step here and it missed 2 real gaps in one session (2026-08-28) despite being explicitly listed; the script (architecture.md rule 29) checks it mechanically via AST and is faster and more reliable than eyeballing it. Report its exit code and output verbatim rather than re-deriving the same check by hand.
 
+If the diff adds or touches any `except` handler in `backend/**/*.py`: **run `python3 scripts/check_silent_exceptions.py` instead of manually eyeballing for silent swallows** — flags any handler whose body is just `pass`/`continue`/`return None` with no adjacent log call (#217). Report its exit code and output verbatim.
+
 ## 5 — If a DeepSeek prompt file is referenced in your invocation
 
 Read that file's `## Critical Rules` section and verify each rule was actually respected in the diff — don't assume compliance because the prompt asked for it.

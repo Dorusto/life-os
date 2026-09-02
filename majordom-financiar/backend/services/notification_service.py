@@ -244,7 +244,8 @@ async def _check_vehicle_reminders(db: MemoryDB, ignore_anti_spam: bool = False)
                 continue
             try:
                 due = date.fromisoformat(due_str)
-            except ValueError:
+            except ValueError as e:
+                logger.debug("vehicle reminder due-date isn't valid ISO format, skipping this vehicle: %s", e)
                 continue
 
             days = (due - today).days
@@ -318,8 +319,8 @@ async def _check_vehicle_reminders(db: MemoryDB, ignore_anti_spam: bool = False)
                     if ignore_anti_spam or not last or (datetime.now() - datetime.fromisoformat(last["sent_at"])).days >= 7:
                         text = f"⚠️ {v['name']} is {abs(days_to_service)} days overdue for service."
                         alerts.append((text, spam_key, {"vehicle": v["name"], "overdue_days": abs(days_to_service)}))
-            except (ValueError, OverflowError):
-                pass
+            except (ValueError, OverflowError) as e:
+                logger.debug("service-due-date arithmetic overflowed/invalid, skipping overdue alert for this vehicle: %s", e)
 
         # Setup nudge for missing APK/insurance dates
         missing = []
@@ -599,8 +600,8 @@ async def _check_liability_balance_reminders(db: MemoryDB) -> list[dict]:
                 last_date = datetime.fromisoformat(last["last_reminded_at"])
                 if (datetime.now() - last_date).days < days:
                     continue
-            except ValueError:
-                pass  # corrupt timestamp — remind anyway
+            except ValueError as e:
+                logger.debug("last_reminded_at timestamp is corrupt, treating as never-reminded: %s", e)
         due.append({
             "account_id": acc.id,
             "account_name": acc.name,

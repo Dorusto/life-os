@@ -138,16 +138,16 @@ class MemoryDB:
                 try:
                     conn.execute(f"ALTER TABLE csv_profiles ADD COLUMN {col} {definition}")
                     conn.commit()
-                except Exception:
-                    pass  # column already exists
+                except Exception as e:
+                    logger.debug("ALTER TABLE ADD COLUMN failed, assuming column already exists: %s", e)
             # Drop financial data accidentally duplicated into pending_review (#99 audit) —
             # only financial_id + count are ever read (notification_service._check_pending_review)
             for col in ("merchant", "amount", "date", "category_name"):
                 try:
                     conn.execute(f"ALTER TABLE pending_review DROP COLUMN {col}")
                     conn.commit()
-                except Exception:
-                    pass  # column already dropped, or table freshly created without it
+                except Exception as e:
+                    logger.debug("ALTER TABLE DROP COLUMN failed, assuming already dropped: %s", e)
             # merchant_mappings removed (#99) — Actual Budget's own Rules engine
             # replaced it. No migration: existing mappings are re-derivable from
             # AB transaction history, or simply not recreated (decided acceptable).

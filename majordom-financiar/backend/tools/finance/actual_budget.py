@@ -6,10 +6,13 @@ after the LLM decides to use them.
 """
 import asyncio
 import json
+import logging
 from datetime import date as _date
 
 from backend.core.config import settings
 from backend.core.finance.provider import get_provider
+
+logger = logging.getLogger(__name__)
 
 
 def _looks_like_uuid(s: str) -> bool:
@@ -102,8 +105,8 @@ async def propose_transaction(
             if rule_matches and rule_matches[0] and rule_matches[0].get("category_name"):
                 category_name = rule_matches[0]["category_name"]
                 category_source = "rule"
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("payee-rule category lookup failed, falling through to notes-based match: %s", e)
 
     # Notes-based category match — the description the user actually typed
     # for THIS transaction mentions a real category name (e.g. "electricity
@@ -121,8 +124,8 @@ async def propose_transaction(
                 category_name = match.name
                 notes_category_match = True
                 category_source = "notes_match"
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("notes-based category match failed, falling through to SmartCategorizer guess: %s", e)
 
     if not category_name:
         try:
@@ -133,8 +136,8 @@ async def propose_transaction(
             if prediction.category_name:
                 category_name = prediction.category_name
                 category_source = "guess"
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("SmartCategorizer guess failed, category stays unset: %s", e)
 
     if not account_id or not _looks_like_uuid(account_id):
         try:
@@ -146,8 +149,8 @@ async def propose_transaction(
             if chosen:
                 account_id = chosen.id
                 account_name = chosen.name
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("account-name-hint lookup failed, account stays unresolved: %s", e)
 
     proposal_id = proposal_store.create(
         payee=payee,
@@ -980,7 +983,8 @@ def calc_monthly_needed(target: float, balance: float, deadline: str | None) -> 
     from datetime import date as _date
     try:
         dl_year, dl_month = map(int, deadline.split("-"))
-    except (ValueError, AttributeError):
+    except (ValueError, AttributeError) as e:
+        logger.debug("goal deadline isn't a valid YYYY-MM string, treating as no deadline: %s", e)
         return None
     today = _date.today()
     months_remaining = (dl_year - today.year) * 12 + (dl_month - today.month)

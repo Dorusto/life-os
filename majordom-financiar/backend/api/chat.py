@@ -270,7 +270,8 @@ async def _stream_with_tools(
                             break
                         try:
                             data = json.loads(line)
-                        except json.JSONDecodeError:
+                        except json.JSONDecodeError as e:
+                            logger.debug("SSE stream line wasn't valid JSON, skipping it: %s", e)
                             continue
 
                         delta = data.get("choices", [{}])[0].get("delta", {})

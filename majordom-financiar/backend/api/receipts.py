@@ -460,8 +460,8 @@ async def confirm_fuel_receipt(
     # Cleanup the image after successful processing
     try:
         image_path.unlink(missing_ok=True)
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("failed to delete temp receipt image after processing: %s", e)
 
     vehicle_name = await _get_vehicle_name(vehicle_client, request.vehicle_id)
 
@@ -487,5 +487,6 @@ async def _get_vehicle_name(client: VehicleClient, vehicle_id: int) -> str | Non
         vehicles = await client.list_vehicles(active_only=True)
         v = next((v for v in vehicles if v["id"] == vehicle_id), None)
         return v["name"] if v else None
-    except Exception:
+    except Exception as e:
+        logger.debug("vehicle name lookup failed (vehicle-manager may be down), falling back to generic label: %s", e)
         return None

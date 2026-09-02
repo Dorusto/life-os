@@ -211,7 +211,8 @@ class VisionEngine:
                     unit_price=float(item.get("unit_price") or 0.0),
                     total_price=float(item.get("total_price") or 0.0),
                 ))
-            except (ValueError, TypeError):
+            except (ValueError, TypeError) as e:
+                logger.debug("malformed line item from vision model, skipping it: %s", e)
                 continue
 
         if receipt.is_valid:
@@ -249,7 +250,8 @@ class VisionEngine:
             try:
                 from datetime import datetime
                 return datetime.strptime(date_str, fmt).date()
-            except ValueError:
+            except ValueError as e:
+                logger.debug("date string didn't match this format, trying next: %s", e)
                 continue
 
         return date.today()
@@ -270,8 +272,8 @@ class VisionEngine:
                 ) as resp:
                     if resp.status == 200:
                         return True  # cloud APIs are reachable
-        except Exception:
-            pass
+        except Exception as e:
+            logger.debug("cloud OCR API unreachable during availability probe: %s", e)
 
         try:
             async with aiohttp.ClientSession() as session:

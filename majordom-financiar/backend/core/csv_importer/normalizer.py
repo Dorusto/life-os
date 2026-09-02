@@ -23,7 +23,8 @@ class CsvNormalizer:
             try:
                 raw.decode(enc)
                 return enc
-            except UnicodeDecodeError:
+            except UnicodeDecodeError as e:
+                logger.debug("encoding failed to decode, trying next encoding: %s", e)
                 continue
         return "utf-8"
 
@@ -175,8 +176,8 @@ class CsvNormalizer:
         # Try the profile-specified format first
         try:
             return datetime.strptime(date_str, date_format).date()
-        except ValueError:
-            pass
+        except ValueError as e:
+            logger.debug("date doesn't match profile's declared format, trying fallback formats: %s", e)
         # Common fallback formats
         clean = date_str[:19]  # trim microseconds / timezone
         for fmt in (
@@ -187,6 +188,7 @@ class CsvNormalizer:
         ):
             try:
                 return datetime.strptime(clean, fmt).date()
-            except ValueError:
+            except ValueError as e:
+                logger.debug("date doesn't match this fallback format, trying next: %s", e)
                 continue
         return None
