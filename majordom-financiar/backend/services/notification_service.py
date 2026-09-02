@@ -111,6 +111,10 @@ async def _check_financial_summary(db: MemoryDB) -> str | None:
             "stream": False,
             "options": {"temperature": 0.7, "num_predict": 150},
         }
+
+        if settings.ollama.chat_model.lower().startswith("qwen3"):
+            payload["think"] = False
+
         headers = build_llm_headers(settings.ollama.api_key)
         async with httpx.AsyncClient(timeout=httpx.Timeout(60.0)) as http_client:
             resp = await http_client.post(

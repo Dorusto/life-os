@@ -125,6 +125,9 @@ class VisionEngine:
             },
         }
 
+        if self.model.lower().startswith("qwen3"):
+            payload["think"] = False
+
         logger.info(f"Sending image to LLM ({self.model})...")
 
         try:

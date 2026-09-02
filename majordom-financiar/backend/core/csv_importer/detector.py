@@ -115,6 +115,9 @@ class CsvProfileDetector:
             "options": {"temperature": 0.0, "num_predict": 400},
         }
 
+        if self.llm_model.lower().startswith("qwen3"):
+            payload["think"] = False
+
         logger.info(f"Sending CSV to LLM for detection ({self.llm_model})...")
 
         try:
