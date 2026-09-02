@@ -634,23 +634,37 @@ async def get_vehicle_costs_summary(period: str = "") -> dict:
 
 async def set_vehicle_type(vehicle_name: str, vehicle_type: str) -> str:
     """
-    Set the type of a vehicle ('car', 'motorcycle', 'other').
+    Propose setting the type of a vehicle ('car', 'motorcycle', 'other').
     Used to show the correct emoji in notifications.
+    Returns a confirmation card — does NOT write yet.
     """
+    from backend.tools import vehicle_reminder_actions as action_store
+
     client = _get_client()
     vehicles = await client.list_vehicles(active_only=True)
     matched = next((v for v in vehicles if vehicle_name.lower() in v["name"].lower()), None)
-
     if not matched:
         return f"Vehicle '{vehicle_name}' not found."
 
-    ok = await client.patch_vehicle(matched["id"], vehicle_type=vehicle_type)
-    if not ok:
-        return f"Vehicle '{vehicle_name}' not found."
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {
+        "action": "set_vehicle_type",
+        "vehicle_id": matched["id"],
+        "vehicle_type": vehicle_type,
+    })
 
-    icons = {"car": "🚗", "motorcycle": "🏍️", "other": "🚙"}
-    icon = icons.get(vehicle_type, "🚗")
-    return f"{icon} {vehicle_name} is now set as a {vehicle_type}."
+    return json.dumps({
+        "type": "vehicle_reminder",
+        "id": action_id,
+        "vehicle_id": matched["id"],
+        "vehicle_name": matched["name"],
+        "vehicles": vehicles,
+        "reminder_type": "vehicle_type",
+        "label": "vehicle type",
+        "vehicle_type": vehicle_type,
+        "due_date": "",
+        "days_remaining": 0,
+    })
 
 
 async def list_vehicles() -> str:

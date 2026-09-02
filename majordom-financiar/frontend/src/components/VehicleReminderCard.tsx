@@ -17,10 +17,12 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
   const [lastServiceKm, setLastServiceKm] = useState(String(data.last_service_km ?? ''))
   const [lastServiceDate, setLastServiceDate] = useState(data.last_service_date ?? '')
   const [required, setRequired] = useState(data.required ?? true)
+  const [vehicleType, setVehicleType] = useState(data.vehicle_type ?? 'car')
   const [loading, setLoading] = useState(false)
 
   const isService = data.reminder_type === 'service'
   const isApkRequired = data.reminder_type === 'apk_required'
+  const isVehicleType = data.reminder_type === 'vehicle_type'
 
   async function handleConfirm() {
     setLoading(true)
@@ -34,6 +36,8 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
         if (lastServiceDate) override.last_service_date = lastServiceDate
       } else if (isApkRequired) {
         if (required !== data.required) override.required = required
+      } else if (isVehicleType) {
+        if (vehicleType !== data.vehicle_type) override.vehicle_type = vehicleType
       } else {
         if (dueDate !== data.due_date) override.due_date = dueDate
       }
@@ -60,7 +64,7 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
 
   return (
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 w-[92%] max-w-sm space-y-3">
-      <p className="text-white font-medium">{isApkRequired ? `Update ${data.label}` : `Set ${data.label} reminder`}</p>
+      <p className="text-white font-medium">{isApkRequired || isVehicleType ? `Update ${data.label}` : `Set ${data.label} reminder`}</p>
 
       <div className="space-y-2">
         {data.vehicles.length > 1 && (
@@ -144,6 +148,19 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
               </button>
             </div>
           </div>
+        ) : isVehicleType ? (
+          <div className="space-y-1">
+            <p className="text-muted text-xs">Vehicle type</p>
+            <select
+              value={vehicleType}
+              onChange={e => setVehicleType(e.target.value as 'car' | 'motorcycle' | 'other')}
+              className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+            >
+              <option value="car">🚗 Car</option>
+              <option value="motorcycle">🏍️ Motorcycle</option>
+              <option value="other">🚙 Other</option>
+            </select>
+          </div>
         ) : (
           <div className="space-y-1">
             <p className="text-muted text-xs">Expiry date</p>
@@ -166,9 +183,9 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
         onConfirm={handleConfirm}
         onCancel={handleCancel}
         loading={loading}
-        confirmDisabled={!isService && !isApkRequired && !dueDate}
-        confirmIcon={isApkRequired ? Check : Bell}
-        confirmLabel={isApkRequired ? 'Save' : 'Set reminder'}
+        confirmDisabled={!isService && !isApkRequired && !isVehicleType && !dueDate}
+        confirmIcon={isApkRequired || isVehicleType ? Check : Bell}
+        confirmLabel={isApkRequired || isVehicleType ? 'Save' : 'Set reminder'}
       />
     </div>
   )

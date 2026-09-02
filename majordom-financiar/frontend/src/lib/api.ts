@@ -1140,7 +1140,7 @@ export interface VehicleReminderData {
   vehicle_id: number
   vehicle_name: string
   vehicles: { id: number; name: string }[]
-  reminder_type: 'apk' | 'insurance' | 'service' | 'apk_required'
+  reminder_type: 'apk' | 'insurance' | 'service' | 'apk_required' | 'vehicle_type'
   label: string
   due_date: string
   days_remaining: number
@@ -1149,11 +1149,12 @@ export interface VehicleReminderData {
   last_service_km?: number | null
   last_service_date?: string | null
   required?: boolean
+  vehicle_type?: 'car' | 'motorcycle' | 'other'
 }
 
 export async function confirmVehicleReminder(
   id: string,
-  override?: { due_date?: string; vehicle_id?: number; required?: boolean }
+  override?: { due_date?: string; vehicle_id?: number; required?: boolean; vehicle_type?: string }
 ): Promise<{ message: string }> {
   return request(`/vehicle-reminder-actions/${id}/confirm`, {
     method: 'POST',
@@ -1179,6 +1180,24 @@ export async function confirmVehicleStatus(id: string): Promise<{ message: strin
 
 export async function cancelVehicleStatus(id: string): Promise<void> {
   return request<void>(`/vehicle-status-actions/${id}/cancel`, { method: 'POST' })
+}
+
+// --- Notification actions ---
+
+export interface NotificationTimeData {
+  id: string
+  time: string
+}
+
+export async function confirmNotificationTime(id: string, override?: { time?: string }): Promise<{ message: string }> {
+  return request(`/notification-actions/${id}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify(override ?? {}),
+  })
+}
+
+export async function cancelNotificationTime(id: string): Promise<void> {
+  return request<void>(`/notification-actions/${id}/cancel`, { method: 'POST' })
 }
 
 // --- Settings ---

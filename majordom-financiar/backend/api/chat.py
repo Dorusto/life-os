@@ -171,7 +171,7 @@ Use `vehicle__*` tools when the user mentions car, fuel, APK, ITP, insurance, mi
   - "APK MyCar expires September 2026" → vehicle__set_vehicle_reminder(vehicle_name="MyCar", reminder_type="apk", due_date="2026-09-01")
   - "insurance for MyBike until March 15" → vehicle__set_vehicle_reminder(vehicle_name="MyBike", reminder_type="insurance", due_date="2026-03-15")
 - When the user says APK/ITP/MOT doesn't apply to a vehicle (e.g. an exempt motorcycle), or reverses that — call vehicle__set_vehicle_apk_required immediately.
-  - "Wabi Sabi doesn't need APK, motorcycles are exempt here" → vehicle__set_vehicle_apk_required(vehicle_name="Wabi Sabi", required=false)
+  - "MyBike doesn't need APK, motorcycles are exempt here" → vehicle__set_vehicle_apk_required(vehicle_name="MyBike", required=false)
 - When the user mentions refueling / filling up / tanking fuel — call vehicle__log_refuel immediately. Never use finance__propose_transaction for fuel. Never describe it as text.
   - "I refueled 31L at Shell for €70, odo 51000" → vehicle__log_refuel(liters=31, total_eur=70, location="Shell", odo_km=51000)
   - "am alimentat 40L cu €80 din Tango" → vehicle__log_refuel(liters=40, total_eur=80, location="Tango")
@@ -187,7 +187,7 @@ Use `vehicle__*` tools when the user mentions car, fuel, APK, ITP, insurance, mi
 Use `system__*` tools when the user asks about notification settings or backup status — not a financial transaction or vehicle event.
 
 - When the user asks whether backups are running, when the last backup was, or wants reassurance their data is safe — call system__get_backup_status immediately. Read-only, never triggers or deletes a backup.
-- When the user asks to change, update, or set the daily financial summary notification time — call system__set_notification_time immediately. Executes immediately, no confirmation needed.
+- When the user asks to change, update, or set the daily financial summary notification time — call system__set_notification_time immediately. Never describe it as text. A confirmation card appears — nothing is written until the user confirms.
   - "change notification to 21:30" → system__set_notification_time(time="21:30")
 
 Today's date: {date.today().isoformat()}
@@ -208,7 +208,8 @@ _PROPOSAL_TOOLS = {
     "finance__propose_transfer_conversion",
     "vehicle__log_refuel", "vehicle__delete_vehicle_log_entry", "vehicle__set_vehicle_reminder",
     "vehicle__set_service_interval", "vehicle__propose_set_vehicle_active", "vehicle__set_vehicle_apk_required",
-    "vehicle__get_vehicle_consumption_chart", "vehicle__get_vehicle_distance_chart",
+    "vehicle__get_vehicle_consumption_chart", "vehicle__get_vehicle_distance_chart", "vehicle__set_vehicle_type",
+    "system__set_notification_time",
 }
 
 

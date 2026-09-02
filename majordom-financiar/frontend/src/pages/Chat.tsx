@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Send, Plus, Camera, Image, FileText, HelpCircle, Trash2, MoreVertical, Settings } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, saveChatHistory, clearChatHistory, proposeSavingsBudget, type SetupAccount, type BalanceAdjustmentData, type CloseAccountData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type CategoryOverviewData, type BudgetOverviewData, type FuelConfirmResponse, type VehicleLogActionData, type VehicleReminderData, type VehicleStatusData, type TransferConversionData } from '../lib/api'
+import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, saveChatHistory, clearChatHistory, proposeSavingsBudget, type SetupAccount, type BalanceAdjustmentData, type CloseAccountData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type CategoryOverviewData, type BudgetOverviewData, type FuelConfirmResponse, type VehicleLogActionData, type VehicleReminderData, type VehicleStatusData, type TransferConversionData, type NotificationTimeData } from '../lib/api'
 import CsvImportCard from '../components/CsvImportCard'
 import FuelioImportCard, { FuelioImportData } from '../components/FuelioImportCard'
 import ProposalCard, { ProposalData } from '../components/ProposalCard'
@@ -25,6 +25,7 @@ import GoalProposalCard, { GoalProposalData } from '../components/GoalProposalCa
 import VehicleLogActionCard from '../components/VehicleLogActionCard'
 import VehicleReminderCard from '../components/VehicleReminderCard'
 import VehicleStatusCard from '../components/VehicleStatusCard'
+import NotificationTimeCard from '../components/NotificationTimeCard'
 import Chart from '../components/Chart'
 import PageHeader from '../components/PageHeader'
 import IconButton from '../components/IconButton'
@@ -35,7 +36,7 @@ import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 
 
 export interface Message {
-  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'close_account' | 'csv_import' | 'fuelio_import' | 'income_source' | 'receipt' | 'category_action' | 'category_overview' | 'budget_overview' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder' | 'vehicle_status' | 'transfer_conversion' | 'chart'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'close_account' | 'csv_import' | 'fuelio_import' | 'income_source' | 'receipt' | 'category_action' | 'category_overview' | 'budget_overview' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder' | 'vehicle_status' | 'transfer_conversion' | 'chart' | 'notification_time'
 
   content: string
   ts?: number
@@ -73,6 +74,7 @@ export interface Message {
   vehicleReminder?: VehicleReminderData
   vehicleStatus?: VehicleStatusData
   transferConversion?: TransferConversionData
+  notificationTime?: NotificationTimeData
 }
 
 
@@ -411,6 +413,16 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
       return (
         <VehicleStatusCard
           data={msg.vehicleStatus}
+          onConfirmed={(message) => replaceWithStatus(idx, message)}
+          onCancelled={() => cancelAt(idx)}
+        />
+      )
+    },
+    notification_time: (msg, idx) => {
+      if (!msg.notificationTime) return null
+      return (
+        <NotificationTimeCard
+          data={msg.notificationTime}
           onConfirmed={(message) => replaceWithStatus(idx, message)}
           onCancelled={() => cancelAt(idx)}
         />
@@ -904,6 +916,10 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
         }
         if (parsed.type === 'vehicle_status') {
           setMessages(prev => [...prev, { role: 'vehicle_status' as const, content: '', vehicleStatus: parsed as VehicleStatusData }])
+          return
+        }
+        if (parsed.type === 'notification_time') {
+          setMessages(prev => [...prev, { role: 'notification_time' as const, content: '', notificationTime: parsed as NotificationTimeData }])
           return
         }
         if (parsed.type === 'chart') {
