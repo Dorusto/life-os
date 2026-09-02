@@ -300,8 +300,12 @@ its own initiative:
   (#167/#177) is built. That's the next point those helpers get extended, not before.
 - **#214 — closed 2026-09-02** (three HTTP layers, divergent 401 handling, unified onto one
   `authFetch()` transport + one `ApiError`; see `docs/decisions.md#214-authfetch-redirecton401-opt-out`).
-- **#217** (12 silently swallowed exceptions) — no phase naturally touches this. Opportunistic
-  `/delegate-by-complexity` candidate for a lull between features; not a blocker for anything above.
+- **#217 — closed 2026-09-02** (silently swallowed exceptions — scope grew from the 12 originally
+  named sites to 32 total by the time it was picked up; every one now logs at debug with a
+  specific reason, and `scripts/check_silent_exceptions.py` is the permanent mechanized check the
+  issue asked for).
+  Implemented directly after 2 failed `/delegate-by-complexity` attempts, not the opportunistic
+  delegation originally planned for this line — see `docs/sessions/2026-W36.md`.
 - **#242** (`resolve_transfer_duplicate()` discards payee/category/date from the deleted side) —
   different category: an active data-loss bug in shipped Phase B code, not debt. Fix on its own
   schedule, independent of phase sequencing — sooner if the loss is hit again in real use.
