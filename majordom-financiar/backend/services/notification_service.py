@@ -12,6 +12,7 @@ Architecture:
 
 import json
 import logging
+import sqlite3
 import time as time_module
 from datetime import date, datetime
 
