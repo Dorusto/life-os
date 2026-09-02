@@ -4037,6 +4037,74 @@ class ActualBudgetClient:
 
         return await self._run(_set)
 
+    async def get_reached_goal_categories(self) -> list[dict]:
+        """Return categories whose goal_template target month has passed (type='by').
+
+        Reads ``goal_def`` directly — NOT the '#template' notes heuristic used
+        by get_budget_copy_source() elsewhere in this file.
+        """
+        import json
+
+        def _get():
+            from actual.queries import get_categories
+
+            with self._get_cached_read_actual() as actual:
+                today = date.today()
+                this_yyyymm = today.year * 100 + today.month
+                cats = get_categories(actual.session)
+                result = []
+                for cat in cats:
+                    if cat.tombstone or cat.hidden:
+                        continue
+                    goal_def = getattr(cat, "goal_def", None)
+                    if not goal_def:
+                        continue
+                    try:
+                        goals = json.loads(goal_def)
+                    except (json.JSONDecodeError, TypeError):
+                        continue
+                    for entry in goals:
+                        if not isinstance(entry, dict):
+                            continue
+                        if entry.get("type") != "by":
+                            continue
+                        month_str = entry.get("month")
+                        if not month_str:
+                            continue
+                        try:
+                            year, month = int(month_str[:4]), int(month_str[5:7])
+                        except (ValueError, IndexError):
+                            continue
+                        target_yyyymm = year * 100 + month
+                        if target_yyyymm >= this_yyyymm:
+                            continue
+                        result.append({
+                            "category_id": str(cat.id) if cat.id else "",
+                            "category_name": cat.name or "Unknown",
+                            "group_name": cat.group.name if cat.group else "",
+                            "target_amount": entry.get("amount", 0),
+                            "target_month": month_str,
+                        })
+                return result
+
+        return await self._run(_get)
+
+    async def clear_category_goal_template(self, category_name: str) -> bool:
+        """Clear a category's goal template so it no longer blocks template application."""
+
+        def _clear():
+            from actual.queries import get_category
+
+            with self._get_actual() as actual:
+                cat = get_category(actual.session, category_name)
+                if not cat:
+                    raise ValueError(f"Category not found: {category_name}")
+                cat.goal_def = None
+                actual.commit()
+                return True
+
+        return await self._run(_clear)
+
     async def get_payees(self) -> list[dict]:
         """Return all non-tombstoned payees with their transaction counts.
 
