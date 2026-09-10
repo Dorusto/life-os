@@ -176,7 +176,7 @@ export default function ReceiptFlow() {
   }
 
   function addLine() {
-    setLines(prev => [...prev, { categoryId: '', amount: '' }])
+    setLines(prev => [...prev, { categoryId: '', amount: '', isNewCategory: false, newCategoryGroup: '' }])
   }
 
   function removeLine(i: number) {
@@ -232,7 +232,7 @@ export default function ReceiptFlow() {
     setFlowState('confirming')
     setPossibleMatch(null)
 
-    const base: Record<string, unknown> = {
+    const base = {
       merchant,
       amount: parsedAmount,
       date,
@@ -240,9 +240,7 @@ export default function ReceiptFlow() {
       account_id: accountId,
       force_new: opts?.forceNew,
       attach_to: opts?.attachTo,
-    }
-    if (lines[0].isNewCategory) {
-      base.new_category_group = lines[0].newCategoryGroup.trim() || 'Majordom'
+      ...(lines[0].isNewCategory ? { new_category_group: lines[0].newCategoryGroup.trim() || 'Majordom' } : {}),
     }
 
     try {
