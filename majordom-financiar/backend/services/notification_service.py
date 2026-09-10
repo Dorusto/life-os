@@ -841,6 +841,23 @@ async def get_pending_items() -> list[dict]:
     except Exception as e:
         logger.warning("get_pending_items: budget pacing check failed: %s", e)
 
+    # Unprotected savings goals (#111) — nudge when goals exist but no
+    # sinking-fund categories are configured.
+    try:
+        from backend.core.finance import budget_pacing
+        goals = await client.get_goals()
+        config = budget_pacing.get_config()
+        sinking_ids = config["sinking_fund_category_ids"] if config else []
+        if goals and not sinking_ids:
+            for goal in goals:
+                items.append({
+                    "type": "unprotected_goal",
+                    "text": f"'{goal['name']}' has a savings goal (€{goal['target']:.0f}) but no budget category is tracking contributions to it",
+                    "prompt": f"help me set up a budget category for my {goal['name']} savings goal",
+                })
+    except Exception as e:
+        logger.warning("get_pending_items: unprotected goals check failed: %s", e)
+
     # Goals at risk of missing their deadline were removed from this list —
     # every goal (with its progress bar, remaining amount, and deadline) is
     # already displayed directly in Home's "Financial Goals" section, so

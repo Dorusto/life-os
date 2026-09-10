@@ -556,6 +556,14 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__get_unprotected_goals",
+            "description": "Check for savings goals that have no sinking-fund category tracking contributions. Read-only. Returns a list of goals and whether any sinking-fund categories are configured. If goals exist but no sinking-fund categories are set up, the user should consider creating one.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "finance__get_reached_goals",
             "description": "Check for savings-goal categories whose target month has already passed. Read-only — use when the user asks to check if any goals are finished/done, or naturally when discussing budget templates/goals. An empty result is normal, not an error.",
             "parameters": {"type": "object", "properties": {}, "required": []},
@@ -1415,6 +1423,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "finance__get_budget_pacing_status":
         from backend.tools.finance.actual_budget import get_budget_pacing_status
         return await get_budget_pacing_status(**arguments)
+
+    if name == "finance__get_unprotected_goals":
+        from backend.tools.finance.actual_budget import get_unprotected_goals
+        return await get_unprotected_goals(**arguments)
 
     if name == "finance__get_reached_goals":
         from backend.tools.finance.actual_budget import get_reached_goals

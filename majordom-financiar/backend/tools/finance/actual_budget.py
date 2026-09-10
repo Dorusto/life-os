@@ -1424,6 +1424,24 @@ async def get_budget_pacing_status() -> str:
     return json.dumps({"type": "budget_pacing_status", **status})
 
 
+async def get_unprotected_goals() -> str:
+    """Check for savings goals that have no sinking-fund category tracking
+    contributions (#111). Read-only — returns JSON with goals list and
+    has_sinking_fund_categories flag."""
+    from backend.core.finance import budget_pacing
+
+    client = get_provider()
+    goals = await client.get_goals()
+    config = budget_pacing.get_config()
+    sinking_ids = config["sinking_fund_category_ids"] if config else []
+    has_sinking = bool(sinking_ids)
+    return json.dumps({
+        "type": "unprotected_goals",
+        "goals": goals,
+        "has_sinking_fund_categories": has_sinking,
+    })
+
+
 async def get_reached_goals() -> str:
     """Check for savings-goal categories whose target month has already passed.
 
