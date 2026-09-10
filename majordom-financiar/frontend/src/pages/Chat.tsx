@@ -27,6 +27,7 @@ import VehicleReminderCard from '../components/VehicleReminderCard'
 import VehicleStatusCard from '../components/VehicleStatusCard'
 import NotificationTimeCard from '../components/NotificationTimeCard'
 import Chart from '../components/Chart'
+import TransactionListCard, { TransactionListData } from '../components/TransactionListCard'
 import PageHeader from '../components/PageHeader'
 import IconButton from '../components/IconButton'
 import BottomSheet from '../components/BottomSheet'
@@ -36,7 +37,7 @@ import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 
 
 export interface Message {
-  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'close_account' | 'csv_import' | 'fuelio_import' | 'income_source' | 'receipt' | 'category_action' | 'category_overview' | 'budget_overview' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder' | 'vehicle_status' | 'transfer_conversion' | 'chart' | 'notification_time'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'close_account' | 'csv_import' | 'fuelio_import' | 'income_source' | 'receipt' | 'category_action' | 'category_overview' | 'budget_overview' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder' | 'vehicle_status' | 'transfer_conversion' | 'chart' | 'notification_time' | 'transaction_list'
 
   content: string
   ts?: number
@@ -47,6 +48,7 @@ export interface Message {
    *  user message, which would otherwise duplicate it in server history (see architecture.md rule 17). */
   chainedOfferText?: string
   chart?: { chart_type: 'pie' | 'bar' | 'line' | 'progress_list'; title: string; data: any }
+  transactionList?: { title: string; data: TransactionListData }
   proposal?: ProposalData
   budgetRebalance?: BudgetRebalanceData
   clarification?: ClarificationData
@@ -431,6 +433,10 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
     chart: (msg) => {
       if (!msg.chart) return null
       return <Chart {...msg.chart} />
+    },
+    transaction_list: (msg) => {
+      if (!msg.transactionList) return null
+      return <TransactionListCard {...msg.transactionList} />
     },
     fuelio_import: (msg) => {
       if (!msg.fuelioImport) return null
@@ -937,6 +943,21 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
               ]).catch(() => {})
             }
             return [...prev, { role: 'chart' as const, content: '', chart: parsed }]
+          })
+          return
+        }
+        if (parsed.type === 'transaction_list') {
+          setMessages(prev => {
+            // Read-only display data (same reasoning as charts above) — safe to
+            // persist verbatim so it survives a refresh instead of vanishing.
+            const lastUser = [...prev].reverse().find(m => m.role === 'user')
+            if (lastUser) {
+              saveChatHistory([
+                { role: 'user', content: lastUser.content },
+                { role: 'transaction_list', content: JSON.stringify(parsed) },
+              ]).catch(() => {})
+            }
+            return [...prev, { role: 'transaction_list' as const, content: '', transactionList: parsed }]
           })
           return
         }
