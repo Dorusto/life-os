@@ -415,7 +415,7 @@ export default function TransactionsPage() {
                         className="accent-accent"
                       />
                     </td>
-                    <td className="py-2.5 pr-3 text-muted whitespace-nowrap">{tx.date}</td>
+                    <td className="py-2.5 pr-3 text-muted whitespace-nowrap">{formatDate(tx.date)}</td>
                     <td className="py-2.5 pr-3 text-white whitespace-nowrap max-w-[20ch] truncate">
                       {tx.merchant || 'Unknown'}
                     </td>

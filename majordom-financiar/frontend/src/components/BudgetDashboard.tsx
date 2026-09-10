@@ -359,7 +359,7 @@ function GroupRow({
         </div>
       </div>
       {hasBudget && (
-        <div className="h-px bg-border/40 rounded-full overflow-hidden mt-2 ml-[18px]">
+        <div className="h-1.5 bg-border rounded-full overflow-hidden mt-2 ml-[18px]">
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{ width: `${Math.min(percentage, 100)}%`, backgroundColor: barColor }}
@@ -396,7 +396,7 @@ function SubcategoryRow({
         <span className="font-mono text-xs tabular-nums text-white">{formatCurrency(spent)}</span>
       </div>
       {hasBudget && (
-        <div className="h-px bg-border/30 rounded-full overflow-hidden mt-1.5 ml-[15px]">
+        <div className="h-1.5 bg-border rounded-full overflow-hidden mt-1.5 ml-[15px]">
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{ width: `${Math.min(percentage, 100)}%`, backgroundColor: barColor }}

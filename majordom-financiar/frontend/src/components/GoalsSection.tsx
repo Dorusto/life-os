@@ -152,7 +152,7 @@ function PortfolioIndependenceRow({ data, navigate }: { data: FireData; navigate
         </p>
       </div>
 
-      <div className="relative w-full h-px bg-border/40 rounded-full overflow-hidden mt-3 mb-2.5">
+      <div className="relative w-full h-1.5 bg-border rounded-full overflow-hidden mt-3 mb-2.5">
         <div
           className="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
           style={{ width: `${Math.min(data.fire_pct, 100)}%`, backgroundColor: color }}
@@ -223,7 +223,7 @@ function GoalRow({ goal, color, navigate }: GoalRowProps) {
         </p>
       </div>
 
-      <div className="relative w-full h-px bg-border/40 rounded-full overflow-hidden mt-3 mb-2.5">
+      <div className="relative w-full h-1.5 bg-border rounded-full overflow-hidden mt-3 mb-2.5">
         <div
           className="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
           style={{ width: `${Math.min(goal.percentage, 100)}%`, backgroundColor: color }}
