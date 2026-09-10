@@ -18,6 +18,36 @@ logger = logging.getLogger(__name__)
 
 ACCOUNT_TYPES = ("Cash", "Investment", "Vehicle", "Loan", "Rental")
 
+
+class ActualBudgetUnavailableError(Exception):
+    """Raised by _run() when a call into actualpy fails because AB itself is
+    unreachable or rejected the stored credentials (#254) — as opposed to any
+    other exception, which is a real application bug and should propagate
+    unchanged. error_type is "connection" or "auth", see
+    _classify_ab_connection_error() below."""
+
+    def __init__(self, error_type: str, message: str):
+        self.error_type = error_type
+        self.message = message
+        super().__init__(message)
+
+
+def _classify_ab_connection_error(exc: Exception) -> tuple[str, str]:
+    """Map an exception from constructing/using actualpy's Actual against
+    stored credentials to (error_type, message). See docstring on
+    backend.api.setup.ab_test_connection() for how each category was
+    confirmed against the actual actualpy source (not guessed). Moved here
+    from backend/api/setup.py (#254) so ActualBudgetClient._run() can reuse
+    the same classification instead of duplicating it."""
+    import httpx
+    from actual.exceptions import AuthorizationError
+
+    if isinstance(exc, AuthorizationError):
+        return "auth", "Server reachable, but the password was rejected."
+    if isinstance(exc, httpx.HTTPError):
+        return "connection", "Could not reach the Actual Budget server — check the URL."
+    return "connection", f"Could not connect: {exc}"
+
 # Every request builds its own ActualBudgetClient (see e.g. backend/api/home.py's
 # _get_client()), but actualpy syncs to one shared local cache file keyed by sync_id —
 # concurrent instances racing on that file causes intermittent "no such table" errors
@@ -614,9 +644,16 @@ class ActualBudgetClient:
         return _CachedReadHandle(_cached_read_actual)
 
     async def _run(self, func):
+        import httpx
+        from actual.exceptions import AuthorizationError
+
         loop = asyncio.get_event_loop()
-        async with _actual_lock:
-            return await loop.run_in_executor(self._executor, func)
+        try:
+            async with _actual_lock:
+                return await loop.run_in_executor(self._executor, func)
+        except (httpx.HTTPError, AuthorizationError) as e:
+            error_type, message = _classify_ab_connection_error(e)
+            raise ActualBudgetUnavailableError(error_type, message) from e
 
     async def get_accounts(self) -> list[Account]:
         def _get():

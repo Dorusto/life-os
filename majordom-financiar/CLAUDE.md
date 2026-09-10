@@ -63,12 +63,16 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 > new evidence it isn't holding. #113/#124 and the rest of the coaching-shaped cluster (Phase C2)
 > are next, once there's been time to see whether administration actually reached zero.
 >
-> Still open, unrelated to the re-scope: **#242** (`resolve_transfer_duplicate()` discards
-> payee/category/date from the bank-synced side it deletes — a real data-loss bug, plus a related
-> inline-edit request for the Duplicates review card). **#245** (opened 2026-09-01, follow-up from
+> Still open, unrelated to the re-scope: **#245** (opened 2026-09-01, follow-up from
 > an unplanned mid-session perf interrupt — Home page load still ~20s, root cause is per-call
 > compute in `get_home_data`/`get_budget_status` per #227, not connection overhead; that part's
-> already fixed).
+> already fixed). #242 closed 2026-09-11 (see `docs/sessions/2026-W37.md`).
+>
+> **#254** (AB reconnect banner, cut from #190's original spec) implemented and live-verified
+> 2026-09-11 — reactive detection via `ActualBudgetClient._run()`'s single choke point (no
+> polling), see `docs/decisions.md#254-reactive-not-polling` and `architecture.md` rule 40.
+> Committed locally only; GitHub issue close held for the evening timestamp window
+> (`CLAUDE.local.md`).
 
 ---
 

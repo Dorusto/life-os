@@ -19,6 +19,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
+from backend.core.actual_client.client import _classify_ab_connection_error
 from backend.core.config import settings
 from backend.core.finance.provider import get_provider
 from backend.core.memory.database import MemoryDB
@@ -129,21 +130,6 @@ async def setup_status(current_user: str = Depends(get_current_user)):
 # ---------------------------------------------------------------------------
 # AB setup wizard (#190) — live-validated connection, encrypted storage
 # ---------------------------------------------------------------------------
-
-def _classify_ab_connection_error(exc: Exception) -> tuple[str, str]:
-    """Map an exception from constructing/using actualpy's Actual against
-    user-entered credentials to (error_type, message). See docstring on
-    ab_test_connection() for how each category was confirmed against the
-    actual actualpy source (not guessed)."""
-    import httpx
-    from actual.exceptions import AuthorizationError
-
-    if isinstance(exc, AuthorizationError):
-        return "auth", "Server reachable, but the password was rejected."
-    if isinstance(exc, httpx.HTTPError):
-        return "connection", "Could not reach the Actual Budget server — check the URL."
-    return "connection", f"Could not connect: {exc}"
-
 
 @router.post("/setup/ab-test-connection", response_model=AbTestConnectionResponse)
 async def ab_test_connection(

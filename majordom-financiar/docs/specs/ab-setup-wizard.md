@@ -1,6 +1,7 @@
 # AB Setup Wizard — spec
 
-> Draft, not yet scheduled.
+> Shipped 2026-09-11: Steps 1-4 via #190, "Fallback screen — reconnect" via #254 (implemented
+> reactively, see `docs/decisions.md#254-reactive-not-polling`). Kept as reference, not a draft.
 
 ## The problem
 

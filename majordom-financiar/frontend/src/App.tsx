@@ -24,6 +24,7 @@ import RecurringReviewPage from './pages/RecurringReviewPage'
 import Chat, { type Message, INITIAL_MESSAGES } from './pages/Chat'
 import { getChatHistory } from './lib/api'
 import BottomNav from './components/BottomNav'
+import AbConnectionBanner from './components/AbConnectionBanner'
 
 /**
  * ProtectedRoute: redirects to /login if the user is not authenticated.
@@ -275,6 +276,7 @@ function Layout() {
 
       {/* Bottom nav rendered outside Routes so it persists across page changes */}
       {showNav && isAuthenticated() && <BottomNav />}
+      <AbConnectionBanner />
     </>
   )
 }

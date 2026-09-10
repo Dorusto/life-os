@@ -1274,3 +1274,20 @@ Already independently documented before this session connected it to #181's risk
 **A real regression this could have introduced, caught before implementation, not after:** the existing `finance__get_transactions` is used for a second, different purpose — the model calling it mid-turn to find a transaction's id before immediately calling a write tool (`propose_transfer_conversion`, `propose_tag_transaction`), which depends on the tool's text result being fed back into the model's own context as a normal `role: tool` message. Anything in `_PROPOSAL_TOOLS` short-circuits that (`yield result; return`, ending the loop immediately) — simply adding the existing tool to that set would have silently broken the id-lookup flow. Resolved by adding a *new*, separate tool (`finance__list_transactions`) for the display case, leaving `get_transactions` completely untouched for the lookup case, with an explicit system-prompt bullet distinguishing when to call which (matching this codebase's established multi-specific-tool convention, e.g. the several separate `get_*_chart` tools, rather than one tool serving two purposes).
 
 **Implementation note:** the two tools share their filtering logic via a new private `_fetch_filtered_transactions()` helper rather than duplicating it — extracted at the second occurrence, per `.claude/rules/duplication-prevention.md`.
+
+---
+
+<a id="254-reactive-not-polling"></a>
+### #254 (AB reconnect banner) — reactive detection at the existing single choke point, not a new polling endpoint
+
+**Date:** 2026-09-11
+
+**Context:** #190's spec cut this scope deliberately — no app-wide mechanism existed to detect "AB just went unreachable" across arbitrary API calls. Investigation before implementing found `/api/setup/status`'s `ab_connected` field only checks `settings.actual.is_configured` (credentials saved), not live reachability — so it could NOT be reused as-is for this.
+
+**Two options presented to Doru before writing any code:** (1) reactive — translate the failure once at `ActualBudgetClient._run()` (the single choke point every read/write method already awaits through, see `architecture.md` rule 40) into a distinct 503, and have the existing unified `authFetch()` transport (#214) recognize it and flip a shared flag; zero added load on AB, but the banner only appears at the next real API call. (2) active polling — a new liveness-check endpoint, polled on an interval from the frontend; detects the outage faster even with no user activity, at the cost of a permanent background round-trip to AB for a rare condition, on a self-hosted single-instance app that already had a documented Home-load perf issue (#223/#227) from *too many* AB connections.
+
+**Decision:** option 1 (reactive). Doru's choice. Directly reuses `_classify_ab_connection_error()` (already written for #190's `ab-test-connection` endpoint, moved into `client.py` so both call sites share it instead of diverging) and the existing `authFetch()` single-transport pattern instead of introducing a second one.
+
+**Live-verified in Chrome** (not just diff review): AB up → no banner; `docker compose stop actual-budget` → banner appears app-wide with the exact `{"error_type":"connection","detail":"..."}` body, `Reconnect` navigates to `/setup/ab`, banner itself hidden there; `docker compose start actual-budget` → banner clears on the next successful call, with no page reload. Stack restored after.
+
+**Rejected:** routing this through `NotificationBell`'s Inbox-occupant pattern (per `decisions.md#phase-b-closed-bell-sufficient`) — that pattern is for dismissible findings-with-proof; this is "the tool doesn't work right now," a different category, so a separate always-visible banner is correct here and isn't a reopening of the Phase B bell-vs-banner call.

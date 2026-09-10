@@ -13,11 +13,12 @@ from pathlib import Path
 import aiohttp
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import Response
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from backend.api import auth, receipts, transactions, chat, chat_history, csv_import, proposals, budget, accounts, setup, balance_adjustments, close_account, push, income_sources, category_actions, fuelio_import, vehicle_proposals, vehicle_log_actions, vehicle_reminder_actions, vehicle_status_actions, vehicle_charts, vehicle_value, finance_charts, home, transfer_conversion, vehicle_accounts_internal, notification_actions
 
+from backend.core.actual_client.client import ActualBudgetUnavailableError
 from backend.core.config import settings
 from backend.core.scheduler import scheduler
 
@@ -190,6 +191,23 @@ async def no_cache_api(request: Request, call_next) -> Response:
     if request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
     return response
+
+
+@app.exception_handler(ActualBudgetUnavailableError)
+async def actual_budget_unavailable_handler(
+    request: Request, exc: ActualBudgetUnavailableError
+) -> JSONResponse:
+    # 503 + this exact body shape is what frontend/src/lib/auth.ts's
+    # authFetch() looks for to trigger the "AB connection lost" banner (#254)
+    # — any AB call anywhere in the app can raise this via _run()'s single
+    # choke point, so it's handled once here instead of per-endpoint.
+    logger.warning(
+        "AB unavailable (%s) on %s: %s", exc.error_type, request.url.path, exc.message
+    )
+    return JSONResponse(
+        status_code=503,
+        content={"error_type": exc.error_type, "detail": exc.message},
+    )
 
 # Serve uploaded receipt images so the frontend can display them in the
 # review screen. Path: /uploads/{receipt_id}.jpg

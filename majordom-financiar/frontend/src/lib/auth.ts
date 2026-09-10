@@ -7,6 +7,8 @@
  * - localStorage is simpler and works identically on all mobile browsers.
  */
 
+import { setAbDown } from './abConnectionStatus'
+
 const TOKEN_KEY = 'majordom_token'
 const USERNAME_KEY = 'majordom_username'
 
@@ -71,6 +73,21 @@ export async function authFetch(
     ...init,
     headers,
   })
+  if (res.status === 503) {
+    // Distinguish "AB unreachable" (backend/main.py's ActualBudgetUnavailableError
+    // handler, #254) from any other 503 a proxy might return — clone() so the
+    // caller can still read the original body.
+    try {
+      const body = await res.clone().json()
+      if (body && typeof body.error_type === 'string') {
+        setAbDown(true)
+      }
+    } catch {
+      // Not JSON / not the expected shape — not an AB-down 503, ignore.
+    }
+  } else if (res.ok) {
+    setAbDown(false)
+  }
   if (res.status === 401 && opts?.redirectOn401 !== false) {
     // Token expired or invalid — clear local auth and redirect to login
     clearAuth()
