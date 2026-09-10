@@ -33,8 +33,9 @@ hand-written and one delegated). A documented reminder only helps if someone
 remembers to apply it; this script makes the same check mechanical, the same
 way check-private-data.sh turned a prose privacy rule into an actual gate.
 
-Exit 0 if every get_provider()-called method is wired through both layers.
-Exit 1 and list the gaps otherwise.
+Exit 0 if every get_provider()-called method is wired through both layers
+WITH matching parameter signatures (no signature drift from the actual
+ActualBudgetClient). Exit 1 and list the gaps otherwise.
 
 To bypass in emergencies: git commit --no-verify
 """
@@ -56,12 +57,66 @@ CLIENT_FILE = REPO_ROOT / "backend/core/actual_client/client.py"
 CLIENT_CLASS = "ActualBudgetClient"
 
 
+def _extract_params(node: ast.FunctionDef | ast.AsyncFunctionDef) -> list[str]:
+    """Return a list of parameter strings for *node*, omitting ``self``."""
+    args_node = node.args
+    parts: list[str] = []
+
+    # positional-only parameters (never have defaults)
+    for param in args_node.posonlyargs:
+        parts.append(param.arg)
+
+    # regular parameters (some may have default values)
+    default_offset = len(args_node.args) - len(args_node.defaults)
+    for idx, param in enumerate(args_node.args):
+        if param.arg == "self":
+            continue
+        if idx >= default_offset:
+            default_node = args_node.defaults[idx - default_offset]
+            parts.append(f"{param.arg}={ast.unparse(default_node)}")
+        else:
+            parts.append(param.arg)
+
+    # *args / *param
+    if args_node.vararg is not None:
+        parts.append(f"*{args_node.vararg.arg}")
+
+    # keyword-only parameters (may have defaults)
+    kw_defaults = args_node.kw_defaults or []
+    for idx, param in enumerate(args_node.kwonlyargs):
+        default_node = kw_defaults[idx] if idx < len(kw_defaults) else None
+        if default_node is not None:
+            parts.append(f"{param.arg}={ast.unparse(default_node)}")
+        else:
+            parts.append(param.arg)
+
+    # **kwargs / **param
+    if args_node.kwarg is not None:
+        parts.append(f"**{args_node.kwarg.arg}")
+
+    return parts
+
+
 def class_method_names(file: Path, class_name: str) -> set[str]:
     tree = ast.parse(file.read_text(), filename=str(file))
     for node in ast.walk(tree):
         if isinstance(node, ast.ClassDef) and node.name == class_name:
             return {
                 item.name
+                for item in node.body
+                if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
+            }
+    print(f"ERROR: class {class_name!r} not found in {file}", file=sys.stderr)
+    sys.exit(2)
+
+
+def class_method_signatures(file: Path, class_name: str) -> dict[str, list[str]]:
+    """Return {method_name: [param_string, …]} for the given class."""
+    tree = ast.parse(file.read_text(), filename=str(file))
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == class_name:
+            return {
+                item.name: _extract_params(item)
                 for item in node.body
                 if isinstance(item, (ast.FunctionDef, ast.AsyncFunctionDef))
             }
@@ -123,8 +178,40 @@ def main() -> int:
     missing_from_provider = sorted(all_called - provider_methods)
     missing_from_protocol = sorted(all_called - protocol_methods)
 
-    if not missing_from_provider and not missing_from_protocol:
-        print(f"✅ FinanceProvider wiring OK — all {len(all_called)} get_provider()-called methods are reachable.")
+    # Methods that ARE wired on all three layers — check their parameter
+    # signatures for drift against ActualBudgetClient.
+    methods_ok = all_called & provider_methods & protocol_methods
+
+    signature_drifts: list[tuple[str, str, list[str], list[str]]] = []
+
+    if methods_ok:
+        client_sigs = class_method_signatures(CLIENT_FILE, CLIENT_CLASS)
+        provider_sigs = class_method_signatures(PROVIDER_FILE, PROVIDER_CLASS)
+        protocol_sigs = class_method_signatures(PROTOCOL_FILE, PROTOCOL_CLASS)
+
+        for name in sorted(methods_ok):
+            cl_params = client_sigs.get(name)
+            pr_params = provider_sigs.get(name)
+            prot_params = protocol_sigs.get(name)
+
+            # If a method exists on the client but the AST scan of the
+            # provider/protocol produced no entry (extremely unlikely after the
+            # name‑existence check), skip it – the existing missing‑method
+            # error would already be fatal.
+            if cl_params is None or pr_params is None or prot_params is None:
+                continue
+
+            if cl_params != pr_params:
+                signature_drifts.append((name, "ActualBudgetProvider", cl_params, pr_params))
+            if cl_params != prot_params:
+                signature_drifts.append((name, "FinanceProvider", cl_params, prot_params))
+
+    if not missing_from_provider and not missing_from_protocol and not signature_drifts:
+        print(
+            f"✅ FinanceProvider wiring OK — all {len(all_called)} "
+            f"get_provider()-called methods are reachable and have matching "
+            f"parameter signatures."
+        )
         return 0
 
     print("🔍 Checking get_provider()-called methods → ActualBudgetProvider/FinanceProvider wiring...")
@@ -137,12 +224,23 @@ def main() -> int:
         for name in missing_from_protocol:
             print(f"  - {name}")
 
-    print(
-        "\n⚠️  A tool-layer call to get_provider().<method>() that isn't wired through "
-        "both layers raises AttributeError the first time it actually runs (#126). "
-        "Add the pass-through in ActualBudgetProvider + the declaration in the "
-        "FinanceProvider Protocol.\n   Emergency bypass: git commit --no-verify"
-    )
+    if signature_drifts:
+        print("\n🛑 BLOCKED — method parameter signature drift:")
+        for name, layer, client_sig, layer_sig in signature_drifts:
+            print(f"  {name}:")
+            print(f"    ActualBudgetClient:   ({', '.join(client_sig)})")
+            print(f"    {layer}: ({', '.join(layer_sig)})")
+        print(
+            "\nAdd/remove/wrangle parameters to match ActualBudgetClient.\n"
+        )
+
+    if missing_from_provider or missing_from_protocol:
+        print(
+            "\n⚠️  A tool-layer call to get_provider().<method>() that isn't wired through "
+            "both layers raises AttributeError the first time it actually runs (#126). "
+            "Add the pass-through in ActualBudgetProvider + the declaration in the "
+            "FinanceProvider Protocol.\n   Emergency bypass: git commit --no-verify"
+        )
     return 1
 
 
