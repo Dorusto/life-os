@@ -828,7 +828,7 @@ function BudgetPeriodCard({
           <span className="font-display font-bold text-[15px]">Categories Watchlist</span>
           <button
             onClick={() => setEditingGroups(o => !o)}
-            className={`text-muted hover:text-white transition-colors ${editingGroups ? 'text-accent' : ''}`}
+            className={`text-muted hover:text-white transition-colors p-2.5 ${editingGroups ? 'text-accent' : ''}`}
             aria-label={editingGroups ? 'Exit group edit mode' : 'Edit groups'}
             title={editingGroups ? 'Exit group edit mode' : 'Edit groups'}
           >

@@ -215,7 +215,7 @@ function MonthNavTitle({
         type="button"
         disabled={loading}
         onClick={() => shift(-1)}
-        className="text-muted hover:text-white disabled:opacity-40 px-1 text-sm leading-none"
+        className="text-muted hover:text-white disabled:opacity-40 px-3 py-2 text-sm leading-none"
         aria-label="Previous month"
       >
         ‹
@@ -225,7 +225,7 @@ function MonthNavTitle({
         type="button"
         disabled={loading}
         onClick={() => shift(1)}
-        className="text-muted hover:text-white disabled:opacity-40 px-1 text-sm leading-none"
+        className="text-muted hover:text-white disabled:opacity-40 px-3 py-2 text-sm leading-none"
         aria-label="Next month"
       >
         ›
@@ -758,13 +758,13 @@ function LineChart({
                 container width) and would visibly skew any text drawn inside it. */}
             <div className="relative">
               <span
-                className="absolute left-0.5 text-[9px] text-muted-2 -translate-y-1/2 bg-surface/80 px-0.5 rounded"
+                className="absolute left-0.5 text-[11px] text-muted-2 -translate-y-1/2 bg-surface/80 px-0.5 rounded"
                 style={{ top: `${(scaleY(seriesMax) / height) * 100}%` }}
               >
                 {formatNumber(seriesMax)}
               </span>
               <span
-                className="absolute left-0.5 text-[9px] text-muted-2 -translate-y-1/2 bg-surface/80 px-0.5 rounded"
+                className="absolute left-0.5 text-[11px] text-muted-2 -translate-y-1/2 bg-surface/80 px-0.5 rounded"
                 style={{ top: `${(scaleY(seriesMin) / height) * 100}%` }}
               >
                 {formatNumber(seriesMin)}

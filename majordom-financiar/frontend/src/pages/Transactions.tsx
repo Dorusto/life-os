@@ -342,7 +342,7 @@ export default function TransactionsPage() {
                   type="checkbox"
                   checked={allVisibleSelected}
                   onChange={toggleSelectAll}
-                  className="accent-accent"
+                  className="w-4 h-4 accent-accent"
                 />
                 Select all
               </label>
@@ -359,7 +359,7 @@ export default function TransactionsPage() {
                       type="checkbox"
                       checked={selected.has(tx.id)}
                       onChange={() => toggleRow(tx.id)}
-                      className="accent-accent flex-shrink-0"
+                      className="w-4 h-4 accent-accent flex-shrink-0"
                     />
                   )}
                   <div className="flex-1 min-w-0">
@@ -394,7 +394,7 @@ export default function TransactionsPage() {
                       type="checkbox"
                       checked={allVisibleSelected}
                       onChange={toggleSelectAll}
-                      className="accent-accent"
+                      className="w-4 h-4 accent-accent"
                     />
                   </th>
                   <th className="py-2 pr-3 font-medium">Date</th>
@@ -412,7 +412,7 @@ export default function TransactionsPage() {
                         type="checkbox"
                         checked={selected.has(tx.id)}
                         onChange={() => toggleRow(tx.id)}
-                        className="accent-accent"
+                        className="w-4 h-4 accent-accent"
                       />
                     </td>
                     <td className="py-2.5 pr-3 text-muted whitespace-nowrap">{formatDate(tx.date)}</td>

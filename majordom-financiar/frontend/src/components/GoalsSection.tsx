@@ -61,7 +61,7 @@ export default function GoalsSection({ fireData, goals, isLoading }: { fireData:
         <span className="font-display font-bold text-[15px]">Financial Goals</span>
         <button
           onClick={() => setSheetOpen(true)}
-          className="text-muted hover:text-white transition-colors"
+          className="text-muted hover:text-white transition-colors p-2"
           aria-label="New goal"
         >
           <Plus size={16} />
