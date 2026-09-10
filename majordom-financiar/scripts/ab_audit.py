@@ -185,5 +185,11 @@ if __name__ == "__main__":
         dupes(env)
     elif len(sys.argv) > 1 and sys.argv[1] == "broken_transfers":
         broken_transfers(env)
-    else:
+    elif len(sys.argv) <= 1:
         sweep(env)
+    else:
+        print(
+            f"Usage: {sys.argv[0]} [detail <account...> | dupes | broken_transfers]",
+            file=sys.stderr,
+        )
+        sys.exit(1)
