@@ -52,9 +52,43 @@ class ActualBudgetConfig:
     sync_id: str = ""
 
     def __post_init__(self):
+        self._load_from_env()
+        self._load_saved_overrides()
+
+    def _load_from_env(self) -> None:
         self.url = os.getenv("ACTUAL_BUDGET_URL", "http://actual-budget:5006")
         self.password = os.getenv("ACTUAL_BUDGET_PASSWORD", "")
         self.sync_id = os.getenv("ACTUAL_BUDGET_SYNC_ID", "")
+
+    def _load_saved_overrides(self) -> None:
+        """If the AB setup wizard (#190) has saved credentials, they override
+        the env-based defaults above. Reads MEMORY_DB_PATH directly from env
+        rather than via the `settings` singleton's `memory` field — this runs
+        while the enclosing Settings() singleton is still being constructed,
+        before that field exists."""
+        from backend.core.config.ab_credential_store import load_saved_credentials
+
+        db_path = os.getenv("MEMORY_DB_PATH", "/app/data/memory.db")
+        saved = load_saved_credentials(db_path)
+        if saved:
+            self.url = saved["url"]
+            self.password = saved["password"]
+            self.sync_id = saved["sync_id"]
+
+    def reload_from_db(self) -> None:
+        """Re-check for wizard-saved credentials and apply them immediately.
+        Called by the setup wizard's save endpoint right after writing new
+        credentials, so the change takes effect in the currently running
+        process with no restart needed."""
+        self._load_from_env()
+        self._load_saved_overrides()
+
+    @property
+    def is_configured(self) -> bool:
+        """True once a password is set, whether from env or the saved wizard
+        override — used by the setup-status endpoint to decide whether to
+        show the AB setup wizard."""
+        return bool(self.password)
 
 
 @dataclass
