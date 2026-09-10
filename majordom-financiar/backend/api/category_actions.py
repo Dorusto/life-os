@@ -300,7 +300,7 @@ async def confirm_category_action(
                 action["synced_id"],
                 payee_id=payee_id,
                 category_id=category_id,
-                notes=override.duplicate_notes,
+                notes=override.duplicate_notes or None,
             )
             if not merged:
                 raise HTTPException(
@@ -337,7 +337,7 @@ async def confirm_category_action(
                 action["synced_dup_id"],
                 payee_id=payee_id,
                 category_id=category_id,
-                notes=override.duplicate_notes,
+                notes=override.duplicate_notes or None,
                 date=date_int,
             )
             if not result.get("success"):

@@ -194,8 +194,10 @@ function DuplicatePairCard({
   const [payee, setPayee] = useState(surviving.payee)
   const [category, setCategory] = useState(surviving.category_name)
   const [notes, setNotes] = useState(surviving.notes)
-  const dateStr = surviving.date
-  const [date, setDate] = useState(dateStr)
+  // Seeded from the bank-synced side, not `surviving` — for a transfer pair the
+  // surviving transfer leg's own date is exactly the unreliable value #242 fixes;
+  // defaulting the field to it would silently undo that fix on every untouched confirm.
+  const [date, setDate] = useState(pair.synced.date)
 
   const handleConfirm = () => {
     onConfirm({ duplicate_payee: payee, duplicate_category_name: category, duplicate_notes: notes, duplicate_date: date })
