@@ -33,10 +33,10 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
-from backend.core.actual_client import _financial_id
 from backend.core.config import settings, build_llm_headers
 from backend.core.csv_importer import CsvNormalizer, CsvProfileDetector
 from backend.core.finance.provider import get_provider
+from backend.core.finance.transaction_utils import financial_id
 from backend.core.memory import MemoryDB, SmartCategorizer
 
 logger = logging.getLogger(__name__)
@@ -350,7 +350,7 @@ async def preview_csv(
 
     preview_rows: list[ImportRowPreview] = []
     for tx, rule_match in zip(transactions, rule_matches):
-        fid = _financial_id(tx.date.isoformat(), tx.merchant, tx.amount)
+        fid = financial_id(tx.date.isoformat(), tx.merchant, tx.amount)
         duplicate = fid in existing_ids
 
         # Near-duplicate check: same date+merchant already in AB, but the exact
@@ -557,7 +557,7 @@ async def confirm_csv(
     # Track low-confidence categorizations (LLM-suggested, not from history)
     # for the pending_review nudge (M2.3).
     low_confidence = [
-        _financial_id(row.date, row.merchant, row.amount)
+        financial_id(row.date, row.merchant, row.amount)
         for row in body.rows
         if row.category_name
         and not row.category_confirmed
