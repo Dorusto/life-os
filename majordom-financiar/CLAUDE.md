@@ -84,10 +84,15 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 > **#227's compute-cost half fixed 2026-09-11** — `actualpy`'s `get_accumulated_budgeted_balance()`
 > was being called once per zero-budgeted category and internally re-deriving the whole budget
 > history every time; hoisted one shared lookup instead, 7.86s→0.50s measured, `architecture.md`
-> rule 41. **#227/#245 stay open** — only half fixed. Live network trace found #245's "fetched
-> twice" symptom is bigger than its own text scoped: the *entire* Dashboard query set double-fires
-> (likely a full component remount), not just `budget-period`. Confirmed pre-existing, not a
-> regression from today's #254/#112. Root cause not yet found — next session's pickup.
+> rule 41. **#227/#245 stay open** — only half fixed, and #245's other half (`budget-period`
+> "fetched twice") could not be reproduced on a proper re-test: an initial live check wrongly
+> concluded the *entire* Dashboard query set double-fires (a same-session methodology mistake —
+> network requests read across two navigations without clearing the log in between, which
+> double-counted every request). Corrected the same session, see `docs/sessions/2026-W37.md`'s
+> follow-up entry. A clean single-navigation trace + a `useEffect` mount/unmount probe on
+> `Dashboard` both showed no duplication and exactly one mount — #245's original symptom needs a
+> fresh check (ideally against real backend logs, its own original evidence source) before
+> concluding it still reproduces at all.
 
 ---
 
