@@ -55,6 +55,13 @@ export default function VehicleDetail() {
     queryFn: () => getVehicle(vehicleId!),
     enabled: !!vehicleId,
     staleTime: 120_000,
+    // A 404 here means "no vehicle with this id" (stale link/bookmark) — a
+    // real, permanent answer, not a transient failure. Without this, the
+    // app-wide QueryClient default (main.tsx) retries for ~15s then polls
+    // every 5s forever, same gotcha projectionQuery below already guards
+    // against — this query just hadn't been given the same fix yet.
+    retry: false,
+    refetchInterval: false,
   })
 
   const vehicle = vehicleQuery.data
