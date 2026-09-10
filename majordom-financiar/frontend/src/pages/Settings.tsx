@@ -6,11 +6,12 @@ import {
   ChevronLeft, ChevronRight, LogOut, RefreshCw, Wallet, Database, Car, LineChart,
   Palette, Languages, Settings2, ShieldCheck, Coins, Tags, Users, CalendarClock,
   ArrowRightLeft, Sparkles, Plug, Link2, Bell, Info, Moon, Sun, Monitor, Check,
-  Lock, Unplug, Hash,
+  Lock, Unplug, Hash, TrendingUp,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
   syncAccounts, getPayees, getSchedules, getBackupStatus, getCategories, getCategoryGroups,
+  getBudgetPacingConfig, saveBudgetPacingConfig,
   type PayeeItem, type ScheduleItem,
 } from '../lib/api'
 import { clearAuth } from '../lib/auth'
@@ -33,6 +34,7 @@ type PageKey =
   | 'ai-integrations'
   | 'connections'
   | 'notifications'
+  | 'budget-pacing'
   | 'about'
 
 type SubPageKey = Exclude<PageKey, 'menu'>
@@ -51,6 +53,7 @@ const SUBPAGE_TITLES: Record<SubPageKey, string> = {
   'ai-integrations': 'AI Integrations',
   connections: 'Connections',
   notifications: 'Notifications',
+  'budget-pacing': 'Annual budget pacing',
   about: 'About',
 }
 
@@ -80,6 +83,7 @@ const MENU_GROUPS: { label: string; items: MenuItem[] }[] = [
       { key: 'import-export', label: 'Import & Export', icon: ArrowRightLeft },
       { key: 'ai', label: 'AI', icon: Sparkles },
       { key: 'ai-integrations', label: 'AI Integrations', icon: Plug },
+      { key: 'budget-pacing', label: 'Annual budget pacing', icon: TrendingUp },
     ],
   },
   { label: 'Connections', items: [{ key: 'connections', label: 'Connections', icon: Link2 }] },
@@ -207,6 +211,7 @@ function PageBody({ page }: { page: SubPageKey }) {
     case 'ai-integrations': return <AiIntegrationsPage />
     case 'connections': return <ConnectionsPage />
     case 'notifications': return <NotificationsPage />
+    case 'budget-pacing': return <BudgetPacingPage />
     case 'about': return <AboutPage />
   }
 }
@@ -540,6 +545,155 @@ function ConnectionsPage() {
 }
 
 // ---------- Notifications ----------
+
+// ---------- Budget pacing (#112) ----------
+
+function BudgetPacingPage() {
+  const queryClient = useQueryClient()
+  const { data: config, isLoading } = useQuery({
+    queryKey: ['budget-pacing-config'],
+    queryFn: () => getBudgetPacingConfig(),
+    staleTime: 60_000,
+  })
+
+  const [annualIncome, setAnnualIncome] = useState('')
+  const [fixedIds, setFixedIds] = useState<Set<string>>(new Set())
+  const [sinkingIds, setSinkingIds] = useState<Set<string>>(new Set())
+  const [seeded, setSeeded] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+
+  // Seed the form from the saved config exactly once, when it first loads —
+  // not on every refetch, or an in-progress edit would get clobbered.
+  useEffect(() => {
+    if (config && !seeded) {
+      setAnnualIncome(config.annual_income != null ? String(config.annual_income) : '')
+      setFixedIds(new Set(config.fixed_category_ids))
+      setSinkingIds(new Set(config.sinking_fund_category_ids))
+      setSeeded(true)
+    }
+  }, [config, seeded])
+
+  // A category can only be fixed OR sinking-fund, never both — the backend
+  // (get_budget_pacing_totals() in client.py) silently prioritizes "fixed"
+  // on a collision, which would make a sinking-fund toggle look accepted in
+  // the UI but be ignored in the calculation. Enforced here instead of just
+  // documented, so the two states can never actually collide.
+  function toggle(
+    set: Set<string>, setSet: (s: Set<string>) => void,
+    otherSet: Set<string>, setOtherSet: (s: Set<string>) => void,
+    id: string,
+  ) {
+    const next = new Set(set)
+    if (next.has(id)) {
+      next.delete(id)
+    } else {
+      next.add(id)
+      if (otherSet.has(id)) {
+        const nextOther = new Set(otherSet)
+        nextOther.delete(id)
+        setOtherSet(nextOther)
+      }
+    }
+    setSet(next)
+  }
+
+  async function handleSave() {
+    const income = parseFloat(annualIncome)
+    if (!income || income <= 0) {
+      setSaveError('Enter a valid annual income.')
+      return
+    }
+    setSaving(true)
+    setSaveError(null)
+    setSaved(false)
+    try {
+      await saveBudgetPacingConfig({
+        annual_income: income,
+        fixed_category_ids: Array.from(fixedIds),
+        sinking_fund_category_ids: Array.from(sinkingIds),
+      })
+      queryClient.invalidateQueries({ queryKey: ['budget-pacing-config'] })
+      setSaved(true)
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Failed to save.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const inputClass = `
+    w-full px-4 py-3 rounded-xl bg-surface border border-border
+    text-white placeholder-muted-2 text-base
+    focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent
+    transition-colors
+  `
+
+  if (isLoading) return <p className="text-sm text-muted px-1">Loading…</p>
+
+  return (
+    <>
+      <p className="text-xs text-muted px-1">
+        Discretionary spending is tracked against your annual income minus fixed expenses and
+        sinking funds — Majordom only nudges you when you're over pace for the year, not every month.
+      </p>
+
+      <div className="flex flex-col gap-1.5 pt-2">
+        <label htmlFor="annual-income" className="text-sm text-muted px-1">Annual income (€)</label>
+        <input
+          id="annual-income"
+          type="number"
+          inputMode="decimal"
+          min="0"
+          value={annualIncome}
+          onChange={e => setAnnualIncome(e.target.value)}
+          placeholder="e.g. 60000"
+          className={inputClass}
+        />
+      </div>
+
+      <SectionLabel>Fixed expense categories</SectionLabel>
+      {config?.categories.map(c => (
+        <ToggleRow
+          key={c.id}
+          title={c.name}
+          subtitle={c.group_name}
+          on={fixedIds.has(c.id)}
+          onToggle={() => toggle(fixedIds, setFixedIds, sinkingIds, setSinkingIds, c.id)}
+        />
+      ))}
+
+      <SectionLabel>Sinking fund / goal categories</SectionLabel>
+      {config?.categories.map(c => (
+        <ToggleRow
+          key={c.id}
+          title={c.name}
+          subtitle={c.group_name}
+          on={sinkingIds.has(c.id)}
+          onToggle={() => toggle(sinkingIds, setSinkingIds, fixedIds, setFixedIds, c.id)}
+        />
+      ))}
+
+      {saveError && <p className="text-danger text-sm text-center pt-2">{saveError}</p>}
+      {saved && <p className="text-positive text-sm text-center pt-2">Saved.</p>}
+
+      <button
+        type="button"
+        disabled={saving}
+        onClick={handleSave}
+        className="
+          mt-2 w-full py-3.5 rounded-xl bg-surface border border-border text-white text-base font-medium
+          hover:bg-surface-2 active:scale-[0.98]
+          disabled:opacity-40 disabled:cursor-not-allowed
+          transition-all duration-150
+        "
+      >
+        {saving ? 'Saving…' : 'Save'}
+      </button>
+    </>
+  )
+}
 
 function NotificationsPage() {
   const [notifState, setNotifState] = useState<'default' | 'granted' | 'denied' | 'unsupported'>('granted')

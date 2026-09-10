@@ -548,6 +548,14 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__get_budget_pacing_status",
+            "description": "Check whether the user is on pace with their annual discretionary budget so far this year, vs. their configured annual income minus fixed expenses and sinking funds. Read-only. If never configured (configured=false), tell the user to set it up in Settings — do not guess or estimate the numbers yourself.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "finance__get_reached_goals",
             "description": "Check for savings-goal categories whose target month has already passed. Read-only — use when the user asks to check if any goals are finished/done, or naturally when discussing budget templates/goals. An empty result is normal, not an error.",
             "parameters": {"type": "object", "properties": {}, "required": []},
@@ -1403,6 +1411,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "finance__get_tag_goal_progress":
         from backend.tools.finance.actual_budget import get_tag_goal_progress
         return await get_tag_goal_progress(**arguments)
+
+    if name == "finance__get_budget_pacing_status":
+        from backend.tools.finance.actual_budget import get_budget_pacing_status
+        return await get_budget_pacing_status(**arguments)
 
     if name == "finance__get_reached_goals":
         from backend.tools.finance.actual_budget import get_reached_goals

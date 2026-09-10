@@ -220,6 +220,11 @@ class ActualBudgetProvider:
     async def list_budget_realism_flags(self, trailing_months: int = 6) -> list[dict]:
         return await self._client().list_budget_realism_flags(trailing_months)
 
+    async def get_budget_pacing_totals(
+        self, fixed_category_ids: list[str], sinking_fund_category_ids: list[str],
+    ) -> dict:
+        return await self._client().get_budget_pacing_totals(fixed_category_ids, sinking_fund_category_ids)
+
     async def get_account_sync_status(self) -> list[dict]:
         return await self._client().get_account_sync_status()
 

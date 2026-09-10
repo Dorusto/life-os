@@ -817,6 +817,45 @@ export async function getCategoryGroups(): Promise<string[]> {
   return request<string[]>('/category-groups')
 }
 
+// --- Budget pacing (#112) ---
+
+export interface BudgetPacingConfig {
+  configured: boolean
+  annual_income: number | null
+  fixed_category_ids: string[]
+  sinking_fund_category_ids: string[]
+  categories: { id: string; name: string; group_name: string }[]
+}
+
+export interface BudgetPacingStatus {
+  configured: boolean
+  annual_income: number | null
+  months_elapsed: number | null
+  expected_by_now: number | null
+  actual_by_now: number | null
+  over_by: number | null
+  on_pace: boolean | null
+}
+
+export async function getBudgetPacingConfig(): Promise<BudgetPacingConfig> {
+  return request<BudgetPacingConfig>('/budget-pacing/config')
+}
+
+export async function saveBudgetPacingConfig(data: {
+  annual_income: number
+  fixed_category_ids: string[]
+  sinking_fund_category_ids: string[]
+}): Promise<BudgetPacingConfig> {
+  return request<BudgetPacingConfig>('/budget-pacing/config', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function getBudgetPacingStatus(): Promise<BudgetPacingStatus> {
+  return request<BudgetPacingStatus>('/budget-pacing/status')
+}
+
 // --- Proposals ---
 
 export interface ConfirmResult {

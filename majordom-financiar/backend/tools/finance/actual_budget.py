@@ -1410,6 +1410,20 @@ async def get_tag_goal_progress(tag: str) -> str:
     })
 
 
+async def get_budget_pacing_status() -> str:
+    """Check annual discretionary-budget pacing (#112). Read-only — no card.
+    Returns configured=False if the user never set it up in Settings; do not
+    fabricate numbers in that case."""
+    from backend.core.finance import budget_pacing
+
+    client = get_provider()
+    status = await budget_pacing.compute_pacing_status(client)
+    if status is None:
+        return json.dumps({"type": "budget_pacing_status", "configured": False})
+
+    return json.dumps({"type": "budget_pacing_status", **status})
+
+
 async def get_reached_goals() -> str:
     """Check for savings-goal categories whose target month has already passed.
 

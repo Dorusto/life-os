@@ -826,6 +826,21 @@ async def get_pending_items() -> list[dict]:
     except Exception as e:
         logger.warning("get_pending_items: budget status check failed: %s", e)
 
+    # Annual budget pacing (#112) — only surfaced when configured AND over
+    # pace; an unconfigured user is left to discover the Settings page on
+    # their own, not nagged into setting it up from the bell.
+    try:
+        from backend.core.finance import budget_pacing
+        pacing = await budget_pacing.compute_pacing_status(client)
+        if pacing is not None and not pacing["on_pace"]:
+            items.append({
+                "type": "budget_pacing",
+                "text": f"You're €{pacing['over_by']:.0f} over pace for the year in discretionary spending",
+                "prompt": "how am I doing on my annual budget pacing?",
+            })
+    except Exception as e:
+        logger.warning("get_pending_items: budget pacing check failed: %s", e)
+
     # Goals at risk of missing their deadline were removed from this list —
     # every goal (with its progress bar, remaining amount, and deadline) is
     # already displayed directly in Home's "Financial Goals" section, so

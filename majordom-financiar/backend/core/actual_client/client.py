@@ -1047,6 +1047,67 @@ class ActualBudgetClient:
                 return flags
         return await self._run(_fetch)
 
+    async def get_budget_pacing_totals(
+        self, fixed_category_ids: list[str], sinking_fund_category_ids: list[str],
+    ) -> dict:
+        """
+        Raw sums for #112's annual pacing formula, January through the current
+        month inclusive: budgeted totals for the two tagged category sets, and
+        actual spending for every other (non-fixed, non-sinking-fund,
+        non-income) category — "discretionary spending so far". Pure data
+        access only; the pool/expected/actual arithmetic lives one layer up in
+        backend/core/finance/budget_pacing.py, which also owns reading the
+        saved category-tagging config this method's caller must supply.
+
+        One `_get_cached_read_actual()` session for the whole Jan-to-now
+        range, months looped inside it — same fix `list_budget_realism_flags()`
+        above documents: a per-month client method called in an outer Python
+        loop logs into Actual Budget once per call, which trips its rate
+        limit for a multi-month range.
+        """
+        def _fetch():
+            import calendar
+            from actual.queries import get_transactions, get_categories
+
+            with self._get_cached_read_actual() as actual:
+                today = date.today()
+                months_elapsed = today.month
+
+                all_cats = get_categories(actual.session)
+                income_ids = {str(c.id) for c in all_cats if getattr(c, "is_income", False)}
+                fixed_ids = set(fixed_category_ids)
+                sinking_ids = set(sinking_fund_category_ids)
+
+                fixed_budgeted_elapsed = 0.0
+                sinking_budgeted_elapsed = 0.0
+                discretionary_spent_elapsed = 0.0
+
+                for month in range(1, months_elapsed + 1):
+                    start = date(today.year, month, 1)
+                    last_day = calendar.monthrange(today.year, month)[1]
+                    end = date(today.year, month, last_day)
+                    txs = get_transactions(actual.session, start_date=start, end_date=end)
+                    rows = _compute_budget_vs_spent(actual.session, txs, all_cats, today.year, month)
+                    for row in rows:
+                        cat_id = row["category_id"]
+                        if cat_id in income_ids:
+                            continue
+                        if cat_id in fixed_ids:
+                            fixed_budgeted_elapsed += row["budgeted"]
+                        elif cat_id in sinking_ids:
+                            sinking_budgeted_elapsed += row["budgeted"]
+                        else:
+                            discretionary_spent_elapsed += row["spent"]
+
+                return {
+                    "months_elapsed": months_elapsed,
+                    "fixed_budgeted_elapsed": round(fixed_budgeted_elapsed, 2),
+                    "sinking_budgeted_elapsed": round(sinking_budgeted_elapsed, 2),
+                    "discretionary_spent_elapsed": round(discretionary_spent_elapsed, 2),
+                }
+
+        return await self._run(_fetch)
+
     async def find_recurring_candidates(
         self,
         lookback_months: int = 4,

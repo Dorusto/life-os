@@ -71,8 +71,15 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 > **#254** (AB reconnect banner, cut from #190's original spec) implemented and live-verified
 > 2026-09-11 — reactive detection via `ActualBudgetClient._run()`'s single choke point (no
 > polling), see `docs/decisions.md#254-reactive-not-polling` and `architecture.md` rule 40.
-> Committed locally only; GitHub issue close held for the evening timestamp window
+> Committed locally (`5b80ad8`); GitHub issue close held for the evening timestamp window
 > (`CLAUDE.local.md`).
+>
+> **#112** (annual budget pacing, one of Phase C2's coaching-cluster items) implemented and
+> live-verified 2026-09-11 — Settings-based editable config, formula extrapolated from elapsed
+> months, bell alert only when over pace, see `docs/decisions.md#112-annual-budget-pacing`.
+> Committed locally; GitHub issue close held for the evening window, same as #254. Remaining
+> Phase C2 items: #111/#42, both blocked on real gaps (no live bank-sync for #111, undecided
+> market-data source for #42 — see that entry's own dated session note before picking either up).
 
 ---
 
