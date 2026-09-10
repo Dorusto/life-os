@@ -127,8 +127,21 @@ def class_method_signatures(file: Path, class_name: str) -> dict[str, list[str]]
 def provider_called_methods(file: Path) -> set[str]:
     """
     Method names called on the result of get_provider() in this file, whether
-    assigned to a variable first (`client = get_provider(); client.foo()`)
-    or chained directly (`await get_provider().foo()`).
+    assigned to a variable first (`client = get_provider(); client.foo()`),
+    chained directly (`await get_provider().foo()`), or reached one hop away
+    through a helper function whose parameter is typed `FinanceProvider` (a
+    file-wide approximation, same precision tradeoff as the get_provider()
+    pattern below — not properly scoped per-function, but this script has
+    always accepted that in exchange for staying a simple AST walk rather
+    than a real call-graph resolver).
+
+    The third case was a real blind spot until #112: a helper like
+    `def compute_pacing_status(provider: FinanceProvider): ... provider.foo()`
+    calls a method that never appears next to a `get_provider()` call
+    anywhere — the call site the old two-pass logic looked for simply isn't
+    in this file, it's one function away. `budget_pacing.py`'s
+    `get_budget_pacing_totals()` call went completely unseen by this script
+    (verified by hand instead) until this was added.
     """
     tree = ast.parse(file.read_text(), filename=str(file))
     provider_vars: set[str] = set()
@@ -141,12 +154,27 @@ def provider_called_methods(file: Path) -> set[str]:
             and node.func.id == "get_provider"
         )
 
-    # Pass 1: find every variable assigned directly from get_provider().
+    def is_finance_provider_annotation(node: ast.AST | None) -> bool:
+        # Matches `x: FinanceProvider` and `x: "FinanceProvider"` (quoted
+        # forward-ref annotations) — not a qualified `module.FinanceProvider`
+        # form, which no call site in this codebase currently uses.
+        if isinstance(node, ast.Name):
+            return node.id == PROTOCOL_CLASS
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value == PROTOCOL_CLASS
+        return False
+
+    # Pass 1: find every variable assigned directly from get_provider(), and
+    # every function parameter annotated as FinanceProvider.
     for node in ast.walk(tree):
         if isinstance(node, ast.Assign) and is_get_provider_call(node.value):
             for target in node.targets:
                 if isinstance(target, ast.Name):
                     provider_vars.add(target.id)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            for param in node.args.args + node.args.posonlyargs + node.args.kwonlyargs:
+                if is_finance_provider_annotation(param.annotation):
+                    provider_vars.add(param.arg)
 
     # Pass 2: find every attribute access on either a provider_vars name or
     # a direct get_provider() call.
