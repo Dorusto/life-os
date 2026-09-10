@@ -91,6 +91,16 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 > measurement mistakes along the way (an uncleared network log, then a silently-unfiltered
 > `docker logs --since`) are both corrected in `docs/sessions/2026-W37.md`. Recommended: close
 > both #227 and #245 once the evening `gh issue close` window opens — not done yet.
+>
+> **#111** (unprotected savings-goal detection, Phase C2's last coaching item) implemented and
+> live-verified 2026-09-11 — re-scoped from "needs live bank sync" (wrong earlier read of the
+> issue) to reusing the existing `TARGET:`/`DEADLINE:` account-goal mechanism, conservative
+> trigger, see `docs/decisions.md#111-unprotected-goal-detection`. Delegated via Aider/DeepSeek
+> Flash — a wrong assumed worktree path made the dispatch land its commit directly on `main`
+> instead of the isolated branch (content reviewed after the fact, found correct, kept). Fixed at
+> the skill level, `~/.claude/skills/delegate-by-complexity/`, not just noted here — protects
+> every future delegation. **Phase C2 is now fully shipped** (#111/#112/#41/#113 all closed or
+> implemented) except #42 (still blocked on Phase D's undecided market-data-source question).
 
 ---
 

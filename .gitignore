@@ -22,3 +22,6 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+# Aider (should only ever appear if run outside an isolated worktree)
+.aider*
