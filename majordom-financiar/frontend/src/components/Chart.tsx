@@ -728,6 +728,17 @@ function LineChart({
           new Set([0, Math.round(lastIdx / 3), Math.round((lastIdx * 2) / 3), lastIdx])
         ).sort((a, b) => a - b)
 
+        // A multi-year series (e.g. a 12-year vehicle-value projection) has
+        // consecutive labeled points ~1 year apart that land on nearly the
+        // same day-of-month — formatDateShort() alone renders them as e.g.
+        // "29 Aug · 28 Aug · 27 Aug · 26 Aug", indistinguishable from
+        // consecutive days. Fall back to the year-inclusive format whenever
+        // the series spans more than a year; short spans keep the less
+        // crowded no-year label formatDateShort() was designed for.
+        const spanDays =
+          (Date.parse(s.points[lastIdx].x) - Date.parse(s.points[0].x)) / 86_400_000
+        const formatAxisLabel = spanDays > 365 ? formatDateFull : formatDateShort
+
         const seriesMin = Math.min(...s.points.map((p) => p.y))
         const seriesMax = Math.max(...s.points.map((p) => p.y))
 
@@ -777,7 +788,7 @@ function LineChart({
                   : { left: `${pct}%`, transform: 'translateX(-50%)' }
                 return (
                   <span key={i} className="absolute whitespace-nowrap" style={style}>
-                    {formatDateShort(s.points[i].x)}
+                    {formatAxisLabel(s.points[i].x)}
                   </span>
                 )
               })}
