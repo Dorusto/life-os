@@ -86,8 +86,11 @@ check "Actual Budget Sync ID"      'ACTUAL_BUDGET_SYNC_ID\s*=\s*[a-f0-9]{8}-[a-f
 # Real Telegram IDs in allowed list (not placeholder 111111111 / 222222222)
 check "Real Telegram user ID"      'TELEGRAM_ALLOWED_USER_IDS\s*=\s*(?!1{9}|2{9})[\d,\s]+'
 
-# Credentials with real values (not placeholders or config references)
-check "Real credential value"      '(PASSWORD|BOT_TOKEN|API_KEY|JWT_SECRET)\s*=\s*(?!your_|paste_|change_|example|\.\.\.|\*+|""|settings\.|cfg\.)[^\s]{10,}'
+# Credentials with real values (not placeholders, config references, or plain
+# variable/attribute/dict-lookup references — e.g. `password=body.password`,
+# `self.password = saved["password"]` in #190's AB setup wizard are references,
+# never a literal secret).
+check "Real credential value"      '(PASSWORD|BOT_TOKEN|API_KEY|JWT_SECRET)\s*=\s*(?!your_|paste_|change_|example|\.\.\.|\*+|""|settings\.|cfg\.|body\.|self\.|saved\[|request\.)[^\s]{10,}'
 
 # Personal domain — any subdomain of the owner's real domain (leaks infra + is an
 # attack vector). The @dorulian brand handles (YouTube/Substack) have no ".eu", so

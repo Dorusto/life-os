@@ -474,6 +474,7 @@ export interface SetupAccount {
 
 export interface SetupStatus {
   completed: boolean
+  ab_connected: boolean
   accounts: SetupAccount[]
 }
 
@@ -488,6 +489,48 @@ export interface SetupCompleteResponse {
 
 export async function getSetupStatus(): Promise<SetupStatus> {
   return request<SetupStatus>('/setup/status')
+}
+
+// --- AB setup wizard (#190) — live-validated connection, encrypted storage ---
+
+export interface AbBudgetFile {
+  id: string
+  name: string
+}
+
+export interface AbTestConnectionResult {
+  success: boolean
+  error?: string | null
+  error_type?: 'connection' | 'auth' | 'file_not_found' | null
+  files: AbBudgetFile[]
+}
+
+export interface AbSaveCredentialsResult {
+  success: boolean
+  budget_name: string
+  error?: string | null
+}
+
+export async function testAbConnection(
+  base_url: string,
+  password: string,
+  file?: string,
+): Promise<AbTestConnectionResult> {
+  return request<AbTestConnectionResult>('/setup/ab-test-connection', {
+    method: 'POST',
+    body: JSON.stringify({ base_url, password, file: file || null }),
+  })
+}
+
+export async function saveAbCredentials(
+  base_url: string,
+  password: string,
+  file: string,
+): Promise<AbSaveCredentialsResult> {
+  return request<AbSaveCredentialsResult>('/setup/ab-credentials', {
+    method: 'POST',
+    body: JSON.stringify({ base_url, password, file }),
+  })
 }
 
 export async function completeSetup(

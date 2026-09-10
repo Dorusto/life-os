@@ -1,8 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { isAuthenticated } from './lib/auth'
 import { requestAndSubscribe } from './lib/push'
+import { getSetupStatus } from './lib/api'
 import Login from './pages/Login'
+import AbSetupWizard from './pages/AbSetupWizard'
 import Dashboard from './pages/Dashboard'
 import Accounts from './pages/Accounts'
 import AccountDetail from './pages/AccountDetail'
@@ -26,19 +29,46 @@ import BottomNav from './components/BottomNav'
  * ProtectedRoute: redirects to /login if the user is not authenticated.
  * Checked client-side (JWT expiry in localStorage). The server also verifies
  * on every API call — this is just for UX, not security.
+ *
+ * Also gates on the AB setup wizard (#190) being complete, via AbConnectedGate
+ * below — pass `skipAbCheck` for the wizard's own route, to avoid a redirect
+ * loop (same reason /login is never itself wrapped in ProtectedRoute).
  */
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children, skipAbCheck }: { children: React.ReactNode; skipAbCheck?: boolean }) {
   if (!isAuthenticated()) {
     return <Navigate to="/login" replace />
+  }
+  if (skipAbCheck) {
+    return <>{children}</>
+  }
+  return <AbConnectedGate>{children}</AbConnectedGate>
+}
+
+/**
+ * Redirects to the AB setup wizard if Actual Budget hasn't been connected yet
+ * (#190) — only reached once ProtectedRoute's own auth check already passed.
+ * Renders nothing while the check is in flight, to avoid a flash of whatever
+ * page was actually requested before we know whether AB is connected.
+ */
+function AbConnectedGate({ children }: { children: React.ReactNode }) {
+  const { data, isLoading } = useQuery({
+    queryKey: ['setup-status', 'ab-connected-gate'],
+    queryFn: getSetupStatus,
+    staleTime: 60_000,
+  })
+
+  if (isLoading) return null
+  if (data && !data.ab_connected) {
+    return <Navigate to="/setup/ab" replace />
   }
   return <>{children}</>
 }
 
 /**
  * Routes where the bottom nav should NOT be shown.
- * Full-screen flows (login, receipt scan) handle their own navigation.
+ * Full-screen flows (login, receipt scan, AB setup) handle their own navigation.
  */
-const HIDE_NAV_ON = ['/login', '/receipt']
+const HIDE_NAV_ON = ['/login', '/receipt', '/setup/ab']
 
 function Layout() {
   const location = useLocation()
@@ -103,6 +133,14 @@ function Layout() {
     <>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route
+          path="/setup/ab"
+          element={
+            <ProtectedRoute skipAbCheck>
+              <AbSetupWizard />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/"
           element={
