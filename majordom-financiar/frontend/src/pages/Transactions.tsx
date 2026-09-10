@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Filter, List, Loader2, Table2, X } from 'lucide-react'
+import { CheckSquare, Filter, List, Loader2, Table2, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import BottomSheet from '../components/BottomSheet'
@@ -101,6 +101,7 @@ export default function TransactionsPage() {
   const [bulkSaving, setBulkSaving] = useState(false)
   const [bulkError, setBulkError] = useState<string | null>(null)
   const [bulkNotice, setBulkNotice] = useState<string | null>(null)
+  const [selectionMode, setSelectionMode] = useState(false)
 
   // If we arrived via a category click, clear the router state after reading it
   // so that back/forward navigation doesn't re-apply an old filter unexpectedly.
@@ -211,6 +212,13 @@ export default function TransactionsPage() {
     }
   }
 
+  const toggleSelectionMode = () => {
+    if (selectionMode) {
+      setSelected(new Set())
+    }
+    setSelectionMode(!selectionMode)
+  }
+
   const applyBulk = async () => {
     if (!bulkCategoryId) return
     const selectedCount = selected.size
@@ -245,6 +253,18 @@ export default function TransactionsPage() {
   const amountText = (tx: Transaction) =>
     formatCurrency(tx.is_expense ? -Math.abs(tx.amount) : Math.abs(tx.amount), { signDisplay: 'always' })
 
+  const chipHidden: boolean[] = (() => {
+    const arr = new Array(transactions.length).fill(false)
+    for (let i = 1; i < transactions.length; i++) {
+      const prev = transactions[i - 1].category ?? 'Uncategorized'
+      const curr = transactions[i].category ?? 'Uncategorized'
+      if (curr === prev) {
+        arr[i] = true
+      }
+    }
+    return arr
+  })()
+
   return (
     <div className="min-h-dvh bg-background flex flex-col overflow-y-auto">
       <PageHeader label="All transactions" title="Transactions" actions={<StandardHeaderActions />} bordered />
@@ -268,6 +288,14 @@ export default function TransactionsPage() {
               }`}
             >
               <Table2 size={14} /> Table
+            </button>
+            <button
+              onClick={toggleSelectionMode}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                selectionMode ? 'bg-accent text-white' : 'text-muted hover:text-white'
+              }`}
+            >
+              <CheckSquare size={14} /> Select
             </button>
           </div>
           <button
@@ -307,6 +335,7 @@ export default function TransactionsPage() {
 
         {transactions.length > 0 && view === 'list' && (
           <>
+            {selectionMode && (
             <div className="flex items-center justify-between py-2">
               <label className="flex items-center gap-2 text-muted text-xs cursor-pointer">
                 <input
@@ -318,24 +347,29 @@ export default function TransactionsPage() {
                 Select all
               </label>
             </div>
+            )}
             <div className="space-y-2">
-              {transactions.map(tx => (
+              {transactions.map((tx, idx) => (
                 <label
                   key={tx.id}
-                  className="flex items-center gap-3 px-3.5 py-3 rounded-xl bg-surface hover:bg-surface-2 transition-colors cursor-pointer"
+                  className={`flex items-center px-3.5 py-3 rounded-xl bg-surface hover:bg-surface-2 transition-colors cursor-pointer ${selectionMode ? 'gap-3' : ''}`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={selected.has(tx.id)}
-                    onChange={() => toggleRow(tx.id)}
-                    className="accent-accent flex-shrink-0"
-                  />
+                  {selectionMode && (
+                    <input
+                      type="checkbox"
+                      checked={selected.has(tx.id)}
+                      onChange={() => toggleRow(tx.id)}
+                      className="accent-accent flex-shrink-0"
+                    />
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="text-white text-sm font-medium truncate">{tx.merchant || 'Unknown'}</p>
                     <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="inline-block bg-surface-2 text-muted text-[10px] font-bold px-1.5 py-0.5 rounded max-w-[16ch] truncate">
+                      {!chipHidden[idx] && (
+                      <span className="inline-block bg-surface-2 text-muted text-[10px] font-bold px-1.5 py-0.5 rounded">
                         {tx.category ?? 'Uncategorized'}
                       </span>
+                      )}
                       <span className="text-muted text-xs flex-shrink-0">{formatDate(tx.date)}</span>
                     </div>
                   </div>

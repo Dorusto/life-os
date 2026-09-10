@@ -14,7 +14,7 @@ export default function AnalyticsPage() {
         <BarChart3 size={28} className="text-muted" />
         <p className="text-white text-sm font-semibold">Reports — coming soon</p>
         <p className="text-muted text-xs max-w-[26ch]">
-          Expenses, income, and savings breakdowns are on the roadmap. Not yet scoped as a real issue.
+          Expenses, income, and savings breakdowns are coming soon.
         </p>
       </section>
     </div>
