@@ -7,9 +7,9 @@ from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException
 
 from backend.api.auth import get_current_user
-from backend.core.actual_client.client import _calc_fire
 from backend.core.config import settings
 from backend.core.memory.database import MemoryDB
+from backend.core.finance.fire import calc_fire
 from backend.core.finance.provider import get_provider
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,7 @@ async def get_home(
 
     return {
         **data,
-        "fire": _calc_fire(accounts),
+        "fire": calc_fire(accounts),
         "account_count": len(accounts_raw),
     }
 

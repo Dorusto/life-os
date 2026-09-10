@@ -1419,9 +1419,9 @@ async def propose_set_fire_model(
     import json
     import uuid
     from backend.tools import category_actions as action_store
-    from backend.core.actual_client.client import _load_fire_model
+    from backend.core.finance.fire import load_fire_model
 
-    current = _load_fire_model()
+    current = load_fire_model()
     # Remove the is_default_assumptions flag — it's metadata, not a stored value
     current.pop("is_default_assumptions", None)
 
@@ -1733,7 +1733,7 @@ async def propose_categorize_with_rule(payee: str, category_name: str, notes_con
             message += f" Did you mean: {', '.join(name_lower_map[c] for c in close)}?"
         return json.dumps({"type": "error", "message": message})
 
-    from backend.core.actual_client.client import rule_match_prefix
+    from backend.core.finance.transaction_utils import rule_match_prefix
     rule_prefix = rule_match_prefix(payee)
 
     # Check consistency: look up the payee in AB history. Also captures payee_id
