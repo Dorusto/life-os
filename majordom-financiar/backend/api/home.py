@@ -73,8 +73,9 @@ async def get_duplicate_months(current_user: str = Depends(get_current_user)):
     newest first, zero-count months excluded — feeds the Home header badge +
     the review screen's month list.
     """
+    client = get_provider()
     try:
-        by_month = await get_provider().get_duplicate_transactions_by_month()
+        by_month = await client.get_duplicate_transactions_by_month()
     except Exception as e:
         logger.error("Failed to fetch duplicate months: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Could not fetch duplicates")
@@ -135,7 +136,16 @@ async def get_duplicate_pairs(month: str, current_user: str = Depends(get_curren
             })
         result.append({"action_id": action_id, **pair})
     result.sort(key=lambda p: p["synced"]["date"], reverse=True)
-    return {"month": month, "pairs": result}
+
+    # Fetch categories for inline editing on the frontend review card
+    available_categories = []
+    try:
+        categories = await client.get_categories()
+        available_categories = [c.name for c in categories]
+    except Exception as e:
+        logger.warning("Failed to fetch categories for duplicate pairs page: %s", e)
+
+    return {"month": month, "pairs": result, "available_categories": available_categories}
 
 
 @router.get("/home/uncategorized/groups")
