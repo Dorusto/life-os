@@ -81,18 +81,16 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 > Phase C2 items: #111/#42, both blocked on real gaps (no live bank-sync for #111, undecided
 > market-data source for #42 — see that entry's own dated session note before picking either up).
 >
-> **#227's compute-cost half fixed 2026-09-11** — `actualpy`'s `get_accumulated_budgeted_balance()`
-> was being called once per zero-budgeted category and internally re-deriving the whole budget
-> history every time; hoisted one shared lookup instead, 7.86s→0.50s measured, `architecture.md`
-> rule 41. **#227/#245 stay open** — only half fixed, and #245's other half (`budget-period`
-> "fetched twice") could not be reproduced on a proper re-test: an initial live check wrongly
-> concluded the *entire* Dashboard query set double-fires (a same-session methodology mistake —
-> network requests read across two navigations without clearing the log in between, which
-> double-counted every request). Corrected the same session, see `docs/sessions/2026-W37.md`'s
-> follow-up entry. A clean single-navigation trace + a `useEffect` mount/unmount probe on
-> `Dashboard` both showed no duplication and exactly one mount — #245's original symptom needs a
-> fresh check (ideally against real backend logs, its own original evidence source) before
-> concluding it still reproduces at all.
+> **#227 fixed and #245 checked against real evidence, both 2026-09-11.** `actualpy`'s
+> `get_accumulated_budgeted_balance()` was being called once per zero-budgeted category and
+> internally re-deriving the whole budget history every time; hoisted one shared lookup instead,
+> 7.86s→0.50s measured, `architecture.md` rule 41. #245's "`budget-period` fetched twice" claim
+> was re-checked three independent ways (frontend network trace, a React mount/unmount probe, and
+> — the same kind of evidence its original 2026-08-30 report used — real `docker compose logs`
+> access-log entries) and does not reproduce on the current code; two earlier same-session
+> measurement mistakes along the way (an uncleared network log, then a silently-unfiltered
+> `docker logs --since`) are both corrected in `docs/sessions/2026-W37.md`. Recommended: close
+> both #227 and #245 once the evening `gh issue close` window opens — not done yet.
 
 ---
 
