@@ -151,11 +151,18 @@ class FinanceProvider(Protocol):
     async def get_duplicate_transactions_by_month(self) -> dict[str, list[dict]]: ...
 
     async def merge_duplicate_transaction(
-        self, manual_id: str, synced_id: str
+        self, manual_id: str, synced_id: str,
+        payee_id: str | None = None,
+        category_id: str | None = None,
+        notes: str | None = None,
     ) -> bool: ...
 
     async def resolve_transfer_duplicate(
-        self, transfer_leg_id: str, synced_dup_id: str
+        self, transfer_leg_id: str, synced_dup_id: str,
+        payee_id: str | None = None,
+        category_id: str | None = None,
+        notes: str | None = None,
+        date: int | None = None,
     ) -> dict: ...
 
     async def count_uncategorized_by_payee(self, payee: str, notes_contains: str = "") -> int: ...
@@ -226,6 +233,8 @@ class FinanceProvider(Protocol):
     async def bulk_update_category(self, financial_ids: list[str], category_id: str) -> int: ...
 
     async def get_payees(self) -> list[dict]: ...
+
+    async def get_or_create_payee_id(self, name: str) -> str: ...
 
     async def get_schedules(self) -> list[dict]: ...
 

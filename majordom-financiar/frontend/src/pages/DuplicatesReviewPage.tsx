@@ -42,12 +42,14 @@ export default function DuplicatesReviewPage() {
     staleTime: 120_000,
   })
 
-  const { data: pairs = [], isLoading: pairsLoading } = useQuery<DuplicatePair[]>({
+  const { data: duplicatesData, isLoading: pairsLoading } = useQuery<{ pairs: DuplicatePair[]; available_categories: string[] }>({
     queryKey: ['duplicates', 'month', selectedMonth],
     queryFn: () => getDuplicatePairs(selectedMonth!),
     enabled: !!selectedMonth,
     staleTime: 60_000,
   })
+  const pairs = duplicatesData?.pairs ?? []
+  const availableCategories = duplicatesData?.available_categories ?? []
 
   function invalidateCounts() {
     queryClient.invalidateQueries({ queryKey: ['duplicates', 'months'] })
@@ -121,8 +123,9 @@ export default function DuplicatesReviewPage() {
                 key={pair.action_id}
                 pair={pair}
                 busy={busyId === pair.action_id}
-                onConfirm={() => handleConfirm(pair)}
+                onConfirm={(override) => handleConfirm(pair, override)}
                 onCancel={() => handleCancel(pair)}
+                availableCategories={availableCategories}
               />
             ))
           )}
@@ -177,20 +180,78 @@ export default function DuplicatesReviewPage() {
 }
 
 function DuplicatePairCard({
-  pair, busy, onConfirm, onCancel,
+  pair, busy, onConfirm, onCancel, availableCategories,
 }: {
   pair: DuplicatePair
   busy: boolean
-  onConfirm: () => void
+  onConfirm: (override: { duplicate_payee: string; duplicate_category_name: string; duplicate_notes: string; duplicate_date: string }) => void
   onCancel: () => void
+  availableCategories: string[]
 }) {
   const isTransfer = pair.kind === 'transfer'
+  const surviving = isTransfer ? pair.manual : pair.synced
+
+  const [payee, setPayee] = useState(surviving.payee)
+  const [category, setCategory] = useState(surviving.category_name)
+  const [notes, setNotes] = useState(surviving.notes)
+  const dateStr = surviving.date
+  const [date, setDate] = useState(dateStr)
+
+  const handleConfirm = () => {
+    onConfirm({ duplicate_payee: payee, duplicate_category_name: category, duplicate_notes: notes, duplicate_date: date })
+  }
+
   return (
     <Card variant="list-item" accentColor="#F59E0B" accentSide="left">
       <div className="grid grid-cols-2 gap-3">
         <SideBlock title={isTransfer ? 'Transfer' : 'Manual entry'} side={pair.manual} keep={isTransfer} />
         <SideBlock title="Bank-synced" side={pair.synced} keep={!isTransfer} />
       </div>
+
+      {/* edit fields for the surviving side */}
+      <div className="mt-3 space-y-2">
+        <div className="space-y-1">
+          <label className="text-xs text-muted">Payee</label>
+          <input
+            type="text"
+            value={payee}
+            onChange={e => setPayee(e.target.value)}
+            className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted">Category</label>
+          <select
+            value={category}
+            onChange={e => setCategory(e.target.value)}
+            className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+          >
+            {!category && <option value="" disabled>Select a category…</option>}
+            {availableCategories.map(c => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted">Notes</label>
+          <input
+            type="text"
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+          />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted">Date</label>
+          <input
+            type="date"
+            value={date}
+            onChange={e => setDate(e.target.value)}
+            className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+          />
+        </div>
+      </div>
+
       <p className="text-xs text-attention mt-3 px-1">
         {isTransfer
           ? 'This is one side of a transfer — resolving keeps the transfer linked and removes the duplicate bank-sync entry instead. Your account balance is checked before and after.'
@@ -198,7 +259,7 @@ function DuplicatePairCard({
       </p>
       <div className="mt-4">
         <ActionCardButtons
-          onConfirm={onConfirm}
+          onConfirm={handleConfirm}
           onCancel={onCancel}
           loading={busy}
           confirmLabel={isTransfer ? 'Resolve' : 'Merge'}

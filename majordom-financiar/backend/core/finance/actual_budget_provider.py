@@ -233,17 +233,31 @@ class ActualBudgetProvider:
         return await self._client().get_duplicate_transactions_by_month()
 
     async def merge_duplicate_transaction(
-        self, manual_id: str, synced_id: str
+        self, manual_id: str, synced_id: str,
+        payee_id: str | None = None,
+        category_id: str | None = None,
+        notes: str | None = None,
     ) -> bool:
         return await self._client().merge_duplicate_transaction(
-            manual_id, synced_id
+            manual_id, synced_id,
+            payee_id=payee_id,
+            category_id=category_id,
+            notes=notes,
         )
 
     async def resolve_transfer_duplicate(
-        self, transfer_leg_id: str, synced_dup_id: str
+        self, transfer_leg_id: str, synced_dup_id: str,
+        payee_id: str | None = None,
+        category_id: str | None = None,
+        notes: str | None = None,
+        date: int | None = None,
     ) -> dict:
         return await self._client().resolve_transfer_duplicate(
-            transfer_leg_id, synced_dup_id
+            transfer_leg_id, synced_dup_id,
+            payee_id=payee_id,
+            category_id=category_id,
+            notes=notes,
+            date=date,
         )
 
     async def count_uncategorized_by_payee(self, payee: str, notes_contains: str = "") -> int:
@@ -286,6 +300,9 @@ class ActualBudgetProvider:
 
     async def get_payees(self) -> list[dict]:
         return await self._client().get_payees()
+
+    async def get_or_create_payee_id(self, name: str) -> str:
+        return await self._client().get_or_create_payee_id(name)
 
     async def get_schedules(self) -> list[dict]:
         return await self._client().get_schedules()

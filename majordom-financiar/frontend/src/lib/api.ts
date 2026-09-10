@@ -681,11 +681,11 @@ export async function getDuplicateMonths(): Promise<DuplicateMonth[]> {
   return res.months
 }
 
-export async function getDuplicatePairs(month: string): Promise<DuplicatePair[]> {
-  const res = await request<{ month: string; pairs: DuplicatePair[] }>(
+export async function getDuplicatePairs(month: string): Promise<{ pairs: DuplicatePair[]; available_categories: string[] }> {
+  const res = await request<{ month: string; pairs: DuplicatePair[]; available_categories: string[] }>(
     `/home/duplicates/months/${month}`
   )
-  return res.pairs
+  return { pairs: res.pairs, available_categories: res.available_categories }
 }
 
 // --- Uncategorized-by-payee review (Inbox occupant #2, Phase B) ---
@@ -1038,6 +1038,10 @@ export async function confirmCategoryAction(
     day_of_month?: number;
     schedule_name?: string;
     selected_category_names?: string[];
+    duplicate_payee?: string;
+    duplicate_category_name?: string;
+    duplicate_notes?: string;
+    duplicate_date?: string;
   }
 ): Promise<{ message: string; monthly_needed?: number | null }> {
   return request(`/category-actions/${id}/confirm`, {

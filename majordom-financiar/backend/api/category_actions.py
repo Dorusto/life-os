@@ -42,6 +42,10 @@ class GoalOverride(BaseModel):
     goal_type: str | None = None
     by_month: str | None = None
     monthly_limit: float | None = None
+    duplicate_payee: str | None = None
+    duplicate_category_name: str | None = None
+    duplicate_notes: str | None = None
+    duplicate_date: str | None = None
 
 
 @router.post("/category-actions/{action_id}/confirm")
@@ -277,9 +281,26 @@ async def confirm_category_action(
             else:
                 message = "No changes made."
         elif action["action"] == "merge_duplicate":
+            payee_id = None
+            category_id = None
+            if override.duplicate_payee:
+                try:
+                    payee_id = await client.get_or_create_payee_id(override.duplicate_payee)
+                except Exception as e:
+                    logger.warning("Failed to resolve payee for duplicate merge: %s", e)
+            if override.duplicate_category_name:
+                cats = await client.get_categories()
+                cat_obj = next((c for c in cats if c.name == override.duplicate_category_name), None)
+                if cat_obj:
+                    category_id = cat_obj.id
+                else:
+                    logger.warning("Category '%s' not found for duplicate merge", override.duplicate_category_name)
             merged = await client.merge_duplicate_transaction(
                 action["manual_id"],
                 action["synced_id"],
+                payee_id=payee_id,
+                category_id=category_id,
+                notes=override.duplicate_notes,
             )
             if not merged:
                 raise HTTPException(
@@ -288,9 +309,36 @@ async def confirm_category_action(
                 )
             message = "Merged duplicate — kept the bank-synced transaction, removed the manual entry."
         elif action["action"] == "resolve_transfer_duplicate":
+            payee_id = None
+            category_id = None
+            date_int = None
+            if override.duplicate_payee:
+                try:
+                    payee_id = await client.get_or_create_payee_id(override.duplicate_payee)
+                except Exception as e:
+                    logger.warning("Failed to resolve payee for transfer duplicate: %s", e)
+            if override.duplicate_category_name:
+                cats = await client.get_categories()
+                cat_obj = next((c for c in cats if c.name == override.duplicate_category_name), None)
+                if cat_obj:
+                    category_id = cat_obj.id
+                else:
+                    logger.warning("Category '%s' not found for transfer duplicate", override.duplicate_category_name)
+            if override.duplicate_date:
+                from datetime import datetime as _dt
+                try:
+                    dt = _dt.strptime(override.duplicate_date, "%Y-%m-%d")
+                    date_int = dt.year * 10000 + dt.month * 100 + dt.day
+                except ValueError as e:
+                    logger.warning("Invalid date '%s' for transfer duplicate: %s", override.duplicate_date, e)
+
             result = await client.resolve_transfer_duplicate(
                 action["transfer_leg_id"],
                 action["synced_dup_id"],
+                payee_id=payee_id,
+                category_id=category_id,
+                notes=override.duplicate_notes,
+                date=date_int,
             )
             if not result.get("success"):
                 raise HTTPException(

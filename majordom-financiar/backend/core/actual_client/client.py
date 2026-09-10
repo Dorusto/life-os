@@ -3226,18 +3226,27 @@ class ActualBudgetClient:
         return await self._run(_get)
 
     async def merge_duplicate_transaction(
-        self, manual_id: str, synced_id: str
+        self,
+        manual_id: str,
+        synced_id: str,
+        payee_id: str | None = None,
+        category_id: str | None = None,
+        notes: str | None = None,
     ) -> bool:
         """
         Merge a confirmed duplicate pair (#181) in one atomic commit.
 
-        Not a blind delete: the manual entry may carry a category/notes the user
-        already set; the bank-synced transaction is typically uncategorized fresh
-        off the bank. Copy the manual side's `category_id` and `notes` onto the
-        synced side only if the synced side lacks them (never overwrite), then
+        Not a blind delete: the manual entry may carry a category/notes/payee the
+        user already set; the bank-synced transaction is typically uncategorized fresh
+        off the bank. Copy the manual side's `category_id`/`notes`/`payee_id` onto
+        the synced side only if the synced side lacks them (never overwrite), then
         soft-delete the manual side (tombstone=1). Everything runs in one
         `_get_actual()`/`commit()` block. Returns False if either side couldn't
         be found (e.g. already handled).
+
+        If the optional `payee_id`/`category_id`/`notes` overrides are supplied
+        (user inline edits on the review card), they take final precedence over
+        both the original and auto-copied values on the surviving bank-synced side.
 
         Looks up by the row's own `id`, not `financial_id` — `financial_id` is
         None for anything entered directly in the Actual Budget UI, and matching
@@ -3267,6 +3276,21 @@ class ActualBudgetClient:
                     synced.category_id = manual.category_id
                 if (not synced.notes) and manual.notes:
                     synced.notes = manual.notes
+                # payee_id follows the same "only if missing" pattern — the auto-copy
+                # may supplement the later user-override strategy.
+                if (not synced.payee_id) and manual.payee_id:
+                    synced.payee_id = manual.payee_id
+
+                # User inline overrides (duplicate_payee/duplicate_category_name/duplicate_notes)
+                # always win — they take final precedence over the auto-copied value or the
+                # original value already present on synced.
+                if payee_id is not None:
+                    synced.payee_id = payee_id
+                if category_id is not None:
+                    synced.category_id = category_id
+                if notes is not None:
+                    synced.notes = notes
+
                 manual.tombstone = 1
                 actual.commit()
                 logger.info(
@@ -3277,7 +3301,13 @@ class ActualBudgetClient:
         return await self._run(_merge)
 
     async def resolve_transfer_duplicate(
-        self, transfer_leg_id: str, synced_dup_id: str
+        self,
+        transfer_leg_id: str,
+        synced_dup_id: str,
+        payee_id: str | None = None,
+        category_id: str | None = None,
+        notes: str | None = None,
+        date: int | None = None,
     ) -> dict:
         """
         Resolve a transfer-linked duplicate pair (#229) in one atomic commit.
@@ -3285,9 +3315,16 @@ class ActualBudgetClient:
         Unlike ``merge_duplicate_transaction()``, the side that must survive here is
         the transfer leg (``transferred_id`` set) — deleting it would break the
         transfer's link to its counterpart in the other account and corrupt both
-        accounts' balances. So this keeps the transfer leg, copies `financial_id`/
-        `notes` from the synced duplicate onto it only if missing (never overwrite),
-        marks it cleared, and tombstones the synced duplicate instead.
+        accounts' balances. So this keeps the transfer leg, copies `financial_id`,
+        `notes`, `payee_id`, and `category_id` from the synced duplicate onto it
+        only if missing (never overwrite), always overwrites the transfer leg's
+        date with the bank-synced date (the actual bug fix — the transfer leg's
+        own date is unreliable), marks it cleared, and tombstones the synced
+        duplicate instead.
+
+        If the optional `payee_id`/`category_id`/`notes`/`date` overrides are
+        supplied (user inline edits on the review card), they take final precedence
+        over both the original and auto-copied values.
 
         Never touches `transferred_id` on either side — the link is already correct.
         Deliberately does not call `set_transaction_payee()`/`create_transaction
@@ -3329,6 +3366,28 @@ class ActualBudgetClient:
                     transfer_leg.financial_id = synced_dup.financial_id
                 if (not transfer_leg.notes) and synced_dup.notes:
                     transfer_leg.notes = synced_dup.notes
+
+                # Data-loss fix (#242): copy payee/category from the bank-synced side
+                # only when the transfer leg lacks them (same "only if missing" pattern).
+                if (not transfer_leg.payee_id) and synced_dup.payee_id:
+                    transfer_leg.payee_id = synced_dup.payee_id
+                if (not transfer_leg.category_id) and synced_dup.category_id:
+                    transfer_leg.category_id = synced_dup.category_id
+
+                # Always overwrite the date from the bank-synced side — the transfer
+                # leg's own date is the unreliable one here.
+                transfer_leg.date = synced_dup.date
+
+                # User inline overrides take final precedence over everything above.
+                if payee_id is not None:
+                    transfer_leg.payee_id = payee_id
+                if category_id is not None:
+                    transfer_leg.category_id = category_id
+                if notes is not None:
+                    transfer_leg.notes = notes
+                if date is not None:
+                    transfer_leg.date = date
+
                 transfer_leg.cleared = True
                 synced_dup.tombstone = 1
                 actual.commit()
@@ -4127,6 +4186,18 @@ class ActualBudgetClient:
                 return True
 
         return await self._run(_clear)
+
+    async def get_or_create_payee_id(self, name: str) -> str:
+        """Resolve or create a payee row by name and return its string id.
+
+        Wraps _safe_get_or_create_payee inside a `_run()` call so it mirrors
+        other simple client methods.
+        """
+        def _get_id():
+            with self._get_actual() as actual:
+                payee = _safe_get_or_create_payee(actual.session, name)
+                return str(payee.id)
+        return await self._run(_get_id)
 
     async def get_payees(self) -> list[dict]:
         """Return all non-tombstoned payees with their transaction counts.
