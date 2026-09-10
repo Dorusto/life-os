@@ -77,6 +77,14 @@ function Layout() {
               // the message doesn't just disappear.
             }
           }
+          if (m.role === 'transaction_list') {
+            try {
+              return { role: 'transaction_list' as const, content: '', transactionList: JSON.parse(m.content), ts: m.ts, _synced: true }
+            } catch {
+              // Malformed/legacy stored payload — fall through to plain text so
+              // the message doesn't just disappear.
+            }
+          }
           return { role: m.role as Message['role'], content: m.content, ts: m.ts, _synced: true }
         }))
       }

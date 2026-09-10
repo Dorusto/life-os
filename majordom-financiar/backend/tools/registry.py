@@ -69,6 +69,24 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__list_transactions",
+            "description": "Show the user a list of transactions as a card, optionally filtered by category or account, and/or scoped to one calendar month. Use this when the user wants to SEE their transactions, not when you just need to find a transaction's id to act on it (use finance__get_transactions for that instead).",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "category": {"type": "string", "description": "Filter by category name, e.g. 'Groceries'. Use this for a budget category — NOT account."},
+                    "account": {"type": "string", "description": "Filter by account name, e.g. 'ING'. Only use when the user names a bank account, not a budget category."},
+                    "limit": {"type": "integer", "description": "Max number of transactions to return (default 20)."},
+                    "month": {"type": "integer", "description": "Optional month (1-12) to scope results to, e.g. from 'transactions for June'."},
+                    "year": {"type": "integer", "description": "Optional year — required together with month if either is given."},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "finance__get_untagged_transactions",
             "description": "Get transactions in a date range that have no #tag in their notes. Use this when the user wants to see which transactions in a period (optionally on a specific account) aren't tagged for a trip yet.",
             "parameters": {
@@ -1264,6 +1282,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "finance__get_transactions":
         from backend.tools.finance.actual_budget import get_transactions
         return await get_transactions(**arguments)
+
+    if name == "finance__list_transactions":
+        from backend.tools.finance.actual_budget import list_transactions_card
+        return await list_transactions_card(**arguments)
 
     if name == "finance__get_untagged_transactions":
         from backend.tools.finance.actual_budget import get_untagged_transactions

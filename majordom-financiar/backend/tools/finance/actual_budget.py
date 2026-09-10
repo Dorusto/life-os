@@ -311,15 +311,16 @@ async def get_budget_status(month: int | None = None, year: int | None = None) -
     return "\n".join(lines)
 
 
-async def get_transactions(
+async def _fetch_filtered_transactions(
     category: str | None = None, account: str | None = None, limit: int = 20,
     month: int | None = None, year: int | None = None,
-) -> str:
+) -> list[dict]:
     """
-    Return recent transactions, optionally filtered by category or account name
-    and/or scoped to one calendar month (#171 — previously always "most recent
-    N regardless of date", so a request like "for June" silently ignored the
-    month and returned unrelated transactions).
+    Shared fetch+filter logic behind get_transactions() (plain-text, used for
+    id lookups) and list_transactions_card() (structured card display) — see
+    #219/F26. Scoped to one calendar month when month+year are given (#171 —
+    previously always "most recent N regardless of date", so a request like
+    "for June" silently ignored the month and returned unrelated transactions).
     """
     import calendar
 
@@ -348,6 +349,26 @@ async def get_transactions(
         result.append(tx)
         if len(result) >= limit:
             break
+    return result
+
+
+async def get_transactions(
+    category: str | None = None, account: str | None = None, limit: int = 20,
+    month: int | None = None, year: int | None = None,
+) -> str:
+    """
+    Return recent transactions, optionally filtered by category or account name
+    and/or scoped to one calendar month (#171 — previously always "most recent
+    N regardless of date", so a request like "for June" silently ignored the
+    month and returned unrelated transactions).
+
+    Plain-text result — used when the model needs to find a transaction's id
+    to act on it (e.g. before finance__propose_transfer_conversion or
+    finance__propose_tag_transaction). For showing the user a list to look at,
+    use finance__list_transactions instead (#219/F26) — that one renders as a
+    card instead of LLM-formatted text, so it can't drift in style turn to turn.
+    """
+    result = await _fetch_filtered_transactions(category, account, limit, month, year)
     lines = [f"Transactions ({len(result)}):"]
     for tx in result:
         amount = abs(tx["amount_cents"]) / 100
@@ -356,6 +377,52 @@ async def get_transactions(
             f"[{tx.get('account_name','')}] id: {tx['id']}"
         )
     return "\n".join(lines)
+
+
+async def list_transactions_card(
+    category: str | None = None, account: str | None = None, limit: int = 20,
+    month: int | None = None, year: int | None = None,
+) -> str:
+    """
+    Return recent transactions as a structured card (#219/F26) — same filtering
+    as get_transactions() (shared via _fetch_filtered_transactions), but JSON
+    for the frontend to render consistently instead of a plain-text list the
+    model re-formats differently each turn. Use this when the user wants to
+    SEE a list of transactions; use get_transactions() when the model needs a
+    transaction's id to act on it.
+    """
+    import calendar
+
+    result = await _fetch_filtered_transactions(category, account, limit, month, year)
+
+    title = "Transactions"
+    if month and year:
+        title = f"Transactions — {calendar.month_name[month]} {year}"
+    elif category:
+        title = f"Transactions — {category}"
+    elif account:
+        title = f"Transactions — {account}"
+
+    transactions = [
+        {
+            "id": tx["id"],
+            "date": tx["date"],
+            "merchant": tx["merchant"],
+            "amount": abs(tx["amount_cents"]) / 100,
+            "is_expense": tx["amount_cents"] < 0,
+            "category_name": tx.get("category_name") or "",
+            "account_name": tx.get("account_name") or "",
+        }
+        for tx in result
+    ]
+    return json.dumps({
+        "type": "transaction_list",
+        "title": title,
+        "data": {
+            "transactions": transactions,
+            "count": len(transactions),
+        },
+    })
 
 
 async def get_untagged_transactions(

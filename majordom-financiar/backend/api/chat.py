@@ -135,9 +135,10 @@ Use `finance__*` tools when the user mentions money, budget, transactions, accou
   - "what did I spend this month" → finance__get_monthly_stats()
 - When the user asks about spending trends over several months, or wants to compare months — call finance__get_spending_history immediately, passing the number of months if implied by the question.
   - "how's my spending trended over the last 6 months?" → finance__get_spending_history(months=6)
-- To list a category's or account's transactions — call finance__get_transactions immediately, passing month+year whenever a month is mentioned (e.g. "for June", "in July 2026") — the tool filters by date natively, never filter/guess yourself from an un-scoped call. `category` is for a BUDGET CATEGORY (e.g. "Groceries", "Housing"); `account` is only for a BANK ACCOUNT name — never pass a category name as `account` or vice versa.
-  - "Show me my Groceries transactions for July 2026" → finance__get_transactions(category="Groceries", month=7, year=2026)
-  - "what did I spend from ING this month" → finance__get_transactions(account="ING", month=<current>, year=<current>)
+- To show a category's or account's transactions so the user can SEE them — call finance__list_transactions immediately, passing month+year whenever a month is mentioned (e.g. "for June", "in July 2026") — the tool filters by date natively, never filter/guess yourself from an un-scoped call. `category` is for a BUDGET CATEGORY (e.g. "Groceries", "Housing"); `account` is only for a BANK ACCOUNT name — never pass a category name as `account` or vice versa. This renders as a card — never also describe the list as text.
+  - "Show me my Groceries transactions for July 2026" → finance__list_transactions(category="Groceries", month=7, year=2026)
+  - "what did I spend from ING this month" → finance__list_transactions(account="ING", month=<current>, year=<current>)
+- finance__get_transactions is the plain-text twin of finance__list_transactions — use it ONLY when you (the model) need a transaction's id to act on it in this same turn (e.g. before finance__propose_transfer_conversion or finance__propose_tag_transaction below), never to show the user a list to look at.
 - When the user asks about FIRE progress, financial independence, retirement timeline, or crossover point — call finance__get_fire_chart immediately.
   - "how's my FIRE progress?" → finance__get_fire_chart()
 - When the user asks about savings goal progress, how much more is needed to reach a target, or a goal's deadline/timeline — call finance__get_goals_chart immediately. Never answer that no goal is configured without calling this tool first.
@@ -205,6 +206,7 @@ _PROPOSAL_TOOLS = {
     "finance__get_budget_overview",
     "finance__get_spending_chart", "finance__get_tag_spending_chart", "finance__get_budget_chart", "finance__get_spending_trend", "finance__get_goals_chart",
     "finance__get_fire_chart",
+    "finance__list_transactions",
     "finance__propose_transfer_conversion",
     "vehicle__log_refuel", "vehicle__delete_vehicle_log_entry", "vehicle__set_vehicle_reminder",
     "vehicle__set_service_interval", "vehicle__propose_set_vehicle_active", "vehicle__set_vehicle_apk_required",
