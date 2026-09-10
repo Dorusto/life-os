@@ -104,16 +104,17 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 >
 > **Housekeeping, same session:** `docs/glm-5.3/ui-audit-2026-08-30.md` (source for #231-240)
 > translated Romanian→English and committed — had sat untracked 12 days, blocked by the
-> English-only rule. Delegated correctly this time (isolated worktree, path verified). Five of the
-> audit's own "quick wins" shipped: `Chart.tsx`'s x-axis losing the year on multi-year series
-> (§1.2, partial #231), `VehicleDetail`'s `vehicleQuery` missing `retry: false` (§4.2, 15s black
-> screen on a bad link), 1px-invisible progress bars, raw ISO date in the Transactions table, and
-> 6 undersized tap targets + axis label sizes (delegated to Flash silently, per Doru's standing
-> rule — see `delegate-by-complexity/SKILL.md`). Only #6 left from the quick-wins list (raw
-> Python tool-error text leaking into Chat) — needs a small design call before touching it, not
-> picked silently since it's LLM-facing error text in an area that's already had a real prompt bug
-> (#172). Live pixel-check on a real vehicle chart (§1.2's fix) still pending — no vehicle fixture
-> data exists locally right now.
+> English-only rule. Delegated correctly this time (isolated worktree, path verified). **All 7 of
+> the audit's own §5 "quick wins" now shipped**: x-axis losing the year on multi-year series
+> (§1.2, partial #231), `vehicleQuery` missing `retry: false` (§4.2), 1px-invisible progress bars,
+> raw ISO date in Transactions, 6 undersized tap targets + axis label sizes (delegated to Flash
+> silently, per Doru's standing rule — see `delegate-by-complexity/SKILL.md`), and raw Python
+> tool-error text leaking verbatim into Chat (§4.3) — wrapped in a per-occurrence instruction,
+> live-verified against the app's real chat LLM with the exact real-world scenario. Medium-effort
+> items (§5's second tier — chart height, tooltips/drill-down, skeletons, animations, color
+> registry, sticky headers, date grouping, PWA icons) not started, next natural pickup. Live
+> pixel-check on a real vehicle chart (§1.2's fix) still pending — no vehicle fixture data exists
+> locally right now.
 
 ---
 

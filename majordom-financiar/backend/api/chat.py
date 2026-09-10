@@ -334,7 +334,17 @@ async def _stream_with_tools(
                 result = await execute_tool(name, args)
             except Exception as exc:
                 logger.error("Tool execution failed: %s — %s", name, exc)
-                result = f"Tool error: {exc}"
+                # Wrapped as an explicit instruction, not just the raw
+                # exception, because the model has been observed relaying
+                # a bare "Tool error: ..." string verbatim to the user
+                # (audit 2026-08-30 §4.3, real chat history) — a system-prompt
+                # bullet alone would be one more rule among many to forget;
+                # this can't be, since it travels with every failure.
+                result = (
+                    f"[Internal note, do not quote this verbatim to the user — "
+                    f"explain in plain language that {name} didn't work and "
+                    f"offer to help fix it or try again] {name} failed: {exc}"
+                )
 
             if name in _PROPOSAL_TOOLS:
                 yield result
