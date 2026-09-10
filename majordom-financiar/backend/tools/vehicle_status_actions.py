@@ -1,15 +1,7 @@
 """In-memory store for pending vehicle status proposals (activate/deactivate)."""
+from backend.tools._action_store import InMemoryActionStore
 
-_actions: dict[str, dict] = {}
-
-
-def store(action_id: str, data: dict) -> None:
-    _actions[action_id] = data
-
-
-def get(action_id: str) -> dict | None:
-    return _actions.get(action_id)
-
-
-def delete(action_id: str) -> None:
-    _actions.pop(action_id, None)
+_store = InMemoryActionStore()
+store = _store.store
+get = _store.get
+delete = _store.delete
