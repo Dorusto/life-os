@@ -55,10 +55,10 @@ export default function DuplicatesReviewPage() {
     queryClient.invalidateQueries({ queryKey: ['duplicates', 'months'] })
   }
 
-  async function handleConfirm(pair: DuplicatePair) {
+  async function handleConfirm(pair: DuplicatePair, override?: { duplicate_payee?: string; duplicate_category_name?: string; duplicate_notes?: string; duplicate_date?: string }) {
     setBusyId(pair.action_id)
     try {
-      await confirmCategoryAction(pair.action_id)
+      await confirmCategoryAction(pair.action_id, override)
       setHandledIds(prev => new Set(prev).add(pair.action_id))
       invalidateCounts()
     } catch {
