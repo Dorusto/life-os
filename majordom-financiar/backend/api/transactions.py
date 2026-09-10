@@ -58,11 +58,12 @@ class CreateTransactionRequest(BaseModel):
     merchant: str
     amount: float
     date: str              # ISO format: YYYY-MM-DD
-    category_id: str       # AB category id (UUID), as returned by GET /categories
+    category_id: str       # existing AB category id, OR the new category's name if new_category_group is set
     account_id: str
     notes: Optional[str] = None
     force_new: bool = False        # skip the near-duplicate check, always create
     attach_to: Optional[str] = None  # financial_id of an existing tx to attach to instead
+    new_category_group: Optional[str] = None  # set → category_id holds the new category's name; create before use
 
 
 # --- Routes ---
@@ -210,11 +211,27 @@ async def create_transaction(
                     possible_match=NearDuplicateMatch(**match),
                 )
 
+        # Resolve new category before saving (#187)
+        category_id = request.category_id
+        if request.new_category_group:
+            provider = get_provider()
+            cats = await provider.get_categories()
+            cat_map = {c.name.lower(): c for c in cats}
+            name = request.category_id
+            if name.lower() in cat_map:
+                category_id = cat_map[name.lower()].id
+            else:
+                try:
+                    created = await provider.create_category(name=name, group_name=request.new_category_group)
+                    category_id = created.id
+                except Exception as e:
+                    logger.warning("Failed to create category '%s': %s", name, e)
+
         result = await service.confirm(
             merchant=request.merchant,
             amount=request.amount,
             date=request.date,
-            category_id=request.category_id,
+            category_id=category_id,
             account_id=request.account_id,
             notes=request.notes or "",
             confirmed_by=current_user,
@@ -256,6 +273,7 @@ async def list_categories(current_user: str = Depends(get_current_user)):
 class SplitLine(BaseModel):
     category_id: str
     amount: float
+    new_category_group: Optional[str] = None
 
 
 class SplitTransactionRequest(BaseModel):
@@ -281,10 +299,29 @@ async def split_transaction(
     if len(body.splits) < 2:
         raise HTTPException(status_code=400, detail="A split needs at least 2 lines")
 
+    # Resolve any new categories before splitting (#187)
+    provider = get_provider()
+    all_cats = await provider.get_categories()
+    cat_map = {c.name.lower(): c for c in all_cats}
+    resolved_splits = []
+    for s in body.splits:
+        cat_id = s.category_id
+        if s.new_category_group:
+            name = s.category_id
+            if name.lower() in cat_map:
+                cat_id = cat_map[name.lower()].id
+            else:
+                try:
+                    created = await provider.create_category(name=name, group_name=s.new_category_group)
+                    cat_id = created.id
+                except Exception as e:
+                    logger.warning("Failed to create category '%s': %s", name, e)
+        resolved_splits.append({"category_id": cat_id, "amount": s.amount})
+
     client = get_provider()
     try:
         result = await client.split_transaction(
-            transaction_id, [s.model_dump() for s in body.splits]
+            transaction_id, resolved_splits
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

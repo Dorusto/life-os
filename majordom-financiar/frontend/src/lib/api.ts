@@ -190,6 +190,7 @@ export async function confirmReceipt(data: {
   force_new?: boolean
   attach_to?: string
   create_rule?: boolean
+  new_category_group?: string
 }): Promise<ConfirmResponse> {
   return request<ConfirmResponse>(`/receipts/${data.receipt_id}/confirm`, {
     method: 'POST',
@@ -319,6 +320,7 @@ export async function createTransaction(data: {
   notes?: string
   force_new?: boolean
   attach_to?: string
+  new_category_group?: string
 }): Promise<ConfirmResponse> {
   return request<ConfirmResponse>('/transactions', {
     method: 'POST',
@@ -331,6 +333,7 @@ export async function createTransaction(data: {
 export interface SplitLine {
   category_id: string
   amount: number
+  new_category_group?: string
 }
 
 export async function splitTransaction(

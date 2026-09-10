@@ -31,6 +31,7 @@ from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
 from backend.core.config import settings
+from backend.core.finance.provider import get_provider
 from backend.core.vehicle_client import VehicleClient, VehicleClientError
 from backend.services.receipt_service import ReceiptService
 
@@ -88,12 +89,13 @@ class ConfirmRequest(BaseModel):
     merchant: str
     amount: float
     date: str              # ISO format: YYYY-MM-DD
-    category_id: str       # e.g. "groceries"
+    category_id: str       # existing AB category id, OR the new category's name if new_category_group is set
     account_id: str
     notes: Optional[str] = None
     force_new: bool = False        # skip the near-duplicate check, always create
     attach_to: Optional[str] = None  # financial_id of an existing tx to attach to instead
     create_rule: bool = False      # also create an AB rule so future receipts from this merchant auto-categorize (#99)
+    new_category_group: Optional[str] = None  # set → category_id holds the new category's name; create before use
 
 
 class NearDuplicateMatch(BaseModel):
@@ -247,12 +249,28 @@ async def confirm_receipt(
         )
 
     service = ReceiptService()
+    # Resolve new category before saving (#187)
+    category_id = request.category_id
+    if request.new_category_group:
+        provider = get_provider()
+        cats = await provider.get_categories()
+        cat_map = {c.name.lower(): c for c in cats}
+        name = request.category_id
+        if name.lower() in cat_map:
+            category_id = cat_map[name.lower()].id
+        else:
+            try:
+                created = await provider.create_category(name=name, group_name=request.new_category_group)
+                category_id = created.id
+            except Exception as e:
+                logger.warning("Failed to create category '%s': %s", name, e)
+
     try:
         result = await service.resolve_transaction(
             account_id=request.account_id,
             amount=request.amount,
             date=request.date,
-            category_id=request.category_id,
+            category_id=category_id,
             merchant=request.merchant,
             notes=request.notes or "[receipt photo]",
             attach_to=request.attach_to,

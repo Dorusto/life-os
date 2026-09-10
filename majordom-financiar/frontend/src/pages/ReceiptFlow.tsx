@@ -9,6 +9,7 @@ import {
   createTransaction,
   splitTransaction,
   getCategories,
+  getCategoryGroups,
   getAccountList,
   type ReceiptDraft,
   type ConfirmResponse,
@@ -41,9 +42,13 @@ import { formatCurrency } from '../lib/formatCurrency'
 
 type FlowState = 'uploading' | 'reviewing' | 'confirming' | 'success' | 'error'
 
+const NEW_CATEGORY_VALUE = '__new_category__'
+
 interface Line {
   categoryId: string
   amount: string
+  isNewCategory: boolean
+  newCategoryGroup: string
 }
 
 export default function ReceiptFlow() {
@@ -67,6 +72,7 @@ export default function ReceiptFlow() {
   const [lines, setLines] = useState<Line[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [accounts, setAccounts] = useState<AccountOption[]>([])
+  const [categoryGroups, setCategoryGroups] = useState<string[]>([])
 
   // Near-duplicate match (bank-sync) awaiting user decision (#121)
   const [possibleMatch, setPossibleMatch] = useState<NearDuplicateMatch | null>(null)
@@ -95,7 +101,7 @@ export default function ReceiptFlow() {
     const file = new File([bytes], fileName, { type: fileType })
 
     uploadReceipt(file)
-      .then(result => {
+      .then(async (result) => {
         setDraft(result)
         // Pre-fill form with OCR results
         setMerchant(result.merchant || '')
@@ -108,8 +114,17 @@ export default function ReceiptFlow() {
         setLines([{
           categoryId: firstCategory,
           amount: result.amount != null ? String(result.amount) : '',
+          isNewCategory: false,
+          newCategoryGroup: '',
         }])
         setFlowState('reviewing')
+        // Fetch category groups for new-category UI (#187)
+        try {
+          const groups = await getCategoryGroups()
+          setCategoryGroups(groups)
+        } catch {
+          // non-fatal – groups will be empty, user can still type a group name freely
+        }
         // Clean up sessionStorage
         sessionStorage.removeItem('pendingReceiptDataUrl')
         sessionStorage.removeItem('pendingReceiptName')
@@ -136,7 +151,10 @@ export default function ReceiptFlow() {
         setMerchant('')
         setAmount('')
         setDate(new Date().toISOString().split('T')[0])
-        setLines([{ categoryId: '', amount: '' }])
+        setLines([{ categoryId: '', amount: '', isNewCategory: false, newCategoryGroup: '' }])
+        const groups = await getCategoryGroups()
+        if (cancelled) return
+        setCategoryGroups(groups)
         setFlowState('reviewing')
       } catch (err) {
         if (cancelled) return
@@ -165,8 +183,14 @@ export default function ReceiptFlow() {
     setLines(prev => prev.filter((_, idx) => idx !== i))
   }
 
-  function updateLineCategory(i: number, categoryId: string) {
-    setLines(prev => prev.map((l, idx) => idx === i ? { ...l, categoryId } : l))
+  function updateLineCategory(i: number, value: string) {
+    setLines(prev => prev.map((l, idx) => {
+      if (idx !== i) return l
+      if (value === NEW_CATEGORY_VALUE) {
+        return { ...l, isNewCategory: true, categoryId: '' }
+      }
+      return { ...l, categoryId: value, isNewCategory: false }
+    }))
   }
 
   function updateLineAmount(i: number, v: string) {
@@ -208,7 +232,7 @@ export default function ReceiptFlow() {
     setFlowState('confirming')
     setPossibleMatch(null)
 
-    const base = {
+    const base: Record<string, unknown> = {
       merchant,
       amount: parsedAmount,
       date,
@@ -216,6 +240,9 @@ export default function ReceiptFlow() {
       account_id: accountId,
       force_new: opts?.forceNew,
       attach_to: opts?.attachTo,
+    }
+    if (lines[0].isNewCategory) {
+      base.new_category_group = lines[0].newCategoryGroup.trim() || 'Majordom'
     }
 
     try {
@@ -238,6 +265,7 @@ export default function ReceiptFlow() {
         const splits = lines.map(l => ({
           category_id: l.categoryId,
           amount: parseFloat(l.amount) || 0,
+          ...(l.isNewCategory ? { new_category_group: l.newCategoryGroup.trim() || 'Majordom' } : {}),
         }))
         try {
           await splitTransaction(transactionId, splits)
@@ -368,41 +396,106 @@ export default function ReceiptFlow() {
                 {lines.length > 1 && <div className="w-7" />}
               </div>
 
+              <datalist id="receipt-category-groups">
+                {categoryGroups.map(g => <option key={g} value={g} />)}
+              </datalist>
+
               {lines.map((line, i) => (
                 <div key={i} className="flex gap-2 items-center">
-                  <select
-                    value={line.categoryId}
-                    onChange={e => updateLineCategory(i, e.target.value)}
-                    className={`${inputClass} flex-1`}
-                  >
-                    <option value="">Select category…</option>
-                    {categories.map(cat => (
-                      <option key={cat.id} value={cat.id}>
-                        {cat.emoji ? `${cat.emoji} ${cat.name}` : cat.name}
-                      </option>
-                    ))}
-                  </select>
-                  {lines.length > 1 && (
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      value={line.amount}
-                      onChange={e => updateLineAmount(i, e.target.value)}
-                      className={`${inputClass} w-28`}
-                      placeholder="0.00"
-                      step="0.01"
-                      min="0"
-                    />
-                  )}
-                  {lines.length > 1 && (
-                    <button
-                      onClick={() => removeLine(i)}
-                      disabled={i === 0}
-                      className="w-7 h-7 flex items-center justify-center rounded-full text-muted hover:text-white disabled:invisible transition-colors"
-                      aria-label="Remove line"
-                    >
-                      <X size={16} />
-                    </button>
+                  {line.isNewCategory ? (
+                    <>
+                      <div className="flex flex-col gap-2 flex-1">
+                        <div className="flex gap-1 items-center">
+                          <input
+                            type="text"
+                            value={line.categoryId}
+                            onChange={e => updateLineCategory(i, e.target.value)}
+                            placeholder="New category name"
+                            autoFocus
+                            className={`${inputClass} border-yellow-500/60 flex-1`}
+                          />
+                          <button
+                            onClick={() => setLines(prev => prev.map((l, idx) =>
+                              idx === i ? { ...l, isNewCategory: false, categoryId: '', newCategoryGroup: '' } : l
+                            ))}
+                            className="text-muted hover:text-white text-sm leading-none flex-shrink-0 px-1"
+                            title="Cancel"
+                          >
+                            ×
+                          </button>
+                        </div>
+                        <input
+                          type="text"
+                          value={line.newCategoryGroup}
+                          onChange={e => setLines(prev => prev.map((l, idx) =>
+                            idx === i ? { ...l, newCategoryGroup: e.target.value } : l
+                          ))}
+                          placeholder="Group (default: Majordom)"
+                          list="receipt-category-groups"
+                          className={inputClass}
+                        />
+                      </div>
+                      {lines.length > 1 && (
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          value={line.amount}
+                          onChange={e => updateLineAmount(i, e.target.value)}
+                          className={`${inputClass} w-28`}
+                          placeholder="0.00"
+                          step="0.01"
+                          min="0"
+                        />
+                      )}
+                      {lines.length > 1 && (
+                        <button
+                          onClick={() => removeLine(i)}
+                          disabled={i === 0}
+                          className="w-7 h-7 flex items-center justify-center rounded-full text-muted hover:text-white disabled:invisible transition-colors"
+                          aria-label="Remove line"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <select
+                        value={line.categoryId}
+                        onChange={e => updateLineCategory(i, e.target.value)}
+                        className={`${inputClass} flex-1 ${line.categoryId === '' ? 'border-yellow-500/60' : ''}`}
+                      >
+                        <option value="">Select category…</option>
+                        <option value={NEW_CATEGORY_VALUE}>+ Create new category</option>
+                        {categories.map(cat => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.emoji ? `${cat.emoji} ${cat.name}` : cat.name}
+                          </option>
+                        ))}
+                      </select>
+                      {lines.length > 1 && (
+                        <input
+                          type="number"
+                          inputMode="decimal"
+                          value={line.amount}
+                          onChange={e => updateLineAmount(i, e.target.value)}
+                          className={`${inputClass} w-28`}
+                          placeholder="0.00"
+                          step="0.01"
+                          min="0"
+                        />
+                      )}
+                      {lines.length > 1 && (
+                        <button
+                          onClick={() => removeLine(i)}
+                          disabled={i === 0}
+                          className="w-7 h-7 flex items-center justify-center rounded-full text-muted hover:text-white disabled:invisible transition-colors"
+                          aria-label="Remove line"
+                        >
+                          <X size={16} />
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               ))}
