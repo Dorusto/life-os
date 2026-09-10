@@ -101,6 +101,13 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 > the skill level, `~/.claude/skills/delegate-by-complexity/`, not just noted here — protects
 > every future delegation. **Phase C2 is now fully shipped** (#111/#112/#41/#113 all closed or
 > implemented) except #42 (still blocked on Phase D's undecided market-data-source question).
+>
+> **Housekeeping, same session:** `docs/glm-5.3/ui-audit-2026-08-30.md` (source for #231-240)
+> translated Romanian→English and committed — had sat untracked 12 days, blocked by the
+> English-only rule. Delegated correctly this time (isolated worktree, path verified). A real bug
+> the audit flagged (`Chart.tsx`'s x-axis losing the year on multi-year series, §1.2) fixed and
+> committed directly — partial #231, live pixel-check on a real vehicle chart still pending (no
+> vehicle fixture data exists locally right now).
 
 ---
 
