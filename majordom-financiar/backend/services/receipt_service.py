@@ -311,6 +311,57 @@ class ReceiptService:
             notes=notes,
         )
 
+    async def resolve_transaction(
+        self,
+        *,
+        account_id: str,
+        amount: float,
+        date: str,
+        category_id: str,
+        merchant: str,
+        notes: str,
+        attach_to: Optional[str] = None,
+        force_new: bool = False,
+        confirmed_by: str = "web",
+        create_rule: bool = False,
+    ) -> dict:
+        """
+        Shared attach / near-duplicate-check / create dispatch (#121).
+
+        Every confirm flow that can match against an existing bank-sync
+        transaction — confirm_receipt, confirm_fuel_receipt (receipts.py) and
+        confirm_vehicle_proposal (vehicle_proposals.py) — must go through this,
+        not a fresh copy of the branching. See duplication-prevention.md's
+        "extract at the second occurrence" rule; this was already the third
+        hand-written copy of the same three-way dispatch before being unified.
+
+        Returns exactly one of:
+          {"attach_not_found": True}
+          {"possible_match": {...}}                          # see check_near_duplicate()
+          {"duplicate": bool, "transaction_id": str | None}   # see confirm()
+        """
+        if attach_to:
+            ok = await self.attach_to_existing(financial_id=attach_to, category_id=category_id, notes=notes)
+            if not ok:
+                return {"attach_not_found": True}
+            return {"duplicate": False, "transaction_id": attach_to}
+
+        if not force_new:
+            match = await self.check_near_duplicate(account_id=account_id, amount=amount, date=date)
+            if match:
+                return {"possible_match": match}
+
+        return await self.confirm(
+            merchant=merchant,
+            amount=amount,
+            date=date,
+            category_id=category_id,
+            account_id=account_id,
+            notes=notes,
+            confirmed_by=confirmed_by,
+            create_rule=create_rule,
+        )
+
     async def _resolve_category_name(self, category_id: str) -> str:
         """Resolve a category reference to its Actual Budget display name.
 

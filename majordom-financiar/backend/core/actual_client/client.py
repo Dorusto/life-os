@@ -1478,12 +1478,27 @@ class ActualBudgetClient:
         return await self._run(_get)
 
     async def delete_transaction(self, financial_id: str) -> bool:
-        """Soft-delete a transaction by financial_id (tombstone=1). Returns False if not found."""
+        """
+        Soft-delete a transaction by financial_id (tombstone=1). Returns False if not found.
+
+        Matches on financial_id OR the row's own id: vehicle_log entries linked via
+        add_transaction()'s return value store `Transactions.id` (the same identifier
+        split_transaction() requires, see its docstring), not `financial_id` — so a
+        fuel-log delete must resolve either shape or it silently fails to remove the
+        linked AB transaction.
+
+        Note: `Transactions.id`/`Transactions.financial_id` are both plain, unconstrained
+        Text columns — every value this codebase itself generates for one is structurally
+        distinct from the other's format (36-char dashed UUID vs. 16-char hex/`adj-`-prefixed),
+        but that's convention, not a schema guarantee. A real bank-sync-supplied `financial_id`
+        coincidentally matching another row's `id` verbatim is not ruled out by the database.
+        """
         def _delete():
             from actual.database import Transactions
+            from sqlalchemy import or_
             with self._get_actual() as actual:
                 tx = actual.session.query(Transactions).filter(
-                    Transactions.financial_id == financial_id,
+                    or_(Transactions.financial_id == financial_id, Transactions.id == financial_id),
                     Transactions.tombstone == 0,
                 ).first()
                 if not tx:

@@ -20,6 +20,15 @@ def _looks_like_uuid(s: str) -> bool:
     return bool(re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', s, re.IGNORECASE))
 
 
+def fire_budget_alert_check(category_name: str) -> None:
+    """Fire the budget-alert check in the background — must not block the caller."""
+    from backend.services.notification_service import check_budget_alert
+    from backend.core.memory.database import MemoryDB
+    asyncio.ensure_future(
+        check_budget_alert(category_name, MemoryDB(settings.memory.db_path))
+    )
+
+
 async def add_transaction(
     payee: str,
     amount: float,
@@ -50,12 +59,7 @@ async def add_transaction(
     )
 
     if tx_id:
-        # Fire budget alert check in background (must not block chat response)
-        from backend.services.notification_service import check_budget_alert
-        from backend.core.memory.database import MemoryDB
-        asyncio.ensure_future(
-            check_budget_alert(category_name, MemoryDB(settings.memory.db_path))
-        )
+        fire_budget_alert_check(category_name)
         return (
             f"Transaction added successfully: {payee} €{amount:.2f} "
             f"on {tx_date.isoformat()} (category: {category_name})"

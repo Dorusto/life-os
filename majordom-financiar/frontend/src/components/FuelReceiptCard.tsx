@@ -108,23 +108,27 @@ export default function FuelReceiptCard({
         notes: null as string | null,
       }
 
+      let response: FuelConfirmResponse
       if (confirmEndpoint) {
-        // Text mode — POST directly to custom endpoint. Notes are typed
-        // manually here (no OCR uncertainty), so no near-duplicate check.
+        // Text mode — POST directly to custom endpoint. Same near-duplicate
+        // check as photo mode (backend-side), so force_new/attach_to still apply.
         const res = await authFetch(`${BASE}${confirmEndpoint}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
+          body: JSON.stringify({
+            ...body,
+            force_new: opts?.forceNew,
+            attach_to: opts?.attachTo,
+          }),
         })
         if (!res.ok) {
           const errBody = await res.json().catch(() => ({ detail: 'Request failed' }))
           throw new Error(errBody.detail || 'Request failed')
         }
-        const response: FuelConfirmResponse = await res.json()
-        onConfirmed(response)
+        response = await res.json()
       } else {
         // Photo mode — use existing API function
-        const response = await confirmFuelReceipt({
+        response = await confirmFuelReceipt({
           receipt_id: proposalId,
           ...body,
           fuel_grade: draft.fuel_grade ?? null,
@@ -132,13 +136,14 @@ export default function FuelReceiptCard({
           force_new: opts?.forceNew,
           attach_to: opts?.attachTo,
         })
-        if (response.possible_match) {
-          // Likely bank-sync match found — hold off, let the user decide (#121)
-          setPossibleMatch(response.possible_match)
-          return
-        }
-        onConfirmed(response)
       }
+
+      if (response.possible_match) {
+        // Likely bank-sync match found — hold off, let the user decide (#121)
+        setPossibleMatch(response.possible_match)
+        return
+      }
+      onConfirmed(response)
     } catch (err) {
       onConfirmed({
         success: false,

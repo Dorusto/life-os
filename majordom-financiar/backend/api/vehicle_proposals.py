@@ -6,11 +6,12 @@ from datetime import date as _date
 from fastapi import APIRouter, Depends, HTTPException
 
 from backend.api.auth import get_current_user
-from backend.api.receipts import FuelConfirmRequest, FuelConfirmResponse
+from backend.api.receipts import FuelConfirmRequest, FuelConfirmResponse, NearDuplicateMatch
 from backend.tools import vehicle_proposals
-from backend.tools.finance.actual_budget import add_transaction as ab_add_transaction
+from backend.tools.finance.actual_budget import fire_budget_alert_check
 from backend.core.config import settings
 from backend.core.vehicle_client import VehicleClient, VehicleClientError
+from backend.services.receipt_service import ReceiptService
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +32,15 @@ async def confirm_vehicle_proposal(
     """
     Confirm a text-triggered refuel proposal.
 
-    Same logic as confirm_fuel_receipt in receipts.py:
+    Same logic as confirm_fuel_receipt in receipts.py — including the
+    near-duplicate check against bank-synced transactions and the
+    attach_to path, so a manually chat-logged refuel doesn't create
+    a second transaction when the bank sync already picked it up:
     1. Get proposal from vehicle_proposals store → 404 if missing
-    2. AB transaction via ActualBudgetClient.add_transaction()
-    3. vehicle_log INSERT via vehicle_client.insert_log_entries()
+    2. Attach to an existing tx, surface a possible match, or add a new
+       AB transaction — same three-way dispatch as confirm_fuel_receipt
+    3. vehicle_log INSERT via vehicle_client.insert_log_entries(), linked
+       to the AB transaction via financial_id
     4. Calculate post-confirm stats
     5. Delete proposal
     6. Return FuelConfirmResponse
@@ -44,6 +50,7 @@ async def confirm_vehicle_proposal(
         raise HTTPException(status_code=404, detail="Proposal not found")
 
     client = VehicleClient(base_url=settings.vehicle_manager.url)
+    service = ReceiptService()
 
     try:
         category_name = request.category_name or proposal.get("category_name", "Car Costs")
@@ -58,18 +65,34 @@ async def confirm_vehicle_proposal(
         last_entry = await client.get_last_fuel_entry(vehicle_id) if vehicle_id else None
         last_odo = last_entry["odo_km"] if last_entry else None
 
-        logger.info("Adding AB transaction: %s €%.2f on %s", station, request.total_eur, tx_date)
-        ab_result = await ab_add_transaction(
-            payee=station,
+        tx_result = await service.resolve_transaction(
+            account_id=account_id,
             amount=request.total_eur,
             date=tx_date,
-            category_name=category_name,
-            account_id=account_id,
+            category_id=category_name,
+            merchant=station,
             notes=notes,
-            is_expense=True,
+            attach_to=request.attach_to,
+            force_new=request.force_new,
+            confirmed_by=current_user,
         )
-        transaction_id = None
-        logger.info("AB result: %s", ab_result)
+        if tx_result.get("attach_not_found"):
+            raise HTTPException(status_code=404, detail="Transaction to attach to was not found")
+        if "possible_match" in tx_result:
+            return FuelConfirmResponse(
+                success=True,
+                duplicate=False,
+                possible_match=NearDuplicateMatch(**tx_result["possible_match"]),
+            )
+
+        duplicate = tx_result.get("duplicate", False)
+        transaction_id = tx_result.get("transaction_id")
+        if transaction_id and not request.attach_to:
+            fire_budget_alert_check(category_name)
+        logger.info(
+            "Refuel AB transaction resolved: %s €%.2f on %s → %s",
+            station, request.total_eur, tx_date, transaction_id,
+        )
 
         price_per_liter = round(request.total_eur / request.liters, 3) if request.liters else None
         entry = {
@@ -86,6 +109,7 @@ async def confirm_vehicle_proposal(
             "fuel_grade": request.fuel_grade,
             "location": station,
             "source": "chat_text",
+            "financial_id": transaction_id,
         }
 
         # Try to write vehicle log entry
@@ -97,7 +121,7 @@ async def confirm_vehicle_proposal(
             # Return a response that tells the user AB was saved but vehicle part failed
             return FuelConfirmResponse(
                 success=True,
-                duplicate=False,
+                duplicate=duplicate,
                 transaction_id=transaction_id,
                 vehicle_log_id=None,
                 km_since_last=None,
@@ -125,7 +149,7 @@ async def confirm_vehicle_proposal(
 
         return FuelConfirmResponse(
             success=True,
-            duplicate=False,
+            duplicate=duplicate,
             transaction_id=transaction_id,
             vehicle_log_id=vehicle_log_id,
             km_since_last=km_since_last,
