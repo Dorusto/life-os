@@ -34,6 +34,7 @@
 | The onboarding state machine | `docs/learn/11-onboarding.md` |
 | Why the project is structured this way | `docs/learn/12-dev-strategy.md` |
 | How to start working on the next task | `docs/learn/13-starting-a-task.md` |
+| What a ledger balance means, and why it stops matching the bank | `docs/learn/14-ledger-reconciliation.md` |
 
 ---
 
