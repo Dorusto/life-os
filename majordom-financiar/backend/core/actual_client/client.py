@@ -470,6 +470,24 @@ def _compute_budget_vs_spent(
         | {str(c.id) for c in all_cats if c.id and not c.hidden}
     )
 
+    # Rollover-balance lookup, computed ONCE for the whole month rather than
+    # once per zero-budgeted category (#227/#245). actualpy's own
+    # get_accumulated_budgeted_balance() internally calls
+    # get_budget_history(session, month), which rebuilds the ENTIRE budget
+    # history from the first available month up to `month` — identical work
+    # every time since `month` doesn't change within this loop. Measured live
+    # (2026-09-11, local fixture stack, 17 categories): 17 separate calls =
+    # 7.86s; one shared get_budget_history() + per-category .from_category()
+    # slicing = 0.50s. Every caller of this function benefits, including
+    # #112's get_budget_pacing_totals(), which loops this across up to 9
+    # months.
+    budget_history = None
+    try:
+        from actual.budgets import get_budget_history
+        budget_history = get_budget_history(session, _date(target_year, target_month, 1))
+    except Exception as e:
+        logger.debug("budget history lookup failed, rollover balances unchanged: %s", e)
+
     result = []
     for cat_id in all_category_ids:
         if cat_id == "uncategorized":
@@ -485,13 +503,11 @@ def _compute_budget_vs_spent(
         # BEFORE the budgeted==0-and-spent==0 skip below, otherwise a rollover
         # category with no spending yet this month gets filtered out before
         # ever checking its balance.
-        if budgeted == 0 and cat_id in cat_obj_map:
+        if budgeted == 0 and cat_id in cat_obj_map and budget_history:
             try:
-                from actual.queries import get_accumulated_budgeted_balance
-                accumulated = get_accumulated_budgeted_balance(
-                    session, _date(target_year, target_month, 1), cat_obj_map[cat_id],
-                )
-                budgeted = round(float(accumulated), 2)
+                budget_category = budget_history[-1].from_category(cat_obj_map[cat_id])
+                if budget_category is not None:
+                    budgeted = round(float(budget_category.accumulated_balance), 2)
             except Exception as e:
                 logger.debug("accumulated-budget lookup failed for this category, budgeted amount unchanged: %s", e)
         # Skip system/unbudgeted categories with no activity

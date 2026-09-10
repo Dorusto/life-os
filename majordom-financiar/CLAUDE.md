@@ -80,6 +80,14 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 > Committed locally; GitHub issue close held for the evening window, same as #254. Remaining
 > Phase C2 items: #111/#42, both blocked on real gaps (no live bank-sync for #111, undecided
 > market-data source for #42 — see that entry's own dated session note before picking either up).
+>
+> **#227's compute-cost half fixed 2026-09-11** — `actualpy`'s `get_accumulated_budgeted_balance()`
+> was being called once per zero-budgeted category and internally re-deriving the whole budget
+> history every time; hoisted one shared lookup instead, 7.86s→0.50s measured, `architecture.md`
+> rule 41. **#227/#245 stay open** — only half fixed. Live network trace found #245's "fetched
+> twice" symptom is bigger than its own text scoped: the *entire* Dashboard query set double-fires
+> (likely a full component remount), not just `budget-period`. Confirmed pre-existing, not a
+> regression from today's #254/#112. Root cause not yet found — next session's pickup.
 
 ---
 
