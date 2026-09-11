@@ -295,6 +295,31 @@ export async function getAccountList(): Promise<AccountListItem[]> {
   return request<AccountListItem[]>('/accounts')
 }
 
+// --- Analytics chart endpoints ---
+
+interface ChartResponse {
+  chart_type: 'pie' | 'bar' | 'line' | 'progress_list'
+  title: string
+  data: any
+  refetch?: any
+}
+
+export async function getSpendingChartData(): Promise<ChartResponse> {
+  return request<ChartResponse>('/finance/spending-chart')
+}
+
+export async function getBudgetChartData(): Promise<ChartResponse> {
+  return request<ChartResponse>('/finance/budget-chart')
+}
+
+export async function getSpendingTrendData(): Promise<ChartResponse> {
+  return request<ChartResponse>('/finance/spending-trend')
+}
+
+export async function getSavingsRateData(): Promise<ChartResponse> {
+  return request<ChartResponse>('/finance/savings-rate')
+}
+
 export async function setAccountType(accountId: string, accountType: string): Promise<AccountListItem> {
   return request<AccountListItem>(`/accounts/${accountId}/type`, {
     method: 'POST',
