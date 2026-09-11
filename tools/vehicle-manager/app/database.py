@@ -504,3 +504,23 @@ def update_current_value(vehicle_id: int, current_value: float, ab_account_id: s
         conn.commit()
     finally:
         conn.close()
+
+
+def set_ab_account_id(vehicle_id: int, ab_account_id: str, db_path: str | None = None) -> bool:
+    """Link a vehicle to an existing AB account id. Does not touch current_value.
+
+    Deliberately separate from update_current_value() (which also writes
+    current_value) and from patch_vehicle()'s allowed_fields whitelist —
+    linking only ever happens through this dedicated path.
+    Returns True if a row was found and updated.
+    """
+    conn = _get_conn(db_path)
+    try:
+        cur = conn.execute(
+            "UPDATE vehicles SET ab_account_id = ? WHERE id = ?",
+            (ab_account_id, vehicle_id)
+        )
+        conn.commit()
+        return cur.rowcount > 0
+    finally:
+        conn.close()

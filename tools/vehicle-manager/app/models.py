@@ -42,6 +42,10 @@ class VehiclePatchRequest(BaseModel):
     manual_mileage: float | None = None
 
 
+class VehicleLinkAccountRequest(BaseModel):
+    ab_account_id: str
+
+
 class VehicleLogEntry(BaseModel):
     vehicle_id: int | None = None  # filled from path if not provided
     date: str = ""

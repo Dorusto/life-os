@@ -54,3 +54,35 @@ async def sync_vehicle_account(
         logger.warning("Vehicle account sync unexpected error: %s", e)
 
     return None
+
+
+async def tag_vehicle_account(ab_account_id: str) -> bool:
+    """Call POST /internal/vehicle-accounts/tag on majordom-api.
+
+    Tags an existing AB account as TYPE: Vehicle without creating, renaming,
+    or adjusting balance. Returns True on success, False on any failure.
+    Never raises.
+    """
+    url = f"{get_majordom_api_url().rstrip('/')}/internal/vehicle-accounts/tag"
+    payload = {"account_id": ab_account_id}
+
+    try:
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.post(url, json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+            return bool(data.get("ok"))
+    except httpx.HTTPStatusError as e:
+        logger.warning(
+            "Vehicle account tag failed (HTTP %s): %s",
+            e.response.status_code,
+            e.response.text[:200],
+        )
+    except httpx.TimeoutException:
+        logger.warning("Vehicle account tag timed out")
+    except httpx.RequestError as e:
+        logger.warning("Vehicle account tag request failed: %s", e)
+    except Exception as e:
+        logger.warning("Vehicle account tag unexpected error: %s", e)
+
+    return False

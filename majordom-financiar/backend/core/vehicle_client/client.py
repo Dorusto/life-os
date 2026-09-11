@@ -92,6 +92,20 @@ class VehicleClient:
         result = await self._patch(f"/vehicles/{vehicle_id}", json=fields)
         return result is not None
 
+    async def link_account(self, vehicle_id: int, ab_account_id: str) -> dict:
+        """Link this vehicle to a pre-existing AB account (tags it, stores
+        the id) without creating a new account or touching balance/name.
+        Returns the updated vehicle. Raises VehicleClientError if the
+        vehicle isn't found, or if tagging the account fails for any
+        reason (vehicle-manager itself returns a gateway error in that
+        case)."""
+        result = await self._post(
+            f"/vehicles/{vehicle_id}/link-account", json={"ab_account_id": ab_account_id}
+        )
+        if result is None:
+            raise VehicleClientError(f"Vehicle {vehicle_id} not found")
+        return result
+
     # -----------------------------------------------------------------------
     # Log entries
     # -----------------------------------------------------------------------

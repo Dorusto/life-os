@@ -32,6 +32,35 @@ class VehicleAccountSyncResult(BaseModel):
     ab_account_id: str
 
 
+class VehicleAccountTagRequest(BaseModel):
+    account_id: str
+
+
+class VehicleAccountTagResult(BaseModel):
+    ok: bool
+
+
+@router.post("/vehicle-accounts/tag", response_model=VehicleAccountTagResult)
+async def tag_vehicle_account(body: VehicleAccountTagRequest):
+    """
+    Tag an existing AB account as TYPE: Vehicle, without creating, renaming,
+    or adjusting the balance of anything. Used to link a pre-existing AB
+    account to a vehicle-manager profile without risking a duplicate account
+    (see sync_vehicle_account's ab_account_id=None branch, which always
+    creates new — this endpoint is the deliberate alternative for linking to
+    an account that already exists).
+    """
+    client = get_provider()
+    try:
+        await client.set_account_type(body.account_id, "Vehicle")
+        return VehicleAccountTagResult(ok=True)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error("Vehicle account tag failed for %r: %s", body.account_id, e, exc_info=True)
+        raise HTTPException(status_code=502, detail="Actual Budget tag failed")
+
+
 @router.post("/vehicle-accounts/sync", response_model=VehicleAccountSyncResult)
 async def sync_vehicle_account(body: VehicleAccountSyncRequest):
     """
