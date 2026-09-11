@@ -690,7 +690,26 @@ life-os/
 
 **Rejected:** Full split into fully independent, separately-installable services (checkbox-style installer choosing majordom-finance and/or vehicle-manager, either without requiring the other) — that's the real shape of the "life-os as modular platform" direction (#150), which is explicitly undecided and needs its own planning session. This decision is a stopgap that unblocks #154 without pre-empting #150.
 
-**Trigger to revisit:** when #150 (naming/architecture) gets its dedicated planning session — fold this decision into whatever the full modular-service split ends up looking like.
+**Trigger to revisit:** when #150 (naming/architecture) gets its dedicated planning session — fold this decision into whatever the full modular-service split ends up looking like. **Answered, see below.**
+
+---
+
+<a id="vehicle-manager-standalone-frontend"></a>
+### vehicle-manager as a fully standalone app with its own frontend — the "explicitly undecided" question above, decided
+
+**Date:** 2026-09-11
+
+**Decision:** `vehicle-manager` becomes a fully standalone application, including its own frontend UI. Majordom does not own, embed, or duplicate that UI — it only *communicates* with vehicle-manager over its API (queries and actions), the same relationship `VehicleClient` already has today. The two apps work perfectly well independently; when connected, Majordom's AI can query/command vehicle-manager as an external service, the same shape as any other integration (Sure, Home Assistant, Immich).
+
+**Why:** Doru's own words (2026-09-11): vehicle-manager should be able to connect to Majordom — "tot frontendul vreau sa-i apartina [vehicle-manager] si in majordom doar sa putem sa comunicam cu vehicle manager" — with the explicit framing that the two can run standalone, and being *connected* is what lets Majordom's AI query it, not a merge of the two UIs.
+
+**This resolves the "explicitly undecided" question** left open by the 2026-07-05 opt-in-profile decision above (`#vehicle-manager` compose-profile stopgap): the answer is full split, own frontend, own deploy — API-only connection to Majordom, not a shared UI.
+
+**Concrete implication for in-flight work:** any place in majordom-financiar's own frontend that currently embeds vehicle data directly — the Accounts page's "Vehicles" section, joining vehicle-manager rows onto AB accounts, which is the subject of #252 — is a stopgap under this decision, not the long-term shape. Long-term, vehicle browsing/editing UI lives in vehicle-manager's own frontend; Majordom's UI at most links out or shows a thin API-pulled summary. Not retrofitted immediately — noted so #252 and similar fixes aren't built as if the joined-in UI were permanent.
+
+**Not decided yet — left for #150's own dedicated planning session:** naming (`majordom-garage` vs. keeping `vehicle-manager`), the installer/deploy shape (checkbox-style, independent installs), the auth model between the two apps, and how "connected" is expressed at the infrastructure level (shared network, token, discovery).
+
+**Trigger to apply now:** treat this as the guiding constraint whenever vehicle-manager or its frontend is touched, even before #150's planning session happens — relevant to #221 (doc disambiguation) and #252 (Accounts-page vehicle fix) right now.
 
 ---
 
