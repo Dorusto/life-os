@@ -791,16 +791,35 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
     setLoading(true)
 
     // Exclude transaction exchanges from history — proposals are independent, previous amounts bleed into new calls.
-    // Also exclude the user message that triggered a proposal/status (immediately followed by one).
-    const PROPOSAL_ROLES = new Set(['proposal', 'budget_rebalance', 'account_transfer', 'clarification', 'status'])
+    // Also exclude the user message that triggered a card (proposal, status, or any other non-text card role) —
+    // immediately followed by one. Checked by role shape (not a hardcoded role list) so a new card type added
+    // later is covered automatically, instead of silently leaving its triggering user message dangling with no
+    // reply in the LLM's context (see #259 — this is exactly what caused a stale answer on the same question
+    // re-asked right after a confirmed write).
+    //
+    // Beyond that: any assistant text reply that came BEFORE the most recent card is also dropped. A card
+    // means something happened (most often a confirmed write) — the model's own earlier text answer may
+    // describe state from before that, and re-asking the same/similar question later must not let the model
+    // just repeat it (confirmed live for #259: a system-prompt instruction alone didn't stop this — the model
+    // repeated its stale answer with no tool call twice in a row). Assistant text is only ever dropped, never
+    // the user's own messages, and only text from before the last card — text after it already reflects the
+    // latest state. Deliberately keyed on "any card", not just write-flagged ones, for the same
+    // don't-hardcode-role-list reason as above — the cost of over-dropping (an occasional redundant but
+    // correct tool call after a plain chart display) is negligible next to the cost of under-dropping (a wrong
+    // answer reused after a real write).
+    let lastCardIdx = -1
+    messages.forEach((m, i) => {
+      if (m.role !== 'user' && m.role !== 'assistant') lastCardIdx = i
+    })
     const history = messages
       .filter((m, i) => {
-        if (PROPOSAL_ROLES.has(m.role)) return false
+        if (m.role !== 'user' && m.role !== 'assistant') return false
         if (m.role === 'user') {
           const next = messages[i + 1]
-          if (next && PROPOSAL_ROLES.has(next.role)) return false
+          if (next && next.role !== 'user' && next.role !== 'assistant') return false
         }
-        return m.role === 'user' || m.role === 'assistant'
+        if (m.role === 'assistant' && i < lastCardIdx) return false
+        return true
       })
       .map(m => ({ role: m.role, content: m.content }))
 
