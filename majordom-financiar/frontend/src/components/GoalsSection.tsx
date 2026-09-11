@@ -7,8 +7,7 @@ import InfoIcon from './InfoIcon'
 import NewGoalSheet from './NewGoalSheet'
 import { formatCurrency, formatPercent } from '../lib/formatCurrency'
 import WidgetLoading from './WidgetLoading'
-
-const GOAL_COLORS = ['#F59E0B', '#3B82F6', '#22C55E', '#8B5CF6', '#EC4899']
+import { colorForKey } from '../lib/chartColors'
 
 // Amounts are shown in full, never abbreviated (no €14k / 1.2M). On a screen that also
 // shows exact figures, an abbreviated one reintroduces exactly the ambiguity #211 removed.
@@ -94,8 +93,8 @@ export default function GoalsSection({ fireData, goals, isLoading }: { fireData:
       ) : (
         <>
           {fireData && <PortfolioIndependenceRow data={fireData} navigate={navigate} />}
-          {goals?.map((goal, idx) => (
-            <GoalRow key={goal.id} goal={goal} color={GOAL_COLORS[idx % GOAL_COLORS.length]} navigate={navigate} />
+          {goals?.map((goal) => (
+            <GoalRow key={goal.id} goal={goal} color={colorForKey(goal.id)} navigate={navigate} />
           ))}
         </>
       )}

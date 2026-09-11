@@ -20,8 +20,7 @@ import { loadNetWorthIncludePrefs, saveNetWorthIncludePrefs } from '../lib/netWo
 import { useState, useEffect, useRef } from 'react'
 import { formatCurrency, formatPercent } from '../lib/formatCurrency'
 import WidgetLoading from '../components/WidgetLoading'
-
-const EXPENSE_COLORS = ['#E8A838', '#4F8EF7', '#EF4444', '#8B7BF0', '#22C55E']
+import { colorForKey } from '../lib/chartColors'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -709,11 +708,11 @@ function ExpensesStructureWidget({ categories, isLoading }: { categories: Budget
   }
 
   let acc = 0
-  const gradientStops = slices.map((s, i) => {
+  const gradientStops = slices.map((s) => {
     const start = (acc / total) * 100
     acc += s.spent
     const end = (acc / total) * 100
-    return `${EXPENSE_COLORS[i % EXPENSE_COLORS.length]} ${start}% ${end}%`
+    return `${colorForKey(s.category_name)} ${start}% ${end}%`
   }).join(', ')
 
   return (
@@ -730,9 +729,9 @@ function ExpensesStructureWidget({ categories, isLoading }: { categories: Budget
           </div>
         </div>
         <div className="flex-1 min-w-[120px] flex flex-col gap-1.5">
-          {slices.map((s, i) => (
+          {slices.map((s) => (
             <div key={s.category_name} className="flex items-center gap-2 text-xs">
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: EXPENSE_COLORS[i % EXPENSE_COLORS.length] }} />
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: colorForKey(s.category_name) }} />
               <span className="flex-1 min-w-0 truncate">{s.category_name}</span>
               <span className="font-mono text-muted tabular-nums">{formatCurrency(s.spent, { decimals: 0 })}</span>
             </div>

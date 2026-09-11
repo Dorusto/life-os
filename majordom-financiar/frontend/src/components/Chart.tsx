@@ -8,19 +8,7 @@
 import { useState } from 'react'
 import { authFetch } from '../lib/auth'
 import { formatCurrency, formatPercent, formatNumber } from '../lib/formatCurrency'
-
-// Shared palette — single source of truth for chart colors (previously duplicated
-// across SpendingChart.tsx and BudgetChart.tsx).
-const SEGMENT_COLORS = [
-  '#6366F1', // indigo
-  '#22C55E', // green
-  '#F59E0B', // amber
-  '#EC4899', // pink
-  '#14B8A6', // teal
-  '#8B5CF6', // violet
-  '#F97316', // orange
-  '#06B6D4', // cyan
-]
+import { colorForKey } from '../lib/chartColors'
 
 // --- Contract types ---
 
@@ -250,7 +238,7 @@ function PieChart({ title, data, refetch: initialRefetch }: { title: string; dat
   const otherPct = rest.reduce((s, c) => s + c.percentage, 0)
 
   const segments = [
-    ...topSegs.map((s, i) => ({ ...s, color: SEGMENT_COLORS[i] })),
+    ...topSegs.map((s) => ({ ...s, color: colorForKey(s.name) })),
     ...(rest.length > 0 ? [{ name: 'Other', value: otherValue, percentage: otherPct, color: '#3F3F46' }] : []),
   ]
 
@@ -380,9 +368,9 @@ function ProgressListChart({
       {chartTitle}
       {error && <p className="text-xs text-red-400 mb-2">{error}</p>}
       <div className="space-y-4">
-        {liveData.items.map((item, i) => {
+        {liveData.items.map((item) => {
           const barWidth = Math.min(item.percentage, 100)
-          const color = item.color || SEGMENT_COLORS[i % SEGMENT_COLORS.length]
+          const color = item.color || colorForKey(item.label)
           const isWarning = color === '#FF2D2D'
 
           return (
@@ -548,7 +536,7 @@ function BarChart({ title, data, refetch: initialRefetch }: { title: string; dat
                   <div
                     key={i}
                     className="w-3 rounded-t-sm transition-all duration-300"
-                    style={{ height: scaleHeight(v), backgroundColor: liveData.series[i]?.color || SEGMENT_COLORS[i] }}
+                    style={{ height: scaleHeight(v), backgroundColor: liveData.series[i]?.color || colorForKey(liveData.series[i]?.label ?? `series-${i}`) }}
                   />
                 ))}
                 {activePoint === pi && (
@@ -557,7 +545,7 @@ function BarChart({ title, data, refetch: initialRefetch }: { title: string; dat
                   >
                     <p className="text-muted-2 mb-0.5">{p.x}</p>
                     {p.values.map((v, i) => (
-                      <p key={i} style={{ color: liveData.series[i]?.color || SEGMENT_COLORS[i] }}>
+                      <p key={i} style={{ color: liveData.series[i]?.color || colorForKey(liveData.series[i]?.label ?? `series-${i}`) }}>
                         {liveData.series[i]?.label ?? `#${i + 1}`}: {formatCurrency(v)}
                       </p>
                     ))}

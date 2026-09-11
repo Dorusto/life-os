@@ -158,6 +158,23 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 > part of #231's history) renders correctly on real 12-year projection data — that fix's own
 > "pending live pixel-check" note is now closed out. Commented on #234 (not closed) — per-widget
 > Dashboard skeletons still open, deferred since `WidgetLoading` is judged adequate there.
+>
+> **Category color registry (audit §5 item #12, partial #231) shipped 2026-09-11 evening.**
+> Investigating first found only 2 of the audit's 5 "fragmented" constants are true
+> category-color duplicates (`Chart.tsx`'s `SEGMENT_COLORS`, `Dashboard.tsx`'s
+> `EXPENSE_COLORS`); `GROUP_COLORS`/`GOAL_COLORS` are different domains, and the
+> percentage-based green→red budget gradient is a semantic state color the audit itself
+> says should stay separate. New `frontend/src/lib/chartColors.ts` — one shared palette +
+> deterministic `colorForKey(name)` hash, replacing all 4 index-based (`PALETTE[i % n]`)
+> arrays; the real root cause was position-based assignment, not just duplicated arrays.
+> Live-verified the actual bug fixed (not just the refactor): "Home"/"Groceries" etc. now
+> show identical colors on the chat pie chart vs. Dashboard's Expenses Structure widget,
+> confirmed via before/after screenshots. **Found and filed separately as
+> [#256](https://github.com/Dorusto/life-os/issues/256), scope choice surfaced to Doru
+> before coding:** `ExpensesStructureWidget` (Dashboard.tsx) is a second, independent
+> pie-chart implementation (CSS conic-gradient) duplicating `Chart.tsx`'s `PieChart` — the
+> same pattern #134 already solved once, reintroduced after that migration. Doru chose
+> color-registry-only for this pass; #256 stays open for the duplication itself.
 
 ---
 

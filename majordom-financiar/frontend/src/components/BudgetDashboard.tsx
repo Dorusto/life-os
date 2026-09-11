@@ -5,11 +5,9 @@ import type { BudgetCategory } from '../lib/api'
 import { applyCategoryOverview } from '../lib/api'
 import { loadGroupOrder, saveGroupOrder } from '../lib/categoryGroupOrder'
 import { formatCurrency } from '../lib/formatCurrency'
+import { colorForKey, INCOME_COLOR } from '../lib/chartColors'
 
 const GROUP_ORDER = ['Housing', 'Daily Living', 'Transport', 'Health', 'Lifestyle', 'Finance', 'Unexpected']
-
-const GROUP_COLORS = ['#F59E0B', '#3B82F6', '#22C55E', '#8B5CF6', '#EC4899', '#14B8A6', '#F97316']
-const INCOME_COLOR = '#EAB308' // yellow, distinct from expense palette
 
 interface Props {
   categories: BudgetCategory[]
@@ -175,7 +173,7 @@ export default function BudgetDashboard({ categories, editing, onDataChange }: P
             const groupPct = groupBudgeted > 0 ? Math.round(groupSpent / groupBudgeted * 100) : 0
             const isExpanded = expandedGroups.has(groupName)
             const isLast = idx === orderedGroups.length - 1
-            const groupColor = groupName === 'Income' ? INCOME_COLOR : GROUP_COLORS[idx % GROUP_COLORS.length]
+            const groupColor = groupName === 'Income' ? INCOME_COLOR : colorForKey(groupName)
 
             return (
               <div key={groupName} className={isLast ? '' : 'border-b border-border/20'}>
