@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { CheckSquare, Filter, List, Loader2, Table2, X } from 'lucide-react'
@@ -15,6 +15,7 @@ import {
   type TransactionFilters,
 } from '../lib/api'
 import { formatCurrency } from '../lib/formatCurrency'
+import { groupByMonth } from '../lib/groupByMonth'
 
 const LIMIT = 50
 const VIEW_STORAGE_KEY = 'majordom_transactions_view_v1'
@@ -253,17 +254,13 @@ export default function TransactionsPage() {
   const amountText = (tx: Transaction) =>
     formatCurrency(tx.is_expense ? -Math.abs(tx.amount) : Math.abs(tx.amount), { signDisplay: 'always' })
 
-  const chipHidden: boolean[] = (() => {
-    const arr = new Array(transactions.length).fill(false)
-    for (let i = 1; i < transactions.length; i++) {
-      const prev = transactions[i - 1].category ?? 'Uncategorized'
-      const curr = transactions[i].category ?? 'Uncategorized'
-      if (curr === prev) {
-        arr[i] = true
-      }
-    }
-    return arr
-  })()
+  // Grouped by month for both views — replaces a flat list with a month
+  // header + net total per group (audit §5 item #14).
+  const monthGroups = groupByMonth(
+    transactions,
+    tx => tx.date,
+    tx => (tx.is_expense ? -Math.abs(tx.amount) : Math.abs(tx.amount))
+  )
 
   return (
     <div className="h-dvh bg-background flex flex-col overflow-y-auto">
@@ -348,37 +345,55 @@ export default function TransactionsPage() {
               </label>
             </div>
             )}
-            <div className="space-y-2">
-              {transactions.map((tx, idx) => (
-                <label
-                  key={tx.id}
-                  className={`flex items-center px-3.5 py-3 rounded-xl bg-surface hover:bg-surface-2 transition-colors cursor-pointer ${selectionMode ? 'gap-3' : ''}`}
-                >
-                  {selectionMode && (
-                    <input
-                      type="checkbox"
-                      checked={selected.has(tx.id)}
-                      onChange={() => toggleRow(tx.id)}
-                      className="w-4 h-4 accent-accent flex-shrink-0"
-                    />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-medium truncate">{tx.merchant || 'Unknown'}</p>
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      {!chipHidden[idx] && (
-                      <span className="inline-block bg-surface-2 text-muted text-[10px] font-bold px-1.5 py-0.5 rounded">
-                        {tx.category ?? 'Uncategorized'}
-                      </span>
-                      )}
-                      <span className="text-muted text-xs flex-shrink-0">{formatDate(tx.date)}</span>
-                    </div>
+            <div className="space-y-4">
+              {monthGroups.map(group => (
+                <div key={group.label}>
+                  <div className="flex items-center justify-between px-1 pb-1.5">
+                    <span className="text-muted text-xs font-semibold uppercase tracking-wide">{group.label}</span>
+                    <span
+                      className={`font-mono text-xs tabular-nums ${group.total >= 0 ? 'text-positive' : 'text-muted'}`}
+                    >
+                      {formatCurrency(group.total, { decimals: 0, signDisplay: 'always' })}
+                    </span>
                   </div>
-                  <span
-                    className={`font-mono text-[13.5px] tabular-nums flex-shrink-0 ${!tx.is_expense ? 'text-positive' : 'text-white'}`}
-                  >
-                    {amountText(tx)}
-                  </span>
-                </label>
+                  <div className="space-y-2">
+                    {group.items.map((tx, i) => {
+                      const prevCategory = i > 0 ? group.items[i - 1].category ?? 'Uncategorized' : null
+                      const hideChip = (tx.category ?? 'Uncategorized') === prevCategory
+                      return (
+                        <label
+                          key={tx.id}
+                          className={`flex items-center px-3.5 py-3 rounded-xl bg-surface hover:bg-surface-2 transition-colors cursor-pointer ${selectionMode ? 'gap-3' : ''}`}
+                        >
+                          {selectionMode && (
+                            <input
+                              type="checkbox"
+                              checked={selected.has(tx.id)}
+                              onChange={() => toggleRow(tx.id)}
+                              className="w-4 h-4 accent-accent flex-shrink-0"
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-white text-sm font-medium truncate">{tx.merchant || 'Unknown'}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              {!hideChip && (
+                              <span className="inline-block bg-surface-2 text-muted text-[10px] font-bold px-1.5 py-0.5 rounded">
+                                {tx.category ?? 'Uncategorized'}
+                              </span>
+                              )}
+                              <span className="text-muted text-xs flex-shrink-0">{formatDate(tx.date)}</span>
+                            </div>
+                          </div>
+                          <span
+                            className={`font-mono text-[13.5px] tabular-nums flex-shrink-0 ${!tx.is_expense ? 'text-positive' : 'text-white'}`}
+                          >
+                            {amountText(tx)}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
               ))}
             </div>
           </>
@@ -405,28 +420,44 @@ export default function TransactionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {transactions.map(tx => (
-                  <tr key={tx.id} className="border-t border-border">
-                    <td className="py-2.5 pr-2">
-                      <input
-                        type="checkbox"
-                        checked={selected.has(tx.id)}
-                        onChange={() => toggleRow(tx.id)}
-                        className="w-4 h-4 accent-accent"
-                      />
-                    </td>
-                    <td className="py-2.5 pr-3 text-muted whitespace-nowrap">{formatDate(tx.date)}</td>
-                    <td className="py-2.5 pr-3 text-white whitespace-nowrap max-w-[20ch] truncate">
-                      {tx.merchant || 'Unknown'}
-                    </td>
-                    <td className="py-2.5 pr-3 text-muted whitespace-nowrap">{tx.category ?? 'Uncategorized'}</td>
-                    <td className="py-2.5 pr-3 text-muted whitespace-nowrap">{tx.account}</td>
-                    <td
-                      className={`py-2.5 text-right font-mono tabular-nums whitespace-nowrap ${!tx.is_expense ? 'text-positive' : 'text-white'}`}
-                    >
-                      {amountText(tx)}
-                    </td>
-                  </tr>
+                {monthGroups.map(group => (
+                  <Fragment key={group.label}>
+                    <tr className="border-t border-border">
+                      <td colSpan={6} className="py-2 px-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-muted text-xs font-semibold uppercase tracking-wide">{group.label}</span>
+                          <span
+                            className={`font-mono text-xs tabular-nums ${group.total >= 0 ? 'text-positive' : 'text-muted'}`}
+                          >
+                            {formatCurrency(group.total, { decimals: 0, signDisplay: 'always' })}
+                          </span>
+                        </div>
+                      </td>
+                    </tr>
+                    {group.items.map(tx => (
+                      <tr key={tx.id} className="border-t border-border">
+                        <td className="py-2.5 pr-2">
+                          <input
+                            type="checkbox"
+                            checked={selected.has(tx.id)}
+                            onChange={() => toggleRow(tx.id)}
+                            className="w-4 h-4 accent-accent"
+                          />
+                        </td>
+                        <td className="py-2.5 pr-3 text-muted whitespace-nowrap">{formatDate(tx.date)}</td>
+                        <td className="py-2.5 pr-3 text-white whitespace-nowrap max-w-[20ch] truncate">
+                          {tx.merchant || 'Unknown'}
+                        </td>
+                        <td className="py-2.5 pr-3 text-muted whitespace-nowrap">{tx.category ?? 'Uncategorized'}</td>
+                        <td className="py-2.5 pr-3 text-muted whitespace-nowrap">{tx.account}</td>
+                        <td
+                          className={`py-2.5 text-right font-mono tabular-nums whitespace-nowrap ${!tx.is_expense ? 'text-positive' : 'text-white'}`}
+                        >
+                          {amountText(tx)}
+                        </td>
+                      </tr>
+                    ))}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

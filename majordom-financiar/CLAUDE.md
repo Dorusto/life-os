@@ -189,6 +189,19 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 > reintroduce this. Live-verified on 3 pages, no regressions. "Sticky date headers" (this
 > item's other half) still needs #14 (date grouping) to exist first — nothing to make
 > sticky yet.
+>
+> **Date grouping + monthly summary (audit §5 item #14, partial #237) shipped 2026-09-11
+> evening.** New shared `frontend/src/lib/groupByMonth.ts` (date-sorted list → month buckets
+> with a net total) used by both Transactions (list + table views) and Account Detail's
+> transaction list. Checked `DuplicatesReviewPage.tsx`'s existing month UI first — different
+> shape (backend-paginated drill-down, not client-side grouping), not reusable. **Real
+> correctness fix found along the way**: the list view's category-chip dedup was computed
+> globally across the flat array, so a chip could wrongly hide right under a new month
+> header when the boundary rows shared a category — recomputed per-group instead. Live-
+> verified all 3 surfaces (Transactions list/table, Account Detail) against real fixture
+> data — correct grouping and net totals, no regressions. The month headers now exist, so
+> #13's "sticky date headers" half is buildable as a follow-up (stack under the page
+> header per rule 42) — not done this pass.
 
 ---
 

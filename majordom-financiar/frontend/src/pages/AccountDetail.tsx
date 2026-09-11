@@ -5,6 +5,7 @@ import { ChevronLeft } from 'lucide-react'
 import { getAccountList, getTransactions, setAccountType, ACCOUNT_TYPES } from '../lib/api'
 import { formatCurrency } from '../lib/formatCurrency'
 import DetailPageSkeleton from '../components/DetailPageSkeleton'
+import { groupByMonth } from '../lib/groupByMonth'
 
 type Tab = 'details' | 'transactions'
 
@@ -152,15 +153,31 @@ export default function AccountDetail() {
             {!transactions || transactions.length === 0 ? (
               <p className="text-muted text-xs py-3">No transactions for this account yet.</p>
             ) : (
-              transactions.map(tx => (
-                <div key={tx.id} className="flex items-center gap-2.5 py-2.5 border-b border-border last:border-b-0">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13.5px] font-medium truncate">{tx.merchant}</p>
-                    <p className="text-[11.5px] text-muted truncate">{tx.category ?? 'Uncategorized'}</p>
+              groupByMonth(
+                transactions,
+                tx => tx.date,
+                tx => (tx.is_expense ? -Math.abs(tx.amount) : Math.abs(tx.amount))
+              ).map(group => (
+                <div key={group.label} className="mb-3">
+                  <div className="flex items-center justify-between py-1.5">
+                    <span className="text-muted text-xs font-semibold uppercase tracking-wide">{group.label}</span>
+                    <span
+                      className={`font-mono text-xs tabular-nums ${group.total >= 0 ? 'text-positive' : 'text-muted'}`}
+                    >
+                      {formatCurrency(group.total, { decimals: 0, signDisplay: 'always' })}
+                    </span>
                   </div>
-                  <p className={`font-mono text-[13.5px] tabular-nums flex-shrink-0 ${!tx.is_expense ? 'text-positive' : ''}`}>
-                    {formatCurrency(tx.is_expense ? -Math.abs(tx.amount) : Math.abs(tx.amount), { signDisplay: 'always' })}
-                  </p>
+                  {group.items.map(tx => (
+                    <div key={tx.id} className="flex items-center gap-2.5 py-2.5 border-b border-border last:border-b-0">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13.5px] font-medium truncate">{tx.merchant}</p>
+                        <p className="text-[11.5px] text-muted truncate">{tx.category ?? 'Uncategorized'}</p>
+                      </div>
+                      <p className={`font-mono text-[13.5px] tabular-nums flex-shrink-0 ${!tx.is_expense ? 'text-positive' : ''}`}>
+                        {formatCurrency(tx.is_expense ? -Math.abs(tx.amount) : Math.abs(tx.amount), { signDisplay: 'always' })}
+                      </p>
+                    </div>
+                  ))}
                 </div>
               ))
             )}
