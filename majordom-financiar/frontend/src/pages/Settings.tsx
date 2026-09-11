@@ -325,22 +325,11 @@ function LanguagePage() {
 }
 
 function GeneralPage() {
-  const [includeCreditLimits, setIncludeCreditLimits] = useState(false)
-  const [showArchived, setShowArchived] = useState(false)
-
   return (
     <>
       <InertRow title="Default account" subtitle="Not set" icon={Wallet} />
-      <ToggleRow
-        title="Include credit limits in balance"
-        on={includeCreditLimits}
-        onToggle={() => setIncludeCreditLimits(v => !v)}
-      />
-      <ToggleRow
-        title="Show archived accounts"
-        on={showArchived}
-        onToggle={() => setShowArchived(v => !v)}
-      />
+      <InertRow title="Include credit limits in balance" subtitle="Not built" />
+      <InertRow title="Show archived accounts" subtitle="Not built" />
     </>
   )
 }
