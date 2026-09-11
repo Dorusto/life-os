@@ -7,6 +7,7 @@ change, not something that needs an LLM round-trip.
 GET /api/finance/spending-chart
 GET /api/finance/budget-chart
 GET /api/finance/spending-trend
+GET /api/finance/savings-rate
 """
 import json
 import logging
@@ -55,6 +56,27 @@ async def spending_trend(
     from backend.tools.finance.actual_budget import get_spending_trend
 
     result = await get_spending_trend(
+        months=months,
+        start_month=start_month,
+        start_year=start_year,
+        end_month=end_month,
+        end_year=end_year,
+    )
+    return json.loads(result)
+
+
+@router.get("/finance/savings-rate")
+async def savings_rate(
+    months: int = 6,
+    start_month: int | None = None,
+    start_year: int | None = None,
+    end_month: int | None = None,
+    end_year: int | None = None,
+    current_user: str = Depends(get_current_user),
+):
+    from backend.tools.finance.actual_budget import get_savings_rate_chart
+
+    result = await get_savings_rate_chart(
         months=months,
         start_month=start_month,
         start_year=start_year,
