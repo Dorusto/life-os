@@ -71,15 +71,14 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 > **#254** (AB reconnect banner, cut from #190's original spec) implemented and live-verified
 > 2026-09-11 — reactive detection via `ActualBudgetClient._run()`'s single choke point (no
 > polling), see `docs/decisions.md#254-reactive-not-polling` and `architecture.md` rule 40.
-> Committed locally (`5b80ad8`); GitHub issue close held for the evening timestamp window
-> (`CLAUDE.local.md`).
+> Pushed and closed 2026-09-11 evening (`git push` `84273b3..23edf75`).
 >
 > **#112** (annual budget pacing, one of Phase C2's coaching-cluster items) implemented and
 > live-verified 2026-09-11 — Settings-based editable config, formula extrapolated from elapsed
 > months, bell alert only when over pace, see `docs/decisions.md#112-annual-budget-pacing`.
-> Committed locally; GitHub issue close held for the evening window, same as #254. Remaining
-> Phase C2 items: #111/#42, both blocked on real gaps (no live bank-sync for #111, undecided
-> market-data source for #42 — see that entry's own dated session note before picking either up).
+> Pushed and closed 2026-09-11 evening, same push as #254. Remaining Phase C2 items: #111/#42,
+> both blocked on real gaps (no live bank-sync for #111, undecided market-data source for #42 —
+> see that entry's own dated session note before picking either up).
 >
 > **#227 fixed and #245 checked against real evidence, both 2026-09-11.** `actualpy`'s
 > `get_accumulated_budgeted_balance()` was being called once per zero-budgeted category and
@@ -89,8 +88,9 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 > — the same kind of evidence its original 2026-08-30 report used — real `docker compose logs`
 > access-log entries) and does not reproduce on the current code; two earlier same-session
 > measurement mistakes along the way (an uncleared network log, then a silently-unfiltered
-> `docker logs --since`) are both corrected in `docs/sessions/2026-W37.md`. Recommended: close
-> both #227 and #245 once the evening `gh issue close` window opens — not done yet.
+> `docker logs --since`) are both corrected in `docs/sessions/2026-W37.md`. Both closed 2026-09-11
+> evening — #227 on the compute-cost half only (the "fetched twice" claim doesn't reproduce,
+> not confirmed fixed), #245 on the doesn't-reproduce finding itself.
 >
 > **#111** (unprotected savings-goal detection, Phase C2's last coaching item) implemented and
 > live-verified 2026-09-11 — re-scoped from "needs live bank sync" (wrong earlier read of the
@@ -111,10 +111,25 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 > silently, per Doru's standing rule — see `delegate-by-complexity/SKILL.md`), and raw Python
 > tool-error text leaking verbatim into Chat (§4.3) — wrapped in a per-occurrence instruction,
 > live-verified against the app's real chat LLM with the exact real-world scenario. Medium-effort
-> items (§5's second tier — chart height, tooltips/drill-down, skeletons, animations, color
+> item #8 (chart height ×1.6–2 + Y gridlines) shipped 2026-09-11 evening — see below. Remaining
+> medium-effort items (§5's second tier — tooltips/drill-down, skeletons, animations, color
 > registry, sticky headers, date grouping, PWA icons) not started, next natural pickup. Live
 > pixel-check on a real vehicle chart (§1.2's fix) still pending — no vehicle fixture data exists
 > locally right now.
+>
+> **Chart height + Y gridlines (audit §5 item #8, issue #231) shipped 2026-09-11 evening** — single
+> file (`frontend/src/components/Chart.tsx`): donut 72→120px, line chart 100→160px (+3 intermediate
+> Y gridlines alongside the existing min/max labels), bar chart 80→140px (+5 Y gridlines with
+> `formatCurrency` value labels, bars/x-axis/value rows given a shared `pl-8` offset so the new
+> left-side labels don't overlap). Pure SVG/div, no new library, consistent with the #134 decision.
+> Live-verified in the browser (not just typecheck) against all three chart_type variants that
+> actually render on real pages/chat: the Dashboard's `line` "Balance trend" widget, a `pie`
+> spending-breakdown chart, and a `bar` spending-vs-income chart. Commented on #231 (not closed —
+> covers more of §1 than just sizing). **Found live while testing:** `finance__get_spending_trend`
+> (the bar-chart tool) has no bullet in `_build_system_prompt()`'s tool-guide section, unlike the
+> other four chart tools — same #160/#166 pattern, unreliable tool selection. Filed as
+> [#255](https://github.com/Dorusto/life-os/issues/255) rather than fixed inline (separate,
+> unrelated concern — one feature at a time).
 
 ---
 

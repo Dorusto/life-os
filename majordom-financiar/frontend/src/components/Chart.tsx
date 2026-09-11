@@ -302,8 +302,9 @@ function PieChart({ title, data, refetch: initialRefetch }: { title: string; dat
 }
 
 function Donut({ segments }: { segments: { name: string; percentage: number; color: string }[] }) {
-  const size = 72
-  const radius = 28
+  const size = 120
+  const radius = 46
+  const strokeWidth = 12
   const cx = size / 2
   const cy = size / 2
   const circumference = 2 * Math.PI * radius
@@ -321,7 +322,7 @@ function Donut({ segments }: { segments: { name: string; percentage: number; col
         r={radius}
         fill="none"
         stroke={seg.color}
-        strokeWidth={8}
+        strokeWidth={strokeWidth}
         strokeDasharray={`${length} ${circumference - length}`}
         strokeDashoffset={0}
         transform={`rotate(${rotate} ${cx} ${cy})`}
@@ -334,7 +335,7 @@ function Donut({ segments }: { segments: { name: string; percentage: number; col
 
   return (
     <svg width={size} height={size} className="flex-shrink-0">
-      <circle cx={cx} cy={cy} r={radius} fill="none" stroke="#2A2A2A" strokeWidth={8} />
+      <circle cx={cx} cy={cy} r={radius} fill="none" stroke="#2A2A2A" strokeWidth={strokeWidth} />
       {paths}
     </svg>
   )
@@ -420,8 +421,9 @@ function ProgressListChart({
 
 // --- Bar (grouped, e.g. spending vs income per month) ---
 
-const MAX_BAR_HEIGHT = 80
+const MAX_BAR_HEIGHT = 140
 const MIN_BAR_HEIGHT = 2
+const GRID_FRACTIONS = [0, 0.25, 0.5, 0.75, 1]
 
 // Free start/end month range picker — two native <input type="month"> plus an
 // Apply button. Keyed by the current refetch.start/end wherever it's rendered,
@@ -512,21 +514,36 @@ function BarChart({ title, data, refetch: initialRefetch }: { title: string; dat
         ))}
       </div>
 
-      <div className="flex items-end justify-around gap-3" style={{ height: MAX_BAR_HEIGHT }}>
-        {liveData.points.map((p) => (
-          <div key={p.x} className="flex items-end gap-0.5 flex-1 justify-center">
-            {p.values.map((v, i) => (
-              <div
-                key={i}
-                className="w-3 rounded-t-sm transition-all duration-300"
-                style={{ height: scaleHeight(v), backgroundColor: liveData.series[i]?.color || SEGMENT_COLORS[i] }}
-              />
-            ))}
+      <div className="relative" style={{ height: MAX_BAR_HEIGHT }}>
+        {/* Y-axis gridlines + value labels — labels sit flush with the outer
+            edge; the bars/x-axis rows below reserve `pl-8` so nothing overlaps. */}
+        {GRID_FRACTIONS.map((f) => (
+          <div
+            key={f}
+            className="absolute left-0 right-0 border-t border-border/60"
+            style={{ top: `${(1 - f) * 100}%` }}
+          >
+            <span className="absolute left-0 -translate-y-1/2 text-[9px] text-muted-2 bg-surface/80 pr-1">
+              {formatCurrency(maxVal * f, { decimals: 0 })}
+            </span>
           </div>
         ))}
+        <div className="absolute inset-0 flex items-end justify-around gap-3 pl-8">
+          {liveData.points.map((p) => (
+            <div key={p.x} className="flex items-end gap-0.5 flex-1 justify-center">
+              {p.values.map((v, i) => (
+                <div
+                  key={i}
+                  className="w-3 rounded-t-sm transition-all duration-300"
+                  style={{ height: scaleHeight(v), backgroundColor: liveData.series[i]?.color || SEGMENT_COLORS[i] }}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="flex justify-around gap-3 mt-2">
+      <div className="flex justify-around gap-3 mt-2 pl-8">
         {liveData.points.map((p) => (
           <div key={p.x} className="flex-1 text-center">
             <span className="text-xs text-muted">{p.x}</span>
@@ -534,7 +551,7 @@ function BarChart({ title, data, refetch: initialRefetch }: { title: string; dat
         ))}
       </div>
 
-      <div className="flex justify-around gap-3 mt-1">
+      <div className="flex justify-around gap-3 mt-1 pl-8">
         {liveData.points.map((p) => (
           <div key={p.x} className="flex-1 text-center">
             <span className="text-[10px] text-muted">
@@ -686,7 +703,7 @@ function LineChart({
   }
 
   const width = 300
-  const height = 100
+  const height = 160
   const padX = 8
   const padY = 12
 
@@ -697,6 +714,11 @@ function LineChart({
   const yPad = rangeY * 0.15
 
   const scaleY = (y: number) => height - padY - ((y - minY + yPad) / (rangeY + yPad * 2)) * (height - padY * 2)
+
+  // Intermediate Y gridlines between the min/max labels already shown per
+  // series below — min/max (0 and 1) are skipped here, those two edges
+  // already get their own label overlay.
+  const GRID_FRACTIONS = [0.25, 0.5, 0.75]
 
   return (
     <div className={wrapperClass}>
@@ -757,6 +779,16 @@ function LineChart({
                 the SVG below uses preserveAspectRatio="none" (stretches to the
                 container width) and would visibly skew any text drawn inside it. */}
             <div className="relative">
+              {GRID_FRACTIONS.map((f) => {
+                const gridVal = minY + f * (maxY - minY)
+                return (
+                  <div
+                    key={f}
+                    className="absolute left-0 right-0 border-t border-border/40"
+                    style={{ top: `${(scaleY(gridVal) / height) * 100}%` }}
+                  />
+                )
+              })}
               <span
                 className="absolute left-0.5 text-[11px] text-muted-2 -translate-y-1/2 bg-surface/80 px-0.5 rounded"
                 style={{ top: `${(scaleY(seriesMax) / height) * 100}%` }}
