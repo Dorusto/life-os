@@ -564,6 +564,14 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__get_recurring_schedules_summary",
+            "description": "List all active recurring-expense schedules with their monthly amounts and a combined total. Read-only. Only includes expense schedules, not recurring income.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "finance__get_reached_goals",
             "description": "Check for savings-goal categories whose target month has already passed. Read-only — use when the user asks to check if any goals are finished/done, or naturally when discussing budget templates/goals. An empty result is normal, not an error.",
             "parameters": {"type": "object", "properties": {}, "required": []},
@@ -1427,6 +1435,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "finance__get_unprotected_goals":
         from backend.tools.finance.actual_budget import get_unprotected_goals
         return await get_unprotected_goals(**arguments)
+
+    if name == "finance__get_recurring_schedules_summary":
+        from backend.tools.finance.actual_budget import get_recurring_schedules_summary
+        return await get_recurring_schedules_summary()
 
     if name == "finance__get_reached_goals":
         from backend.tools.finance.actual_budget import get_reached_goals
