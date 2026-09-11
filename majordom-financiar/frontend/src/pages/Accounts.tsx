@@ -7,6 +7,7 @@ import { listVehicles, type Vehicle } from '../lib/vehicleValueApi'
 import PageHeader from '../components/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import EditVehicleModal from '../components/vehicles/EditVehicleModal'
+import LinkVehicleSheet from '../components/vehicles/LinkVehicleSheet'
 import { formatCurrency } from '../lib/formatCurrency'
 
 /**
@@ -21,6 +22,7 @@ export default function Accounts() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [addVehicleOpen, setAddVehicleOpen] = useState(false)
+  const [linkAccount, setLinkAccount] = useState<AccountListItem | null>(null)
 
   const { data: accounts } = useQuery({
     queryKey: ['account-list'],
@@ -81,7 +83,14 @@ export default function Accounts() {
             <div className="space-y-2.5 mt-3">
               {vehicleAccounts.map(account => {
                 const vehicle = vehicles?.find(v => v.ab_account_id === account.id)
-                return <VehicleAccountRow key={account.id} account={account} vehicle={vehicle} />
+                return (
+                  <VehicleAccountRow
+                    key={account.id}
+                    account={account}
+                    vehicle={vehicle}
+                    onLinkRequest={() => setLinkAccount(account)}
+                  />
+                )
               })}
             </div>
           </>
@@ -113,6 +122,15 @@ export default function Accounts() {
         onClose={() => setAddVehicleOpen(false)}
         onSaved={handleVehicleSaved}
       />
+      {linkAccount && (
+        <LinkVehicleSheet
+          open={Boolean(linkAccount)}
+          onClose={() => setLinkAccount(null)}
+          account={linkAccount}
+          unlinkedVehicles={vehicles?.filter(v => !v.ab_account_id) ?? []}
+          onLinked={() => handleVehicleSaved()}
+        />
+      )}
     </div>
   )
 }
@@ -135,31 +153,38 @@ function AccountRow({ account }: { account: AccountListItem }) {
   )
 }
 
-function VehicleAccountRow({ account, vehicle }: { account: AccountListItem; vehicle?: Vehicle }) {
+function VehicleAccountRow({
+  account,
+  vehicle,
+  onLinkRequest,
+}: {
+  account: AccountListItem
+  vehicle?: Vehicle
+  onLinkRequest: () => void
+}) {
   const navigate = useNavigate()
-  const clickable = Boolean(vehicle)
 
   return (
     <button
       type="button"
-      disabled={!clickable}
       onClick={() => {
         if (vehicle) navigate(`/accounts/vehicle/${vehicle.id}`)
+        else onLinkRequest()
       }}
-      className={`w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-3.5 py-3.5 text-left transition-colors ${
-        clickable ? 'hover:bg-surface-2' : 'opacity-60 cursor-not-allowed'
-      }`}
+      className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-3.5 py-3.5 text-left hover:bg-surface-2 transition-colors"
     >
       <div className="w-9 h-9 rounded-xl bg-surface-2 flex items-center justify-center text-muted flex-shrink-0">
         <Wallet size={16} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[13.5px] font-semibold truncate">{account.name}</p>
-        {vehicle && (
+        {vehicle ? (
           <p className="text-[11.5px] text-muted truncate">
             {[vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Vehicle'}
             {vehicle.year ? ` · ${vehicle.year}` : ''}
           </p>
+        ) : (
+          <p className="text-[11.5px] text-muted truncate">Not linked to a vehicle profile — tap to link</p>
         )}
       </div>
       <p className="font-mono text-sm tabular-nums flex-shrink-0">

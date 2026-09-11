@@ -123,6 +123,13 @@ export async function patchVehicle(id: number | string, data: PatchVehicleInput)
   })
 }
 
+export async function linkVehicleAccount(id: number | string, abAccountId: string): Promise<Vehicle> {
+  return request<Vehicle>(`/vehicle/${id}/link-account`, {
+    method: 'POST',
+    body: JSON.stringify({ ab_account_id: abAccountId }),
+  })
+}
+
 export async function submitValueOverride(
   id: number | string,
   body: ValueOverrideBody

@@ -63,6 +63,10 @@ class VehiclePatchRequest(BaseModel):
     manual_mileage: float | None = None
 
 
+class VehicleLinkAccountRequest(BaseModel):
+    ab_account_id: str
+
+
 class VehicleValueOverrideRequest(BaseModel):
     mode: str
     value: float
@@ -131,6 +135,22 @@ async def patch_vehicle(
 
     try:
         return await client.get_vehicle(vehicle_id)
+    except VehicleClientError as e:
+        _raise_vehicle_error(e)
+
+
+@router.post("/vehicle/{vehicle_id}/link-account")
+async def link_vehicle_account(
+    vehicle_id: int,
+    body: VehicleLinkAccountRequest,
+    current_user: str = Depends(get_current_user),
+):
+    """Link a vehicle to a pre-existing AB account. Talks to vehicle-manager
+    only (never to Actual Budget directly) — vehicle-manager itself relays
+    the tag call to majordom-api's internal router."""
+    client = _get_client()
+    try:
+        return await client.link_account(vehicle_id, body.ab_account_id)
     except VehicleClientError as e:
         _raise_vehicle_error(e)
 

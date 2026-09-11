@@ -17,12 +17,13 @@ from app.database import (
     delete_log_entry, get_last_fuel_entry, get_vehicle_stats_data,
     get_db_path,
     insert_value_override, get_value_overrides, update_current_value,
+    set_ab_account_id,
 )
 from app import depreciation, majordom_client
 from app.models import (
     DeleteResult, FuelioImportResult, HealthResponse, LogInsertResult,
     VehicleLogEntry, VehicleUpsertRequest, VehiclePatchRequest, VehicleUpsertResult,
-    VehicleValueOverrideRequest,
+    VehicleValueOverrideRequest, VehicleLinkAccountRequest,
 )
 from app.fuelio_parser import parse_csv, derive_vehicle_reminder_fields
 
@@ -153,6 +154,25 @@ async def update_vehicle(vehicle_id: int, body: VehiclePatchRequest):
             # would create a duplicate account instead of updating the real one.
             update_current_value(vehicle_id, current_value, synced_id or existing_ab_account_id)
 
+    return get_vehicle(vehicle_id)
+
+
+@app.post("/vehicles/{vehicle_id}/link-account")
+async def link_vehicle_account(vehicle_id: int, body: VehicleLinkAccountRequest):
+    """
+    Link this vehicle to a pre-existing AB account without creating a new
+    one or touching the target account's balance/name — only tags it as
+    TYPE: Vehicle and stores the id. Deliberately separate from
+    sync_vehicle_account's price/date-gated create/rename/adjust flow.
+    """
+    if get_vehicle(vehicle_id) is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    tagged = await majordom_client.tag_vehicle_account(body.ab_account_id)
+    if not tagged:
+        raise HTTPException(status_code=502, detail="Actual Budget tag failed")
+
+    set_ab_account_id(vehicle_id, body.ab_account_id)
     return get_vehicle(vehicle_id)
 
 
