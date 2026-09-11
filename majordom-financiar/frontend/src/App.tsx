@@ -132,7 +132,8 @@ function Layout() {
 
   return (
     <>
-      <Routes>
+      <div className="md:max-w-[480px] md:mx-auto md:min-h-dvh md:border-x md:border-border">
+        <Routes>
         <Route path="/login" element={<Login />} />
         <Route
           path="/setup/ab"
@@ -272,7 +273,8 @@ function Layout() {
         />
         {/* Catch-all: redirect unknown paths to home */}
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+        </Routes>
+      </div>
 
       {/* Bottom nav rendered outside Routes so it persists across page changes */}
       {showNav && isAuthenticated() && <BottomNav />}

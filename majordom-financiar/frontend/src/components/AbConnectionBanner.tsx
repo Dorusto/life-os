@@ -21,7 +21,7 @@ export default function AbConnectionBanner() {
   if (!down || location.pathname.startsWith('/setup/ab')) return null
 
   return (
-    <div className="fixed top-0 inset-x-0 bg-danger/15 border-b border-danger/40 backdrop-blur-sm px-4 py-2.5 flex items-center gap-2.5 z-50">
+    <div className="fixed top-0 inset-x-0 md:max-w-[480px] md:mx-auto bg-danger/15 border-b border-danger/40 backdrop-blur-sm px-4 py-2.5 flex items-center gap-2.5 z-50">
       <AlertTriangle size={16} className="text-danger flex-shrink-0" />
       <span className="flex-1 text-sm font-medium text-danger">
         AB connection lost
