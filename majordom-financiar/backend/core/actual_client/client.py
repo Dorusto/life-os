@@ -591,6 +591,95 @@ def _compute_goal_progress(session, accounts) -> list[dict]:
     return result
 
 
+def _compute_expense_coverage(session, txs, all_cats) -> dict:
+    """Expense Coverage % (#167, Coast/Barista FIRE): (passive + semi-passive
+    monthly income) / (current monthly expenses, one-off large purchases
+    excluded).
+
+    Shared by get_home_data() (already-open session, already-fetched txs/cats
+    for the target month — no extra query) and get_expense_coverage() (its
+    own standalone session, for the chat-tool path) — same reasoning as
+    _compute_goal_progress() above (#143 audit): compute once, call from both,
+    never let the two copies drift.
+
+    Income classification: INCOME_TYPE: <passive|semi-passive|active> tag on
+    Categories.notes (decisions.md#income-classification). Only passive and
+    semi-passive categories count toward coverage — active income is, by
+    definition, what Expense Coverage is measuring independence *from*.
+
+    Outlier exclusion: adapts list_budget_realism_flags()'s existing "largest
+    transaction >= 5x the average of the category's other transactions" rule
+    (this codebase has no separate formal Hampel/MAD filter — that rule is
+    the closest existing "one-off vs recurring" signal, reused here rather
+    than inventing a new statistical method) — applied per expense category,
+    then summed, instead of that function's per-category flagging use.
+    """
+    import re
+
+    income_type_by_cat_id: dict[str, str] = {}
+    for cat in all_cats:
+        if cat.tombstone:
+            continue
+        is_income = bool(cat.group and getattr(cat.group, "is_income", False))
+        if not is_income:
+            continue
+        match = re.search(r'INCOME_TYPE:\s*([\w-]+)', cat.notes or "", re.IGNORECASE)
+        if match and match.group(1).lower() in ("passive", "semi-passive", "active"):
+            income_type_by_cat_id[str(cat.id)] = match.group(1).lower()
+
+    has_any_classified_income = any(
+        t in ("passive", "semi-passive") for t in income_type_by_cat_id.values()
+    )
+
+    passive_semi_passive_income = 0.0
+    expense_amounts_by_cat: dict[str, list[float]] = defaultdict(list)
+
+    for tx in txs:
+        if tx.tombstone or tx.starting_balance_flag:
+            continue
+        if tx.transferred_id:
+            continue
+        if tx.notes and '[Balance Adjustment]' in tx.notes:
+            continue
+        amount = float(tx.amount or 0) / 100
+        cat_id = str(tx.category_id) if tx.category_id else None
+
+        if amount > 0:
+            if cat_id and income_type_by_cat_id.get(cat_id) in ("passive", "semi-passive"):
+                passive_semi_passive_income += amount
+            continue
+
+        if tx.category and getattr(tx.category, 'is_income', False):
+            continue  # skip income-category transactions, same guard as _compute_monthly_totals
+        if cat_id:
+            expense_amounts_by_cat[cat_id].append(abs(amount))
+
+    filtered_monthly_expenses = 0.0
+    for cat_id, amounts in expense_amounts_by_cat.items():
+        cat_total = sum(amounts)
+        if len(amounts) < 2:
+            filtered_monthly_expenses += cat_total
+            continue
+        amounts_sorted = sorted(amounts, reverse=True)
+        largest = amounts_sorted[0]
+        rest_avg = sum(amounts_sorted[1:]) / len(amounts_sorted[1:])
+        if rest_avg > 0 and largest >= 5 * rest_avg:
+            filtered_monthly_expenses += cat_total - largest
+        else:
+            filtered_monthly_expenses += cat_total
+
+    coverage_pct = (
+        round(passive_semi_passive_income / filtered_monthly_expenses * 100, 1)
+        if filtered_monthly_expenses > 0 else 0.0
+    )
+
+    return {
+        "coverage_pct": coverage_pct,
+        "passive_semi_passive_income": round(passive_semi_passive_income, 2),
+        "filtered_monthly_expenses": round(filtered_monthly_expenses, 2),
+        "has_any_classified_income": has_any_classified_income,
+    }
+
 
 @dataclass
 class Account:
@@ -2174,6 +2263,11 @@ class ActualBudgetClient:
                 # 4. Goals — same helper as get_goals(), see rule 20 (#143 audit)
                 goals_result = _compute_goal_progress(actual.session, accounts_data)
 
+                # 4.5. Expense Coverage (#167) — same session, same already-fetched
+                # txs/all_cats, no extra query. See rule 20 / _compute_expense_coverage()'s
+                # own docstring — shared with get_expense_coverage()'s standalone path.
+                expense_coverage_result = _compute_expense_coverage(actual.session, txs, all_cats)
+
                 # 5. "Needs resolving" counts — surfaced on Home so the user
                 # sees them without digging into chat (issue #130). Global
                 # counts, not scoped to target_month, same session, no extra
@@ -2205,6 +2299,7 @@ class ActualBudgetClient:
                 "stats": stats_result,
                 "budget": budget_result,
                 "goals": goals_result,
+                "expense_coverage": expense_coverage_result,
                 "uncategorized_count": uncategorized_count,
                 "unreconciled_count": unreconciled_count,
             }
@@ -4199,6 +4294,118 @@ class ActualBudgetClient:
                 return True
 
         return await self._run(_clear)
+
+    async def set_income_classification(self, category_name: str, income_type: str) -> str:
+        """Set INCOME_TYPE: <value> tag on an income category's notes (#167).
+
+        Same regex-replace-or-append pattern as set_account_type() (this file),
+        applied to Categories.notes instead of Accounts.notes — the mechanism
+        decisions.md#income-classification already settled on. Returns the
+        category name. Raises ValueError if the category isn't found, isn't
+        an income category, or income_type isn't one of the three allowed
+        values.
+        """
+        canonical = None
+        for t in ("passive", "semi-passive", "active"):
+            if t.lower() == income_type.lower():
+                canonical = t
+                break
+        if canonical is None:
+            raise ValueError(
+                f"Invalid income_type: {income_type!r}. Must be one of passive, semi-passive, active."
+            )
+
+        def _set():
+            import re
+            from actual.queries import get_category, get_categories
+
+            with self._get_actual() as actual:
+                cat = get_category(actual.session, category_name)
+                if not cat:
+                    raise ValueError(f"Category not found: {category_name}")
+                all_cats = get_categories(actual.session)
+                this_cat = next((c for c in all_cats if str(c.id) == str(cat.id)), None)
+                is_income = bool(this_cat and this_cat.group and getattr(this_cat.group, "is_income", False))
+                if not is_income:
+                    raise ValueError(f"Category {category_name!r} is not an income category")
+
+                note = cat.notes or ""
+                type_tag = f"INCOME_TYPE: {canonical}"
+                if re.search(r'INCOME_TYPE:\s*[\w-]+', note, re.IGNORECASE):
+                    note = re.sub(r'INCOME_TYPE:\s*[\w-]+', type_tag, note, flags=re.IGNORECASE)
+                else:
+                    note = (note.strip() + "\n" + type_tag).strip()
+                cat.notes = note
+                actual.commit()
+                return cat.name
+
+        return await self._run(_set)
+
+    async def get_income_classifications(self) -> list[dict]:
+        """Return every income category that has an INCOME_TYPE: tag set (#167).
+
+        Read-only. Categories with no tag are simply omitted, not returned
+        with a null/None type — the caller (Expense Coverage calc, or the
+        chat tool listing them) treats "not yet classified" as absence, not
+        a third state to handle.
+        """
+        import re
+
+        def _get():
+            from actual.queries import get_categories
+
+            with self._get_cached_read_actual() as actual:
+                all_cats = get_categories(actual.session)
+                result = []
+                for cat in all_cats:
+                    if cat.tombstone:
+                        continue
+                    is_income = bool(cat.group and getattr(cat.group, "is_income", False))
+                    if not is_income:
+                        continue
+                    note = cat.notes or ""
+                    match = re.search(r'INCOME_TYPE:\s*([\w-]+)', note, re.IGNORECASE)
+                    if not match:
+                        continue
+                    income_type = match.group(1).lower()
+                    if income_type not in ("passive", "semi-passive", "active"):
+                        logger.debug(
+                            "Category %s has an INCOME_TYPE tag with an unrecognized value %r, skipping",
+                            cat.name, income_type,
+                        )
+                        continue
+                    result.append({
+                        "category_id": str(cat.id),
+                        "category_name": cat.name,
+                        "income_type": income_type,
+                    })
+                return result
+
+        return await self._run(_get)
+
+    async def get_expense_coverage(self, month: int | None = None, year: int | None = None) -> dict:
+        """Compute Expense Coverage % (#167) — a standalone AB session for the
+        chat-tool path. get_home_data() computes the same thing inline, in its
+        own already-open session, via _compute_expense_coverage() below —
+        reuse that shared function here too, don't duplicate the math.
+        """
+        def _get():
+            import calendar
+            from datetime import date as _date
+            from actual.queries import get_transactions, get_categories
+
+            target_month = month or _date.today().month
+            target_year = year or _date.today().year
+            start = _date(target_year, target_month, 1)
+            last_day = calendar.monthrange(target_year, target_month)[1]
+            end = _date(target_year, target_month, last_day)
+
+            with self._get_cached_read_actual() as actual:
+                txs = get_transactions(actual.session, start_date=start, end_date=end)
+                all_cats = get_categories(actual.session)
+                return _compute_expense_coverage(actual.session, txs, all_cats)
+
+        return await self._run(_get)
 
     async def get_or_create_payee_id(self, name: str) -> str:
         """Resolve or create a payee row by name and return its string id.

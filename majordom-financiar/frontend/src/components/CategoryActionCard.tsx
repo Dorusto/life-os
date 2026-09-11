@@ -34,6 +34,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const [selectedCategory, setSelectedCategory] = useState(data.category_name ?? '')
   const [createRule, setCreateRule] = useState(data.is_consistent ?? true)
   const [tag, setTag] = useState(data.tag ?? '')
+  const [incomeType, setIncomeType] = useState(data.action === 'classify_income' ? (data.income_type ?? 'passive') : 'passive')
   const [loading, setLoading] = useState(false)
 
   // create_schedule editable fields
@@ -81,6 +82,8 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         overrides = { payee: payee || data.payee, category_name: selectedCategory || data.category_name, create_rule: createRule }
       } else if (data.action === 'tag_transaction') {
         overrides = { tag: tag || data.tag }
+      } else if (data.action === 'classify_income') {
+        overrides = { income_type: incomeType }
       } else if (data.action === 'set_fire_model') {
         overrides = {
           years_to_transition: parseFloat(fireYearsToTransition),
@@ -126,12 +129,13 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const isCreateSchedule = data.action === 'create_schedule'
   const isDeactivateSchedule = data.action === 'deactivate_schedule'
   const isSetTagGoal = data.action === 'set_tag_goal'
+  const isClassifyIncome = data.action === 'classify_income'
 
   return (
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
       <div>
         <p className="text-white font-medium">
-          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetBudget ? 'Set budget amount?' : isCategorizeWithRule ? 'Categorize transactions?' : isSetBudgetCarryover ? `${data.enabled ? 'Enable' : 'Disable'} rollover overspending?` : isSetCategoryGoal ? 'Set savings goal?' : isSetTagGoal ? 'Set trip spending goal?' : isBankResync ? 'Resync bank account?' : isSetFireModel ? 'Update FIRE assumptions?' : isTagTransaction ? 'Tag transaction?' : isMarkReconciled ? 'Mark transactions reconciled?' : isMarkBudgetOutlier ? 'One-off distorting this category?' : isCreateSchedule ? 'Create recurring schedule?' : isDeactivateSchedule ? 'Deactivate schedule?' : 'Rename category?'}
+          {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetBudget ? 'Set budget amount?' : isCategorizeWithRule ? 'Categorize transactions?' : isSetBudgetCarryover ? `${data.enabled ? 'Enable' : 'Disable'} rollover overspending?` : isSetCategoryGoal ? 'Set savings goal?' : isSetTagGoal ? 'Set trip spending goal?' : isBankResync ? 'Resync bank account?' : isSetFireModel ? 'Update FIRE assumptions?' : isTagTransaction ? 'Tag transaction?' : isMarkReconciled ? 'Mark transactions reconciled?' : isMarkBudgetOutlier ? 'One-off distorting this category?' : isCreateSchedule ? 'Create recurring schedule?' : isDeactivateSchedule ? 'Deactivate schedule?' : isClassifyIncome ? 'Classify income category?' : 'Rename category?'}
         </p>
         {isSetTagGoal && (
           <p className="text-muted text-sm mt-0.5">
@@ -157,6 +161,22 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
               ? 'negative balances will carry over and reduce next month\'s available budget'
               : 'balances will reset to zero each month as usual'}
           </p>
+        )}
+        {isClassifyIncome && (
+          <div className="space-y-1 mt-1.5">
+            <p className="text-muted text-sm">
+              <span className="text-white">{data.category_name}</span>
+            </p>
+            <select
+              value={incomeType}
+              onChange={(e) => setIncomeType(e.target.value as 'passive' | 'semi-passive' | 'active')}
+              className="w-full bg-background border border-border rounded-lg px-2.5 py-1.5 text-sm text-white"
+            >
+              <option value="passive">Passive</option>
+              <option value="semi-passive">Semi-passive</option>
+              <option value="active">Active</option>
+            </select>
+          </div>
         )}
         {isSetCategoryGoal && (
           <p className="text-muted text-sm mt-0.5">
@@ -254,7 +274,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
             {' — no matching transaction seen in '}{data.days_overdue}{' days (was due '}{data.next_date}{'). It will be turned off, not deleted.'}
           </p>
         )}
-        {!isDelete && !isCreate && !isSetBudget && !isCategorizeWithRule && !isSetBudgetCarryover && !isSetCategoryGoal && !isSetTagGoal && !isBankResync && !isSetFireModel && !isTagTransaction && !isMarkReconciled && !isMarkBudgetOutlier && !isCreateSchedule && !isDeactivateSchedule && (
+        {!isDelete && !isCreate && !isSetBudget && !isCategorizeWithRule && !isSetBudgetCarryover && !isSetCategoryGoal && !isSetTagGoal && !isBankResync && !isSetFireModel && !isTagTransaction && !isMarkReconciled && !isMarkBudgetOutlier && !isCreateSchedule && !isDeactivateSchedule && !isClassifyIncome && (
           <p className="text-muted text-sm mt-0.5">
             <span className="text-white">{data.category_name}</span>
             {' → '}
@@ -568,7 +588,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         loading={loading}
         variant={isDelete ? 'danger' : 'default'}
         confirmDisabled={(isCreate && !categoryName) || (isSetBudget && !budgetAmount) || (isCategorizeWithRule && (!payee || !selectedCategory)) || (isTagTransaction && tag.trim() === '#') || (isCreateSchedule && (!scheduleName.trim() || !scheduleAmount)) || (isSetTagGoal && (!tagGoalAmount || !tagGoalByMonth.trim()))}
-        confirmLabel={isDelete ? 'Delete' : isCreate ? 'Create' : isSetBudget ? 'Set budget' : isCategorizeWithRule ? 'Categorize' : isTagTransaction ? 'Tag' : isMarkReconciled ? 'Mark reconciled' : isMarkBudgetOutlier ? 'Tag as one-off' : isCreateSchedule ? 'Create schedule' : isDeactivateSchedule ? 'Deactivate' : isSetBudgetCarryover || isBankResync || isSetFireModel || isSetTagGoal || isSetCategoryGoal ? 'Confirm' : 'Rename'}
+        confirmLabel={isDelete ? 'Delete' : isCreate ? 'Create' : isSetBudget ? 'Set budget' : isCategorizeWithRule ? 'Categorize' : isTagTransaction ? 'Tag' : isMarkReconciled ? 'Mark reconciled' : isMarkBudgetOutlier ? 'Tag as one-off' : isCreateSchedule ? 'Create schedule' : isDeactivateSchedule ? 'Deactivate' : isSetBudgetCarryover || isBankResync || isSetFireModel || isSetTagGoal || isSetCategoryGoal || isClassifyIncome ? 'Confirm' : 'Rename'}
       />
     </div>
   )

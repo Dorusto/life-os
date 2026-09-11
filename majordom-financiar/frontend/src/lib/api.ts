@@ -659,11 +659,19 @@ export interface Goal {
 
 // --- Home (unified endpoint) ---
 
+export interface ExpenseCoverageData {
+  coverage_pct: number
+  passive_semi_passive_income: number
+  filtered_monthly_expenses: number
+  has_any_classified_income: boolean
+}
+
 export interface HomeData {
   stats: MonthlyStats
   budget: BudgetCategory[]
   goals: Goal[]
   fire: FireData
+  expense_coverage: ExpenseCoverageData
   uncategorized_count: number
   unreconciled_count: number
   account_count: number
@@ -1040,7 +1048,7 @@ export interface FireModelValues {
 
 export interface CategoryActionData {
   id: string
-  action: 'rename' | 'delete' | 'create' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'set_category_goal' | 'bank_resync' | 'set_fire_model' | 'tag_transaction' | 'mark_reconciled' | 'mark_budget_outlier' | 'create_schedule' | 'deactivate_schedule' | 'set_tag_goal' | 'clear_reached_goals'
+  action: 'rename' | 'delete' | 'create' | 'set_budget' | 'categorize_with_rule' | 'budget_copy' | 'set_budget_carryover' | 'set_category_goal' | 'bank_resync' | 'set_fire_model' | 'tag_transaction' | 'mark_reconciled' | 'mark_budget_outlier' | 'create_schedule' | 'deactivate_schedule' | 'set_tag_goal' | 'clear_reached_goals' | 'classify_income'
   category_name: string
   new_name?: string
   group_name?: string
@@ -1109,6 +1117,8 @@ export interface CategoryActionData {
   // clear_reached_goals fields:
   category_names?: string[]
   reached_categories?: { category_name: string; group_name: string; target_amount: number; target_month: string }[]
+  // classify_income fields:
+  income_type?: 'passive' | 'semi-passive' | 'active'
 }
 
 export async function confirmCategoryAction(
@@ -1127,6 +1137,7 @@ export async function confirmCategoryAction(
     duplicate_category_name?: string;
     duplicate_notes?: string;
     duplicate_date?: string;
+    income_type?: 'passive' | 'semi-passive' | 'active';
   }
 ): Promise<{ message: string; monthly_needed?: number | null }> {
   return request(`/category-actions/${id}/confirm`, {

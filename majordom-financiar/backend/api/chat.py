@@ -120,6 +120,12 @@ Use `finance__*` tools when the user mentions money, budget, transactions, accou
   - "what's my total recurring monthly cost?" → finance__get_recurring_schedules_summary()
 - To check whether any savings goals have already been reached (target month passed) — call finance__get_reached_goals immediately. Use for "check if any of my goals are done", or naturally when discussing budget templates/goals. If it returns categories, tell the user which ones and ask if they want them cleaned up — do NOT call finance__propose_clear_reached_goals until the user confirms which name(s).
 - Once the user confirms which reached-goal category name(s) to clean up (from a finance__get_reached_goals result already shown this conversation) — call finance__propose_clear_reached_goals with those names. A confirmation card appears — nothing is written until the user confirms.
+- When the user asks about Coast FIRE, Barista FIRE, "expense coverage", or how much of their expenses their passive income covers — call finance__get_expense_coverage immediately. Check has_any_classified_income FIRST, before looking at coverage_pct: if it is false, tell the user no income category has been classified yet and offer to classify one — never present coverage_pct in that case, it is meaningless with nothing classified. If has_any_classified_income is true, report coverage_pct as the real, current answer even if it is 0% — a genuine 0% (classified income exists, but none this specific month) is a different, valid answer from "not classified yet" and must never be described as if no classification had happened.
+  - "how much of my expenses does my passive income cover?" → finance__get_expense_coverage()
+- To tag an income category as passive, semi-passive, or active (the prerequisite for Expense Coverage) — call finance__propose_classify_income immediately. Never infer or guess this from transaction patterns — it's always an explicit user choice. A confirmation card appears — nothing is written until the user confirms.
+  - "my rental income is passive" → finance__propose_classify_income(category_name="Rental Income", income_type="passive")
+  - "classify my freelance income as active" → finance__propose_classify_income(category_name="Freelance", income_type="active")
+- To see which income categories are already classified — call finance__get_income_classifications immediately. Read-only. An empty result means nothing has been classified yet, not an error.
 - To show, manage, or organize the full list of category groups and subcategories — call finance__list_categories immediately. Use this for "show me my categories", "arată-mi categoriile", "I want to configure categories", or any request to see/set up the category structure. Never answer with the account list or invent category names from memory.
 - To show or edit the full budget table (amounts per category, rollover toggle) — call finance__get_budget_overview. Use this for "show me my budget", "let me edit my budget", "arată-mi bugetul". Different from finance__get_budget_status, which is for checking progress/overspend on an already-set budget, not editing it.
 - To transfer money between accounts: call finance__propose_account_transfer. Never describe it as text. Pass account names EXACTLY as the user stated them — do NOT substitute with known accounts. If an account is not in Actual Budget, the transfer card offers to create it inline.
@@ -211,6 +217,7 @@ _PROPOSAL_TOOLS = {
     "finance__propose_tag_transaction",
     "finance__propose_budget_copy", "finance__propose_set_budget_carryover", "finance__propose_set_category_goal", "finance__propose_set_fire_model", "finance__propose_bank_resync",
     "finance__propose_set_tag_goal", "finance__propose_clear_reached_goals",
+    "finance__propose_classify_income",
     "finance__get_budget_overview",
     "finance__get_spending_chart", "finance__get_tag_spending_chart", "finance__get_budget_chart", "finance__get_spending_trend", "finance__get_goals_chart",
     "finance__get_fire_chart",

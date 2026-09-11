@@ -201,6 +201,15 @@ class ActualBudgetProvider:
     async def clear_category_goal_template(self, category_name: str) -> bool:
         return await self._client().clear_category_goal_template(category_name)
 
+    async def set_income_classification(self, category_name: str, income_type: str) -> str:
+        return await self._client().set_income_classification(category_name, income_type)
+
+    async def get_income_classifications(self) -> list[dict]:
+        return await self._client().get_income_classifications()
+
+    async def get_expense_coverage(self, month: int | None = None, year: int | None = None) -> dict:
+        return await self._client().get_expense_coverage(month, year)
+
     async def count_uncategorized(self) -> int:
         return await self._client().count_uncategorized()
 
