@@ -216,6 +216,7 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 | CSV import | `docs/learn/07-csv-import.md` |
 | Actual Budget integration | `docs/learn/04-actual-budget.md` + `docs/architecture.md#critical-technical-rules` |
 | Account structure / create_account | `PRIVATE_context.md` |
+| Vehicle data / vehicle-manager service | `life-os/tools/vehicle-manager/` — **outside this directory**, at the monorepo repo root, not `majordom-financiar/tools/`. `docs/architecture.md`'s Platform Architecture section + `docs/decisions.md#vehicle-manager-standalone-frontend`. |
 
 ---
 

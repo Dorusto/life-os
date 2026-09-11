@@ -11,7 +11,7 @@
 | CSV import | `docs/learn/07-csv-import.md` |
 | Actual Budget integration | `docs/learn/04-actual-budget.md` + `docs/architecture.md#critical-technical-rules` |
 | Notifications / Web Push | `docs/sessions/2026-W22.md` (Web Push VAPID, APScheduler) |
-| Vehicle management | `docs/sessions/2026-W22.md` (M3.x, M4.6 sections) |
+| Vehicle management | `life-os/tools/vehicle-manager/` (external service, outside this directory) + `docs/architecture.md`'s Platform Architecture section. Historical context only: `docs/sessions/2026-W22.md` (M3.x, M4.6 — predates the #138 extraction). |
 
 **Always start with `CLAUDE.md`** — it has workflow rules, commit protocol, and task-type routing.
 

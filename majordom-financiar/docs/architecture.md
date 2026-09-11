@@ -31,8 +31,7 @@ User (browser / PWA)
   FastAPI Backend  ────────────────────────────────────────
         │                                                  │
         ├── Tool Registry (backend/tools/)                 │
-        │     ├── tools/finance/    ← Actual Budget       │
-        │     └── tools/vehicle/   ← SQLite vehicle_log  │
+        │     └── backend/tools/finance/  ← Actual Budget │
         │                                                  │
         ├── Memory (SQLite, namespaced)                   │
         │     ├── merchant_mappings                       │
@@ -42,6 +41,12 @@ User (browser / PWA)
         │                                                  │
         └── LLM (Ollama local / OpenRouter cloud) ◄───── │
 ```
+
+Vehicle tools are not part of this registry — `backend/tools/vehicle/` (SQLite `vehicle_log`) was deleted when
+vehicle logic was extracted (`decisions.md#vehicle-manager`); `backend/core/vehicle_client/` is now a thin HTTP
+client to the external `vehicle-manager` service, which lives at `life-os/tools/vehicle-manager/` — **outside**
+this directory, at the monorepo repo root, not inside `majordom-financiar/`. See the "Project Structure" section
+below and `docs/decisions.md#vehicle-manager-standalone-frontend`.
 
 ---
 

@@ -107,6 +107,9 @@ services:
   vehicle-manager:
     profiles: ["vehicle-manager"]
     build:
+      # Cross-directory: ../tools/vehicle-manager lives at the life-os repo
+      # root, sibling to majordom-financiar/, not inside it. See #221 and
+      # docs/architecture.md's Platform Architecture section.
       context: ../tools/vehicle-manager
       dockerfile: Dockerfile
     container_name: vehicle-manager
