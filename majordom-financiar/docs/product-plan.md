@@ -248,18 +248,35 @@ point of it.*
 **Belongs here if:** it puts investments into the same picture as spending, so coaching can reason
 across both.
 
-- Decide the market price data source — the real dependency, and the one that needs a deliberate
-  choice (see the closing comment on #4)
-- Build the portfolio calculation layer inside Majordom: cost basis, time-weighted and
-  money-weighted return, allocation. Bounded, well-documented maths over transactions you already
-  have — unlike a budgeting engine, this is a reasonable build
-- Charts in Majordom's own UI, not a second app's
-- Coaching capabilities gain access to the investment side (Expense Coverage / FIRE, #167, #177)
+**Re-scoped 2026-09-12 — the portfolio calculation layer and its charts now belong to a new,
+separate standalone app, not to majordom-financiar's own codebase.** Reversal of this phase's
+original framing below (kept for history, not followed anymore): "charts in Majordom's own UI, not
+a second app's" is exactly backwards now. See root `CLAUDE.md`'s "Open fork" entry
+(2026-09-12) and `docs/decisions.md#portfolio-becomes-separate-service` for the full reasoning —
+short version: Doru wants majordom-financiar's own scope to stay about budgeting/spending, with
+investment tracking (and vehicle tracking, already underway as its own service) living in their
+own independently-runnable apps that Majordom only *consumes* for coaching/notifications, the same
+relationship majordom-financiar already has with `vehicle-manager`'s backend today.
 
-**Done when:** the spreadsheets are closed and not missed.
+**What stays true to the original objective, just built elsewhere:**
+- Decide the market price data source — still the real dependency (see #257, currently paused:
+  it also needs the new investment app to exist first, to know which tickers to test against).
+- Cost basis, time-weighted and money-weighted return, allocation — still bounded, well-documented
+  maths over transaction data, just computed by the new service instead of majordom-financiar.
+- Coaching capabilities (Expense Coverage / FIRE, #167, #177) still gain access to the investment
+  side — via API against the new service, the same pattern already used for vehicle data.
+
+**Original framing, for history (no longer followed):**
+- Build the portfolio calculation layer inside Majordom.
+- Charts in Majordom's own UI, not a second app's.
+
+**Done when:** the spreadsheets are closed and not missed — same bar, regardless of which
+codebase ends up doing the computing.
 
 **Why after C:** coaching that only sees spending is half a picture — but a portfolio with no
-coaching around it is just another chart. C makes D worth having.
+coaching around it is just another chart. C makes D worth having. This reasoning is unaffected by
+the re-scope above; only *where* the portfolio layer lives changed, not *why* it matters or *when*
+it's worth building.
 
 ---
 

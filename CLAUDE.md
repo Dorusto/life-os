@@ -57,12 +57,21 @@ Full prioritized backlog lives on GitHub as Milestones + Labels (`tier-2`, `tier
 5. **M2.5 budget calibration** — reframed from "goal proposal", tracked as [#110](https://github.com/Dorusto/life-os/issues/110)/[#111](https://github.com/Dorusto/life-os/issues/111) (see `majordom-financiar/docs/decisions.md#budget-calibration`)
 6. **Sure/Ghostfolio evaluation — decided 2026-07-05, Ghostfolio half superseded 2026-08-28.** All 4 M5 checklist items resolved (MCP server, budget parity, portfolio comparison, all tested live). Original decision: stay on AB + Ghostfolio — Sure lacks true budget carryover and API-level budget/goal writes; Ghostfolio computes portfolio performance natively, Sure's API doesn't yet. **That still holds for AB vs. Sure** (the monthly `sure-migration-trigger-check` cloud routine was stopped 2026-08-30, alongside deleting Sure's own trial deployment — nothing left to watch for). **Ghostfolio itself was dropped 2026-08-28** — never deployed/integrated, confirmed CSV-only; portfolio data source is now open, not decided. See `majordom-financiar/docs/decisions.md#ghostfolio-dropped` and `#sure-budget-parity-evaluation`.
 
-## Open fork: after majordom-financiar stabilizes (raised 2026-07-05, not decided)
+## Open fork: after majordom-financiar stabilizes — resolved 2026-09-12
 
-Two directions compete for what comes after the core (M0-M4) is stable:
-1. **Package Majordom for others to install/use** — generic setup instead of hardcoded personal config (`PRIVATE_context.md` assumptions), an installer that doesn't require Docker knowledge.
-2. **Keep building new personal capabilities** — e.g. a "digital majordom" that ingests documents (insurance cards, warranties), remembers them via RAG, stores the file in Nextcloud, and retrieves it on request. Also a future wellness domain.
+Superseded the 2026-07-05 framing below once Phase C/C2 (majordom-financiar's own zero-touch-administration + coaching cluster) actually reached "stable," the condition this fork was always waiting on.
 
-Current leaning: **(1) first** — real usage/adoption matters more right now than additional personal-only features. (2) is also genuinely new, unbuilt territory (RAG) vs. (1) building on ~90%-done work.
+**Decision — personal completeness first, packaging-for-others last.** Explicit sequencing, in order:
+1. **`vehicle-manager` becomes a real standalone app** — its own frontend with its own charts (Fuelio-style), not pages living inside majordom-financiar's own React app the way they do today (`tools/vehicle-manager/` is currently backend-only). Runs independently; majordom-financiar keeps working standalone too. Majordom-financiar consumes it only through its existing API client for chat/notifications ("intelligence"), same relationship as today, just with a real UI on the other end now.
+2. **A new, separate investment/portfolio-tracking app** — same shape as (1): its own frontend + backend + database, its own URL, talks to Majordom over API. This **supersedes Phase D's original framing** in `majordom-financiar/docs/product-plan.md` ("build the portfolio calculation layer inside Majordom") — the calculation layer now belongs to this new service instead, not inside majordom-financiar's own codebase. See `majordom-financiar/docs/decisions.md#portfolio-becomes-separate-service` for the full reasoning.
+3. **Visual polish across the board**, MoneyMatter as the explicit reference (already the direction tonight's Analytics v1 took, and the `frontend-design` skill's kind of pass) — Doru's own read of the current state: it looks fairly rough.
+4. **Only then**, package for others (the original option 1 below) — generic setup, no Docker knowledge required, installer.
 
-**Not a final decision** — revisit in a dedicated planning session once M0-M4 feels stable enough to ask "what's next" for real.
+This also resolves (in direction, not in the concrete folder path yet) the still-open #150 naming-convention question for these two new services — they follow the "each service independent" architecture target already stated above, exact naming/location still pending #150 itself.
+
+**Original 2026-07-05 framing, kept for history:**
+Two directions competed for what comes after the core (M0-M4) is stable:
+1. Package Majordom for others to install/use — generic setup instead of hardcoded personal config (`PRIVATE_context.md` assumptions), an installer that doesn't require Docker knowledge.
+2. Keep building new personal capabilities — e.g. a "digital majordom" that ingests documents (insurance cards, warranties), remembers them via RAG, stores the file in Nextcloud, and retrieves it on request. Also a future wellness domain.
+
+The leaning at the time was (1) first; what actually got decided once the moment arrived was a more specific version of (2) — not the RAG/documents idea, but the two standalone-app extractions above — sequenced *before* (1), not after. The RAG/wellness idea from option 2 isn't rejected, just not what got prioritized here.

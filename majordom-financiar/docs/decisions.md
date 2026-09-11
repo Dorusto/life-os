@@ -1372,3 +1372,59 @@ Already independently documented before this session connected it to #181's risk
 
 **Rejected:** giving Planned its own distinct content instead (#218's original option 1) — would have fixed one dead slot while leaving Analytics empty, the exact "half the problem" outcome this decision was raised to avoid.
 
+
+---
+
+<a id="portfolio-becomes-separate-service"></a>
+### Portfolio tracking becomes a separate standalone service, not built inside Majordom — Phase D re-scoped
+
+**Date:** 2026-09-12
+
+**Supersedes:** `docs/product-plan.md`'s original Phase D framing ("build the portfolio calculation
+layer inside Majordom", "charts in Majordom's own UI, not a second app's") and, in direction if not
+in exact naming, resolves the "Open fork" entry in root `CLAUDE.md` (2026-09-05, revisited
+2026-09-12).
+
+**Context:** raised while doing a full backlog retrospective, after Phase C (zero-touch
+administration) and Phase C2 (coaching cluster) both closed out — the "revisit once M0-M4 feels
+stable" condition on the open packaging-vs-new-capabilities fork was finally met. Doru's answer
+wasn't either of the two original options as written: not "package for others" yet, and not the
+RAG/documents idea from the "new capabilities" side either — a third, more specific direction that
+crystallized while looking at the retrospective together.
+
+**Decision — two personal-use gaps get solved before anything about packaging for others:**
+1. `vehicle-manager` (currently backend-only, `tools/vehicle-manager/`, its data surfaced through
+   pages living inside majordom-financiar's own React app) gets a real standalone frontend of its
+   own — its own charts, Fuelio referenced explicitly as the shape Doru wants. Runs independently;
+   majordom-financiar keeps working standalone too, consuming it only via the existing API client
+   for chat/notifications, unchanged from today's relationship.
+2. **A new, separate investment/portfolio-tracking app** — own frontend, own backend, own
+   database, own URL — takes over everything Phase D's original text assigned to majordom-financiar
+   itself (cost basis, TWR/XIRR, allocation, the market-data-source decision from #257). Same
+   API-only relationship to Majordom as (1).
+3. Visual polish across the app, MoneyMatter referenced again as the concrete bar — judged
+   currently rough. (Already the direction the same evening's Analytics v1 work took.)
+4. **Only after 1-3**, prepare the app for other users (the original "package for others" side of
+   the fork) — generic setup, no Docker knowledge required.
+
+**Why this isn't just "Phase D moved sideways" — it changes what majordom-financiar's own codebase
+is for.** The original Phase D assumed Majordom's own scope would grow to include portfolio maths.
+The actual decision keeps majordom-financiar's scope centered on budgeting/spending and treats
+investment (and vehicle) tracking as sibling services it orchestrates, not features it contains —
+a direct, concrete application of the "each service independent" architecture target already
+stated in root `CLAUDE.md`, and the same shape #150 (naming convention, still open) was gesturing
+at without a real example to test it against yet. These two builds are that example — #150's exact
+folder/naming answer still isn't decided, but the *shape* (separate app, API-only relationship) now
+is.
+
+**What's unaffected:** why a portfolio view matters at all (Phase D's original "done when the
+spreadsheets are closed and not missed" bar, and the "coaching needs both halves of the picture"
+reasoning) — only *where* the computation and UI live changed, not the underlying goal. #257
+(market-data source) stays exactly as paused as it was minutes before this decision — it still
+needs real held tickers to test against, and now explicitly needs the new investment app to exist
+first to supply them, not just "a holdings tracker" in the abstract.
+
+**Not decided here, deliberately left open:** the new investment app's name/location (blocked on
+#150), its own internal architecture, timeline, or whether it's built by Claude/DeepSeek or some
+other path — this entry records the *decision to build it separately*, not an implementation plan.
+Tracked as new GitHub issues rather than specced further in this entry.
