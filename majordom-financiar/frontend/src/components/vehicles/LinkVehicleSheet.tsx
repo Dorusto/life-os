@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import BottomSheet from '../BottomSheet'
-import { createVehicle, linkVehicleAccount, type Vehicle } from '../../lib/vehicleValueApi'
+import { ApiError, createVehicle, linkVehicleAccount, type Vehicle } from '../../lib/vehicleValueApi'
 import type { AccountListItem } from '../../lib/api'
 
 interface LinkVehicleSheetProps {
@@ -9,6 +9,13 @@ interface LinkVehicleSheetProps {
   account: AccountListItem
   unlinkedVehicles: Vehicle[]
   onLinked: () => void
+  /**
+   * Called when linking a vehicle from `unlinkedVehicles` returns 404 —
+   * the list the parent passed in is stale. The parent should refetch it;
+   * this sheet stays open so the user can pick again from the refreshed
+   * list without closing and reopening.
+   */
+  onStaleData: () => void
 }
 
 interface NewProfileForm {
@@ -35,48 +42,58 @@ export default function LinkVehicleSheet({
   account,
   unlinkedVehicles,
   onLinked,
+  onStaleData,
 }: LinkVehicleSheetProps) {
   const [error, setError] = useState<string | null>(null)
-  const [linkingId, setLinkingId] = useState<number | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  // Tapping an existing profile selects it (and fills the fields below as a
+  // read-only preview) instead of linking immediately — the user confirms
+  // via the same button the "create new" flow uses, matching this app's
+  // general "review before it's written" pattern.
+  const [selected, setSelected] = useState<Vehicle | null>(null)
   const [newProfile, setNewProfile] = useState<NewProfileForm>({ name: '', make: '', model: '', year: '' })
-  const [creating, setCreating] = useState(false)
 
   function updateField<K extends keyof NewProfileForm>(key: K, value: NewProfileForm[K]) {
     setNewProfile(prev => ({ ...prev, [key]: value }))
   }
 
-  async function handleLinkExisting(vehicleId: number) {
+  function selectExisting(vehicle: Vehicle) {
     setError(null)
-    setLinkingId(vehicleId)
-    try {
-      await linkVehicleAccount(vehicleId, account.id)
-      onLinked()
-      onClose()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to link vehicle')
-    } finally {
-      setLinkingId(null)
-    }
+    setSelected(prev => (prev?.id === vehicle.id ? null : vehicle))
   }
 
-  async function handleCreateAndLink(e: FormEvent) {
+  function clearSelection() {
+    setError(null)
+    setSelected(null)
+  }
+
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault()
     setError(null)
-    setCreating(true)
+    setSubmitting(true)
     try {
-      const created = await createVehicle({
+      const vehicleId = selected ? selected.id : (await createVehicle({
         name: newProfile.name.trim(),
         make: newProfile.make.trim() || undefined,
         model: newProfile.model.trim() || undefined,
         year: parseOptionalNumber(newProfile.year),
-      })
-      await linkVehicleAccount(created.id, account.id)
+      })).id
+      await linkVehicleAccount(vehicleId, account.id)
       onLinked()
       onClose()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create and link vehicle')
+      if (err instanceof ApiError && err.status === 404) {
+        // The vehicle list the parent gave us is stale (e.g. the vehicle was
+        // deleted since it loaded) — ask the parent to refetch it, but keep
+        // the sheet open so the user can just pick again once it updates.
+        setError('That vehicle no longer exists — refreshing the list…')
+        setSelected(null)
+        onStaleData()
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to link vehicle')
+      }
     } finally {
-      setCreating(false)
+      setSubmitting(false)
     }
   }
 
@@ -90,51 +107,68 @@ export default function LinkVehicleSheet({
         <div className="space-y-1.5 pt-1">
           <p className={labelClass}>Link to an existing profile</p>
           <div className="space-y-1.5">
-            {unlinkedVehicles.map(v => (
-              <button
-                key={v.id}
-                type="button"
-                disabled={linkingId !== null}
-                onClick={() => handleLinkExisting(v.id)}
-                className="w-full text-left bg-background border border-border rounded-lg px-3 py-2 text-sm text-white hover:border-accent transition-colors disabled:opacity-50"
-              >
-                {[v.make, v.model].filter(Boolean).join(' ') || v.name}
-                {v.year ? ` · ${v.year}` : ''}
-                {linkingId === v.id && ' — linking…'}
-              </button>
-            ))}
+            {unlinkedVehicles.map(v => {
+              const isSelected = selected?.id === v.id
+              return (
+                <button
+                  key={v.id}
+                  type="button"
+                  disabled={submitting}
+                  onClick={() => selectExisting(v)}
+                  className={`w-full text-left bg-background border rounded-lg px-3 py-2 text-sm text-white transition-colors disabled:opacity-50 ${
+                    isSelected ? 'border-accent' : 'border-border hover:border-accent'
+                  }`}
+                >
+                  {[v.make, v.model].filter(Boolean).join(' ') || v.name}
+                  {v.year ? ` · ${v.year}` : ''}
+                  {isSelected && ' ✓'}
+                </button>
+              )
+            })}
           </div>
         </div>
       )}
 
-      <form onSubmit={handleCreateAndLink} className="space-y-3 pt-3">
-        <p className={labelClass}>Or create a new profile</p>
+      <form onSubmit={handleSubmit} className="space-y-3 pt-3">
+        <div className="flex items-center justify-between">
+          <p className={labelClass}>
+            {selected ? 'Selected profile' : 'Or create a new profile'}
+          </p>
+          {selected && (
+            <button type="button" onClick={clearSelection} className="text-[11px] text-muted hover:text-white">
+              Create new instead
+            </button>
+          )}
+        </div>
         <div className="space-y-1">
           <label className={labelClass}>Name</label>
           <input
-            value={newProfile.name}
+            value={selected ? selected.name : newProfile.name}
             onChange={e => updateField('name', e.target.value)}
             className={inputClass}
             placeholder="e.g. Duster"
+            readOnly={Boolean(selected)}
           />
         </div>
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1">
             <label className={labelClass}>Make</label>
             <input
-              value={newProfile.make}
+              value={selected ? selected.make ?? '' : newProfile.make}
               onChange={e => updateField('make', e.target.value)}
               className={inputClass}
               placeholder="Dacia"
+              readOnly={Boolean(selected)}
             />
           </div>
           <div className="space-y-1">
             <label className={labelClass}>Model</label>
             <input
-              value={newProfile.model}
+              value={selected ? selected.model ?? '' : newProfile.model}
               onChange={e => updateField('model', e.target.value)}
               className={inputClass}
               placeholder="Duster"
+              readOnly={Boolean(selected)}
             />
           </div>
         </div>
@@ -142,10 +176,11 @@ export default function LinkVehicleSheet({
           <label className={labelClass}>Year</label>
           <input
             inputMode="numeric"
-            value={newProfile.year}
+            value={selected ? selected.year ?? '' : newProfile.year}
             onChange={e => updateField('year', e.target.value)}
             className={inputClass}
             placeholder="2020"
+            readOnly={Boolean(selected)}
           />
         </div>
 
@@ -153,10 +188,10 @@ export default function LinkVehicleSheet({
 
         <button
           type="submit"
-          disabled={creating || !newProfile.name.trim()}
+          disabled={submitting || (!selected && !newProfile.name.trim())}
           className="w-full bg-accent hover:bg-accent-hover disabled:opacity-50 text-white rounded-full py-2.5 text-sm font-semibold transition-colors"
         >
-          {creating ? 'Creating…' : 'Create & link'}
+          {submitting ? (selected ? 'Linking…' : 'Creating…') : selected ? 'Link vehicle' : 'Create & link'}
         </button>
       </form>
     </BottomSheet>

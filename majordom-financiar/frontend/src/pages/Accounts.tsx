@@ -129,6 +129,7 @@ export default function Accounts() {
           account={linkAccount}
           unlinkedVehicles={vehicles?.filter(v => !v.ab_account_id) ?? []}
           onLinked={() => handleVehicleSaved()}
+          onStaleData={() => queryClient.invalidateQueries({ queryKey: ['vehicle-list'] })}
         />
       )}
     </div>
