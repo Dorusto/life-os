@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { Wallet, Plus } from 'lucide-react'
+import { Wallet, Plus, Car, TrendingUp, Landmark, Home } from 'lucide-react'
 import { getAccountList, type AccountListItem } from '../lib/api'
 import { listVehicles, type Vehicle } from '../lib/vehicleValueApi'
 import PageHeader from '../components/PageHeader'
@@ -69,9 +69,9 @@ export default function Accounts() {
           <button
             type="button"
             onClick={() => setAddVehicleOpen(true)}
-            className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent hover:opacity-80 transition-opacity"
+            className="inline-flex items-center gap-1.5 bg-surface border border-border text-white text-xs font-semibold px-3 py-2 rounded-xl hover:border-border-hover transition-colors"
           >
-            <Plus size={13} />
+            <Plus size={14} />
             Add vehicle
           </button>
         </div>
@@ -135,15 +135,25 @@ export default function Accounts() {
   )
 }
 
+// Icon per account_type (#236) — 'Vehicle' is handled by VehicleAccountRow instead,
+// so it never reaches here in practice, but Car covers it for completeness.
+const ACCOUNT_TYPE_ICONS: Record<string, typeof Wallet> = {
+  Investment: TrendingUp,
+  Vehicle: Car,
+  Loan: Landmark,
+  Rental: Home,
+}
+
 function AccountRow({ account }: { account: AccountListItem }) {
   const navigate = useNavigate()
+  const Icon = (account.account_type && ACCOUNT_TYPE_ICONS[account.account_type]) || Wallet
   return (
     <button
       onClick={() => navigate(`/accounts/${account.id}`)}
       className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-3.5 py-3.5 text-left hover:bg-surface-2 transition-colors"
     >
       <div className="w-9 h-9 rounded-xl bg-surface-2 flex items-center justify-center text-muted flex-shrink-0">
-        <Wallet size={16} />
+        <Icon size={16} />
       </div>
       <p className="flex-1 min-w-0 text-[13.5px] font-semibold truncate">{account.name}</p>
       <p className="font-mono text-sm tabular-nums flex-shrink-0">
@@ -174,7 +184,7 @@ function VehicleAccountRow({
       className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-3.5 py-3.5 text-left hover:bg-surface-2 transition-colors"
     >
       <div className="w-9 h-9 rounded-xl bg-surface-2 flex items-center justify-center text-muted flex-shrink-0">
-        <Wallet size={16} />
+        <Car size={16} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[13.5px] font-semibold truncate">{account.name}</p>
