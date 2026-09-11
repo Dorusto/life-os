@@ -1436,6 +1436,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
         from backend.tools.finance.actual_budget import get_unprotected_goals
         return await get_unprotected_goals(**arguments)
 
+    if name == "finance__get_recurring_schedules_summary":
+        from backend.tools.finance.actual_budget import get_recurring_schedules_summary
+        return await get_recurring_schedules_summary()
+
     if name == "finance__get_reached_goals":
         from backend.tools.finance.actual_budget import get_reached_goals
         return await get_reached_goals()
