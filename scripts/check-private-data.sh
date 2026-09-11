@@ -20,11 +20,23 @@ NC='\033[0m'
 export LC_ALL=C.UTF-8
 
 ERRORS=0
+INTENT_FILES=()
 STAGED=$(git diff --cached -U0 | grep '^+' | grep -v '^+++')
 # Ad-hoc self-check (not just the pre-commit gate): if nothing is staged yet,
-# fall back to the unstaged working-tree diff so this is runnable mid-session,
+# fall back to the unstaged working-tree diff plus any untracked files
+# (via git add -N, cleaned up after) so this is runnable mid-session,
 # right after editing a tracked doc, before it's ever staged or committed.
 if [[ -z "$STAGED" ]]; then
+    # Collect untracked file paths (respect .gitignore)
+    UNTRACKED=()
+    while IFS= read -r -d '' f; do
+        UNTRACKED+=("$f")
+    done < <(git ls-files --others --exclude-standard -z)
+    # Temporarily mark them as intent-to-add so git diff picks them up
+    if [[ ${#UNTRACKED[@]} -gt 0 ]]; then
+        git add -N -- "${UNTRACKED[@]}"
+        INTENT_FILES=("${UNTRACKED[@]}")
+    fi
     STAGED=$(git diff -U0 | grep '^+' | grep -v '^+++')
 fi
 
@@ -36,7 +48,7 @@ fi
 # quoting/interpretation quirks when writing the file.
 STAGED_FILE=$(mktemp)
 printf '%s\n' "$STAGED" > "$STAGED_FILE"
-trap 'rm -f "$STAGED_FILE"' EXIT
+trap 'rm -f "$STAGED_FILE"; if [[ ${#INTENT_FILES[@]} -gt 0 ]]; then git reset -- "${INTENT_FILES[@]}"; fi' EXIT
 
 check() {
     local description="$1"
