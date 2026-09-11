@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getAccountList, sendChatMessageStreaming } from '../lib/api'
 import BottomSheet from './BottomSheet'
 import GoalProposalCard, { type GoalProposalData } from './GoalProposalCard'
+import { formatMonthYear } from '../lib/formatDate'
 
 interface Props {
   open: boolean
@@ -57,7 +58,7 @@ export default function NewGoalSheet({ open, onClose, onCreated }: Props) {
     if (deadline) {
       const [year, month] = deadline.split('-')
       const d = new Date(Number(year), Number(month) - 1)
-      msg += `, targeting ${d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}`
+      msg += `, targeting ${formatMonthYear(d)}`
     }
     if (note) msg += `. ${note}`
     return msg

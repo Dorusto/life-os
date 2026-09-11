@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { confirmProposal, cancelProposal, getCategories, getAccounts, type CategoryItem, type Account } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
 import { formatCurrency } from '../lib/formatCurrency'
+import { formatDate } from '../lib/formatDate'
 
 export interface ProposalData {
   id: string
@@ -74,9 +75,7 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
     onCancelled()
   }
 
-  const formattedDate = new Date(proposal.date).toLocaleDateString('en-GB', {
-    day: 'numeric', month: 'short', year: 'numeric'
-  })
+  const formattedDate = formatDate(proposal.date)
 
   return (
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[80%] space-y-3">

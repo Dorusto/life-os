@@ -4,6 +4,8 @@
  * show a month header + monthly summary instead of one long flat list.
  * See docs/glm-5.3/ui-audit-2026-08-30.md §5 item #14.
  */
+import { formatMonthYear } from './formatDate'
+
 export interface MonthGroup<T> {
   /** e.g. "August 2026" */
   label: string
@@ -26,7 +28,7 @@ export function groupByMonth<T>(
     const key = `${d.getFullYear()}-${d.getMonth()}`
     let group = groups.get(key)
     if (!group) {
-      group = { label: d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }), items: [], total: 0 }
+      group = { label: formatMonthYear(d), items: [], total: 0 }
       groups.set(key, group)
     }
     group.items.push(item)

@@ -15,6 +15,7 @@ import {
   type TransactionFilters,
 } from '../lib/api'
 import { formatCurrency } from '../lib/formatCurrency'
+import { formatDate } from '../lib/formatDate'
 import { groupByMonth } from '../lib/groupByMonth'
 
 const LIMIT = 50
@@ -637,11 +638,3 @@ export default function TransactionsPage() {
   )
 }
 
-function formatDate(iso: string): string {
-  try {
-    const d = new Date(iso)
-    return d.toLocaleDateString('en-NL', { day: 'numeric', month: 'short', year: 'numeric' })
-  } catch {
-    return iso
-  }
-}

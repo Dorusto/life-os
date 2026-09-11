@@ -18,12 +18,7 @@ import EditVehicleModal from '../components/vehicles/EditVehicleModal'
 import OverrideValueModal from '../components/vehicles/OverrideValueModal'
 import DetailPageSkeleton from '../components/DetailPageSkeleton'
 import { formatCurrency, formatPercent, formatNumber } from '../lib/formatCurrency'
-
-function formatDate(iso?: string | null): string {
-  if (!iso) return '—'
-  const d = new Date(iso)
-  return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })
-}
+import { formatDate } from '../lib/formatDate'
 
 function formatMoney(n: number | null | undefined): string {
   if (n == null || Number.isNaN(n)) return '—'

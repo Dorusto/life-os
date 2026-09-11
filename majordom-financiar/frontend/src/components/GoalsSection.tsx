@@ -6,6 +6,7 @@ import type { ExpenseCoverageData, FireData, Goal } from '../lib/api'
 import InfoIcon from './InfoIcon'
 import NewGoalSheet from './NewGoalSheet'
 import { formatCurrency, formatPercent } from '../lib/formatCurrency'
+import { formatMonthYear } from '../lib/formatDate'
 import WidgetLoading from './WidgetLoading'
 import { colorForKey } from '../lib/chartColors'
 
@@ -18,7 +19,7 @@ function euro(n: number): string {
 function formatDeadline(deadline: string): string {
   const [year, month] = deadline.split('-').map(Number)
   const d = new Date(year, month - 1)
-  return d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })
+  return formatMonthYear(d, 'short')
 }
 
 const FIRE_ASSUMPTIONS_PREFILL = 'I want to set my real retirement assumptions — timeline, monthly spend, and contribution.'

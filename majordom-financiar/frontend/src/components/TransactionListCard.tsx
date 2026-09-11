@@ -6,6 +6,7 @@
  * plain-text finance__get_transactions replies it replaces for display.
  */
 import { formatCurrency } from '../lib/formatCurrency'
+import { formatDate } from '../lib/formatDate'
 
 interface TransactionListItem {
   id: string
@@ -66,11 +67,3 @@ export default function TransactionListCard({ title, data }: TransactionListCard
   )
 }
 
-function formatDate(iso: string): string {
-  try {
-    const d = new Date(iso)
-    return d.toLocaleDateString('en-NL', { day: 'numeric', month: 'short', year: 'numeric' })
-  } catch {
-    return iso
-  }
-}

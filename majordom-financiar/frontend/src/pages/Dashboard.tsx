@@ -19,6 +19,7 @@ import { WIDGETS, loadWidgetPrefs, saveWidgetPrefs, type WidgetId } from '../lib
 import { loadNetWorthIncludePrefs, saveNetWorthIncludePrefs } from '../lib/netWorthPrefs'
 import { useState, useEffect, useRef } from 'react'
 import { formatCurrency, formatPercent } from '../lib/formatCurrency'
+import { formatWeekdayDate } from '../lib/formatDate'
 import WidgetLoading from '../components/WidgetLoading'
 import { colorForKey } from '../lib/chartColors'
 
@@ -115,7 +116,7 @@ export default function Dashboard() {
     setNotifState(result === 'unsupported' ? 'unsupported' : result)
   }
 
-  const dateLabel = now.toLocaleDateString('en-GB', { weekday: 'short', month: 'short', day: 'numeric' })
+  const dateLabel = formatWeekdayDate(now)
 
   function renderWidget(id: WidgetId): ReactNode {
     switch (id) {

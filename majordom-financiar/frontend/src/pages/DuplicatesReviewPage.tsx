@@ -16,6 +16,7 @@ import Card from '../components/Card'
 import ActionCardButtons from '../components/ActionCardButtons'
 import IconButton from '../components/IconButton'
 import { formatCurrency } from '../lib/formatCurrency'
+import { formatDate, formatMonthYear } from '../lib/formatDate'
 
 /**
  * Duplicate review screen (#181) — opens from the Home header icon.
@@ -299,14 +300,5 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
 function formatMonthTitle(month: string): string {
   const [year, m] = month.split('-').map(Number)
   const d = new Date(year, m - 1, 1)
-  return d.toLocaleDateString('en-NL', { month: 'long', year: 'numeric' })
-}
-
-function formatDate(iso: string): string {
-  try {
-    const d = new Date(iso)
-    return d.toLocaleDateString('en-NL', { day: 'numeric', month: 'short', year: 'numeric' })
-  } catch {
-    return iso
-  }
+  return formatMonthYear(d)
 }
