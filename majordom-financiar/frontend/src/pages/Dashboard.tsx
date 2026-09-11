@@ -288,7 +288,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={() => shiftDashboardPeriod(-1)}
-              className="w-7 h-7 rounded-lg bg-surface border border-border text-muted hover:text-white flex items-center justify-center flex-shrink-0"
+              className="w-9 h-9 rounded-lg bg-surface border border-border text-muted hover:text-white flex items-center justify-center flex-shrink-0"
               aria-label="Previous period"
             >
               <ChevronLeft size={14} />
@@ -302,7 +302,7 @@ export default function Dashboard() {
             </button>
             <button
               onClick={() => shiftDashboardPeriod(1)}
-              className="w-7 h-7 rounded-lg bg-surface border border-border text-muted hover:text-white flex items-center justify-center flex-shrink-0"
+              className="w-9 h-9 rounded-lg bg-surface border border-border text-muted hover:text-white flex items-center justify-center flex-shrink-0"
               aria-label="Next period"
             >
               <ChevronRight size={14} />

@@ -513,7 +513,7 @@ function BarChart({ title, data, refetch: initialRefetch }: { title: string; dat
             className="absolute left-0 right-0 border-t border-border/60"
             style={{ top: `${(1 - f) * 100}%` }}
           >
-            <span className="absolute left-0 -translate-y-1/2 text-[9px] text-muted-2 bg-surface/80 pr-1">
+            <span className="absolute left-0 -translate-y-1/2 text-[10px] text-muted-2 bg-surface/80 pr-1">
               {formatCurrency(maxVal * f, { decimals: 0 })}
             </span>
           </div>
