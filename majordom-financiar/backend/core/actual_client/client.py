@@ -1296,6 +1296,68 @@ class ActualBudgetClient:
 
         return await self._run(_fetch)
 
+    async def get_recurring_schedule_amounts(self) -> list[dict]:
+        """Return id, name, and monthly amount (signed cents/100) for all
+        active, non-tombstoned Schedules whose Rules amount condition exists.
+
+        Cached-read-only – no commit.  The amount is extracted from the
+        linked rule's JSON conditions (field == "amount").  Sign convention:
+        negative = expense, positive = income (verified live against a real
+        schedule in this project's own database).
+        """
+        def _fetch():
+            import json
+            from actual.database import Schedules, Rules
+
+            with self._get_cached_read_actual() as actual:
+                rows = (
+                    actual.session.query(Schedules, Rules)
+                    .join(Rules, Rules.id == Schedules.rule_id)
+                    .filter(
+                        Schedules.active == 1,
+                        Schedules.tombstone == 0,
+                        Rules.tombstone == 0,
+                    )
+                    .all()
+                )
+
+                result = []
+                for sched, rule in rows:
+                    try:
+                        conditions = json.loads(rule.conditions)
+                    except (json.JSONDecodeError, TypeError) as e:
+                        logger.debug(
+                            "Skipping schedule %s – rule.conditions not valid JSON: %s",
+                            sched.id, e,
+                        )
+                        continue
+
+                    amount_cents = None
+                    for cond in conditions:
+                        if isinstance(cond, dict) and cond.get("field") == "amount":
+                            val = cond.get("value")
+                            if isinstance(val, (int, float)):
+                                amount_cents = val
+                            break
+
+                    if amount_cents is None:
+                        logger.debug(
+                            "Skipping schedule %s – no amount condition found or value "
+                            "is not a number in rule.conditions",
+                            sched.id,
+                        )
+                        continue
+
+                    result.append({
+                        "id": str(sched.id),
+                        "name": sched.name or "Unnamed",
+                        "amount": amount_cents / 100,
+                    })
+
+                return result
+
+        return await self._run(_fetch)
+
     async def set_schedule_active(self, schedule_id: str, active: bool) -> None:
         """
         Set ``active`` on an existing schedule. Write path — commits.

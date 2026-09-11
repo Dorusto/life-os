@@ -564,6 +564,14 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__get_recurring_schedules_summary",
+            "description": "List all active recurring-expense schedules with their monthly amounts and a combined total. Read-only. Only includes expense schedules, not recurring income.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "finance__get_reached_goals",
             "description": "Check for savings-goal categories whose target month has already passed. Read-only — use when the user asks to check if any goals are finished/done, or naturally when discussing budget templates/goals. An empty result is normal, not an error.",
             "parameters": {"type": "object", "properties": {}, "required": []},

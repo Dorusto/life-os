@@ -1442,6 +1442,20 @@ async def get_unprotected_goals() -> str:
     })
 
 
+async def get_recurring_schedules_summary() -> str:
+    """List active recurring-expense schedules with a combined monthly total (#153).
+    Read-only. Only counts expense schedules (negative amount) — recurring income
+    schedules are not included in this summary."""
+    client = get_provider()
+    schedules = await client.get_recurring_schedule_amounts()
+    expenses = [s for s in schedules if s["amount"] < 0]
+    if not expenses:
+        return "You have no active recurring expense schedules."
+    total = sum(-s["amount"] for s in expenses)
+    lines = ", ".join(f'{s["name"]} €{-s["amount"]:.2f}' for s in expenses)
+    return f"You have {len(expenses)} recurring schedule{'s' if len(expenses) != 1 else ''} totaling €{total:.2f}/month: {lines}."
+
+
 async def get_reached_goals() -> str:
     """Check for savings-goal categories whose target month has already passed.
 

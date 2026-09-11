@@ -417,5 +417,8 @@ class ActualBudgetProvider:
     ) -> list[dict]:
         return await self._client().find_stale_schedules(overdue_days)
 
+    async def get_recurring_schedule_amounts(self) -> list[dict]:
+        return await self._client().get_recurring_schedule_amounts()
+
     async def set_schedule_active(self, schedule_id: str, active: bool) -> None:
         return await self._client().set_schedule_active(schedule_id, active)
