@@ -143,6 +143,21 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 > the 44px tap-target guideline). Found and fixed live: the first version overflowed the card edge
 > on the last bar/point — fixed by reusing the file's own existing first/last axis-label clamping
 > pattern. Commented on #232 (not closed) — drill-down and entrance animation still open.
+>
+> **Detail-page loading skeleton (audit §5 item #10, worst-offender half only, partial #234)
+> shipped 2026-09-11 evening.** Scoped from the audit's own §2.4 text: `WidgetLoading`
+> (Dashboard spinner+text) already called "good," only `VehicleDetail.tsx`/`AccountDetail.tsx`'s
+> literal blank `min-h-dvh` div on first load (the audit's own "most visible before/after"
+> example) needed fixing. New shared `frontend/src/components/DetailPageSkeleton.tsx`
+> (`animate-pulse` blocks matching both pages' identical header shape, extracted immediately
+> since it's exactly 2 occurrences) swapped in for both. Couldn't visually catch the skeleton
+> frame locally — fixture queries resolve faster than a screenshot round-trip, the same reason
+> this bug was invisible here and only real on the LXC — verified via no-regression screenshots
+> of both real pages plus clean `tsc --noEmit` instead. Incidental: a real vehicle fixture
+> (`Duster`) now exists locally, used it to confirm the earlier multi-year x-axis fix (`§1.2`,
+> part of #231's history) renders correctly on real 12-year projection data — that fix's own
+> "pending live pixel-check" note is now closed out. Commented on #234 (not closed) — per-widget
+> Dashboard skeletons still open, deferred since `WidgetLoading` is judged adequate there.
 
 ---
 

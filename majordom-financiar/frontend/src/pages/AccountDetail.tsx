@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft } from 'lucide-react'
 import { getAccountList, getTransactions, setAccountType, ACCOUNT_TYPES } from '../lib/api'
 import { formatCurrency } from '../lib/formatCurrency'
+import DetailPageSkeleton from '../components/DetailPageSkeleton'
 
 type Tab = 'details' | 'transactions'
 
@@ -45,7 +46,7 @@ export default function AccountDetail() {
   // page load briefly flashes the not-found state before real content ever
   // gets a chance to render.
   if (!accounts) {
-    return <div className="min-h-dvh bg-background" />
+    return <DetailPageSkeleton />
   }
 
   if (!account) {

@@ -16,6 +16,7 @@ import {
 } from '../lib/vehicleValueApi'
 import EditVehicleModal from '../components/vehicles/EditVehicleModal'
 import OverrideValueModal from '../components/vehicles/OverrideValueModal'
+import DetailPageSkeleton from '../components/DetailPageSkeleton'
 import { formatCurrency, formatPercent, formatNumber } from '../lib/formatCurrency'
 
 function formatDate(iso?: string | null): string {
@@ -116,7 +117,7 @@ export default function VehicleDetail() {
   })
 
   if (vehicleQuery.isLoading) {
-    return <div className="min-h-dvh bg-background" />
+    return <DetailPageSkeleton />
   }
 
   if (!vehicle) {
