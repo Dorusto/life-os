@@ -179,6 +179,8 @@ async def _suggest_categories_llm(
         "stream": False,
         "options": {"temperature": 0.0, "num_predict": 400},
     }
+    if model.lower().startswith("qwen3"):
+        payload["think"] = False
 
     headers = build_llm_headers(api_key)
 
