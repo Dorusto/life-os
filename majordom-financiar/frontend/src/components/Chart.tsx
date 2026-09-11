@@ -9,6 +9,7 @@ import { useState } from 'react'
 import { authFetch } from '../lib/auth'
 import { formatCurrency, formatPercent, formatNumber } from '../lib/formatCurrency'
 import { colorForKey } from '../lib/chartColors'
+import { useNavigate } from 'react-router-dom'
 
 // --- Contract types ---
 
@@ -47,6 +48,8 @@ interface BarSeries {
 interface BarPoint {
   x: string
   values: number[]
+  month?: number
+  year?: number
 }
 
 interface BarData {
@@ -472,6 +475,7 @@ function BarChart({ title, data, refetch: initialRefetch }: { title: string; dat
   )
   // Which point's tooltip is open — index into liveData.points, or null.
   const [activePoint, setActivePoint] = useState<number | null>(null)
+  const navigate = useNavigate()
 
   const rangePicker = refetch?.mode === 'month_range' && (
     <MonthRangePicker key={`${refetch.start}_${refetch.end}`} refetch={refetch} loading={loading} onApply={refetchWith} />
@@ -549,6 +553,23 @@ function BarChart({ title, data, refetch: initialRefetch }: { title: string; dat
                         {liveData.series[i]?.label ?? `#${i + 1}`}: {formatCurrency(v)}
                       </p>
                     ))}
+                    {p.month != null && p.year != null && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const year = p.year!
+                          const month = p.month!
+                          const dateFrom = `${year}-${String(month).padStart(2, '0')}-01`
+                          const lastDay = new Date(year, month, 0).getDate()
+                          const dateTo = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+                          navigate('/transactions', { state: { dateFrom, dateTo } })
+                        }}
+                        className="mt-1 text-[10px] text-accent hover:text-white underline"
+                      >
+                        View transactions
+                      </button>
+                    )}
                   </div>
                 )}
               </button>

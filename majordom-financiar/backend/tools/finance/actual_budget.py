@@ -666,6 +666,8 @@ async def get_spending_trend(
         points.append({
             "x": label,
             "values": [round(stats["total"], 2), round(stats.get("income", 0.0), 2)],
+            "month": m,
+            "year": y,
         })
 
     first_m, first_y = months_list[0]
