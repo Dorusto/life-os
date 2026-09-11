@@ -78,12 +78,14 @@ export default function TransactionsPage() {
   const [view, setView] = useState<View>(loadViewPref)
   const getInitialFilters = (): FiltersState => {
     const categoryIds = location.state?.categoryIds
-    if (!categoryIds) return EMPTY_FILTERS
+    const stateDateFrom = location.state?.dateFrom
+    const stateDateTo = location.state?.dateTo
+    if (!categoryIds && !stateDateFrom && !stateDateTo) return EMPTY_FILTERS
     return {
       ...EMPTY_FILTERS,
-      categoryIds,
-      dateFrom: location.state?.dateFrom ?? EMPTY_FILTERS.dateFrom,
-      dateTo: location.state?.dateTo ?? EMPTY_FILTERS.dateTo,
+      categoryIds: categoryIds || [],
+      dateFrom: stateDateFrom ?? EMPTY_FILTERS.dateFrom,
+      dateTo: stateDateTo ?? EMPTY_FILTERS.dateTo,
     }
   }
   const [applied, setApplied] = useState<FiltersState>(getInitialFilters)
@@ -108,7 +110,8 @@ export default function TransactionsPage() {
   // If we arrived via a category click, clear the router state after reading it
   // so that back/forward navigation doesn't re-apply an old filter unexpectedly.
   useEffect(() => {
-    if (location.state?.categoryIds) {
+    const s = location.state
+    if (s?.categoryIds || s?.dateFrom || s?.dateTo) {
       navigate(location.pathname, { replace: true, state: null })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
