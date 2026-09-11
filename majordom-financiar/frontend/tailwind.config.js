@@ -16,7 +16,7 @@ export default {
         accent:     '#6366F1',   // indigo-500 — primary action color
         'accent-hover': '#4F52D4',
         muted:      '#71717A',   // secondary text (zinc-500)
-        'muted-2':  '#52525B',   // even more muted
+        'muted-2':  '#82828C',   // even more muted — ~5:1 contrast against #0F0F0F background (WCAG AA), up from the prior ~2.5:1
         success:    '#22C55E',   // green-500
         danger:     '#EF4444',   // red-500
 

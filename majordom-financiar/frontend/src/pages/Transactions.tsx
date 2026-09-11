@@ -405,12 +405,14 @@ export default function TransactionsPage() {
               <thead>
                 <tr className="text-left text-muted text-xs">
                   <th className="py-2 pr-2 w-8">
-                    <input
-                      type="checkbox"
-                      checked={allVisibleSelected}
-                      onChange={toggleSelectAll}
-                      className="w-4 h-4 accent-accent"
-                    />
+                    <label className="flex items-center justify-center w-full h-full cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={allVisibleSelected}
+                        onChange={toggleSelectAll}
+                        className="w-4 h-4 accent-accent"
+                      />
+                    </label>
                   </th>
                   <th className="py-2 pr-3 font-medium">Date</th>
                   <th className="py-2 pr-3 font-medium">Merchant</th>
@@ -437,12 +439,14 @@ export default function TransactionsPage() {
                     {group.items.map(tx => (
                       <tr key={tx.id} className="border-t border-border">
                         <td className="py-2.5 pr-2">
-                          <input
-                            type="checkbox"
-                            checked={selected.has(tx.id)}
-                            onChange={() => toggleRow(tx.id)}
-                            className="w-4 h-4 accent-accent"
-                          />
+                          <label className="flex items-center justify-center w-full h-full cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={selected.has(tx.id)}
+                              onChange={() => toggleRow(tx.id)}
+                              className="w-4 h-4 accent-accent"
+                            />
+                          </label>
                         </td>
                         <td className="py-2.5 pr-3 text-muted whitespace-nowrap">{formatDate(tx.date)}</td>
                         <td className="py-2.5 pr-3 text-white whitespace-nowrap max-w-[20ch] truncate">
