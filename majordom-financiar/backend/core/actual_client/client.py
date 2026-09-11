@@ -2260,6 +2260,15 @@ class ActualBudgetClient:
                     actual.session, txs, all_cats, target_year, target_month,
                 )
 
+                # 3.5. On-budget total (#169) — spendable-now money, distinct from
+                # Portfolio Independence's off-budget total below. Reuses
+                # accounts_result (already computed above, no extra query) —
+                # off_budget already excludes vehicles too, they're off_budget=True
+                # by construction (#252's own investigation confirmed this).
+                on_budget_total = round(
+                    sum(a["balance"] for a in accounts_result if not a["off_budget"]), 2,
+                )
+
                 # 4. Goals — same helper as get_goals(), see rule 20 (#143 audit)
                 goals_result = _compute_goal_progress(actual.session, accounts_data)
 
@@ -2300,6 +2309,7 @@ class ActualBudgetClient:
                 "budget": budget_result,
                 "goals": goals_result,
                 "expense_coverage": expense_coverage_result,
+                "on_budget_total": on_budget_total,
                 "uncategorized_count": uncategorized_count,
                 "unreconciled_count": unreconciled_count,
             }

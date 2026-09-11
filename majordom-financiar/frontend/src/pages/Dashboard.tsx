@@ -44,6 +44,7 @@ export default function Dashboard() {
   const goals = homeData?.goals
   const fireData = homeData?.fire
   const expenseCoverage = homeData?.expense_coverage
+  const onBudgetTotal = homeData?.on_budget_total
   const accountCount = homeData?.account_count
 
   const now = new Date()
@@ -194,6 +195,15 @@ export default function Dashboard() {
         </section>
       ) : (
         <section className="px-5 pt-3 pb-36">
+          {onBudgetTotal != null && (
+            <div className="mb-5">
+              <p className="font-mono text-[11px] uppercase tracking-wide text-muted">On budget</p>
+              <p className="font-mono font-medium text-2xl mt-0.5 tabular-nums">
+                {formatCurrency(onBudgetTotal, { decimals: 0 })}
+              </p>
+            </div>
+          )}
+
           {fullWidgets.length > 0 && (
             <div className="space-y-6 mb-6">
               {fullWidgets.map(w => (

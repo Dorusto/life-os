@@ -672,6 +672,7 @@ export interface HomeData {
   goals: Goal[]
   fire: FireData
   expense_coverage: ExpenseCoverageData
+  on_budget_total: number
   uncategorized_count: number
   unreconciled_count: number
   account_count: number
