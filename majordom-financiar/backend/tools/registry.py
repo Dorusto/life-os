@@ -188,6 +188,24 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__get_savings_rate_chart",
+            "description": "Show a monthly savings-rate chart — the percentage of income saved each month, (income - spending) / income. Call when the user asks what percentage they're saving, their savings rate, or how much of their income they keep.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "months": {"type": "integer", "description": "Number of months to show (default 6, max 12). Ignored if start/end are given."},
+                    "start_month": {"type": "integer", "description": "Custom range start month (1-12). Provide together with start_year/end_month/end_year."},
+                    "start_year": {"type": "integer", "description": "Custom range start year, e.g. 2025."},
+                    "end_month": {"type": "integer", "description": "Custom range end month (1-12), inclusive."},
+                    "end_year": {"type": "integer", "description": "Custom range end year, e.g. 2026."},
+                },
+                "required": [],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "finance__get_goals_chart",
             "description": "Show a visual progress chart for all savings goals. Call when user asks about savings goals, goal progress, or how close they are to their financial targets.",
             "parameters": {"type": "object", "properties": {}, "required": []},
@@ -1326,6 +1344,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "finance__get_spending_trend":
         from backend.tools.finance.actual_budget import get_spending_trend
         return await get_spending_trend(**arguments)
+
+    if name == "finance__get_savings_rate_chart":
+        from backend.tools.finance.actual_budget import get_savings_rate_chart
+        return await get_savings_rate_chart(**arguments)
 
     if name == "finance__get_goals_chart":
         from backend.tools.finance.actual_budget import get_goals_chart

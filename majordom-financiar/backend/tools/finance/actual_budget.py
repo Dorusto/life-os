@@ -609,6 +609,37 @@ async def get_budget_chart(month: int | None = None, year: int | None = None) ->
     })
 
 
+def _build_months_list(
+    months: int,
+    start_month: int | None,
+    start_year: int | None,
+    end_month: int | None,
+    end_year: int | None,
+) -> list[tuple[int, int]]:
+    """Chronological (month, year) list — explicit start/end range if all four
+    are given, otherwise the last `months` months up to and including today."""
+    today = _date.today()
+    if start_month and start_year and end_month and end_year:
+        months_list = []
+        m, y = start_month, start_year
+        while (y, m) <= (end_year, end_month) and len(months_list) < 240:
+            months_list.append((m, y))
+            m += 1
+            if m > 12:
+                m = 1
+                y += 1
+        return months_list
+    months_list = []
+    for i in range(months - 1, -1, -1):
+        m = today.month - i
+        y = today.year
+        if m <= 0:
+            m += 12
+            y -= 1
+        months_list.append((m, y))
+    return months_list
+
+
 async def get_spending_trend(
     months: int = 6,
     start_month: int | None = None,
@@ -624,28 +655,9 @@ async def get_spending_trend(
     instead (e.g. the frontend's date-range picker).
     """
     client = get_provider()
-    today = _date.today()
     month_abbrs = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
-    if start_month and start_year and end_month and end_year:
-        months_list = []
-        m, y = start_month, start_year
-        while (y, m) <= (end_year, end_month) and len(months_list) < 240:
-            months_list.append((m, y))
-            m += 1
-            if m > 12:
-                m = 1
-                y += 1
-    else:
-        # Loop from months-1 down to 0 to build chronological list (oldest first)
-        months_list = []
-        for i in range(months - 1, -1, -1):
-            m = today.month - i
-            y = today.year
-            if m <= 0:
-                m += 12
-                y -= 1
-            months_list.append((m, y))
+    months_list = _build_months_list(months, start_month, start_year, end_month, end_year)
 
     points = []
     for m, y in months_list:
@@ -673,6 +685,57 @@ async def get_spending_trend(
         "refetch": {
             "mode": "month_range",
             "endpoint": "/finance/spending-trend",
+            "params": {},
+            "start": f"{first_y:04d}-{first_m:02d}",
+            "end": f"{last_y:04d}-{last_m:02d}",
+        },
+    })
+
+
+async def get_savings_rate_chart(
+    months: int = 6,
+    start_month: int | None = None,
+    start_year: int | None = None,
+    end_month: int | None = None,
+    end_year: int | None = None,
+) -> str:
+    """
+    Return monthly savings-rate ((income - spending) / income, as a %) as JSON
+    for a bar chart.  Distinct from #112's annual budget pacing (cumulative pace
+    against an annual discretionary pool) — this is a simple after-the-fact
+    ratio per month, not a projection or a pace calculation.
+
+    Default: last `months` months up to and including the current one.  Pass all
+    four of start_month/start_year/end_month/end_year for an explicit custom
+    range instead (same as get_spending_trend).
+    """
+    client = get_provider()
+    month_abbrs = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    months_list = _build_months_list(months, start_month, start_year, end_month, end_year)
+
+    points = []
+    for m, y in months_list:
+        stats = await client.get_monthly_stats(month=m, year=y)
+        income = stats.get("income", 0.0)
+        spent = stats.get("total", 0.0)
+        rate = round((income - spent) / income * 100, 1) if income > 0 else 0.0
+        label = f"{month_abbrs[m - 1]}-{str(y)[-2:]}"
+        points.append({"x": label, "values": [rate]})
+
+    first_m, first_y = months_list[0]
+    last_m, last_y = months_list[-1]
+
+    return json.dumps({
+        "type": "chart",
+        "chart_type": "bar",
+        "title": "",
+        "data": {
+            "series": [{"label": "Savings rate %", "color": "#22C55E"}],
+            "points": points,
+        },
+        "refetch": {
+            "mode": "month_range",
+            "endpoint": "/finance/savings-rate",
             "params": {},
             "start": f"{first_y:04d}-{first_m:02d}",
             "end": f"{last_y:04d}-{last_m:02d}",
