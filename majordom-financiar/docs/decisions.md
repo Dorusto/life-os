@@ -1000,6 +1000,8 @@ file permanently heavier.
 <a id="planned-tab-added"></a>
 ### Planned tab added — 6 tabs, not 5
 
+**Superseded by:** [Planned tab removed, folded into Analytics — 6 tabs, not 5](#planned-folded-into-analytics) (2026-09-12) — a second MoneyMatter review found the two screens overlapping in a different way than either 5-tab or 6-tab framing anticipated: Planned duplicated a Dashboard widget with nothing else on it, while Analytics sat empty. Reversed for Planned specifically; the reasoning below (why Planned became a persistent tab in the first place) stays true, it just didn't survive contact with what actually got built.
+
 **Supersedes (partially):** [Navigation — 5 tabs, not 2](#nav-five-tabs) (2026-08-28) — that entry deliberately left Planned out of the bottom nav, giving its slot to Majordom instead ("chat stays the app's core differentiator"). This entry reverses that specific call for Planned only; Majordom keeps its own tab, nothing else about the 5-tab decision changes.
 
 **Date:** 2026-08-29
@@ -1350,3 +1352,23 @@ Already independently documented before this session connected it to #181's risk
 **Delegated to Aider/DeepSeek Flash** (mechanical, well-scoped, matches the proven `get_pending_items()`/chat-tool shape of #41/#116/#112 exactly) — see the process incident below for what went wrong in the dispatch mechanics (content was correct; the isolation step failed).
 
 **Process incident, not a content bug:** the launch command's `cd` to the intended isolated worktree used a wrong assumed path (`git worktree add ../X` from the monorepo root resolves `../` to the monorepo's *parent*, not a sibling inside it, unlike this repo's own existing `life-os-<slug>` worktree convention) — the `cd` failed silently (bash doesn't stop on an uncaught error), and Aider ran directly on the main checkout, committing straight to `main` (`--yes-always`) instead of the isolated branch. Caught immediately after by checking `git worktree list`/`git log` on both the main checkout and the worktree. Diff reviewed after the fact (not before, as intended) — verified correct (4 files, exactly the requested scope, `check_silent_exceptions.py`/`check_provider_wiring.py` clean, live-tested both the positive case — 2 goal accounts, config temporarily set to zero sinking-fund categories, restored exactly after — and the negative case against real fixture data). Doru chose to keep the commit on `main` rather than reset and redo, given the content was already verified sound and nothing had been pushed. Fixed in `delegate-by-complexity`'s own `SKILL.md`/`references/decisions.md` (verify the real worktree path mechanically before any `cd`, never assume it from the command; guard any pre-launch `cd` with `|| exit 1`) — a skill-level fix, not specific to this repo, since it protects every future delegation using this skill, not just this one.
+
+---
+
+<a id="planned-folded-into-analytics"></a>
+### Planned tab removed, folded into Analytics — 6 tabs, not 5
+
+**Date:** 2026-09-12
+
+**Supersedes:** [Planned tab added — 6 tabs, not 5](#planned-tab-added) (2026-08-29) — reversed for Planned specifically; nothing else about the tab bar changes.
+
+**Context:** #218 had flagged both Planned and Analytics as dead nav slots — Planned duplicated the Dashboard's own Financial Goals widget pixel-for-pixel with nothing else on the screen, Analytics was a bare "coming soon" placeholder. #239 tracked Analytics' emptiness as a separate issue. Doru brought a third competitor reference (MoneyMatter's own Analytics tab, screenshots) that reframed the fix: fold Planned into Analytics specifically, so the surviving tab earns its slot with real content, rather than fixing the two problems independently (#218's original two options were "give Planned distinct content" or "fold Planned into Dashboard").
+
+**Decision — remove `/planned` and its nav entry; Financial Goals stays reachable only via the existing Dashboard widget** (already the same `GoalsSection` component, not a duplicate implementation — removing the page loses zero functionality, only the redundant second entry point). Bottom nav returns to 5 tabs: Dashboard / Accounts / Transactions / Majordom / Analytics.
+
+**Decision — Analytics v1 reuses the 4 existing REST endpoints as-is (`GET /api/finance/{spending-chart,budget-chart,spending-trend,savings-rate}`), rendered via the existing `<Chart chart_type=... data=... refetch=... />` component exactly as Dashboard.tsx already does for its own widgets** — zero new backend code for v1. Deliberately **not** included in v1: the period-over-period "what changed" comparison framing raised alongside the MoneyMatter reference (a category's % change vs. the previous period, a net-worth trend split by asset category) — that needs new backend computation not yet speced, and mixing a scoping discussion into an implementation task was judged worse than shipping the clean, already-buildable half now and revisiting the comparison layer as its own pass. `#239`'s "product-plan.md notices vs. displays" concern about a passive reports page still applies to that later pass, not to this reuse-only v1 (see the discussion on #218's thread — the honest read is that v1 is exactly the "displays" the plan warns about being wary of *building more of*, made acceptable here only because it's fixing an empty placeholder that already existed with zero new cost, not because it's the sought-after "notices" material).
+
+**Why reversing `#planned-tab-added` was still the right call, not just churn:** that entry's original reasoning (Financial Goals needed a dedicated page, once its card style stopped matching the rest of the Dashboard) is unaffected — the widget still exists and still works. What changed is that giving it a *second*, nearly-identical destination turned out not to be worth a whole nav slot once Analytics needed one more urgently for something with no other home. Confirmed explicitly with Doru before removing a tab he'd asked for by name in the prior decision, specifically because reversing a past explicit request (not just an implementation detail) needed his own sign-off, not a silent call.
+
+**Rejected:** giving Planned its own distinct content instead (#218's original option 1) — would have fixed one dead slot while leaving Analytics empty, the exact "half the problem" outcome this decision was raised to avoid.
+
