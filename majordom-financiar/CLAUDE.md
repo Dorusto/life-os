@@ -130,6 +130,19 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 > other four chart tools — same #160/#166 pattern, unreliable tool selection. Filed as
 > [#255](https://github.com/Dorusto/life-os/issues/255) rather than fixed inline (separate,
 > unrelated concern — one feature at a time).
+>
+> **Chart tap-tooltip (audit §5 item #9, tooltip half only, partial #232) shipped 2026-09-11
+> evening** — same file, same session. Scoped down before coding: item #9 bundles tooltip with
+> drill-down-to-Transactions, but investigating drill-down first found `Transactions.tsx`'s
+> `getInitialFilters()` silently ignores `dateFrom`/`dateTo` whenever `categoryIds` is falsy (a
+> date-only drill-down needs `categoryIds: []` explicitly to dodge that), and `get_spending_trend`'s
+> bar points carry only a pre-formatted label (`"Aug-26"`), not raw month/year — drill-down needs
+> either a fragile label-reparse or a backend contract change. Both flagged in the #232 comment,
+> drill-down deferred to its own pass. Tooltip itself: tap a line point or bar column to toggle a
+> small value tooltip; larger invisible hit circle on line points (visible dot alone is far below
+> the 44px tap-target guideline). Found and fixed live: the first version overflowed the card edge
+> on the last bar/point — fixed by reusing the file's own existing first/last axis-label clamping
+> pattern. Commented on #232 (not closed) — drill-down and entrance animation still open.
 
 ---
 

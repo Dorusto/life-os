@@ -482,6 +482,8 @@ function BarChart({ title, data, refetch: initialRefetch }: { title: string; dat
     data,
     initialRefetch
   )
+  // Which point's tooltip is open — index into liveData.points, or null.
+  const [activePoint, setActivePoint] = useState<number | null>(null)
 
   const rangePicker = refetch?.mode === 'month_range' && (
     <MonthRangePicker key={`${refetch.start}_${refetch.end}`} refetch={refetch} loading={loading} onApply={refetchWith} />
@@ -529,17 +531,41 @@ function BarChart({ title, data, refetch: initialRefetch }: { title: string; dat
           </div>
         ))}
         <div className="absolute inset-0 flex items-end justify-around gap-3 pl-8">
-          {liveData.points.map((p) => (
-            <div key={p.x} className="flex items-end gap-0.5 flex-1 justify-center">
-              {p.values.map((v, i) => (
-                <div
-                  key={i}
-                  className="w-3 rounded-t-sm transition-all duration-300"
-                  style={{ height: scaleHeight(v), backgroundColor: liveData.series[i]?.color || SEGMENT_COLORS[i] }}
-                />
-              ))}
-            </div>
-          ))}
+          {liveData.points.map((p, pi) => {
+            // Anchor the tooltip inward (not centered) on the first/last column
+            // so its whitespace-nowrap content can't spill past the card edge.
+            const isFirst = pi === 0
+            const isLast = pi === liveData.points.length - 1
+            const tooltipPos = isFirst ? 'left-0' : isLast ? 'right-0' : 'left-1/2 -translate-x-1/2'
+            return (
+              <button
+                key={p.x}
+                type="button"
+                onClick={() => setActivePoint(activePoint === pi ? null : pi)}
+                className="relative flex items-end gap-0.5 flex-1 justify-center h-full"
+              >
+                {p.values.map((v, i) => (
+                  <div
+                    key={i}
+                    className="w-3 rounded-t-sm transition-all duration-300"
+                    style={{ height: scaleHeight(v), backgroundColor: liveData.series[i]?.color || SEGMENT_COLORS[i] }}
+                  />
+                ))}
+                {activePoint === pi && (
+                  <div
+                    className={`absolute bottom-full mb-1.5 z-10 whitespace-nowrap rounded-md bg-surface-2 border border-border px-2 py-1 text-[10px] text-white shadow-lg ${tooltipPos}`}
+                  >
+                    <p className="text-muted-2 mb-0.5">{p.x}</p>
+                    {p.values.map((v, i) => (
+                      <p key={i} style={{ color: liveData.series[i]?.color || SEGMENT_COLORS[i] }}>
+                        {liveData.series[i]?.label ?? `#${i + 1}`}: {formatCurrency(v)}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -681,6 +707,9 @@ function LineChart({
     initialRefetch
   )
   const wrapperClass = bare ? 'p-4' : 'bg-surface rounded-2xl p-4'
+  // Which point's tooltip is open — keyed by series label since each series
+  // renders its own independent svg/point set.
+  const [activePoint, setActivePoint] = useState<{ series: string; index: number } | null>(null)
 
   function handlePeriodSelect(value: number) {
     if (refetch?.mode === 'period_buttons') refetchWith({ [refetch.period_param]: value })
@@ -804,9 +833,42 @@ function LineChart({
               <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} preserveAspectRatio="none">
                 <path d={path} fill="none" stroke={s.color} strokeWidth={2} vectorEffect="non-scaling-stroke" />
                 {s.points.map((p, i) => (
-                  <circle key={i} cx={scaleX(i)} cy={scaleY(p.y)} r={2.5} fill={s.color} />
+                  <g
+                    key={i}
+                    onClick={() =>
+                      setActivePoint(
+                        activePoint?.series === s.label && activePoint?.index === i
+                          ? null
+                          : { series: s.label, index: i }
+                      )
+                    }
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {/* Larger transparent hit target — the visible dot (r=2.5) is too
+                        small to reliably tap on a phone. */}
+                    <circle cx={scaleX(i)} cy={scaleY(p.y)} r={10} fill="transparent" />
+                    <circle cx={scaleX(i)} cy={scaleY(p.y)} r={2.5} fill={s.color} />
+                  </g>
                 ))}
               </svg>
+              {activePoint?.series === s.label && s.points[activePoint.index] && (
+                <div
+                  className={`absolute z-10 -translate-y-full -mt-2 whitespace-nowrap rounded-md bg-surface-2 border border-border px-2 py-1 text-[10px] text-white shadow-lg ${
+                    activePoint.index === 0
+                      ? ''
+                      : activePoint.index === lastIdx
+                      ? '-translate-x-full'
+                      : '-translate-x-1/2'
+                  }`}
+                  style={{
+                    left: `${(scaleX(activePoint.index) / width) * 100}%`,
+                    top: `${(scaleY(s.points[activePoint.index].y) / height) * 100}%`,
+                  }}
+                >
+                  <p className="text-muted-2">{formatDateFull(s.points[activePoint.index].x)}</p>
+                  <p style={{ color: s.color }}>{formatNumber(s.points[activePoint.index].y)}</p>
+                </div>
+              )}
             </div>
             <div className="relative h-4 mt-1 text-[10px] text-muted">
               {labelIndices.map((i) => {
