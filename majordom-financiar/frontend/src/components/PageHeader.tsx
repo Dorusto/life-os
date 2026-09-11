@@ -13,7 +13,7 @@ interface PageHeaderProps {
 export default function PageHeader({ label, title, actions, bordered = false }: PageHeaderProps) {
   return (
     <header
-      className={`flex-shrink-0 flex items-center justify-between px-5 pb-3 pt-14 ${bordered ? 'border-b border-border' : ''}`}
+      className={`sticky top-0 bg-background/95 backdrop-blur flex-shrink-0 flex items-center justify-between px-5 pb-3 pt-14 z-40 ${bordered ? 'border-b border-border' : ''}`}
     >
       <div className="min-w-0">
         <p className="text-xs tracking-widest uppercase text-muted truncate">{label}</p>

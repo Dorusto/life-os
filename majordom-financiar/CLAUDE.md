@@ -175,6 +175,20 @@ Self-hosted personal AI finance assistant. Web PWA + FastAPI + Actual Budget + l
 > pie-chart implementation (CSS conic-gradient) duplicating `Chart.tsx`'s `PieChart` — the
 > same pattern #134 already solved once, reintroduced after that migration. Doru chose
 > color-registry-only for this pass; #256 stays open for the duplication itself.
+>
+> **Sticky page header (audit §5 item #13, page-header half, partial #237) shipped
+> 2026-09-11 evening — and a real app-wide bug found along the way.** Added `sticky top-0`
+> to the shared `PageHeader.tsx` (13 pages, one fix) — applied correctly (confirmed via
+> computed style) but had zero visible effect. Root cause, found live: every page's outer
+> wrapper used `min-h-dvh` (a floor, not a cap) combined with `overflow-y-auto` — the div
+> grew past the viewport instead of clipping, so its own scroll never engaged and the real
+> scroll happened on `document`/`body` instead, leaving `sticky` relative to a container
+> that never moves. Scope (identical wrapper string in 15 places across 13 pages) surfaced
+> to Doru before touching more files; fixed `min-h-dvh` → `h-dvh` everywhere via one
+> mechanical replace. Documented as `architecture.md` rule 42 so a new page can't silently
+> reintroduce this. Live-verified on 3 pages, no regressions. "Sticky date headers" (this
+> item's other half) still needs #14 (date grouping) to exist first — nothing to make
+> sticky yet.
 
 ---
 

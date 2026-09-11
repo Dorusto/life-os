@@ -148,7 +148,7 @@ export default function Dashboard() {
   const removedWidgets = WIDGETS.filter(w => !enabled[w.id])
 
   return (
-    <div className="min-h-dvh bg-background flex flex-col overflow-y-auto">
+    <div className="h-dvh bg-background flex flex-col overflow-y-auto">
       <PageHeader label={dateLabel} title="Dashboard" actions={<StandardHeaderActions />} />
 
       {notifState === 'default' && (

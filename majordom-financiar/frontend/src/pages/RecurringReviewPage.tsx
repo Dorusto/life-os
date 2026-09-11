@@ -43,7 +43,7 @@ export default function RecurringReviewPage() {
   const bothEmpty = newCandidates.length === 0 && stale.length === 0
 
   return (
-    <div className="min-h-dvh bg-background flex flex-col overflow-y-auto">
+    <div className="h-dvh bg-background flex flex-col overflow-y-auto">
       <PageHeader
         label="Review"
         title="Recurring"

@@ -101,7 +101,7 @@ export default function DuplicatesReviewPage() {
 
   if (selectedMonth) {
     return (
-      <div className="min-h-dvh bg-background flex flex-col overflow-y-auto">
+      <div className="h-dvh bg-background flex flex-col overflow-y-auto">
         <PageHeader
           label="Review"
           title={formatMonthTitle(selectedMonth)}
@@ -135,7 +135,7 @@ export default function DuplicatesReviewPage() {
   }
 
   return (
-    <div className="min-h-dvh bg-background flex flex-col overflow-y-auto">
+    <div className="h-dvh bg-background flex flex-col overflow-y-auto">
       <PageHeader
         label="Review"
         title="Duplicates"

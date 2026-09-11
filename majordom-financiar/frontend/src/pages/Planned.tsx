@@ -18,7 +18,7 @@ export default function Planned() {
   })
 
   return (
-    <div className="min-h-dvh bg-background flex flex-col overflow-y-auto">
+    <div className="h-dvh bg-background flex flex-col overflow-y-auto">
       <PageHeader label="Goals & budgeting" title="Planned" actions={<StandardHeaderActions />} />
       <section className="px-5 pt-3 pb-24">
         <GoalsSection fireData={homeData?.fire} goals={homeData?.goals} isLoading={isLoading} />

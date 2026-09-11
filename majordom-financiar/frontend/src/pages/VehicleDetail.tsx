@@ -189,7 +189,7 @@ export default function VehicleDetail() {
   }
 
   return (
-    <div className="min-h-dvh bg-background flex flex-col overflow-y-auto">
+    <div className="h-dvh bg-background flex flex-col overflow-y-auto">
       <header className="flex-shrink-0 px-5 pb-3 pt-14">
         <button
           onClick={() => navigate('/accounts')}

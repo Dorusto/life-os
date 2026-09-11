@@ -8,7 +8,7 @@ import StandardHeaderActions from '../components/StandardHeaderActions'
  */
 export default function AnalyticsPage() {
   return (
-    <div className="min-h-dvh bg-background flex flex-col overflow-y-auto">
+    <div className="h-dvh bg-background flex flex-col overflow-y-auto">
       <PageHeader label="Coming soon" title="Analytics" actions={<StandardHeaderActions />} />
       <section className="flex-1 flex flex-col items-center justify-center gap-3 px-8 pb-24 text-center">
         <BarChart3 size={28} className="text-muted" />

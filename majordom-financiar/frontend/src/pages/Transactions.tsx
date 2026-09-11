@@ -266,7 +266,7 @@ export default function TransactionsPage() {
   })()
 
   return (
-    <div className="min-h-dvh bg-background flex flex-col overflow-y-auto">
+    <div className="h-dvh bg-background flex flex-col overflow-y-auto">
       <PageHeader label="All transactions" title="Transactions" actions={<StandardHeaderActions />} bordered />
 
       <section className="flex-1 px-5 pb-40">
