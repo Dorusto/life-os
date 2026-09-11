@@ -598,6 +598,37 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__propose_classify_income",
+            "description": "Propose tagging an income category as passive, semi-passive, or active — the prerequisite for Expense Coverage (Coast/Barista FIRE). A confirmation card appears — nothing is written until the user confirms.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "category_name": {"type": "string", "description": "The income category to classify, e.g. 'Rental Income'."},
+                    "income_type": {"type": "string", "enum": ["passive", "semi-passive", "active"], "description": "How independent this income is from active work."},
+                },
+                "required": ["category_name", "income_type"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "finance__get_income_classifications",
+            "description": "List income categories already tagged passive/semi-passive/active. Read-only. An empty result means nothing has been classified yet, not an error.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "finance__get_expense_coverage",
+            "description": "Show current Expense Coverage % — (passive + semi-passive monthly income) / (current monthly expenses, one-off large purchases excluded). Read-only. Call when the user asks about Coast FIRE, Barista FIRE, or how much of their expenses their passive income covers.",
+            "parameters": {"type": "object", "properties": {}, "required": []},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "finance__propose_clear_reached_goals",
             "description": "Propose clearing the goal template on one or more categories whose goal has already been reached, so it stops blocking 'Overwrite with budget template' in Actual Budget. Call only after the user has confirmed which category name(s) to clean up from a finance__get_reached_goals result already shown this conversation. A confirmation card appears — nothing is written until the user confirms.",
             "parameters": {
@@ -1465,6 +1496,18 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "finance__get_reached_goals":
         from backend.tools.finance.actual_budget import get_reached_goals
         return await get_reached_goals()
+
+    if name == "finance__propose_classify_income":
+        from backend.tools.finance.actual_budget import propose_classify_income
+        return await propose_classify_income(**arguments)
+
+    if name == "finance__get_income_classifications":
+        from backend.tools.finance.actual_budget import get_income_classifications
+        return await get_income_classifications()
+
+    if name == "finance__get_expense_coverage":
+        from backend.tools.finance.actual_budget import get_expense_coverage
+        return await get_expense_coverage()
 
     if name == "finance__propose_clear_reached_goals":
         from backend.tools.finance.actual_budget import propose_clear_reached_goals

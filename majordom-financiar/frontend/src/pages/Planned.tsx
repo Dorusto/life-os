@@ -21,7 +21,7 @@ export default function Planned() {
     <div className="h-dvh bg-background flex flex-col overflow-y-auto">
       <PageHeader label="Goals & budgeting" title="Planned" actions={<StandardHeaderActions />} />
       <section className="px-5 pt-3 pb-24">
-        <GoalsSection fireData={homeData?.fire} goals={homeData?.goals} isLoading={isLoading} />
+        <GoalsSection fireData={homeData?.fire} expenseCoverage={homeData?.expense_coverage} goals={homeData?.goals} isLoading={isLoading} />
       </section>
     </div>
   )

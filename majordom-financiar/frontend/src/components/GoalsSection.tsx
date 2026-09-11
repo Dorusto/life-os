@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, type NavigateFunction } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Plus } from 'lucide-react'
-import type { FireData, Goal } from '../lib/api'
+import type { ExpenseCoverageData, FireData, Goal } from '../lib/api'
 import InfoIcon from './InfoIcon'
 import NewGoalSheet from './NewGoalSheet'
 import { formatCurrency, formatPercent } from '../lib/formatCurrency'
@@ -43,11 +43,19 @@ const GOAL_CHIPS: { label: string; colorClass: string; prefill: string }[] = [
  * both Dashboard (as the existing 'goals' widget) and the new Planned page —
  * same component, not duplicated (decisions.md#nav-five-tabs supersession).
  */
-export default function GoalsSection({ fireData, goals, isLoading }: { fireData: FireData | undefined; goals: Goal[] | undefined; isLoading?: boolean }) {
+export default function GoalsSection({
+  fireData, expenseCoverage, goals, isLoading,
+}: {
+  fireData: FireData | undefined
+  expenseCoverage?: ExpenseCoverageData
+  goals: Goal[] | undefined
+  isLoading?: boolean
+}) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [sheetOpen, setSheetOpen] = useState(false)
-  const hasContent = !!fireData || (!!goals && goals.length > 0)
+  const showExpenseCoverage = !!expenseCoverage?.has_any_classified_income
+  const hasContent = !!fireData || showExpenseCoverage || (!!goals && goals.length > 0)
 
   function handleCreated() {
     setSheetOpen(false)
@@ -93,6 +101,7 @@ export default function GoalsSection({ fireData, goals, isLoading }: { fireData:
       ) : (
         <>
           {fireData && <PortfolioIndependenceRow data={fireData} navigate={navigate} />}
+          {showExpenseCoverage && expenseCoverage && <ExpenseCoverageRow data={expenseCoverage} />}
           {goals?.map((goal) => (
             <GoalRow key={goal.id} goal={goal} color={colorForKey(goal.id)} navigate={navigate} />
           ))}
@@ -183,6 +192,52 @@ function PortfolioIndependenceRow({ data, navigate }: { data: FireData; navigate
           Placeholder assumptions — set your real numbers in Chat
         </button>
       )}
+    </div>
+  )
+}
+
+function ExpenseCoverageRow({ data }: { data: ExpenseCoverageData }) {
+  const color = '#22C55E' // positive — same green used for income-side amounts elsewhere
+  const pct = Math.min(data.coverage_pct, 100)
+
+  return (
+    <div className="py-3.5 border-b border-border last:border-b-0">
+      <div className="flex items-baseline justify-between gap-2">
+        <p className="text-white font-semibold text-[15px]">
+          Expense Coverage
+          <InfoIcon title="Expense Coverage">
+            <p className="mb-2">
+              How much of your current monthly expenses your passive and semi-passive income
+              covers on its own — Coast/Barista FIRE. At 33%, you could drop a workday or a week
+              of active work without falling behind. At 100%, your base expenses are covered
+              independent of active work.
+            </p>
+            <p>
+              "Current monthly expenses" excludes one-off large purchases that would otherwise
+              distort the picture — the same logic Majordom already uses to flag unusually large
+              transactions elsewhere.
+            </p>
+          </InfoIcon>
+        </p>
+        <p className="font-display font-bold text-lg tabular-nums flex-shrink-0" style={{ color }}>
+          {formatPercent(data.coverage_pct, { decimals: 0 })}
+        </p>
+      </div>
+
+      <div className="relative w-full h-1.5 bg-border rounded-full overflow-hidden mt-3 mb-2.5">
+        <div
+          className="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
+          style={{ width: `${pct}%`, backgroundColor: color }}
+        />
+        {/* Milestone ticks at 33% and 100% — meaning lives only in the info-icon popup above, never as visible text here */}
+        <div className="absolute top-0 h-full w-px bg-background/60" style={{ left: '33%' }} />
+        <div className="absolute top-0 h-full w-px bg-background/60 right-0" />
+      </div>
+
+      <div className="flex items-center justify-between text-xs text-muted">
+        <span>{euro(data.passive_semi_passive_income)}/mo passive+semi-passive</span>
+        <span>{euro(data.filtered_monthly_expenses)}/mo expenses</span>
+      </div>
     </div>
   )
 }

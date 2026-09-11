@@ -1340,6 +1340,81 @@ async def propose_set_budget_carryover(category_name: str, enabled: bool, month:
     })
 
 
+async def propose_classify_income(category_name: str, income_type: str) -> str:
+    """
+    Propose tagging an income category as passive, semi-passive, or active
+    (#167 — Expense Coverage / Coast-FIRE prerequisite). Returns a
+    confirmation card — does NOT write to Actual Budget yet. Explicit user
+    choice only, never inferred automatically from transaction patterns
+    (decisions.md#coach-not-consultant).
+    """
+    import json
+    import uuid
+    from difflib import get_close_matches
+    from backend.tools import category_actions as action_store
+
+    canonical = None
+    for t in ("passive", "semi-passive", "active"):
+        if t.lower() == income_type.lower():
+            canonical = t
+            break
+    if canonical is None:
+        return json.dumps({
+            "type": "error",
+            "message": f"Invalid income_type: {income_type!r}. Must be one of passive, semi-passive, active.",
+        })
+
+    client = get_provider()
+    cats = await client.get_categories()
+    income_cats = [c for c in cats if c.is_income]
+    cat_names = [c.name for c in income_cats]
+    exact = next((n for n in cat_names if n.lower() == category_name.lower()), None)
+    resolved = exact or (get_close_matches(category_name, cat_names, n=1, cutoff=0.6) or [None])[0]
+    if not resolved:
+        return json.dumps({
+            "type": "error",
+            "message": f"Income category not found: {category_name!r}. Available income categories: {', '.join(cat_names) or 'none'}.",
+        })
+
+    action_id = uuid.uuid4().hex[:8]
+    action_store.store(action_id, {
+        "action": "classify_income",
+        "category_name": resolved,
+        "income_type": canonical,
+    })
+    return json.dumps({
+        "type": "category_action",
+        "id": action_id,
+        "action": "classify_income",
+        "category_name": resolved,
+        "income_type": canonical,
+    })
+
+
+async def get_income_classifications() -> str:
+    """List income categories already tagged passive/semi-passive/active (#167).
+
+    Read-only. Categories with no tag yet are simply omitted, not listed as
+    'unclassified' — an empty result means nothing has been tagged yet, not
+    an error.
+    """
+    client = get_provider()
+    classifications = await client.get_income_classifications()
+    return json.dumps({"type": "income_classifications", "categories": classifications})
+
+
+async def get_expense_coverage() -> str:
+    """Show current Expense Coverage % (#167) — (passive + semi-passive
+    monthly income) / (current monthly expenses, one-off large purchases
+    excluded). Read-only. If has_any_classified_income is false, no income
+    category has been tagged yet — tell the user to classify one first via
+    finance__propose_classify_income rather than showing a 0% coverage as
+    if it were a real measurement."""
+    client = get_provider()
+    coverage = await client.get_expense_coverage()
+    return json.dumps({"type": "expense_coverage", **coverage})
+
+
 async def propose_set_category_goal_template(
     category_name: str,
     goal_type: str,

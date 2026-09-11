@@ -43,6 +43,7 @@ export default function Dashboard() {
 
   const goals = homeData?.goals
   const fireData = homeData?.fire
+  const expenseCoverage = homeData?.expense_coverage
   const accountCount = homeData?.account_count
 
   const now = new Date()
@@ -118,7 +119,7 @@ export default function Dashboard() {
   function renderWidget(id: WidgetId): ReactNode {
     switch (id) {
       case 'goals':
-        return <GoalsSection fireData={fireData} goals={goals} isLoading={homeLoading} />
+        return <GoalsSection fireData={fireData} expenseCoverage={expenseCoverage} goals={goals} isLoading={homeLoading} />
       case 'budget':
         return periodCategories && periodCategories.length > 0 ? (
           <BudgetPeriodCard

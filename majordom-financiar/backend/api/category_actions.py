@@ -46,6 +46,7 @@ class GoalOverride(BaseModel):
     duplicate_category_name: str | None = None
     duplicate_notes: str | None = None
     duplicate_date: str | None = None
+    income_type: str | None = None  # classify_income: edited passive/semi-passive/active
 
 
 @router.post("/category-actions/{action_id}/confirm")
@@ -167,6 +168,11 @@ async def confirm_category_action(
             target_month = _date.fromisoformat(month_str)
             await client.set_budget_carryover(cat_name, target_month, enabled)
             message = f"Rollover overspending {'enabled' if enabled else 'disabled'} for '{cat_name}' ({month_str[:7]})."
+        elif action["action"] == "classify_income":
+            cat_name = override.category_name or action["category_name"]
+            income_type = override.income_type or action["income_type"]
+            await client.set_income_classification(cat_name, income_type)
+            message = f"'{cat_name}' classified as {income_type} income."
         elif action["action"] == "set_category_goal":
             goal_type = override.goal_type if override.goal_type is not None else action["goal_type"]
             by_month = override.by_month if override.by_month is not None else action.get("by_month", "")
