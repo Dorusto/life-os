@@ -204,17 +204,52 @@ earlier phases' fixture vehicles already exist in the DB): the scaffold runs sta
 a login screen, and after login shows the vehicle list fetched from vehicle-manager's own
 (now-authenticated) API.
 
-### Phase 4 — Frontend pages
+### ✅ Phase 4 — Frontend pages — done 2026-09-12
 
-1. Vehicle list (name, make/model/year, current value, last odo).
-2. Vehicle detail: value/depreciation chart + projection card (already fully backed by
-   vehicle-manager's existing `value-history`/`value-projection` endpoints — no Phase 1
-   dependency for this part), consumption chart, distance chart, cost-per-km chart,
-   monthly-cost chart, mileage chart, fuel/service log list, log-entry form, service/APK/
-   insurance reminder fields.
-3. Fuelio CSV import flow (backend already exists at `/import/fuelio` — just needs a UI).
-4. **Done when:** every chart/section that existed in majordom-financiar's old `VehicleDetail.tsx`
-   has an equivalent here, live-verified against real fixture data, not just a visual review.
+Implemented via a Claude fork (Doru's explicit choice again for this Senior-tier dispatch — many
+files, defines the detail-page pattern), with explicit repeated "do not commit, do not start any
+further phase" instructions after Phase 3's fork violated exactly that. This time it held: no
+commit, no stray worktree/branch, `git diff --stat` confirmed only the intended
+`tools/vehicle-manager/frontend/` files touched.
+
+New `VehicleDetail.tsx` (mirrors `majordom-financiar/frontend/src/pages/VehicleDetail.tsx`'s
+structure but calls vehicle-manager's own id-based REST endpoints directly): value/projection
+card, info rows, a new reminders card (`apk_due`/`insurance_due`/`service_interval_km`/`_months`
+— fields the reference page never displayed), all five charts including distance (the reference
+page never wired that one up), fuel/service log list with delete, and a log-entry form (fuel vs.
+other, POSTing to the batch-insert `/log` endpoint). New `FuelioImport.tsx` page — the only
+vehicle-creation path this app has, no manual "add vehicle" form (per this doc's own §2).
+`VehicleList.tsx` polished (value/odo columns, tap-through, import link). `api.ts` extended with
+12 typed functions for every new endpoint used above. Edit-vehicle/override-value UI deliberately
+left out of scope (existing backend endpoints, no Phase 4 UI for them — a later phase's call).
+
+**Real bug found in my own post-merge live verification, not caught by the fork's own
+curl-with-token checks:** Nginx's `/vehicles/` proxy prefix (from Phase 3) collided with the new
+`/vehicles/:id` *frontend* route added this phase — a direct request to `/vehicles/4` with no
+`Authorization` header (what a hard refresh or bookmark actually sends) hit vehicle-manager's own
+JSON API and got a raw 401 instead of the SPA shell, because Nginx's location-prefix matching
+can't distinguish "the browser wants the app page at this path" from "the app wants JSON from
+this path" when both use the same URL space. The fork's verification always sent a Bearer token
+via curl, which never exercises this path (a real page load doesn't attach one — the SPA checks
+`localStorage` client-side after the shell loads). Fixed by adopting the same `/api/` prefix
+majordom-financiar's own `nginx.conf` already uses for exactly this reason — vehicle-manager's
+routes now sit behind `/api/*` (prefix stripped by Nginx) with the frontend's own routes free to
+occupy the same-looking paths without collision. Same fix mirrored in `vite.config.ts`'s dev
+proxy (would have hit an identical problem in `npm run dev`, not just production) and `api.ts`'s
+`BASE` constant. Fixed directly (small, mechanical, three-file change, matching an established
+pattern already in the monorepo — not delegated).
+
+**Live-verified after the fix**, full round-trip through the real Nginx proxy: `/vehicles/4`
+with no auth header now serves the SPA shell (200, real `index.html`) instead of a raw 401;
+`/api/auth/login` issues a real token; `/api/vehicles/4`, `/api/vehicles/4/consumption-chart`,
+`/api/vehicles/4/log` all return real fixture data with a valid token and 401 without one;
+`POST`/`DELETE` on `/api/vehicles/4/log` and `/api/log/{id}` both confirmed (added a test entry,
+saw it appear, deleted it, confirmed it was gone); `/import` (SPA route) and `/api/health` both
+200. `npx tsc --noEmit` and `npm run build` clean before and after the fix.
+
+**Done when** (met): every chart/section from majordom-financiar's old `VehicleDetail.tsx` has an
+equivalent here (plus distance chart, log list/form, and reminders, which that page never had),
+live-verified against real fixture data end-to-end, not just a visual/diff review.
 
 ### Phase 5 — Retire the old in-app pages
 

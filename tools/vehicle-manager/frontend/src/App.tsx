@@ -2,6 +2,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { isAuthenticated } from './lib/auth'
 import Login from './pages/Login'
 import VehicleList from './pages/VehicleList'
+import VehicleDetail from './pages/VehicleDetail'
+import FuelioImport from './pages/FuelioImport'
 
 /**
  * ProtectedRoute: redirects to /login if the user is not authenticated.
@@ -26,6 +28,22 @@ export default function App() {
           element={
             <ProtectedRoute>
               <VehicleList />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/vehicles/:id"
+          element={
+            <ProtectedRoute>
+              <VehicleDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/import"
+          element={
+            <ProtectedRoute>
+              <FuelioImport />
             </ProtectedRoute>
           }
         />
