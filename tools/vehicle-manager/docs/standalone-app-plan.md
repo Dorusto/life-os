@@ -75,7 +75,14 @@ chart-computation functions above need to move to the other side of that proxy.
 
 ## 3. Phases
 
-### Phase 1 — Migrate chart computation into vehicle-manager (backend only, no UI yet)
+### ✅ Phase 1 — Migrate chart computation into vehicle-manager (backend only, no UI yet) — done 2026-09-12
+
+Delegated to DeepSeek Flash (`delegate-by-complexity`); Aider completed 3 of 6 function refactors
+correctly, then stopped partway and left a stray markdown code-fence that broke `charts.py`'s
+Python syntax entirely — finished directly (same pattern, `git log` on `main` shows both commits)
+and fixed the syntax artifact before merge. Live-verified: all 6 new vehicle-manager endpoints
+tested directly against real fixture data; majordom-financiar's chat tools produce byte-identical
+output to before the migration (compared point values, not just response shape).
 
 1. Port `_get_fuel_intervals()` and the six chart/summary functions listed in §1 into
    `tools/vehicle-manager/app/` (a new `charts.py` module is a reasonable place — mirrors
