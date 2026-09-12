@@ -138,7 +138,7 @@ Without the profile, the **ollama** container is skipped entirely — the rest o
 
 First start takes 5–10 minutes while Ollama downloads the AI model (local profile only).
 
-**Optional: vehicle/fuel tracking.** Add `--profile vehicle-manager` to the command above to also start the vehicle-manager service (`vehicle-manager` + `vehicle-manager-sqlite-web` on `:8889`) — a Fuelio-replacement companion app. Skip it if you don't need vehicle tracking; the rest of Majordom works fully without it.
+**Optional: vehicle/fuel tracking.** Add `--profile vehicle-manager` to the command above to also start the vehicle-manager service (`vehicle-manager` API, `vehicle-manager-sqlite-web` on `:8889`, and its own standalone web app — "Majordom Transport" — on `:3010`) — a Fuelio-replacement companion app with its own frontend, connected to Majordom for chat/notifications only. Skip it if you don't need vehicle tracking; the rest of Majordom works fully without it.
 
 ### 4. Set up Actual Budget
 
@@ -274,9 +274,14 @@ See [docs/roadmap.md](docs/roadmap.md) for the full roadmap with implementation 
 
 Short version of what's coming:
 - Document Management — scan invoices, warranties, vehicle docs, insurance policies
-- Vehicle consumption/cost charts and cross-vehicle comparison (the fuel log itself already works, see above)
-- Investment portfolio tracking (Sure) — budget/investments integration in progress
-- Extract vehicle tracking into its own independent service (internal modularity, REST + MCP)
+- A standalone investment/portfolio-tracking app — its own service, connected to Majordom the
+  same way vehicle-manager is (see below), not a budgeting-platform migration
+- Visual polish pass across the app, once the above two personal-use gaps are closed
+
+Already shipped, not "coming": vehicle tracking runs as its own independent service
+(`tools/vehicle-manager/`) with its own standalone frontend ("Majordom Transport", optional
+`--profile vehicle-manager`) — consumption/cost charts, cross-vehicle comparison, and Fuelio
+import all live there now, connected to Majordom over REST for chat/notifications only.
 
 ---
 

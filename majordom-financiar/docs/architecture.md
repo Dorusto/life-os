@@ -48,6 +48,21 @@ client to the external `vehicle-manager` service, which lives at `life-os/tools/
 this directory, at the monorepo repo root, not inside `majordom-financiar/`. See the "Project Structure" section
 below and `docs/decisions.md#vehicle-manager-standalone-frontend`.
 
+**`vehicle-manager` now has its own standalone frontend too** (`tools/vehicle-manager/frontend/`,
+branded "Majordom Transport" in the UI, built 2026-09-12 — see
+`tools/vehicle-manager/docs/standalone-app-plan.md` for the full build record). Own React app,
+own JWT login, served by its own `vehicle-manager-web` docker-compose service (default port
+3010). Its own Nginx puts vehicle-manager's REST API behind an `/api/` prefix (stripped before
+forwarding) — required because the app's own React Router pages live at paths (`/vehicles/:id`)
+that would otherwise collide with the backend's bare `/vehicles/*` routes; same reasoning as
+majordom-web's own `/api/` proxy below. Majordom-financiar's relationship to vehicle-manager is
+unchanged by this — `VehicleClient` still talks to it directly (not through the new frontend's
+Nginx), now sending an `X-Service-Token` header vehicle-manager's own auth layer requires. The
+in-app `VehicleDetail.tsx` page that used to live in *this* app's own frontend was retired in the
+same effort — the standalone app is the real destination for vehicle detail/charts now;
+majordom-financiar's Accounts page keeps only the vehicle-linking UI and a summary link into the
+generic account-detail page.
+
 ---
 
 ## Technical Stack

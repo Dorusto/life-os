@@ -146,13 +146,13 @@ After connecting, note the Tailscale IP of the LXC (e.g. `100.x.x.x`) or use you
 > ```
 > Leave the terminal open and open `http://localhost:5007` — localhost counts as a secure context.
 
-**Debug tools (sqlite-web) need their own `tailscale serve` entry per port.** The `sqlite-web` containers (`memory.db` on 8888, `vehicle-manager`'s DB on 8889) have no TLS of their own — browsers connecting over `https://<tailnet-name>:<port>` will fail with `SSL_ERROR_RX_RECORD_TOO_LONG` unless Tailscale terminates HTTPS for that exact port. This is configured per port, not once for the whole domain — adding a new debug port later needs its own line:
+**Debug tools (sqlite-web) — and any other plain-Nginx service, like the optional vehicle-manager frontend — need their own `tailscale serve` entry per port.** The `sqlite-web` containers (`memory.db` on 8888, `vehicle-manager`'s DB on 8889) have no TLS of their own — browsers connecting over `https://<tailnet-name>:<port>` will fail with `SSL_ERROR_RX_RECORD_TOO_LONG` unless Tailscale terminates HTTPS for that exact port. This is configured per port, not once for the whole domain — adding a new debug port later needs its own line:
 
 ```bash
 sudo tailscale serve --bg --https=8889 http://127.0.0.1:8889
 ```
 
-Check current mappings with `tailscale serve status`. As of this writing: `:443` → majordom-web (3000), `:8888` → sqlite-web/memory.db, `:8889` → sqlite-web/vehicle-manager.
+Check current mappings with `tailscale serve status`. As of this writing: `:443` → majordom-web (3000), `:8888` → sqlite-web/memory.db, `:8889` → sqlite-web/vehicle-manager. If you enabled `--profile vehicle-manager` and want remote access to its own frontend ("Majordom Transport", `:3010`), it's plain Nginx too — give it the same treatment (`sudo tailscale serve --bg --https=3010 http://127.0.0.1:3010`).
 
 ### 7. Set up Actual Budget
 

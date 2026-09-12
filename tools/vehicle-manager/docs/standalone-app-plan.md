@@ -262,8 +262,12 @@ Dashboard "Vehicle costs" widget, Accounts-page vehicle-linking UI. `npx tsc --n
 across the whole frontend, Docker rebuild clean, live-verified `/`, `/accounts`, and the removed
 route's URL all still serve correctly (no server error).
 
-**Not checked, flagged as a real follow-up**: whether `backend/api/vehicle_value.py`/
-`vehicle_charts.py`'s REST routes that only the deleted page called are now also dead code.
+**Checked in a follow-up pass, same day**: confirmed 9 routes across `backend/api/vehicle_value.py`
+(`get_vehicle`, `value-history`, `value-projection`, `value-override`) and `vehicle_charts.py`
+(all 5 chart endpoints) now have no frontend caller anywhere in `frontend/src/`.
+`GET /vehicle/costs-summary` stays alive (Dashboard's widget, a different file). Not removed here
+— filed as [#264](https://github.com/Dorusto/life-os/issues/264) rather than acted on
+immediately, since it's dead-code cleanup, not part of this plan's own scope.
 
 **Done when** (met): no dead code (verified via grep for every symbol the deleted files exported,
 not just their own paths), no broken links from Accounts/Dashboard into the removed route.
@@ -276,10 +280,13 @@ Phases 1-5 are all done and live-verified standalone. Per the original request t
 plan, the next checkpoint is Doru's own review/testing of the whole thing — standalone app
 functionality *and* its integration with majordom-financiar — not a further autonomous phase.
 Open items from along the way (not blocking, not forgotten): #263's MCP-hub layer (deliberately
-deferred), the backend-route-cleanup follow-up noted in Phase 5 above, and whatever Doru's own
-review surfaces. The investment-tracking app is the next major thread once this one is confirmed
-working for him, per the same two-phase process (build + live-verify autonomously, then his
-review).
+deferred), [#264](https://github.com/Dorusto/life-os/issues/264) (dead backend-route cleanup),
+and whatever Doru's own review surfaces. The investment-tracking app (#262) is the next major
+thread once this one is confirmed working for him, per the same two-phase process (build +
+live-verify autonomously, then his review) — see `../standalone-app-playbook.md` (sibling doc,
+written the same day) for what's reusable from this run before starting that one, including two
+real mistakes worth not repeating (a routing bug found only after merge, and a fork ignoring a
+mid-prompt "don't commit" instruction until it was restated as its own top-and-bottom section).
 
 ---
 
