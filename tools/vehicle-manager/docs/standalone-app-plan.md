@@ -148,19 +148,61 @@ every touched Python file.
 **Done when** (met): vehicle-manager refuses an unauthenticated request, and majordom-financiar's
 existing proxy calls still work unchanged — both confirmed above.
 
-### Phase 3 — New frontend scaffold
+### ✅ Phase 3 — New frontend scaffold — done 2026-09-12
 
-1. New React + Vite + Tailwind app (same stack as majordom-financiar's `frontend/`, for
-   consistency and so `Chart.tsx`'s existing `{chart_type, title, data, refetch}` contract can
-   be reused directly — copy that component over, it's generic and already fits this data
-   shape exactly).
-2. Own login page, own `authFetch`-equivalent, own routing shell (bottom nav or similar —
-   Fuelio's own navigation is the reference to look at for shape, not majordom-financiar's
-   5-tab bar, since this is a different app with different sections).
-3. New docker-compose service (own container, own port, own Nginx static-file serving —
-   `majordom-web`'s existing Dockerfile is the structural reference).
-4. **Done when:** the scaffold runs standalone, shows a login screen, and after login shows an
-   empty vehicle list fetched from vehicle-manager's own (now-authenticated) API.
+Implemented via a Claude fork (Doru's explicit choice over DeepSeek Pro, per
+`delegate-by-complexity`'s standing rule to always ask before a Senior-tier dispatch — this
+task was foundational/convention-setting: routing, auth pattern, API client shape, Docker/Nginx,
+all precedent for Phases 4-5). User-facing branding: "Majordom Transport" (Doru's own naming),
+kept separate from the technical `vehicle-manager` naming used everywhere in code/infra — #150's
+service-naming question stays open and unrelated to this UI-layer choice.
+
+New `tools/vehicle-manager/frontend/` — separate Vite+React+Tailwind app, own `package.json`,
+own Docker image (multi-stage node→nginx, mirrors `majordom-web`'s Dockerfile). Trimmed to only
+what this phase needs: no push notifications, no receipt flow, no chat, no `@fontsource`
+webfonts (system fonts instead) — those get added in later phases only if actually needed.
+
+Copied verbatim from majordom-financiar's frontend (confirmed portable, no majordom-financiar-
+specific imports): `Chart.tsx` + its two dependencies `formatCurrency.ts`/`chartColors.ts` — not
+wired to any page yet, Phase 4 does that. Adapted (not verbatim): `auth.ts` (own localStorage
+keys `vehicle_manager_token`/`vehicle_manager_username`, dropped the AB-down 503 handling that
+doesn't apply here), `Login.tsx` (Majordom Transport branding), a new minimal `api.ts`
+(`login()` + `getVehicles()` only — more endpoints added in Phase 4, not stubbed speculatively),
+a new `VehicleList.tsx` (deliberately minimal placeholder proving the pipeline works, not final
+UI), and a trimmed `App.tsx`/`main.tsx` (single protected route, no bottom nav yet — only one
+real page exists).
+
+New `vehicle-manager-web` service in `majordom-financiar/docker-compose.yml`
+(`VEHICLE_MANAGER_WEB_PORT`, default 3010), same `profiles: ["vehicle-manager"]` gate as the
+other two vehicle-manager services. Nginx proxies `/auth/`, `/vehicles/`, `/log/`, `/import/`,
+`/health` to `vehicle-manager:8010` internally — same pattern as majordom-financiar's own
+`nginx.conf` proxying `/api/` to `majordom-api:8000`.
+
+**Found and fixed along the way:** `tools/vehicle-manager/frontend/` needed its own
+`.gitignore` (`node_modules/`) — the repo root's `.gitignore` has no `node_modules` pattern at
+all (majordom-financiar's own frontend is covered only by `majordom-financiar/.gitignore`,
+which doesn't reach outside that directory) — confirmed via `git check-ignore -v` before adding
+it, not assumed. Separately, `package-lock.json`'s randomly-generated sha512 integrity hashes
+coincidentally matched `check-private-data.sh`'s VIN-number regex (17 mixed alnum chars) —
+excluded common lockfiles (`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `poetry.lock`,
+`Cargo.lock`) from the scanner's diff entirely, since they're machine-generated high-entropy
+content structurally incapable of containing the private-data categories this scanner checks
+for — a narrower, more principled fix than the whitelist-prefix patches used for the two
+`os.getenv(`/`change_`-prefix false positives found in Phase 2.
+
+**Live-verified** through the real Nginx proxy (browser still unavailable this session, same
+substitution as Phases 1-2): `GET /` serves `index.html` with the correct title; `POST
+/auth/login` through the proxy returns a real JWT; `GET /vehicles` with that JWT returns the
+real fixture vehicles (Duster/Test Car/kia) unchanged; the same request without a token → 401;
+`/health` → 200; the built JS asset is served with a 200. `npm run build`/`npx tsc --noEmit`
+both clean, `docker build` clean, `docker compose --profile vehicle-manager config` clean.
+`git diff --stat` confirmed no stray edits outside the new directory plus the 2 files
+(`docker-compose.yml`, `.env.example`) + the scanner fix.
+
+**Done when** (met, and exceeded — real fixture data came back instead of an empty list, since
+earlier phases' fixture vehicles already exist in the DB): the scaffold runs standalone, shows
+a login screen, and after login shows the vehicle list fetched from vehicle-manager's own
+(now-authenticated) API.
 
 ### Phase 4 — Frontend pages
 

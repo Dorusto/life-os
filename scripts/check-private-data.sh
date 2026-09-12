@@ -21,7 +21,15 @@ export LC_ALL=C.UTF-8
 
 ERRORS=0
 INTENT_FILES=()
-STAGED=$(git diff --cached -U0 | grep '^+' | grep -v '^+++')
+# Lockfiles excluded from the scan entirely (2026-09-12): they're machine-
+# generated, high-entropy content (base64 integrity hashes, resolved URLs) —
+# never capable of containing the private-data categories this script checks
+# for, and their randomness pathologically false-positives on character-
+# pattern regexes (a sha512 hash matched the 17-char VIN pattern purely by
+# coincidence the first time a new lockfile was committed). This is a
+# structural exclusion, not a weakening of any real-data regex.
+LOCKFILE_PATHSPECS=(':(exclude)*package-lock.json' ':(exclude)*yarn.lock' ':(exclude)*pnpm-lock.yaml' ':(exclude)*poetry.lock' ':(exclude)*Cargo.lock')
+STAGED=$(git diff --cached -U0 -- . "${LOCKFILE_PATHSPECS[@]}" | grep '^+' | grep -v '^+++')
 # Ad-hoc self-check (not just the pre-commit gate): if nothing is staged yet,
 # fall back to the unstaged working-tree diff plus any untracked files
 # (via git add -N, cleaned up after) so this is runnable mid-session,
@@ -37,7 +45,7 @@ if [[ -z "$STAGED" ]]; then
         git add -N -- "${UNTRACKED[@]}"
         INTENT_FILES=("${UNTRACKED[@]}")
     fi
-    STAGED=$(git diff -U0 | grep '^+' | grep -v '^+++')
+    STAGED=$(git diff -U0 -- . "${LOCKFILE_PATHSPECS[@]}" | grep '^+' | grep -v '^+++')
 fi
 
 # Feed grep via a temp file instead of an `echo` pipe — piping multi-byte

@@ -1,0 +1,88 @@
+/**
+ * Auth helpers — JWT token storage and retrieval.
+ *
+ * Same shape as majordom-financiar/frontend/src/lib/auth.ts, minus the
+ * Actual-Budget-connection-down handling (not relevant to this app).
+ *
+ * Why localStorage (not cookies)? Cookies require SameSite/Secure config
+ * that's awkward on a private network. This app is on a private network,
+ * not the public internet — CSRF is not a concern. localStorage is simpler
+ * and works identically on all mobile browsers.
+ */
+
+const TOKEN_KEY = 'vehicle_manager_token'
+const USERNAME_KEY = 'vehicle_manager_username'
+
+export function saveAuth(token: string, username: string): void {
+  localStorage.setItem(TOKEN_KEY, token)
+  localStorage.setItem(USERNAME_KEY, username)
+}
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY)
+}
+
+export function getUsername(): string | null {
+  return localStorage.getItem(USERNAME_KEY)
+}
+
+export function clearAuth(): void {
+  localStorage.removeItem(TOKEN_KEY)
+  localStorage.removeItem(USERNAME_KEY)
+}
+
+export class ApiError extends Error {
+  constructor(public status: number, message: string) {
+    super(message)
+    this.name = 'ApiError'
+  }
+}
+
+export function isAuthenticated(): boolean {
+  const token = getToken()
+  if (!token) return false
+
+  // Decode JWT payload (no verification — the server verifies on every request)
+  // Just check the expiry locally so we can redirect to login proactively.
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return payload.exp * 1000 > Date.now()
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Authenticated fetch wrapper that automatically adds the JWT token.
+ * Returns the raw Response object for custom handling.
+ */
+export async function authFetch(
+  input: RequestInfo,
+  init?: RequestInit,
+  opts?: { redirectOn401?: boolean }
+): Promise<Response> {
+  const token = getToken()
+  const headers = new Headers(init?.headers)
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+  // If Content-Type not set and body is not FormData, default to JSON
+  if (!headers.has('Content-Type') && init?.body && !(init.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json')
+  }
+  const res = await fetch(input, {
+    ...init,
+    headers,
+  })
+  if (res.status === 401 && opts?.redirectOn401 !== false) {
+    // Token expired or invalid — clear local auth and redirect to login
+    clearAuth()
+    window.location.href = '/login'
+    throw new ApiError(401, 'Session expired')
+  }
+  // redirectOn401: false — a 401 here isn't a session issue (e.g. a login
+  // attempt, where it means "wrong password"). Return the response as-is so
+  // the caller reads the real error detail from the body, same as any other
+  // non-ok response.
+  return res
+}

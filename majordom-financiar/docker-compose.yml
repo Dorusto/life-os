@@ -131,6 +131,22 @@ services:
       retries: 5
       start_period: 15s
 
+  vehicle-manager-web:
+    profiles: ["vehicle-manager"]
+    build:
+      context: ../tools/vehicle-manager/frontend
+      dockerfile: Dockerfile
+    container_name: vehicle-manager-web
+    restart: unless-stopped
+    ports:
+      # Change VEHICLE_MANAGER_WEB_PORT in .env to use a different port (default: 3010)
+      - "${VEHICLE_MANAGER_WEB_PORT:-3010}:80"
+    depends_on:
+      vehicle-manager:
+        condition: service_started
+    networks:
+      - majordom-net
+
   majordom-web:
     build:
       context: ./frontend
