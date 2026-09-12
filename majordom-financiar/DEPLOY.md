@@ -183,8 +183,15 @@ Then follow steps 3–8 above.
 
 ```bash
 git pull
+docker compose pull
 docker compose up -d --build
 ```
+
+`docker compose pull` is required, not optional — `--build` only rebuilds the services built from
+this repo's own source (`majordom-api`, `majordom-web`, `vehicle-manager*`). It does **not** fetch
+newer versions of prebuilt third-party images (`actualbudget/actual-server`, `coleifer/sqlite-web`)
+— skipping `pull` silently leaves those pinned to whatever was last pulled, even after a full
+`git pull` + rebuild.
 
 ---
 

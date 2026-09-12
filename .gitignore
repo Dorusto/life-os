@@ -6,6 +6,14 @@
 # Date locale
 majordom-financiar/data/
 
+# Real broker/bank exports dropped locally for testing an import feature —
+# never tracked, regardless of filename/format. A real XTB export briefly
+# landed in tools/investment-manager/docs/samples/ (2026-09-12, caught before
+# any commit) — this exists so that mistake can't happen again, for this app
+# or any future one with the same "drop a real export here to test against"
+# pattern.
+tools/*/docs/samples/
+
 # Python
 __pycache__/
 *.py[cod]

@@ -81,7 +81,14 @@ services:
     restart: unless-stopped
     env_file: .env
     ports:
-      - "8888:8080"
+      # Bound to loopback only, not 0.0.0.0: on a host where `tailscale serve`
+      # proxies this same port from the Tailscale interface to 127.0.0.1, a
+      # wildcard (0.0.0.0) publish here loses the port to tailscaled's own
+      # specific-address bind on every container recreate — Linux won't let a
+      # wildcard bind coexist with an existing specific-address bind on the
+      # same port. Loopback-only avoids the conflict entirely and matches
+      # exactly what `tailscale serve`'s proxy target already expects.
+      - "127.0.0.1:8888:8080"
     volumes:
       - ./data:/data
     command: ["sqlite_web", "-H", "0.0.0.0", "-p", "8080", "/data/memory.db"]
@@ -97,7 +104,8 @@ services:
     container_name: vehicle-manager-sqlite-web
     restart: unless-stopped
     ports:
-      - "8889:8080"
+      # Loopback-only — same reasoning as sqlite-web's port above.
+      - "127.0.0.1:8889:8080"
     volumes:
       - vehicle-manager-data:/data
     command: ["sqlite_web", "-H", "0.0.0.0", "-p", "8080", "/data/vehicles.db"]
@@ -147,6 +155,70 @@ services:
     networks:
       - majordom-net
 
+  # --- Investment Manager (optional — use profile investment-manager to enable
+  # portfolio tracking) --- majordom-api works fine without it; investment-related
+  # tools/routes just error out if called while it's not running. Same standalone
+  # shape as vehicle-manager — see docs/decisions.md#portfolio-becomes-separate-service
+  # and tools/investment-manager/docs/standalone-app-plan.md.
+  investment-manager-sqlite-web:
+    profiles: ["investment-manager"]
+    image: coleifer/sqlite-web
+    container_name: investment-manager-sqlite-web
+    restart: unless-stopped
+    ports:
+      # Loopback-only — see sqlite-web's own port comment above for why
+      # (tailscale serve's specific-address bind vs. a 0.0.0.0 wildcard bind
+      # can't coexist on the same port; this was a real outage on 8888/8889).
+      - "127.0.0.1:8890:8080"
+    volumes:
+      - investment-manager-data:/data
+    command: ["sqlite_web", "-H", "0.0.0.0", "-p", "8080", "/data/investments.db"]
+    networks:
+      - majordom-net
+
+  investment-manager:
+    profiles: ["investment-manager"]
+    build:
+      # Cross-directory: ../tools/investment-manager lives at the life-os repo
+      # root, sibling to majordom-financiar/, not inside it — same pattern as
+      # vehicle-manager (#221).
+      context: ../tools/investment-manager
+      dockerfile: Dockerfile
+    container_name: investment-manager
+    restart: unless-stopped
+    environment:
+      INVESTMENT_MANAGER_JWT_SECRET: ${INVESTMENT_MANAGER_JWT_SECRET}
+      INVESTMENT_MANAGER_USER1_USERNAME: ${INVESTMENT_MANAGER_USER1_USERNAME}
+      INVESTMENT_MANAGER_USER1_PASSWORD: ${INVESTMENT_MANAGER_USER1_PASSWORD}
+      INVESTMENT_MANAGER_SERVICE_TOKEN: ${INVESTMENT_MANAGER_SERVICE_TOKEN}
+      TWELVE_DATA_API_KEY: ${TWELVE_DATA_API_KEY}
+    volumes:
+      - investment-manager-data:/app/data
+    networks:
+      - majordom-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8020/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  investment-manager-web:
+    profiles: ["investment-manager"]
+    build:
+      context: ../tools/investment-manager/frontend
+      dockerfile: Dockerfile
+    container_name: investment-manager-web
+    restart: unless-stopped
+    ports:
+      # Change INVESTMENT_MANAGER_WEB_PORT in .env to use a different port (default: 3020)
+      - "${INVESTMENT_MANAGER_WEB_PORT:-3020}:80"
+    depends_on:
+      investment-manager:
+        condition: service_started
+    networks:
+      - majordom-net
+
   majordom-web:
     build:
       context: ./frontend
@@ -174,6 +246,8 @@ volumes:
     name: majordom-ollama-data
   vehicle-manager-data:
     name: vehicle-manager-data
+  investment-manager-data:
+    name: investment-manager-data
 
 networks:
   majordom-net:
