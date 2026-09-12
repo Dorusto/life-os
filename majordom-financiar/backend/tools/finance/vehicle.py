@@ -428,69 +428,6 @@ async def get_vehicle_stats(vehicle_name: str = "", period: str = "") -> str:
     return "\n".join(lines)
 
 
-async def _get_fuel_intervals(
-    client: VehicleClient,
-    vehicle_id: int,
-    months: int,
-    start_date: str | None = None,
-    end_date: str | None = None,
-) -> list[dict]:
-    """
-    Return one entry per full-tank-to-full-tank fill-up interval:
-    {"date": iso date of the later fill-up, "distance_km": float,
-     "liters": float, "consumption": L/100km float}.
-
-    Shared by get_vehicle_consumption_chart and get_vehicle_distance_chart — both
-    plot the same underlying intervals, just a different field on the y-axis.
-
-    Consumption/distance are only meaningful between two consecutive full-tank
-    fill-ups (partial fill-ups don't reflect the tank's true starting point), so
-    partial entries are skipped — same convention Fuelio uses.
-
-    months: how far back to include (12 = last year, 60 = last 5 years, 0 = all
-    time). Measured back from the vehicle's most recent fill-up, not today's
-    date, so the window is meaningful even for a vehicle logged infrequently.
-    Ignored if start_date/end_date are given (explicit custom range instead).
-    """
-    from datetime import timedelta
-
-    # Fetch generously (fill-ups are roughly biweekly, so 5 years is at most ~150
-    # entries) — vehicle-manager's /log endpoint has no date-range filter, so we
-    # over-fetch and filter client-side instead.
-    rows = await client.get_log(vehicle_id, limit=500, entry_type="fuel")
-    full_tank_rows = sorted(
-        (r for r in rows if r.get("fuel_full_tank") and r.get("odo_km") and r.get("fuel_liters")),
-        key=lambda r: r.get("date") or "",
-    )
-
-    if start_date or end_date:
-        cutoff_start, cutoff_end = start_date, end_date
-    else:
-        cutoff_start, cutoff_end = None, None
-        if months > 0 and full_tank_rows:
-            latest = (full_tank_rows[-1].get("date") or "")[:10]
-            if latest:
-                cutoff_start = (_date.fromisoformat(latest) - timedelta(days=months * 30)).isoformat()
-
-    intervals = []
-    for prev, curr in zip(full_tank_rows, full_tank_rows[1:]):
-        distance = curr["odo_km"] - prev["odo_km"]
-        if distance <= 0:
-            continue
-        x = (curr.get("date") or "")[:10]
-        if cutoff_start and x < cutoff_start:
-            continue
-        if cutoff_end and x > cutoff_end:
-            continue
-        intervals.append({
-            "date": x,
-            "distance_km": distance,
-            "liters": curr["fuel_liters"],
-            "consumption": curr["fuel_liters"] / distance * 100,
-        })
-    return intervals
-
-
 def _vehicle_line_chart_refetch(endpoint: str, display_name: str, months: int, points: list[dict]) -> dict:
     """
     Shared refetch config for the per-vehicle line charts: preset period buttons,
@@ -521,8 +458,8 @@ async def get_vehicle_consumption_chart(
 ) -> str:
     """
     Return fuel consumption trend as JSON for the frontend to render as a line chart.
-    See _get_fuel_intervals for the full-tank-interval convention, months, and the
-    start_date/end_date custom-range override.
+    Computed by vehicle-manager itself; this just resolves the vehicle name and adds
+    the chat-specific refetch config.
     """
     client = _get_client()
 
@@ -532,22 +469,10 @@ async def get_vehicle_consumption_chart(
     display_name = matched["name"]
     vehicle_id = matched["id"]
 
-    intervals = await _get_fuel_intervals(client, vehicle_id, months, start_date, end_date)
-    points = [{"x": iv["date"], "y": round(iv["consumption"], 1)} for iv in intervals]
-
-    return json.dumps({
-        "type": "chart",
-        "chart_type": "line",
-        "title": f"Fuel Consumption — {display_name.title()}",
-        "data": {
-            "series": [{"label": "L/100km", "color": "#6366F1", "points": points}],
-            "empty_message": "Not enough full-tank fill-ups yet to calculate a consumption trend (need at least 2).",
-        },
-        # Lets the frontend switch the period in place (a GET against this REST
-        # endpoint) instead of round-tripping through the LLM for a deterministic
-        # parameter change — see backend/api/vehicle_charts.py.
-        "refetch": _vehicle_line_chart_refetch("/vehicle/consumption-chart", display_name, months, points),
-    })
+    chart = await client.get_consumption_chart(vehicle_id, months, start_date, end_date)
+    points = chart["data"]["series"][0]["points"]
+    chart["refetch"] = _vehicle_line_chart_refetch("/vehicle/consumption-chart", display_name, months, points)
+    return json.dumps(chart)
 
 
 async def get_vehicle_distance_chart(
@@ -558,8 +483,7 @@ async def get_vehicle_distance_chart(
 ) -> str:
     """
     Return distance-driven-between-fill-ups trend as JSON for the frontend to render
-    as a line chart. Same full-tank intervals as get_vehicle_consumption_chart (see
-    _get_fuel_intervals) — this plots km driven instead of L/100km.
+    as a line chart. Computed by vehicle-manager.
     """
     client = _get_client()
 
@@ -569,67 +493,29 @@ async def get_vehicle_distance_chart(
     display_name = matched["name"]
     vehicle_id = matched["id"]
 
-    intervals = await _get_fuel_intervals(client, vehicle_id, months, start_date, end_date)
-    points = [{"x": iv["date"], "y": round(iv["distance_km"], 0)} for iv in intervals]
-
-    return json.dumps({
-        "type": "chart",
-        "chart_type": "line",
-        "title": f"Distance Between Fill-ups — {display_name.title()}",
-        "data": {
-            "series": [{"label": "km", "color": "#22C55E", "points": points}],
-            "empty_message": "Not enough full-tank fill-ups yet to calculate a distance trend (need at least 2).",
-        },
-        "refetch": _vehicle_line_chart_refetch("/vehicle/distance-chart", display_name, months, points),
-    })
+    chart = await client.get_distance_chart(vehicle_id, months, start_date, end_date)
+    points = chart["data"]["series"][0]["points"]
+    chart["refetch"] = _vehicle_line_chart_refetch("/vehicle/distance-chart", display_name, months, points)
+    return json.dumps(chart)
 
 
 async def get_vehicle_costs_summary(period: str = "") -> dict:
     """
     Aggregate cost stats across every active vehicle for a period
-    (period: "YYYY-MM", "YYYY", or "" for all-time — same convention as
-    VehicleClient.get_stats / the vehicle-manager /stats endpoint).
+    (period: "YYYY-MM", "YYYY", or "" for all-time). Computed by
+    vehicle-manager itself now (backend/tools/finance/vehicle.py used to
+    aggregate this locally from per-vehicle /stats calls — that duplicated
+    the same loop vehicle-manager can now do against its own database
+    directly).
     Returns {"available": False, "error": <message>} if vehicle-manager
     is unreachable (VehicleClientError) — never raises, per CLAUDE.md's
     "vehicle-manager is optional, handle it being down gracefully" rule.
     """
     client = _get_client()
     try:
-        vehicles = await client.list_vehicles(active_only=True)
+        return await client.get_costs_summary(period=period)
     except VehicleClientError as e:
         return {"available": False, "error": str(e)}
-
-    total_fuel_cost = 0.0
-    total_other_cost = 0.0
-    total_cost = 0.0
-    total_distance = 0.0
-
-    for vehicle in vehicles:
-        try:
-            stats = await client.get_stats(vehicle["id"], period=period)
-        except VehicleClientError as e:
-            logger.warning("vehicle-manager stats request failed for vehicle %s: %s", vehicle.get("id"), e)
-            continue
-        if not stats:
-            continue
-
-        # defensive defaults — stats may be missing keys if a vehicle has no fuel history yet
-        total_fuel_cost += float(stats.get("total_fuel_cost") or 0)
-        total_other_cost += float(stats.get("total_other_cost") or 0)
-        total_cost += float(stats.get("total_cost") or 0)
-        total_distance += float(stats.get("total_distance") or 0)
-
-    cost_per_km = round(total_fuel_cost / total_distance, 3) if total_distance > 0 else None
-
-    return {
-        "available": True,
-        "vehicle_count": len(vehicles),
-        "total_fuel_cost": round(total_fuel_cost, 2),
-        "total_other_cost": round(total_other_cost, 2),
-        "total_cost": round(total_cost, 2),
-        "total_distance": round(total_distance, 1),
-        "cost_per_km": cost_per_km,
-    }
 
 
 async def set_vehicle_type(vehicle_name: str, vehicle_type: str) -> str:
@@ -708,54 +594,6 @@ async def propose_set_vehicle_active(vehicle_name: str, active: bool) -> str:
     })
 
 
-async def _get_monthly_cost_and_distance(
-    client: VehicleClient,
-    vehicle_id: int,
-    months: int,
-) -> list[dict]:
-    """One entry per calendar month with any vehicle_log activity.
-
-    total_cost sums cost_total across every entry_type in that month.
-    total_distance_km sums the full-tank-to-full-tank fuel intervals
-    (reusing _get_fuel_intervals) that fall within that month.
-
-    months=0 means all time; otherwise only the most recent `months` months
-    are returned.
-    """
-    rows = await client.get_log(vehicle_id, limit=500)
-    intervals = await _get_fuel_intervals(client, vehicle_id, 0)
-
-    monthly: dict[str, dict] = {}
-
-    for r in rows:
-        month = (r.get("date") or "")[:7]
-        if not month:
-            continue
-        bucket = monthly.setdefault(month, {"total_cost": 0.0, "total_distance_km": 0.0})
-        bucket["total_cost"] += float(r.get("cost_total") or 0)
-
-    for iv in intervals:
-        month = (iv.get("date") or "")[:7]
-        if not month:
-            continue
-        bucket = monthly.setdefault(month, {"total_cost": 0.0, "total_distance_km": 0.0})
-        bucket["total_distance_km"] += iv["distance_km"]
-
-    result = [
-        {
-            "month": m,
-            "total_cost": round(monthly[m]["total_cost"], 2),
-            "total_distance_km": round(monthly[m]["total_distance_km"], 2),
-        }
-        for m in sorted(monthly)
-    ]
-
-    if months > 0:
-        result = result[-months:]
-
-    return result
-
-
 async def get_vehicle_cost_per_km_chart(
     vehicle_name: str = "",
     months: int = 12,
@@ -771,27 +609,10 @@ async def get_vehicle_cost_per_km_chart(
     display_name = matched["name"]
     vehicle_id = matched["id"]
 
-    monthly = await _get_monthly_cost_and_distance(client, vehicle_id, months)
-    points = []
-    for m in monthly:
-        if m["total_distance_km"] > 0:
-            points.append({
-                "x": m["month"] + "-01",
-                "y": round(m["total_cost"] / m["total_distance_km"], 3),
-            })
-
-    return json.dumps({
-        "type": "chart",
-        "chart_type": "line",
-        "title": f"Cost per km — {display_name.title()}",
-        "data": {
-            "series": [{"label": "€/km", "color": "#F59E0B", "points": points}],
-            "empty_message": "No monthly distance data yet — log a few fill-ups to see cost per km.",
-        },
-        "refetch": _vehicle_line_chart_refetch(
-            "/vehicle/cost-per-km-chart", display_name, months, points
-        ),
-    })
+    chart = await client.get_cost_per_km_chart(vehicle_id, months, start_date, end_date)
+    points = chart["data"]["series"][0]["points"]
+    chart["refetch"] = _vehicle_line_chart_refetch("/vehicle/cost-per-km-chart", display_name, months, points)
+    return json.dumps(chart)
 
 
 async def get_vehicle_monthly_cost_chart(
@@ -809,24 +630,10 @@ async def get_vehicle_monthly_cost_chart(
     display_name = matched["name"]
     vehicle_id = matched["id"]
 
-    monthly = await _get_monthly_cost_and_distance(client, vehicle_id, months)
-    points = [
-        {"x": m["month"] + "-01", "y": m["total_cost"]}
-        for m in monthly
-    ]
-
-    return json.dumps({
-        "type": "chart",
-        "chart_type": "line",
-        "title": f"Monthly Cost — {display_name.title()}",
-        "data": {
-            "series": [{"label": "€", "color": "#F59E0B", "points": points}],
-            "empty_message": "No monthly cost data yet — log some fuel or service entries.",
-        },
-        "refetch": _vehicle_line_chart_refetch(
-            "/vehicle/monthly-cost-chart", display_name, months, points
-        ),
-    })
+    chart = await client.get_monthly_cost_chart(vehicle_id, months, start_date, end_date)
+    points = chart["data"]["series"][0]["points"]
+    chart["refetch"] = _vehicle_line_chart_refetch("/vehicle/monthly-cost-chart", display_name, months, points)
+    return json.dumps(chart)
 
 
 async def get_vehicle_mileage_chart(
@@ -844,28 +651,7 @@ async def get_vehicle_mileage_chart(
     display_name = matched["name"]
     vehicle_id = matched["id"]
 
-    rows = await client.get_log(vehicle_id, limit=500)
-    points = []
-    for r in sorted(rows, key=lambda r: (r.get("date") or "")):
-        date_str = (r.get("date") or "")[:10]
-        odo = r.get("odo_km")
-        if not date_str or odo is None:
-            continue
-        if start_date and date_str < start_date:
-            continue
-        if end_date and date_str > end_date:
-            continue
-        points.append({"x": date_str, "y": float(odo)})
-
-    return json.dumps({
-        "type": "chart",
-        "chart_type": "line",
-        "title": f"Mileage — {display_name.title()}",
-        "data": {
-            "series": [{"label": "km", "color": "#22C55E", "points": points}],
-            "empty_message": "No odometer readings logged yet.",
-        },
-        "refetch": _vehicle_line_chart_refetch(
-            "/vehicle/mileage-chart", display_name, months, points
-        ),
-    })
+    chart = await client.get_mileage_chart(vehicle_id, start_date, end_date)
+    points = chart["data"]["series"][0]["points"]
+    chart["refetch"] = _vehicle_line_chart_refetch("/vehicle/mileage-chart", display_name, months, points)
+    return json.dumps(chart)

@@ -156,6 +156,100 @@ class VehicleClient:
         return await self._get(f"/vehicles/{vehicle_id}/stats", params=params)
 
     # -----------------------------------------------------------------------
+    # Charts
+    # -----------------------------------------------------------------------
+
+    async def get_consumption_chart(
+        self,
+        vehicle_id: int,
+        months: int = 12,
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> dict:
+        """Return the fuel consumption chart dict from vehicle manager."""
+        params: dict[str, object] = {"months": months}
+        if start_date:
+            params["start_date"] = start_date
+        if end_date:
+            params["end_date"] = end_date
+        return await self._get(
+            f"/vehicles/{vehicle_id}/consumption-chart", params=params
+        )
+
+    async def get_distance_chart(
+        self,
+        vehicle_id: int,
+        months: int = 12,
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> dict:
+        """Return the distance chart dict from vehicle manager."""
+        params: dict[str, Any] = {"months": months}
+        if start_date:
+            params["start_date"] = start_date
+        if end_date:
+            params["end_date"] = end_date
+        return await self._get(
+            f"/vehicles/{vehicle_id}/distance-chart", params=params
+        )
+
+    async def get_cost_per_km_chart(
+        self,
+        vehicle_id: int,
+        months: int = 12,
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> dict:
+        """Return the cost-per-km chart dict from vehicle manager."""
+        params: dict[str, Any] = {"months": months}
+        if start_date:
+            params["start_date"] = start_date
+        if end_date:
+            params["end_date"] = end_date
+        return await self._get(
+            f"/vehicles/{vehicle_id}/cost-per-km-chart", params=params
+        )
+
+    async def get_monthly_cost_chart(
+        self,
+        vehicle_id: int,
+        months: int = 12,
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> dict:
+        """Return the monthly cost chart dict from vehicle manager."""
+        params: dict[str, Any] = {"months": months}
+        if start_date:
+            params["start_date"] = start_date
+        if end_date:
+            params["end_date"] = end_date
+        return await self._get(
+            f"/vehicles/{vehicle_id}/monthly-cost-chart", params=params
+        )
+
+    async def get_mileage_chart(
+        self,
+        vehicle_id: int,
+        start_date: str | None = None,
+        end_date: str | None = None,
+    ) -> dict:
+        """Return the mileage chart dict from vehicle manager."""
+        params: dict[str, Any] = {}
+        if start_date:
+            params["start_date"] = start_date
+        if end_date:
+            params["end_date"] = end_date
+        return await self._get(
+            f"/vehicles/{vehicle_id}/mileage-chart", params=params
+        )
+
+    async def get_costs_summary(self, period: str = "") -> dict:
+        """Return aggregate costs across all vehicles from vehicle manager."""
+        return await self._get(
+            "/vehicles/costs-summary", params={"period": period} if period else {}
+        )
+
+    # -----------------------------------------------------------------------
     # Fuelio import proxy
     # -----------------------------------------------------------------------
 

@@ -19,7 +19,7 @@ from app.database import (
     insert_value_override, get_value_overrides, update_current_value,
     set_ab_account_id,
 )
-from app import depreciation, majordom_client
+from app import charts, depreciation, majordom_client
 from app.models import (
     DeleteResult, FuelioImportResult, HealthResponse, LogInsertResult,
     VehicleLogEntry, VehicleUpsertRequest, VehiclePatchRequest, VehicleUpsertResult,
@@ -46,6 +46,16 @@ async def startup():
     logger.info("Initializing database at %s", db_path)
     init_db(db_path)
     logger.info("Vehicle-manager ready")
+
+
+# ---------------------------------------------------------------------------
+# Cross-vehicle summary (must be registered before /vehicles/{vehicle_id})
+# ---------------------------------------------------------------------------
+
+@app.get("/vehicles/costs-summary")
+async def costs_summary(period: str = ""):
+    """Aggregate cost across all vehicles."""
+    return charts.build_costs_summary(period=period)
 
 
 # ---------------------------------------------------------------------------
@@ -322,6 +332,60 @@ async def vehicle_stats(vehicle_id: int, period: str = ""):
     if not stats:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     return stats
+
+
+# ---------------------------------------------------------------------------
+# Per‑vehicle chart endpoints
+# ---------------------------------------------------------------------------
+
+@app.get("/vehicles/{vehicle_id}/consumption-chart")
+async def vehicle_consumption_chart(vehicle_id: int, months: int = 12,
+                                     start_date: str | None = None,
+                                     end_date: str | None = None):
+    v = get_vehicle(vehicle_id)
+    if v is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    return charts.build_consumption_chart(v, months, start_date, end_date)
+
+
+@app.get("/vehicles/{vehicle_id}/distance-chart")
+async def vehicle_distance_chart(vehicle_id: int, months: int = 12,
+                                  start_date: str | None = None,
+                                  end_date: str | None = None):
+    v = get_vehicle(vehicle_id)
+    if v is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    return charts.build_distance_chart(v, months, start_date, end_date)
+
+
+@app.get("/vehicles/{vehicle_id}/cost-per-km-chart")
+async def vehicle_cost_per_km_chart(vehicle_id: int, months: int = 12,
+                                     start_date: str | None = None,
+                                     end_date: str | None = None):
+    v = get_vehicle(vehicle_id)
+    if v is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    return charts.build_cost_per_km_chart(v, months, start_date, end_date)
+
+
+@app.get("/vehicles/{vehicle_id}/monthly-cost-chart")
+async def vehicle_monthly_cost_chart(vehicle_id: int, months: int = 12,
+                                      start_date: str | None = None,
+                                      end_date: str | None = None):
+    v = get_vehicle(vehicle_id)
+    if v is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    return charts.build_monthly_cost_chart(v, months, start_date, end_date)
+
+
+@app.get("/vehicles/{vehicle_id}/mileage-chart")
+async def vehicle_mileage_chart(vehicle_id: int,
+                                 start_date: str | None = None,
+                                 end_date: str | None = None):
+    v = get_vehicle(vehicle_id)
+    if v is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    return charts.build_mileage_chart(v, start_date, end_date)
 
 
 # ---------------------------------------------------------------------------
