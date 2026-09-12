@@ -9,7 +9,6 @@ import AbSetupWizard from './pages/AbSetupWizard'
 import Dashboard from './pages/Dashboard'
 import Accounts from './pages/Accounts'
 import AccountDetail from './pages/AccountDetail'
-import VehicleDetail from './pages/VehicleDetail'
 import TransactionsPage from './pages/Transactions'
 import AnalyticsPage from './pages/Analytics'
 import SettingsPage from './pages/Settings'
@@ -163,14 +162,6 @@ function Layout() {
           element={
             <ProtectedRoute>
               <AccountDetail />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/accounts/vehicle/:vehicleId"
-          element={
-            <ProtectedRoute>
-              <VehicleDetail />
             </ProtectedRoute>
           }
         />

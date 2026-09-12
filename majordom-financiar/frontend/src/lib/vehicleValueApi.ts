@@ -1,5 +1,4 @@
 import { authFetch, ApiError } from './auth'
-import type { LineData } from '../components/Chart'
 
 export { ApiError }
 
@@ -53,60 +52,8 @@ export interface CreateVehicleInput {
 
 export type PatchVehicleInput = Partial<CreateVehicleInput>
 
-export interface ValueOverrideBody {
-  mode: 'set' | 'adjust'
-  value: number
-  direction?: 'up' | 'down'
-  date: string
-  note?: string
-}
-
-export interface ValueOverrideResult {
-  vehicle_id: number
-  current_value: number
-  ab_account_id: string | null
-}
-
-export interface ValueHistoryEntry {
-  id: number
-  value: number
-  date: string
-  note: string | null
-  created_at: string
-}
-
-export interface ValueProjection {
-  purchase: { date: string; value: number }
-  today: { date: string; value: number }
-  salvage_floor: number
-  curve: { date: string; value: number }[]
-  overrides: { date: string; value: number }[]
-}
-
-export interface RefetchConfig {
-  mode: 'period_buttons'
-  endpoint: string
-  params: Record<string, string>
-  period_param: 'months'
-  periods: { label: string; value: number }[]
-  current: number
-  range?: { start: string; end: string } | null
-}
-
-export interface LineChartEnvelope {
-  type: 'chart'
-  chart_type: 'line'
-  title: string
-  data: LineData
-  refetch: RefetchConfig
-}
-
 export async function listVehicles(): Promise<Vehicle[]> {
   return request<Vehicle[]>('/vehicle/list')
-}
-
-export async function getVehicle(id: number | string): Promise<Vehicle> {
-  return request<Vehicle>(`/vehicle/${id}`)
 }
 
 export async function createVehicle(data: CreateVehicleInput): Promise<Vehicle> {
@@ -128,58 +75,4 @@ export async function linkVehicleAccount(id: number | string, abAccountId: strin
     method: 'POST',
     body: JSON.stringify({ ab_account_id: abAccountId }),
   })
-}
-
-export async function submitValueOverride(
-  id: number | string,
-  body: ValueOverrideBody
-): Promise<ValueOverrideResult> {
-  return request<ValueOverrideResult>(`/vehicle/${id}/value-override`, {
-    method: 'POST',
-    body: JSON.stringify(body),
-  })
-}
-
-export async function getValueHistory(id: number | string): Promise<ValueHistoryEntry[]> {
-  return request<ValueHistoryEntry[]>(`/vehicle/${id}/value-history`)
-}
-
-export async function getValueProjection(
-  id: number | string,
-  years = 12
-): Promise<ValueProjection> {
-  const qs = new URLSearchParams({ years: String(years) })
-  return request<ValueProjection>(`/vehicle/${id}/value-projection?${qs}`)
-}
-
-export async function getConsumptionChart(
-  vehicleName: string,
-  months = 12
-): Promise<LineChartEnvelope> {
-  const qs = new URLSearchParams({ vehicle_name: vehicleName, months: String(months) })
-  return request<LineChartEnvelope>(`/vehicle/consumption-chart?${qs}`)
-}
-
-export async function getCostPerKmChart(
-  vehicleName: string,
-  months = 12
-): Promise<LineChartEnvelope> {
-  const qs = new URLSearchParams({ vehicle_name: vehicleName, months: String(months) })
-  return request<LineChartEnvelope>(`/vehicle/cost-per-km-chart?${qs}`)
-}
-
-export async function getMonthlyCostChart(
-  vehicleName: string,
-  months = 12
-): Promise<LineChartEnvelope> {
-  const qs = new URLSearchParams({ vehicle_name: vehicleName, months: String(months) })
-  return request<LineChartEnvelope>(`/vehicle/monthly-cost-chart?${qs}`)
-}
-
-export async function getMileageChart(
-  vehicleName: string,
-  months = 12
-): Promise<LineChartEnvelope> {
-  const qs = new URLSearchParams({ vehicle_name: vehicleName, months: String(months) })
-  return request<LineChartEnvelope>(`/vehicle/mileage-chart?${qs}`)
 }

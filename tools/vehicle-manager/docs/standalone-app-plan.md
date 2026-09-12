@@ -251,13 +251,35 @@ saw it appear, deleted it, confirmed it was gone); `/import` (SPA route) and `/a
 equivalent here (plus distance chart, log list/form, and reminders, which that page never had),
 live-verified against real fixture data end-to-end, not just a visual/diff review.
 
-### Phase 5 — Retire the old in-app pages
+### ✅ Phase 5 — Retire the old in-app pages — done 2026-09-12
 
-1. Once Phase 4 is live-verified, remove `majordom-financiar/frontend/src/pages/VehicleDetail.tsx`
-   and its route (the standalone app is now the real destination) — **keep** the Dashboard
-   "Vehicle costs" widget and Accounts-page vehicle-linking UI exactly as they are (summary-level,
-   cross-cutting, not vehicle-manager's job to own).
-2. **Done when:** no dead code, no broken links from Accounts/Dashboard into the removed route.
+Implemented directly (small, well-scoped deletion — not worth a delegation round-trip). Removed
+`VehicleDetail.tsx` and its route; fixed the two `Accounts.tsx` navigation calls that pointed
+into it (row-tap now goes to the generic `/accounts/:id` page instead, post-create navigation
+dropped rather than replaced); found and removed the now-orphaned `OverrideValueModal.tsx` and 8
+dead functions/6 dead types in `vehicleValueApi.ts` in the same pass. Kept exactly as planned:
+Dashboard "Vehicle costs" widget, Accounts-page vehicle-linking UI. `npx tsc --noEmit` clean
+across the whole frontend, Docker rebuild clean, live-verified `/`, `/accounts`, and the removed
+route's URL all still serve correctly (no server error).
+
+**Not checked, flagged as a real follow-up**: whether `backend/api/vehicle_value.py`/
+`vehicle_charts.py`'s REST routes that only the deleted page called are now also dead code.
+
+**Done when** (met): no dead code (verified via grep for every symbol the deleted files exported,
+not just their own paths), no broken links from Accounts/Dashboard into the removed route.
+
+---
+
+## Vehicle-manager standalone app: feature-complete per this plan (2026-09-12)
+
+Phases 1-5 are all done and live-verified standalone. Per the original request that started this
+plan, the next checkpoint is Doru's own review/testing of the whole thing — standalone app
+functionality *and* its integration with majordom-financiar — not a further autonomous phase.
+Open items from along the way (not blocking, not forgotten): #263's MCP-hub layer (deliberately
+deferred), the backend-route-cleanup follow-up noted in Phase 5 above, and whatever Doru's own
+review surfaces. The investment-tracking app is the next major thread once this one is confirmed
+working for him, per the same two-phase process (build + live-verify autonomously, then his
+review).
 
 ---
 

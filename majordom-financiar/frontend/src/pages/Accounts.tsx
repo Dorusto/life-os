@@ -19,7 +19,6 @@ import { formatCurrency } from '../lib/formatCurrency'
  * vehicle.ab_account_id === account.id.
  */
 export default function Accounts() {
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [addVehicleOpen, setAddVehicleOpen] = useState(false)
   const [linkAccount, setLinkAccount] = useState<AccountListItem | null>(null)
@@ -43,12 +42,13 @@ export default function Accounts() {
   const offBudget = nonVehicleAccounts.filter(a => a.off_budget)
   const vehicleSubtotal = vehicleAccounts.reduce((sum, a) => sum + a.balance, 0)
 
-  async function handleVehicleSaved(createdVehicleId?: number) {
+  async function handleVehicleSaved() {
+    // Vehicle detail now lives in the standalone vehicle-manager app (Phase
+    // 5, tools/vehicle-manager/docs/standalone-app-plan.md) — this page has
+    // no detail route to navigate into anymore. Refetching is enough; the
+    // new/updated vehicle shows up in the list below.
     await queryClient.invalidateQueries({ queryKey: ['vehicle-list'] })
     await queryClient.invalidateQueries({ queryKey: ['account-list'] })
-    if (createdVehicleId) {
-      navigate(`/accounts/vehicle/${createdVehicleId}`)
-    }
   }
 
   return (
@@ -179,7 +179,7 @@ function VehicleAccountRow({
     <button
       type="button"
       onClick={() => {
-        if (vehicle) navigate(`/accounts/vehicle/${vehicle.id}`)
+        if (vehicle) navigate(`/accounts/${account.id}`)
         else onLinkRequest()
       }}
       className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-3.5 py-3.5 text-left hover:bg-surface-2 transition-colors"
