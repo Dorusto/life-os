@@ -1,8 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { isAuthenticated } from './lib/auth'
 import Login from './pages/Login'
+import Dashboard from './pages/Dashboard'
 import VehicleList from './pages/VehicleList'
 import VehicleDetail from './pages/VehicleDetail'
+import TimelinePage from './pages/TimelinePage'
+import StatsPage from './pages/StatsPage'
+import RemindersPage from './pages/RemindersPage'
 import FuelioImport from './pages/FuelioImport'
 
 /**
@@ -19,34 +23,19 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const protectedPage = (node: React.ReactNode) => <ProtectedRoute>{node}</ProtectedRoute>
+
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <VehicleList />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/vehicles/:id"
-          element={
-            <ProtectedRoute>
-              <VehicleDetail />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/import"
-          element={
-            <ProtectedRoute>
-              <FuelioImport />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/" element={protectedPage(<Dashboard />)} />
+        <Route path="/vehicles" element={protectedPage(<VehicleList />)} />
+        <Route path="/vehicles/:id" element={protectedPage(<VehicleDetail />)} />
+        <Route path="/timeline" element={protectedPage(<TimelinePage />)} />
+        <Route path="/stats" element={protectedPage(<StatsPage />)} />
+        <Route path="/reminders" element={protectedPage(<RemindersPage />)} />
+        <Route path="/import" element={protectedPage(<FuelioImport />)} />
         {/* Catch-all: redirect unknown paths home */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

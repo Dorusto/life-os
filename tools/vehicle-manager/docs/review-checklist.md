@@ -13,7 +13,7 @@ implementation round.
 
 ## Login / session
 
-- [ ] Login with `doru`/`majordom2026` at `http://localhost:3010`
+- [ ] Login with your `VEHICLE_MANAGER_USER1_USERNAME`/`VEHICLE_MANAGER_USER1_PASSWORD` (see `.env`) at `http://localhost:3010`
 - [ ] Refresh on a vehicle detail page — should stay logged in, not error
 
 ## Vehicle list

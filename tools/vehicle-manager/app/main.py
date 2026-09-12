@@ -22,7 +22,7 @@ from app.database import (
     insert_value_override, get_value_overrides, update_current_value,
     set_ab_account_id,
 )
-from app import charts, depreciation, majordom_client
+from app import charts, depreciation, majordom_client, stats
 from app.models import (
     DeleteResult, FuelioImportResult, HealthResponse, LogInsertResult,
     VehicleLogEntry, VehicleUpsertRequest, VehiclePatchRequest, VehicleUpsertResult,
@@ -342,10 +342,42 @@ async def last_fuel_entry(vehicle_id: int, caller: str = AUTH):
 async def vehicle_stats(vehicle_id: int, period: str = "", caller: str = AUTH):
     """Computed stats: fuel stats, costs, consumption. Returns structured JSON.
     period: YYYY-MM, YYYY, or empty for all-time."""
-    stats = get_vehicle_stats_data(vehicle_id, period=period)
-    if not stats:
+    result = get_vehicle_stats_data(vehicle_id, period=period)
+    if not result:
         raise HTTPException(status_code=404, detail="Vehicle not found")
-    return stats
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Dashboard / statistics (Fuelio-style)
+# ---------------------------------------------------------------------------
+
+@app.get("/vehicles/{vehicle_id}/summary")
+async def vehicle_summary(vehicle_id: int, caller: str = AUTH):
+    """Dashboard summary: fuel economy, last price, this month/year costs, reminders."""
+    v = get_vehicle(vehicle_id)
+    if v is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    return stats.build_vehicle_summary(v)
+
+
+@app.get("/vehicles/{vehicle_id}/stats-detail")
+async def vehicle_stats_detail(vehicle_id: int, period: str = "", caller: str = AUTH):
+    """Rich statistics for the Stats screen (costs, bills, prices, distance, fill-ups)."""
+    v = get_vehicle(vehicle_id)
+    if v is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    return stats.build_vehicle_stats_detail(v, period=period)
+
+
+@app.get("/vehicles/{vehicle_id}/cost-categories")
+async def vehicle_cost_categories(vehicle_id: int, period: str = "",
+                                  include_fuel: bool = True, caller: str = AUTH):
+    """Cost breakdown by category as a pie-chart dict."""
+    v = get_vehicle(vehicle_id)
+    if v is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+    return stats.build_cost_categories(v, period=period, include_fuel=include_fuel)
 
 
 # ---------------------------------------------------------------------------

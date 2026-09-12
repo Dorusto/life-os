@@ -3,6 +3,9 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, Trash2 } from 'lucide-react'
 import Chart from '../components/Chart'
+import ChartSection from '../components/ChartSection'
+import LogEntryForm from '../components/LogEntryForm'
+import LogoutButton from '../components/LogoutButton'
 import {
   ApiError,
   getVehicle,
@@ -14,10 +17,7 @@ import {
   getMonthlyCostChart,
   getMileageChart,
   getVehicleLog,
-  addLogEntry,
   deleteLogEntry,
-  type ChartResponse,
-  type NewVehicleLogEntry,
 } from '../lib/api'
 import { formatCurrency, formatPercent, formatNumber } from '../lib/formatCurrency'
 import { formatDate } from '../lib/formatDate'
@@ -36,195 +36,11 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   )
 }
 
-/** Renders one Chart from a ChartResponse, or nothing while loading/on error/empty. */
-function ChartSection({ data }: { data: ChartResponse | undefined }) {
-  if (!data || data.type !== 'chart' || !data.chart_type) return null
-  return (
-    <Chart
-      chart_type={data.chart_type}
-      title={data.title ?? ''}
-      data={data.data as never}
-      refetch={data.refetch as never}
-    />
-  )
-}
-
-const ENTRY_TYPES = ['fuel', 'service', 'other']
-
-function LogEntryForm({ vehicleId, onAdded }: { vehicleId: string; onAdded: () => void }) {
-  const [open, setOpen] = useState(false)
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
-  const [entryType, setEntryType] = useState('fuel')
-  const [odoKm, setOdoKm] = useState('')
-  const [fuelLiters, setFuelLiters] = useState('')
-  const [fuelPricePerLiter, setFuelPricePerLiter] = useState('')
-  const [fuelFullTank, setFuelFullTank] = useState(true)
-  const [fuelMissed, setFuelMissed] = useState(false)
-  const [costTotal, setCostTotal] = useState('')
-  const [notes, setNotes] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  function reset() {
-    setDate(new Date().toISOString().slice(0, 10))
-    setEntryType('fuel')
-    setOdoKm('')
-    setFuelLiters('')
-    setFuelPricePerLiter('')
-    setFuelFullTank(true)
-    setFuelMissed(false)
-    setCostTotal('')
-    setNotes('')
-    setError(null)
-  }
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    setError(null)
-    try {
-      const entry: NewVehicleLogEntry = {
-        date,
-        entry_type: entryType,
-        odo_km: odoKm ? Number(odoKm) : null,
-        notes: notes || null,
-      }
-      if (entryType === 'fuel') {
-        entry.fuel_liters = fuelLiters ? Number(fuelLiters) : null
-        entry.fuel_price_per_liter = fuelPricePerLiter ? Number(fuelPricePerLiter) : null
-        entry.fuel_full_tank = fuelFullTank
-        entry.fuel_missed = fuelMissed
-        entry.cost_total = fuelLiters && fuelPricePerLiter
-          ? Number((Number(fuelLiters) * Number(fuelPricePerLiter)).toFixed(2))
-          : (costTotal ? Number(costTotal) : null)
-      } else {
-        entry.cost_total = costTotal ? Number(costTotal) : null
-      }
-      await addLogEntry(vehicleId, entry)
-      reset()
-      setOpen(false)
-      onAdded()
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save entry')
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="w-full mt-3 py-2.5 rounded-xl border border-dashed border-border text-muted text-sm hover:text-white hover:border-border-hover transition-colors"
-      >
-        + Add log entry
-      </button>
-    )
-  }
-
-  return (
-    <form onSubmit={handleSubmit} className="mt-3 bg-surface border border-border rounded-2xl p-4 space-y-3">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-muted">Date</label>
-          <input
-            type="date" required value={date} onChange={e => setDate(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-background border border-border text-white text-sm focus:outline-none focus:border-accent"
-          />
-        </div>
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-muted">Type</label>
-          <select
-            value={entryType} onChange={e => setEntryType(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-background border border-border text-white text-sm focus:outline-none focus:border-accent"
-          >
-            {ENTRY_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-        </div>
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label className="text-xs text-muted">Odometer (km)</label>
-        <input
-          type="number" step="1" value={odoKm} onChange={e => setOdoKm(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-background border border-border text-white text-sm focus:outline-none focus:border-accent"
-        />
-      </div>
-
-      {entryType === 'fuel' ? (
-        <>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-muted">Liters</label>
-              <input
-                type="number" step="0.01" value={fuelLiters} onChange={e => setFuelLiters(e.target.value)}
-                className="px-3 py-2 rounded-lg bg-background border border-border text-white text-sm focus:outline-none focus:border-accent"
-              />
-            </div>
-            <div className="flex flex-col gap-1">
-              <label className="text-xs text-muted">Price/L</label>
-              <input
-                type="number" step="0.001" value={fuelPricePerLiter} onChange={e => setFuelPricePerLiter(e.target.value)}
-                className="px-3 py-2 rounded-lg bg-background border border-border text-white text-sm focus:outline-none focus:border-accent"
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <label className="flex items-center gap-1.5 text-xs text-muted">
-              <input type="checkbox" checked={fuelFullTank} onChange={e => setFuelFullTank(e.target.checked)} />
-              Full tank
-            </label>
-            <label className="flex items-center gap-1.5 text-xs text-muted">
-              <input type="checkbox" checked={fuelMissed} onChange={e => setFuelMissed(e.target.checked)} />
-              Missed fill-up
-            </label>
-          </div>
-        </>
-      ) : (
-        <div className="flex flex-col gap-1">
-          <label className="text-xs text-muted">Cost total</label>
-          <input
-            type="number" step="0.01" value={costTotal} onChange={e => setCostTotal(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-background border border-border text-white text-sm focus:outline-none focus:border-accent"
-          />
-        </div>
-      )}
-
-      <div className="flex flex-col gap-1">
-        <label className="text-xs text-muted">Notes</label>
-        <input
-          type="text" value={notes} onChange={e => setNotes(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-background border border-border text-white text-sm focus:outline-none focus:border-accent"
-        />
-      </div>
-
-      {error && <p className="text-danger text-xs">{error}</p>}
-
-      <div className="flex gap-2 pt-1">
-        <button
-          type="button" onClick={() => { setOpen(false); reset() }}
-          className="flex-1 py-2 rounded-lg border border-border text-muted text-sm hover:text-white transition-colors"
-        >
-          Cancel
-        </button>
-        <button
-          type="submit" disabled={saving}
-          className="flex-1 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-hover disabled:opacity-40 transition-colors"
-        >
-          {saving ? 'Saving…' : 'Save'}
-        </button>
-      </div>
-    </form>
-  )
-}
-
 /**
  * Vehicle detail — the standalone app's own version, calling vehicle-manager's
  * id-based REST endpoints directly (not majordom-financiar's name-based chat-
- * tool wrappers). Mirrors majordom-financiar/frontend/src/pages/VehicleDetail.tsx's
- * structure/visual style, plus: distance chart (that page never wired it up),
- * fuel/service log list + entry form, and reminder-field display — none of
- * which exist in that reference page.
+ * tool wrappers). Value/projection, reminders, all charts, and the fuel/expense
+ * log, with the shared add-entry form (Fuelio-style cost categories).
  */
 export default function VehicleDetail() {
   const { id } = useParams<{ id: string }>()
@@ -309,6 +125,9 @@ export default function VehicleDetail() {
     void queryClient.invalidateQueries({ queryKey: ['vehicle-value-history', id] })
     void queryClient.invalidateQueries({ queryKey: ['vehicle-chart'] })
     void queryClient.invalidateQueries({ queryKey: ['vehicle-log', id] })
+    void queryClient.invalidateQueries({ queryKey: ['vehicle-summary', id] })
+    void queryClient.invalidateQueries({ queryKey: ['vehicle-stats-detail', id] })
+    void queryClient.invalidateQueries({ queryKey: ['vehicle-cost-categories', id] })
   }
 
   async function handleDelete(entryId: number) {
@@ -329,7 +148,7 @@ export default function VehicleDetail() {
     return (
       <div className="min-h-dvh bg-background flex flex-col px-5 pt-14">
         <button
-          onClick={() => navigate('/')}
+          onClick={() => navigate('/vehicles')}
           className="flex items-center gap-1 text-muted hover:text-white transition-colors text-sm self-start"
         >
           <ChevronLeft size={16} /> Vehicles
@@ -337,7 +156,7 @@ export default function VehicleDetail() {
         <div className="flex-1 flex flex-col items-center justify-center gap-3 pb-24">
           <p className="text-white text-xl font-bold">Vehicle not found</p>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/vehicles')}
             className="text-accent text-sm font-medium hover:opacity-80 transition-opacity"
           >
             Back to vehicles
@@ -379,12 +198,15 @@ export default function VehicleDetail() {
   return (
     <div className="h-dvh bg-background flex flex-col overflow-y-auto">
       <header className="flex-shrink-0 px-5 pb-3 pt-14">
-        <button
-          onClick={() => navigate('/')}
-          className="flex items-center gap-1 text-muted hover:text-white transition-colors text-sm mb-3"
-        >
-          <ChevronLeft size={16} /> Vehicles
-        </button>
+        <div className="flex items-center justify-between mb-3">
+          <button
+            onClick={() => navigate('/vehicles')}
+            className="flex items-center gap-1 text-muted hover:text-white transition-colors text-sm"
+          >
+            <ChevronLeft size={16} /> Vehicles
+          </button>
+          <LogoutButton />
+        </div>
         <p className="font-mono text-[11px] uppercase tracking-wide text-muted">Vehicle</p>
         <h1 className="text-3xl font-bold text-white truncate">{vehicle.name}</h1>
       </header>

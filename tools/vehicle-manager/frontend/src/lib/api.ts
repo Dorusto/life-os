@@ -70,6 +70,64 @@ export interface ValueHistoryEntry {
   note: string | null
 }
 
+export interface VehicleReminder {
+  kind: string
+  label: string
+  due_date: string | null
+  due_odo: number | null
+  days_left: number | null
+  km_left: number | null
+  overdue: boolean
+  progress: number | null
+}
+
+export interface VehicleSummary {
+  vehicle_id: number
+  avg_consumption: number | null
+  last_consumption: number | null
+  last_fuel_price: number | null
+  last_fuel_date: string | null
+  last_odo: number | null
+  fill_count: number
+  total_liters: number
+  total_fuel_cost: number
+  total_other_cost: number
+  total_cost: number
+  total_distance: number
+  cost_per_km: number | null
+  cost_this_month: number
+  cost_this_year: number
+  distance_this_month: number
+  distance_this_year: number
+  entry_count: number
+  reminders: VehicleReminder[]
+}
+
+export interface VehicleStatsDetail {
+  vehicle_id: number
+  period: string
+  costs: { total: number; this_year: number; this_month: number; prev_year: number; prev_month: number }
+  bills: { lowest: number | null; highest: number | null }
+  gas_price: { best: number | null; worst: number | null }
+  cost_per_km: {
+    average: number | null
+    best: number | null
+    worst: number | null
+    best_month: string | null
+    worst_month: string | null
+  }
+  cost_per_day: number | null
+  cost_per_month: number | null
+  fillups: { count: number; total_liters: number; total_cost: number; avg_consumption: number | null }
+  distance: {
+    total: number
+    this_year: number
+    this_month: number
+    avg_per_month: number | null
+    avg_per_day: number | null
+  }
+}
+
 // Matches the {"type": "chart", "chart_type": ..., "title": ..., "data": {...}, "refetch"?: {...}}
 // contract Chart.tsx renders — same shape majordom-financiar's chat tools/charts use.
 export interface ChartResponse {
@@ -93,6 +151,7 @@ export interface VehicleLogEntry {
   fuel_missed: number
   cost_total: number | null
   cost_currency: string
+  location: string | null
   notes: string | null
   vehicle_name?: string
 }
@@ -110,6 +169,7 @@ export interface NewVehicleLogEntry {
   fuel_full_tank?: boolean
   fuel_missed?: boolean
   cost_total?: number | null
+  location?: string | null
   notes?: string | null
 }
 
@@ -162,6 +222,28 @@ export async function getVehicles(): Promise<Vehicle[]> {
   return getJson<Vehicle[]>('/vehicles')
 }
 
+export interface VehiclePatch {
+  apk_due?: string | null
+  insurance_due?: string | null
+  service_interval_km?: number | null
+  service_interval_months?: number | null
+  last_service_km?: number | null
+  last_service_date?: string | null
+  name?: string
+}
+
+export async function patchVehicle(id: number | string, updates: VehiclePatch): Promise<Vehicle> {
+  const res = await authFetch(`${BASE}/vehicles/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(updates),
+  })
+  if (!res.ok) {
+    throw new ApiError(res.status, 'Failed to update vehicle')
+  }
+  return res.json() as Promise<Vehicle>
+}
+
 export async function getVehicle(id: number | string): Promise<Vehicle> {
   return getJson<Vehicle>(`/vehicles/${id}`)
 }
@@ -178,6 +260,27 @@ export async function getValueProjection(id: number | string, years = 12): Promi
 
 export async function getValueHistory(id: number | string): Promise<ValueHistoryEntry[]> {
   return getJson<ValueHistoryEntry[]>(`/vehicles/${id}/value-history`)
+}
+
+export async function getVehicleSummary(id: number | string): Promise<VehicleSummary> {
+  return getJson<VehicleSummary>(`/vehicles/${id}/summary`)
+}
+
+export async function getVehicleStatsDetail(
+  id: number | string, period?: string
+): Promise<VehicleStatsDetail> {
+  const qs = period ? `?period=${encodeURIComponent(period)}` : ''
+  return getJson<VehicleStatsDetail>(`/vehicles/${id}/stats-detail${qs}`)
+}
+
+export async function getCostCategories(
+  id: number | string, includeFuel = true, period?: string
+): Promise<ChartResponse> {
+  const params = new URLSearchParams()
+  if (!includeFuel) params.set('include_fuel', 'false')
+  if (period) params.set('period', period)
+  const qs = params.toString()
+  return getJson<ChartResponse>(`/vehicles/${id}/cost-categories${qs ? `?${qs}` : ''}`)
 }
 
 export async function getConsumptionChart(

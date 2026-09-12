@@ -37,7 +37,7 @@ export default function FuelioImport() {
   return (
     <div className="min-h-dvh bg-background px-5 pt-[3.5rem] pb-24">
       <button
-        onClick={() => navigate('/')}
+        onClick={() => navigate('/vehicles')}
         className="flex items-center gap-1 text-muted hover:text-white transition-colors text-sm mb-6"
       >
         <ChevronLeft size={16} /> Vehicles
@@ -58,7 +58,7 @@ export default function FuelioImport() {
             {result.cost_entries} cost entries imported{result.cost_skipped ? ` (${result.cost_skipped} skipped)` : ''}
           </p>
           <button
-            onClick={() => navigate('/')}
+            onClick={() => navigate('/vehicles')}
             className="mt-2 text-accent text-sm font-semibold hover:opacity-80 transition-opacity"
           >
             Back to vehicles

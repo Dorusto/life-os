@@ -635,6 +635,17 @@ function formatDateFull(iso: string): string {
   return `${parseInt(d, 10)} ${MONTH_ABBR[parseInt(mo, 10) - 1]} '${y.slice(2)}`
 }
 
+// Decimals for the min/max readouts, picked from the series magnitude so the
+// header line and the Y-axis edge labels can never disagree: a sub-1 series
+// (e.g. cost/km) shows cents instead of rounding to "0", while a mileage
+// series doesn't get a noisy ",00" suffix.
+function axisDecimals(min: number, max: number): 0 | 1 | 2 {
+  const magnitude = Math.max(Math.abs(min), Math.abs(max))
+  if (magnitude < 1) return 2
+  if (magnitude < 100) return 1
+  return 0
+}
+
 function PeriodSwitcher({
   refetch,
   loading,
@@ -816,13 +827,14 @@ function LineChart({
 
         const seriesMin = Math.min(...s.points.map((p) => p.y))
         const seriesMax = Math.max(...s.points.map((p) => p.y))
+        const dec = axisDecimals(seriesMin, seriesMax)
 
         return (
           <div key={s.label} className="mb-2">
             <div className="flex items-center justify-between text-xs text-muted mb-1">
               <span>{s.label}</span>
               <span>
-                min {formatNumber(seriesMin, 2)} · max {formatNumber(seriesMax, 2)}
+                min {formatNumber(seriesMin, dec)} · max {formatNumber(seriesMax, dec)}
               </span>
             </div>
             <p className="text-[10px] text-muted mb-1">
@@ -846,13 +858,13 @@ function LineChart({
                 className="absolute left-0.5 text-[11px] text-muted-2 -translate-y-1/2 bg-surface/80 px-0.5 rounded"
                 style={{ top: `${(scaleY(seriesMax) / height) * 100}%` }}
               >
-                {formatNumber(seriesMax)}
+                {formatNumber(seriesMax, dec)}
               </span>
               <span
                 className="absolute left-0.5 text-[11px] text-muted-2 -translate-y-1/2 bg-surface/80 px-0.5 rounded"
                 style={{ top: `${(scaleY(seriesMin) / height) * 100}%` }}
               >
-                {formatNumber(seriesMin)}
+                {formatNumber(seriesMin, dec)}
               </span>
               <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} preserveAspectRatio="none">
                 <path d={path} fill="none" stroke={s.color} strokeWidth={2} vectorEffect="non-scaling-stroke" />

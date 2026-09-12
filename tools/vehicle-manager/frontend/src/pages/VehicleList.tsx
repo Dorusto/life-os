@@ -1,13 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Car, Upload } from 'lucide-react'
+import BottomNav from '../components/BottomNav'
+import LogoutButton from '../components/LogoutButton'
 import { getVehicles } from '../lib/api'
 import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 
 /**
- * Vehicle list — the app's home page. Each row navigates to its detail page
- * (Phase 4). No manual "add vehicle" form here — vehicles are created via
- * Fuelio import (the only creation path this app has, matching the plan doc).
+ * Vehicle list — the Vehicles tab. Each row navigates to its detail page.
+ * No manual "add vehicle" form here — vehicles are created via Fuelio import
+ * (the only creation path this app has, matching the plan doc).
  */
 export default function VehicleList() {
   const navigate = useNavigate()
@@ -17,15 +19,18 @@ export default function VehicleList() {
   })
 
   return (
-    <div className="min-h-dvh bg-background px-4 py-6">
+    <div className="min-h-dvh bg-background px-4 pt-8 pb-24">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-white text-xl font-semibold">Vehicles</h1>
-        <button
-          onClick={() => navigate('/import')}
-          className="flex items-center gap-1.5 text-accent text-sm font-medium hover:opacity-80 transition-opacity"
-        >
-          <Upload size={15} /> Import
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/import')}
+            className="flex items-center gap-1.5 text-accent text-sm font-medium hover:opacity-80 transition-opacity"
+          >
+            <Upload size={15} /> Import
+          </button>
+          <LogoutButton />
+        </div>
       </div>
 
       {isLoading && (
@@ -80,6 +85,8 @@ export default function VehicleList() {
           })}
         </ul>
       )}
+
+      <BottomNav />
     </div>
   )
 }
