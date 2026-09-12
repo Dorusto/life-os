@@ -1,0 +1,66 @@
+/*
+ * investment-manager design tokens — the single source of truth for the
+ * visual system. See frontend/DESIGN.md for the reasoning behind these
+ * choices; port this file (plus tailwind.config.js) to reuse the look
+ * elsewhere. Nothing here is app-specific on purpose.
+ *
+ * Palette concept: a cool "financial almanac" paper, deep naval ink, and a
+ * restrained categorical set for data. Cool paper instead of the warm cream
+ * that generated dashboards default to; navy as the brand rather than
+ * money-green, so green can stay reserved for gains.
+ */
+
+:root {
+  /* --- Surfaces & ink --- */
+  --paper: #eef1f3;
+  --surface: #ffffff;
+  --surface-2: #f4f7f8;
+  --surface-sunken: #e7ecef;
+  --ink: #101b26;
+  --ink-2: #4a5a66;
+  --ink-3: #64737d;
+  --line: #dce3e7;
+  --line-strong: #c3ced4;
+
+  /* Backdrop for modals/drawers. A dedicated token rather than Tailwind's
+     bg-ink/40: an alpha modifier can't be applied to a var() color, so that
+     class would silently emit no background at all. */
+  --overlay: rgba(16, 27, 38, 0.4);
+
+  /* --- Brand: deep naval blue --- */
+  --brand: #1f4166;
+  --brand-2: #2c5c8f;
+  --brand-soft: #e1eaf3;
+
+  /* --- Semantic --- */
+  --gain: #177d52;
+  --gain-soft: #e0f0e8;
+  --loss: #b23b34;
+  --loss-soft: #f6e4e2;
+  --warn: #8a6414;
+  --warn-soft: #f4ecd8;
+  --info: #2f5d8a;
+
+  /* --- Categorical data palette (charts, allocation) --- */
+  --c1: #1f4166;
+  --c2: #2e8272;
+  --c3: #b07a2a;
+  --c4: #7a5c9e;
+  --c5: #3e6fa3;
+  --c6: #a85462;
+
+  /* --- Type --- */
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* --- Shape --- */
+  --r-sm: 5px;
+  --r: 9px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+
+  /* --- Elevation --- */
+  --shadow-sm: 0 1px 2px rgba(16, 27, 38, 0.05);
+  --shadow: 0 2px 10px rgba(16, 27, 38, 0.06);
+  --shadow-lg: 0 18px 40px -18px rgba(16, 27, 38, 0.22);
+}

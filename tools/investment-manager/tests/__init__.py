@@ -1,0 +1,1 @@
+"""investment-manager test package."""

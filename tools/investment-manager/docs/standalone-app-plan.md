@@ -463,7 +463,72 @@ starting. Context7 is the one with no real downside.
 ## 13. Circuit breaker
 
 If something here turns out wrong once you're actually building (the data model doesn't fit a
-real XTB export's shape, Twelve Data doesn't cover a ticker you need, the cost-basis math has a
+real XTB export's shape, Twelve Data doesn't cover a ticker you need, the cost-basis math has an
 edge case this doc didn't anticipate) — stop and describe the situation rather than silently
 picking an undocumented design call, especially for anything touching money math or the
 auth/routing files marked "use as-is" above.
+
+---
+
+## 14. Build status — 2026-09-12
+
+Built end to end in one opencode session. Section 8's phases all landed; nothing from section 1's
+scope is missing, and nothing from its "out of scope" list was built.
+
+**Backend.** Complete and tested (`18 passed`). Three real defects were found and fixed while
+verifying against this plan:
+
+- `market_data.get_price` crashed on the cache-annotation line whenever a caller passed a
+  currency string (which `stats.build_holdings` always does) — `(currency or cached or {}).get(…)`
+  called `.get` on a `str`. This would have failed every real price fetch with a configured API
+  key. Fixed + regression test (`tests/test_market_data.py`).
+- XTB rows were persisted with `source='manual'` (the parser never set `source`), so imports
+  showed as manual in the UI. Fixed to `'csv_import'` + assertion.
+- Imported securities were all forced to `asset_type='stock'`; now the XTB `Category` column maps
+  to this app's asset vocabulary (ETF → `etf`, etc.).
+
+Two additions beyond the section 8 endpoint list, both required by frontend screens but absent
+from the spec: `GET /holdings` (position detail behind the Holdings page, same data as section 1
+item 1) and `GET/PUT /settings` (the benchmark-ticker + assumed-return settings). `asset_type` is
+taken from the importer rather than invented, and sector/geography is skipped exactly as section
+7 requires (Twelve Data's free endpoints don't provide it).
+
+**Frontend.** Complete: Login, Dashboard, Holdings, Transactions, Income, Rebalancing, Goals,
+Settings, plus the nav shell. Vite + React + TS + Tailwind with a dependency-free SVG chart set.
+The visual system is a cool "financial almanac" paper / naval-blue palette with IBM Plex
+Sans + Mono (tabular figures), fully tokenized in `src/styles/tokens.css` + `tailwind.config.js`
+and documented in `frontend/DESIGN.md` for the later platform-wide polish phase. `tsc` and
+`vite build` both pass.
+
+**Verified directly (not just "reported done"):**
+
+- `pytest`: 18 passed. XIRR vs TWR asserted to diverge on timed flows; rebalancing arithmetic
+  hand-checked (70/30 → −€200/+€200); goal projection uses the assumed rate when XIRR is absent.
+- Live uvicorn smoke test: `/health` unauthenticated, JWT login, `X-Service-Token` calls,
+  bad-token → 401, create/list security, XTB `.xlsx` import, and a second identical import
+  inserting 0 / skipping 5 (idempotency). Holdings output hand-checked against the sample
+  (average cost 116, realized 100, dividends 15.5).
+- The exact `/api/` + SPA-routing bug class from playbook §2.1, against **real nginx** (Docker is
+  not available in this environment, so nginx was installed and run directly): every cold
+  `Accept: text/html` request to `/`, `/holdings`, `/transactions`, `/income`, `/rebalancing`,
+  `/goals`, `/settings`, `/login` and a bogus deep link returned the SPA shell (200 text/html),
+  while `/api/health` → 200, `/api/holdings` → 401 JSON and `/api/securities` → data. Prefix
+  stripping and SPA fallback both confirmed.
+
+**Not verified here — needs Doru's environment:** `docker compose --profile investment-manager
+up -d --build` was not run (no Docker in this sandbox). The Dockerfiles/compose blocks were not
+touched, but the image build itself is unconfirmed. A real Twelve Data key was also unavailable,
+so live pricing/FX was exercised only through mocks and the graceful-degradation path
+(no key → prices blank, pages still load, Settings reports `market_data_configured: false`).
+
+**Follow-ups / notes:**
+
+- `docs/samples/` is git-ignored at the repo root (deliberately, so a real broker export can
+  never be committed). The pytest fixtures therefore embed anonymous rows and fall back to the
+  on-disk sample only when present, so the suite passes from a fresh clone. Verified with the
+  samples directory renamed away.
+- Session-log / `INDEX.md` / `architecture.md` updates were **not** made, because section 10 of
+  this plan forbids touching `majordom-financiar/`; that documentation pass is left to the
+  reviewing/owner side.
+- The service folder name (`investment-manager`) remains pending the open #150 naming decision,
+  as the plan itself notes.
