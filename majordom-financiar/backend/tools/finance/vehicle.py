@@ -546,8 +546,7 @@ async def get_vehicle_distance_chart(
 ) -> str:
     """
     Return distance-driven-between-fill-ups trend as JSON for the frontend to render
-    as a line chart. Same full-tank intervals as get_vehicle_consumption_chart (see
-    _get_fuel_intervals) — this plots km driven instead of L/100km.
+    as a line chart. Computed by vehicle-manager.
     """
     client = _get_client()
 
@@ -557,19 +556,10 @@ async def get_vehicle_distance_chart(
     display_name = matched["name"]
     vehicle_id = matched["id"]
 
-    intervals = await _get_fuel_intervals(client, vehicle_id, months, start_date, end_date)
-    points = [{"x": iv["date"], "y": round(iv["distance_km"], 0)} for iv in intervals]
-
-    return json.dumps({
-        "type": "chart",
-        "chart_type": "line",
-        "title": f"Distance Between Fill-ups — {display_name.title()}",
-        "data": {
-            "series": [{"label": "km", "color": "#22C55E", "points": points}],
-            "empty_message": "Not enough full-tank fill-ups yet to calculate a distance trend (need at least 2).",
-        },
-        "refetch": _vehicle_line_chart_refetch("/vehicle/distance-chart", display_name, months, points),
-    })
+    chart = await client.get_distance_chart(vehicle_id, months, start_date, end_date)
+    points = chart["data"]["series"][0]["points"]
+    chart["refetch"] = _vehicle_line_chart_refetch("/vehicle/distance-chart", display_name, months, points)
+    return json.dumps(chart)
 
 
 async def get_vehicle_costs_summary(period: str = "") -> dict:
@@ -759,27 +749,10 @@ async def get_vehicle_cost_per_km_chart(
     display_name = matched["name"]
     vehicle_id = matched["id"]
 
-    monthly = await _get_monthly_cost_and_distance(client, vehicle_id, months)
-    points = []
-    for m in monthly:
-        if m["total_distance_km"] > 0:
-            points.append({
-                "x": m["month"] + "-01",
-                "y": round(m["total_cost"] / m["total_distance_km"], 3),
-            })
-
-    return json.dumps({
-        "type": "chart",
-        "chart_type": "line",
-        "title": f"Cost per km — {display_name.title()}",
-        "data": {
-            "series": [{"label": "€/km", "color": "#F59E0B", "points": points}],
-            "empty_message": "No monthly distance data yet — log a few fill-ups to see cost per km.",
-        },
-        "refetch": _vehicle_line_chart_refetch(
-            "/vehicle/cost-per-km-chart", display_name, months, points
-        ),
-    })
+    chart = await client.get_cost_per_km_chart(vehicle_id, months, start_date, end_date)
+    points = chart["data"]["series"][0]["points"]
+    chart["refetch"] = _vehicle_line_chart_refetch("/vehicle/cost-per-km-chart", display_name, months, points)
+    return json.dumps(chart)
 
 
 async def get_vehicle_monthly_cost_chart(
