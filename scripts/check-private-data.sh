@@ -101,8 +101,10 @@ check "Real Telegram user ID"      'TELEGRAM_ALLOWED_USER_IDS\s*=\s*(?!1{9}|2{9}
 # Credentials with real values (not placeholders, config references, or plain
 # variable/attribute/dict-lookup references — e.g. `password=body.password`,
 # `self.password = saved["password"]` in #190's AB setup wizard are references,
-# never a literal secret).
-check "Real credential value"      '(PASSWORD|BOT_TOKEN|API_KEY|JWT_SECRET)\s*=\s*(?!your_|paste_|change_|example|\.\.\.|\*+|""|settings\.|cfg\.|body\.|self\.|saved\[|request\.)[^\s]{10,}'
+# never a literal secret). `os.getenv(` added 2026-09-12 (vehicle-manager auth.py) —
+# same safe-accessor category as settings./cfg., reads from environment, never a
+# hardcoded literal.
+check "Real credential value"      '(PASSWORD|BOT_TOKEN|API_KEY|JWT_SECRET)\s*=\s*(?!your_|paste_|change_|example|\.\.\.|\*+|""|settings\.|cfg\.|body\.|self\.|saved\[|request\.|os\.getenv\()[^\s]{10,}'
 
 # Personal domain — any subdomain of the owner's real domain (leaks infra + is an
 # attack vector). The @dorulian brand handles (YouTube/Substack) have no ".eu", so

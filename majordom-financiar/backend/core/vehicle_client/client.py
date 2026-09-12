@@ -11,6 +11,8 @@ from typing import Any
 
 import httpx
 
+from backend.core.config import settings
+
 logger = logging.getLogger(__name__)
 
 BASE_TIMEOUT = httpx.Timeout(10.0)  # internal service on same Docker network
@@ -26,6 +28,12 @@ class VehicleClient:
     def __init__(self, base_url: str):
         self.base_url = base_url.rstrip("/")
 
+    def _auth_headers(self) -> dict[str, str]:
+        """Service-token header sent on every request (vehicle-manager Phase 2,
+        2026-09-12) — required since vehicle-manager now authenticates every
+        route, including internal server-to-server calls from this client."""
+        return {"X-Service-Token": settings.vehicle_manager.service_token}
+
     async def _get(self, path: str, **kwargs) -> Any:
         return await self._request("GET", path, **kwargs)
 
@@ -40,9 +48,10 @@ class VehicleClient:
 
     async def _request(self, method: str, path: str, **kwargs) -> Any:
         url = f"{self.base_url}{path}"
+        headers = {**self._auth_headers(), **kwargs.pop("headers", {})}
         try:
             async with httpx.AsyncClient(timeout=BASE_TIMEOUT) as client:
-                resp = await client.request(method, url, **kwargs)
+                resp = await client.request(method, url, headers=headers, **kwargs)
                 resp.raise_for_status()
                 if resp.status_code == 204:
                     return True
@@ -265,6 +274,7 @@ class VehicleClient:
                 resp = await client.post(
                     url,
                     files={"file": (filename, file_bytes, "text/csv")},
+                    headers=self._auth_headers(),
                 )
                 resp.raise_for_status()
                 return resp.json()

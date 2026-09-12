@@ -8,7 +8,10 @@ moving vehicle logic out of `majordom-financiar/` into its own independent servi
 
 - **FastAPI** service running on internal port `8010`
 - **SQLite** database at `/app/data/vehicles.db` (persisted via Docker volume)
-- **No authentication** — lives on the internal `majordom-net` Docker network only
+- **Authenticated** (since Phase 2, 2026-09-12) — every route except `/health` requires
+  either a user JWT (`POST /auth/login`, this service's own login) or a service token
+  (`X-Service-Token` header, used by majordom-financiar's internal calls). See `app/auth.py`
+  and `.env.example` for the required variables.
 - **No financial data** — only operational vehicle data (vehicles, fuel logs, costs)
 
 ## Running standalone (without Docker)

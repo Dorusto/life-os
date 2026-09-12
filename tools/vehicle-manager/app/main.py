@@ -3,14 +3,17 @@ FastAPI application for the vehicle-manager service.
 Provides REST API for vehicle data management, replacing the inline vehicle
 logic currently in majordom-financiar/backend/.
 
-This service lives on the internal Docker network only (no auth layer).
+Every route requires authentication (see app/auth.py) — either a user JWT
+(the standalone frontend's own login) or a service token (majordom-financiar's
+internal proxy calls) — except /health, left open for the Docker healthcheck.
 """
 import logging
 from datetime import date
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
+from app import auth
 from app.database import (
     init_db, upsert_vehicle, get_vehicles, get_vehicle, patch_vehicle,
     insert_vehicle_log_entries, get_vehicle_log, get_log_entry,
@@ -35,6 +38,8 @@ logger = logging.getLogger("vehicle-manager")
 
 app = FastAPI(title="vehicle-manager")
 
+AUTH = Depends(auth.get_current_user_or_service)
+
 
 # ---------------------------------------------------------------------------
 # Startup
@@ -49,11 +54,20 @@ async def startup():
 
 
 # ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
+
+@app.post("/auth/login", response_model=auth.TokenResponse)
+async def login(request: auth.LoginRequest):
+    return await auth.login(request)
+
+
+# ---------------------------------------------------------------------------
 # Cross-vehicle summary (must be registered before /vehicles/{vehicle_id})
 # ---------------------------------------------------------------------------
 
 @app.get("/vehicles/costs-summary")
-async def costs_summary(period: str = ""):
+async def costs_summary(period: str = "", caller: str = AUTH):
     """Aggregate cost across all vehicles."""
     return charts.build_costs_summary(period=period)
 
@@ -72,13 +86,13 @@ async def health():
 # ---------------------------------------------------------------------------
 
 @app.get("/vehicles")
-async def list_vehicles(active_only: bool = True):
+async def list_vehicles(active_only: bool = True, caller: str = AUTH):
     """List vehicles. Each object includes all profile columns plus computed last_odo."""
     return get_vehicles(active_only=active_only)
 
 
 @app.get("/vehicles/{vehicle_id}")
-async def get_vehicle_by_id(vehicle_id: int):
+async def get_vehicle_by_id(vehicle_id: int, caller: str = AUTH):
     """Single vehicle, same shape as list. 404 if not found."""
     v = get_vehicle(vehicle_id)
     if v is None:
@@ -87,7 +101,7 @@ async def get_vehicle_by_id(vehicle_id: int):
 
 
 @app.post("/vehicles", response_model=VehicleUpsertResult)
-async def create_vehicle(body: VehicleUpsertRequest):
+async def create_vehicle(body: VehicleUpsertRequest, caller: str = AUTH):
     """Upsert by (name, plate) case-insensitive match. Returns {id: int}."""
     data = body.model_dump()
     vid = upsert_vehicle(data)
@@ -124,7 +138,7 @@ async def create_vehicle(body: VehicleUpsertRequest):
 
 
 @app.patch("/vehicles/{vehicle_id}")
-async def update_vehicle(vehicle_id: int, body: VehiclePatchRequest):
+async def update_vehicle(vehicle_id: int, body: VehiclePatchRequest, caller: str = AUTH):
     """Partial update of a vehicle. 404 if missing."""
     updates = body.model_dump(exclude_unset=True)
     if not updates:
@@ -168,7 +182,7 @@ async def update_vehicle(vehicle_id: int, body: VehiclePatchRequest):
 
 
 @app.post("/vehicles/{vehicle_id}/link-account")
-async def link_vehicle_account(vehicle_id: int, body: VehicleLinkAccountRequest):
+async def link_vehicle_account(vehicle_id: int, body: VehicleLinkAccountRequest, caller: str = AUTH):
     """
     Link this vehicle to a pre-existing AB account without creating a new
     one or touching the target account's balance/name — only tags it as
@@ -191,7 +205,7 @@ async def link_vehicle_account(vehicle_id: int, body: VehicleLinkAccountRequest)
 # ---------------------------------------------------------------------------
 
 @app.post("/vehicles/{vehicle_id}/value-override")
-async def create_value_override(vehicle_id: int, body: VehicleValueOverrideRequest):
+async def create_value_override(vehicle_id: int, body: VehicleValueOverrideRequest, caller: str = AUTH):
     """Apply a manual correction to the vehicle's current value."""
     vehicle = get_vehicle(vehicle_id)
     if vehicle is None:
@@ -228,7 +242,7 @@ async def create_value_override(vehicle_id: int, body: VehicleValueOverrideReque
 
 
 @app.get("/vehicles/{vehicle_id}/value-history")
-async def value_history(vehicle_id: int):
+async def value_history(vehicle_id: int, caller: str = AUTH):
     """Manual value corrections for a vehicle, newest first."""
     if get_vehicle(vehicle_id) is None:
         raise HTTPException(status_code=404, detail="Vehicle not found")
@@ -236,7 +250,7 @@ async def value_history(vehicle_id: int):
 
 
 @app.get("/vehicles/{vehicle_id}/value-projection")
-async def value_projection(vehicle_id: int, years: int = 12):
+async def value_projection(vehicle_id: int, years: int = 12, caller: str = AUTH):
     v = get_vehicle(vehicle_id)
     if v is None:
         raise HTTPException(status_code=404, detail="Vehicle not found")
@@ -269,13 +283,13 @@ async def value_projection(vehicle_id: int, years: int = 12):
 
 
 @app.get("/vehicles/{vehicle_id}/log")
-async def list_vehicle_log(vehicle_id: int, limit: int = 10, entry_type: str | None = None):
+async def list_vehicle_log(vehicle_id: int, limit: int = 10, entry_type: str | None = None, caller: str = AUTH):
     """Log entries for one vehicle, ordered by date DESC. entry_type filter optional."""
     return get_vehicle_log(vehicle_id, limit=limit, entry_type=entry_type)
 
 
 @app.post("/vehicles/{vehicle_id}/log", response_model=LogInsertResult)
-async def add_vehicle_log(vehicle_id: int, entries: list[VehicleLogEntry]):
+async def add_vehicle_log(vehicle_id: int, entries: list[VehicleLogEntry], caller: str = AUTH):
     """Batch INSERT OR IGNORE log entries. vehicle_id filled from path.
     Returns {inserted: n, skipped: n}."""
     dicts = []
@@ -292,7 +306,7 @@ async def add_vehicle_log(vehicle_id: int, entries: list[VehicleLogEntry]):
 # ---------------------------------------------------------------------------
 
 @app.get("/log/{entry_id}")
-async def get_log_entry_by_id(entry_id: int):
+async def get_log_entry_by_id(entry_id: int, caller: str = AUTH):
     """Single log entry with vehicle_name joined. 404 if missing."""
     entry = get_log_entry(entry_id)
     if entry is None:
@@ -301,7 +315,7 @@ async def get_log_entry_by_id(entry_id: int):
 
 
 @app.delete("/log/{entry_id}", response_model=DeleteResult)
-async def delete_log_entry_by_id(entry_id: int):
+async def delete_log_entry_by_id(entry_id: int, caller: str = AUTH):
     """Delete a log entry. 404 if missing."""
     found = delete_log_entry(entry_id)
     if not found:
@@ -314,7 +328,7 @@ async def delete_log_entry_by_id(entry_id: int):
 # ---------------------------------------------------------------------------
 
 @app.get("/vehicles/{vehicle_id}/last-fuel-entry")
-async def last_fuel_entry(vehicle_id: int):
+async def last_fuel_entry(vehicle_id: int, caller: str = AUTH):
     """Most recent full-tank, non-missed fuel entry, or null."""
     entry = get_last_fuel_entry(vehicle_id)
     return entry if entry else JSONResponse(content=None)
@@ -325,7 +339,7 @@ async def last_fuel_entry(vehicle_id: int):
 # ---------------------------------------------------------------------------
 
 @app.get("/vehicles/{vehicle_id}/stats")
-async def vehicle_stats(vehicle_id: int, period: str = ""):
+async def vehicle_stats(vehicle_id: int, period: str = "", caller: str = AUTH):
     """Computed stats: fuel stats, costs, consumption. Returns structured JSON.
     period: YYYY-MM, YYYY, or empty for all-time."""
     stats = get_vehicle_stats_data(vehicle_id, period=period)
@@ -341,7 +355,8 @@ async def vehicle_stats(vehicle_id: int, period: str = ""):
 @app.get("/vehicles/{vehicle_id}/consumption-chart")
 async def vehicle_consumption_chart(vehicle_id: int, months: int = 12,
                                      start_date: str | None = None,
-                                     end_date: str | None = None):
+                                     end_date: str | None = None,
+                                     caller: str = AUTH):
     v = get_vehicle(vehicle_id)
     if v is None:
         raise HTTPException(status_code=404, detail="Vehicle not found")
@@ -351,7 +366,8 @@ async def vehicle_consumption_chart(vehicle_id: int, months: int = 12,
 @app.get("/vehicles/{vehicle_id}/distance-chart")
 async def vehicle_distance_chart(vehicle_id: int, months: int = 12,
                                   start_date: str | None = None,
-                                  end_date: str | None = None):
+                                  end_date: str | None = None,
+                                  caller: str = AUTH):
     v = get_vehicle(vehicle_id)
     if v is None:
         raise HTTPException(status_code=404, detail="Vehicle not found")
@@ -361,7 +377,8 @@ async def vehicle_distance_chart(vehicle_id: int, months: int = 12,
 @app.get("/vehicles/{vehicle_id}/cost-per-km-chart")
 async def vehicle_cost_per_km_chart(vehicle_id: int, months: int = 12,
                                      start_date: str | None = None,
-                                     end_date: str | None = None):
+                                     end_date: str | None = None,
+                                     caller: str = AUTH):
     v = get_vehicle(vehicle_id)
     if v is None:
         raise HTTPException(status_code=404, detail="Vehicle not found")
@@ -371,7 +388,8 @@ async def vehicle_cost_per_km_chart(vehicle_id: int, months: int = 12,
 @app.get("/vehicles/{vehicle_id}/monthly-cost-chart")
 async def vehicle_monthly_cost_chart(vehicle_id: int, months: int = 12,
                                       start_date: str | None = None,
-                                      end_date: str | None = None):
+                                      end_date: str | None = None,
+                                      caller: str = AUTH):
     v = get_vehicle(vehicle_id)
     if v is None:
         raise HTTPException(status_code=404, detail="Vehicle not found")
@@ -381,7 +399,8 @@ async def vehicle_monthly_cost_chart(vehicle_id: int, months: int = 12,
 @app.get("/vehicles/{vehicle_id}/mileage-chart")
 async def vehicle_mileage_chart(vehicle_id: int,
                                  start_date: str | None = None,
-                                 end_date: str | None = None):
+                                 end_date: str | None = None,
+                                 caller: str = AUTH):
     v = get_vehicle(vehicle_id)
     if v is None:
         raise HTTPException(status_code=404, detail="Vehicle not found")
@@ -393,7 +412,7 @@ async def vehicle_mileage_chart(vehicle_id: int,
 # ---------------------------------------------------------------------------
 
 @app.post("/import/fuelio", response_model=FuelioImportResult)
-async def import_fuelio(file: UploadFile = File(...)):
+async def import_fuelio(file: UploadFile = File(...), caller: str = AUTH):
     """Import a Fuelio sync CSV. Multipart file upload.
     Parses Vehicle, Log, and Costs sections. Returns counts."""
     raw = await file.read()

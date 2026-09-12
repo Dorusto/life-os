@@ -116,6 +116,10 @@ services:
     restart: unless-stopped
     environment:
       MAJORDOM_API_URL: ${MAJORDOM_API_URL:-http://majordom-api:8000}
+      VEHICLE_MANAGER_JWT_SECRET: ${VEHICLE_MANAGER_JWT_SECRET}
+      VEHICLE_MANAGER_USER1_USERNAME: ${VEHICLE_MANAGER_USER1_USERNAME}
+      VEHICLE_MANAGER_USER1_PASSWORD: ${VEHICLE_MANAGER_USER1_PASSWORD}
+      VEHICLE_MANAGER_SERVICE_TOKEN: ${VEHICLE_MANAGER_SERVICE_TOKEN}
     volumes:
       - vehicle-manager-data:/app/data
     networks:

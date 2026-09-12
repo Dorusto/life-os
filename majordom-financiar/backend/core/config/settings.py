@@ -94,9 +94,11 @@ class ActualBudgetConfig:
 @dataclass
 class VehicleManagerConfig:
     url: str = ""
+    service_token: str = ""
 
     def __post_init__(self):
         self.url = os.getenv("VEHICLE_MANAGER_URL", "http://vehicle-manager:8010")
+        self.service_token = os.getenv("VEHICLE_MANAGER_SERVICE_TOKEN", "")
 
 
 @dataclass
