@@ -1,0 +1,8 @@
+fastapi>=0.104.0
+uvicorn>=0.24.0
+python-multipart>=0.0.6
+httpx==0.28.1
+python-jose[cryptography]==3.3.0  # JWT tokens
+passlib[bcrypt]==1.7.4     # password hashing (bcrypt)
+bcrypt==3.2.2              # pinned: passlib 1.7.4 is incompatible with bcrypt 4.x+
+openpyxl>=3.1.0             # parsing XTB's .xlsx report export (see docs/standalone-app-plan.md §5)
