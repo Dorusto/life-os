@@ -22,7 +22,7 @@ def get_fuel_intervals(
     """Return one entry per full-tank-to-full-tank fill-up interval.
 
     Same algorithm as the original ``_get_fuel_intervals`` in
-    majordon-financiar, but reads from the local database instead of via HTTP.
+    majordom-financiar, but reads from the local database instead of via HTTP.
 
     Each returned dict:
         {"date": iso date of the later fill-up, "distance_km": float,
@@ -311,4 +311,3 @@ def build_costs_summary(
         "total_distance": round(total_distance, 1),
         "cost_per_km": cost_per_km,
     }
-````
