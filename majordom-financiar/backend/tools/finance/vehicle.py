@@ -521,8 +521,8 @@ async def get_vehicle_consumption_chart(
 ) -> str:
     """
     Return fuel consumption trend as JSON for the frontend to render as a line chart.
-    See _get_fuel_intervals for the full-tank-interval convention, months, and the
-    start_date/end_date custom-range override.
+    Computed by vehicle-manager itself; this just resolves the vehicle name and adds
+    the chat-specific refetch config.
     """
     client = _get_client()
 
@@ -532,22 +532,10 @@ async def get_vehicle_consumption_chart(
     display_name = matched["name"]
     vehicle_id = matched["id"]
 
-    intervals = await _get_fuel_intervals(client, vehicle_id, months, start_date, end_date)
-    points = [{"x": iv["date"], "y": round(iv["consumption"], 1)} for iv in intervals]
-
-    return json.dumps({
-        "type": "chart",
-        "chart_type": "line",
-        "title": f"Fuel Consumption — {display_name.title()}",
-        "data": {
-            "series": [{"label": "L/100km", "color": "#6366F1", "points": points}],
-            "empty_message": "Not enough full-tank fill-ups yet to calculate a consumption trend (need at least 2).",
-        },
-        # Lets the frontend switch the period in place (a GET against this REST
-        # endpoint) instead of round-tripping through the LLM for a deterministic
-        # parameter change — see backend/api/vehicle_charts.py.
-        "refetch": _vehicle_line_chart_refetch("/vehicle/consumption-chart", display_name, months, points),
-    })
+    chart = await client.get_consumption_chart(vehicle_id, months, start_date, end_date)
+    points = chart["data"]["series"][0]["points"]
+    chart["refetch"] = _vehicle_line_chart_refetch("/vehicle/consumption-chart", display_name, months, points)
+    return json.dumps(chart)
 
 
 async def get_vehicle_distance_chart(
