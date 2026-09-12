@@ -392,7 +392,7 @@ async def vehicle_mileage_chart(vehicle_id: int,
 # Fuelio Import
 # ---------------------------------------------------------------------------
 
-@app.post("/import/fuelio", response_model=FuelioImportResponse)
+@app.post("/import/fuelio", response_model=FuelioImportResult)
 
 async def import_fuelio(file: UploadFile = File(...)):
     """Import a Fuelio sync CSV. Multipart file upload.
