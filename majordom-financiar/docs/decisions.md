@@ -1428,3 +1428,15 @@ first to supply them, not just "a holdings tracker" in the abstract.
 #150), its own internal architecture, timeline, or whether it's built by Claude/DeepSeek or some
 other path — this entry records the *decision to build it separately*, not an implementation plan.
 Tracked as new GitHub issues rather than specced further in this entry.
+
+**Addendum, same day — the orchestrator vision refined and deliberately sequenced last, not
+first.** Doru's fuller picture: "Majordom" itself becomes a separate MCP-hub service (chat,
+dashboard shell, notifications) distinct from `majordom-finance`/`majordom-transport`/the
+investment app, each of which stays independently usable and exposes an MCP server the hub
+connects to. Real vision, tracked as **#263** — but deliberately **not** built before #261/#262:
+designing the hub/MCP contract with zero real domain apps to test it against is exactly the
+speculative-design trap this project's own rules warn against, and retrofitting an MCP server onto
+an already-working REST API later is mechanical, not a rewrite. Agreed sequencing: #261 and #262
+get built first with today's simple REST connection (majordom-financiar calling each domain app's
+API directly, unchanged from the pattern already used for vehicle data) — #263 gets designed once
+there are two real, proven services to design it against, not before.
