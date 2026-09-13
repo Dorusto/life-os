@@ -1,0 +1,1 @@
+opencode-61 autonomous pipeline smoke test -- 2026-09-13 -- if you can read this on a PR, branch creation + independent review + PR flow all worked end to end.
