@@ -78,10 +78,10 @@ export default function SetupBalancesCard({ accounts, onComplete }: Props) {
   }
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
+    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
       <div>
-        <p className="text-white text-sm font-medium">Enter your real account balances</p>
-        <p className="text-muted text-xs mt-0.5">Check your banking app and correct where needed — not sure about one? Skip it, no changes until you investigate</p>
+        <p className="text-token-ink text-sm font-medium">Enter your real account balances</p>
+        <p className="text-token-ink-3 text-xs mt-0.5">Check your banking app and correct where needed — not sure about one? Skip it, no changes until you investigate</p>
       </div>
 
       <div className="space-y-2">
@@ -89,28 +89,28 @@ export default function SetupBalancesCard({ accounts, onComplete }: Props) {
           const isSkipped = skipped.has(acc.id)
           return (
           <div key={acc.id} className="flex items-center gap-3">
-            <span className={`text-sm flex-1 truncate ${isSkipped ? 'text-muted' : 'text-white'}`}>{acc.name}</span>
+            <span className={`text-sm flex-1 truncate ${isSkipped ? 'text-token-ink-3' : 'text-token-ink'}`}>{acc.name}</span>
             <button
               type="button"
               onClick={() => toggleSkip(acc.id, acc.balance)}
               className={`text-[11px] px-1.5 py-0.5 rounded-md border transition-colors ${
                 isSkipped
-                  ? 'border-yellow-500/40 text-yellow-500 bg-yellow-500/10'
-                  : 'border-border text-muted hover:text-white'
+                  ? 'border-token-warn text-token-warn bg-token-warn-soft'
+                  : 'border-token-line text-token-ink-3 hover:text-token-ink'
               }`}
             >
               {isSkipped ? 'Skipped' : 'Skip'}
             </button>
             <div className="flex items-center gap-1.5">
-              <span className="text-muted text-sm">€</span>
+              <span className="text-token-ink-3 text-sm">€</span>
               <input
                 type="number"
                 step="0.01"
                 disabled={isSkipped}
                 value={isSkipped ? acc.balance.toFixed(2) : (balances[acc.id] ?? '')}
                 onChange={e => setBalances(prev => ({ ...prev, [acc.id]: e.target.value }))}
-                className={`bg-background border border-border rounded-lg px-2 py-1 w-24 text-sm text-right focus:outline-none focus:border-accent transition-colors ${
-                  isSkipped ? 'text-muted opacity-50' : 'text-white'
+                className={`bg-token-paper border border-token-line rounded-lg px-2 py-1 w-24 text-sm text-right focus:outline-none focus:border-token-brand transition-colors ${
+                  isSkipped ? 'text-token-ink-3 opacity-50' : 'text-token-ink'
                 }`}
               />
             </div>
@@ -125,20 +125,20 @@ export default function SetupBalancesCard({ accounts, onComplete }: Props) {
               placeholder="Account name"
               value={extra.name}
               onChange={e => updateExtra(idx, 'name', e.target.value)}
-              className="flex-1 bg-background border border-border rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:border-accent transition-colors"
+              className="flex-1 bg-token-paper border border-token-line rounded-lg px-2 py-1 text-token-ink text-sm focus:outline-none focus:border-token-brand transition-colors"
             />
             <div className="flex items-center gap-1.5">
-              <span className="text-muted text-sm">€</span>
+              <span className="text-token-ink-3 text-sm">€</span>
               <input
                 type="number"
                 step="0.01"
                 placeholder="0.00"
                 value={extra.balance}
                 onChange={e => updateExtra(idx, 'balance', e.target.value)}
-                className="w-20 bg-background border border-border rounded-lg px-2 py-1 text-white text-sm text-right focus:outline-none focus:border-accent transition-colors"
+                className="w-20 bg-token-paper border border-token-line rounded-lg px-2 py-1 text-token-ink text-sm text-right focus:outline-none focus:border-token-brand transition-colors"
               />
             </div>
-            <button onClick={() => removeExtra(idx)} className="text-muted hover:text-white transition-colors">
+            <button onClick={() => removeExtra(idx)} className="text-token-ink-3 hover:text-token-ink transition-colors">
               <X size={14} />
             </button>
           </div>
@@ -147,18 +147,18 @@ export default function SetupBalancesCard({ accounts, onComplete }: Props) {
 
       <button
         onClick={addExtra}
-        className="flex items-center gap-1.5 text-muted hover:text-white transition-colors text-xs"
+        className="flex items-center gap-1.5 text-token-ink-3 hover:text-token-ink transition-colors text-xs"
       >
         <Plus size={14} />
         Add account
       </button>
 
-      {error && <p className="text-red-400 text-xs">{error}</p>}
+      {error && <p className="text-token-loss text-xs">{error}</p>}
 
       <button
         onClick={handleSubmit}
         disabled={loading}
-        className="w-full py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors disabled:opacity-40 flex items-center justify-center gap-2 active:scale-95"
+        className="w-full py-2 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-ink text-sm font-medium transition-colors disabled:opacity-40 flex items-center justify-center gap-2 active:scale-95"
       >
         {loading ? <Loader2 className="animate-spin" size={14} /> : 'Confirm balances'}
       </button>

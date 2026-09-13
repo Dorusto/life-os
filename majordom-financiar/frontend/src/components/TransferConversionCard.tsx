@@ -34,15 +34,15 @@ export default function TransferConversionCard({ data, onConfirmed, onCancelled 
   }
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[80%] space-y-3">
+    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[80%] space-y-3">
       <div>
-        <p className="text-white font-medium">Convert to transfer?</p>
-        <p className="text-muted text-sm">
-          <span className="text-white">{data.payee || 'Unnamed'}</span> · {data.date} · {formatCurrency(data.amount)}
+        <p className="text-token-ink font-medium">Convert to transfer?</p>
+        <p className="text-token-ink-3 text-sm">
+          <span className="text-token-ink">{data.payee || 'Unnamed'}</span> · {data.date} · {formatCurrency(data.amount)}
         </p>
-        <p className="text-muted text-sm mt-0.5">
+        <p className="text-token-ink-3 text-sm mt-0.5">
           Move from {data.account_name} to{' '}
-          <span className="text-white">{data.target_account_name}</span> — it will no longer
+          <span className="text-token-ink">{data.target_account_name}</span> — it will no longer
           count as spending or income.
         </p>
       </div>

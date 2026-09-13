@@ -78,13 +78,13 @@ export default function ReceiptCard({
   }
 
   const inputCls = `
-    w-full px-3 py-2 rounded-xl bg-background border border-border
-    text-white text-sm appearance-none
-    focus:outline-none focus:border-accent transition-colors
+    w-full px-3 py-2 rounded-xl bg-token-paper border border-token-line
+    text-token-ink text-sm appearance-none
+    focus:outline-none focus:border-token-brand transition-colors
   `
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm max-w-[420px] w-full overflow-hidden">
+    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm max-w-[420px] w-full overflow-hidden">
       {/* Photo thumbnail with loading overlay — hidden when no image */}
       {(imageUrl || status === 'loading') && (
         <div className="relative w-full h-[112px] bg-black flex-shrink-0">
@@ -96,9 +96,9 @@ export default function ReceiptCard({
             />
           )}
           {status === 'loading' && (
-            <div className="absolute inset-0 bg-background/70 backdrop-blur-sm flex flex-col items-center justify-center gap-2">
-              <Loader2 size={20} className="animate-spin text-accent" />
-              <p className="text-white text-xs">Reading receipt…</p>
+            <div className="absolute inset-0 bg-token-overlay backdrop-blur-sm flex flex-col items-center justify-center gap-2">
+              <Loader2 size={20} className="animate-spin text-token-brand-ink" />
+              <p className="text-token-ink text-xs">Reading receipt…</p>
             </div>
           )}
         </div>
@@ -107,12 +107,12 @@ export default function ReceiptCard({
       {status === 'error' && (
         <div className="px-4 py-4 space-y-3">
           <div className="flex items-start gap-2">
-            <AlertCircle size={16} className="text-red-400 flex-shrink-0 mt-0.5" />
-            <p className="text-red-400 text-sm">{error || 'Failed to read receipt'}</p>
+            <AlertCircle size={16} className="text-token-loss flex-shrink-0 mt-0.5" />
+            <p className="text-token-loss text-sm">{error || 'Failed to read receipt'}</p>
           </div>
           <button
             onClick={onCancelled}
-            className="text-sm text-muted hover:text-white transition-colors"
+            className="text-sm text-token-ink-3 hover:text-token-ink transition-colors"
           >
             Dismiss
           </button>
@@ -123,26 +123,26 @@ export default function ReceiptCard({
         <div className="px-4 py-3 space-y-3">
           {/* Fuel/Grocery tab header — shown when receipt_type was fuel */}
           {onSwitchToFuel && (
-            <div className="flex gap-2 mb-2 border-b border-border">
+            <div className="flex gap-2 mb-2 border-b border-token-line">
               <button
                 onClick={onSwitchToFuel}
-                className="tab-inactive text-sm pb-2 px-1 text-muted hover:text-white transition-colors"
+                className="tab-inactive text-sm pb-2 px-1 text-token-ink-3 hover:text-token-ink transition-colors"
               >
                 ⛽ Fuel Receipt
               </button>
-              <button className="tab-active text-sm pb-2 px-1 text-accent font-medium border-b-2 border-accent">
+              <button className="tab-active text-sm pb-2 px-1 text-token-brand-ink font-medium border-b-2 border-token-brand">
                 🛒 Grocery Receipt
               </button>
             </div>
           )}
 
           {draft.category_source === 'history' && (
-            <p className="text-xs text-green-400">✓ Category from your history</p>
+            <p className="text-xs text-token-gain">✓ Category from your history</p>
           )}
 
           {/* Merchant */}
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted uppercase tracking-wide">Merchant</label>
+            <label className="text-xs text-token-ink-3 uppercase tracking-wide">Merchant</label>
             <input
               type="text"
               value={merchant}
@@ -155,7 +155,7 @@ export default function ReceiptCard({
           {/* Amount + Date row */}
           <div className="flex gap-2">
             <div className="flex flex-col gap-1 flex-1">
-              <label className="text-xs text-muted uppercase tracking-wide">Amount (EUR)</label>
+              <label className="text-xs text-token-ink-3 uppercase tracking-wide">Amount (EUR)</label>
               <input
                 type="number"
                 inputMode="decimal"
@@ -168,7 +168,7 @@ export default function ReceiptCard({
               />
             </div>
             <div className="flex flex-col gap-1 flex-1">
-              <label className="text-xs text-muted uppercase tracking-wide">Date</label>
+              <label className="text-xs text-token-ink-3 uppercase tracking-wide">Date</label>
               <input
                 type="date"
                 value={date}
@@ -180,7 +180,7 @@ export default function ReceiptCard({
 
           {/* Category */}
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted uppercase tracking-wide">Category</label>
+            <label className="text-xs text-token-ink-3 uppercase tracking-wide">Category</label>
             <select
               value={categoryId}
               onChange={e => setCategoryId(e.target.value)}
@@ -206,12 +206,12 @@ export default function ReceiptCard({
           </div>
 
           {/* Save as rule */}
-          <label className="flex items-center gap-2 text-xs text-muted cursor-pointer">
+          <label className="flex items-center gap-2 text-xs text-token-ink-3 cursor-pointer">
             <input
               type="checkbox"
               checked={createRule}
               onChange={e => setCreateRule(e.target.checked)}
-              className="rounded border-border"
+              className="rounded border-token-line"
             />
             Save as rule — auto-categorize future receipts from this merchant
           </label>
@@ -219,7 +219,7 @@ export default function ReceiptCard({
           {/* Account — only if multiple */}
           {draft.accounts.length > 1 && (
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-muted uppercase tracking-wide">Account</label>
+              <label className="text-xs text-token-ink-3 uppercase tracking-wide">Account</label>
               <select
                 value={accountId}
                 onChange={e => setAccountId(e.target.value)}
@@ -234,23 +234,23 @@ export default function ReceiptCard({
 
           {/* Possible bank-sync match found — hold off, let the user decide (#121) */}
           {possibleMatch && (
-            <div className="px-3 py-2.5 rounded-xl bg-yellow-500/10 border border-yellow-500/30 space-y-2">
-              <p className="text-yellow-500 text-xs">
-                Found a similar bank transaction: <span className="text-white">{possibleMatch.payee || 'Unknown'}</span>{' '}
+            <div className="px-3 py-2.5 rounded-xl bg-token-warn-soft border border-token-warn space-y-2">
+              <p className="text-token-warn text-xs">
+                Found a similar bank transaction: <span className="text-token-ink">{possibleMatch.payee || 'Unknown'}</span>{' '}
                 {formatCurrency(possibleMatch.amount)} on {possibleMatch.date}. Attach these details to it instead of creating a new transaction?
               </p>
               <div className="flex gap-2">
                 <button
                   onClick={() => handleConfirm({ forceNew: true })}
                   disabled={saving}
-                  className="flex-1 py-1.5 rounded-lg border border-border text-muted hover:text-white text-xs transition-colors disabled:opacity-40"
+                  className="flex-1 py-1.5 rounded-lg border border-token-line text-token-ink-3 hover:text-token-ink text-xs transition-colors disabled:opacity-40"
                 >
                   Create new anyway
                 </button>
                 <button
                   onClick={() => handleConfirm({ attachTo: possibleMatch.financial_id })}
                   disabled={saving}
-                  className="flex-1 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-medium transition-colors disabled:opacity-40"
+                  className="flex-1 py-1.5 rounded-lg bg-token-brand hover:bg-token-brand-2 text-token-ink text-xs font-medium transition-colors disabled:opacity-40"
                 >
                   Attach to this
                 </button>
@@ -264,14 +264,14 @@ export default function ReceiptCard({
               <button
                 onClick={onCancelled}
                 disabled={saving}
-                className="flex-1 py-2 rounded-xl border border-border text-muted hover:text-white hover:bg-surface-hover text-sm transition-colors disabled:opacity-40"
+                className="flex-1 py-2 rounded-xl border border-token-line text-token-ink-3 hover:text-token-ink hover:bg-token-surface-2 text-sm transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleConfirm()}
                 disabled={saving || !merchant || !amount || !categoryId || !accountId}
-                className="flex-1 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                className="flex-1 py-2 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-ink text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
               >
                 {saving ? (
                   <><Loader2 size={14} className="animate-spin" /> Saving…</>
