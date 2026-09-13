@@ -1,12 +1,11 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
-import { Bell, Droplet, Shield, Trash2, Wrench, CircleDollarSign } from 'lucide-react'
+import { Droplet, Shield, Trash2, Wrench, CircleDollarSign } from 'lucide-react'
 import BottomNav from '../components/BottomNav'
 import LogoutButton from '../components/LogoutButton'
 import LogEntryForm from '../components/LogEntryForm'
 import VehicleSwitcher from '../components/VehicleSwitcher'
 import { Loading } from '../components/Feedback'
-import { deleteLogEntry, getVehicleLog, getVehicleSummary, type VehicleLogEntry } from '../lib/api'
+import { deleteLogEntry, getVehicleLog, type VehicleLogEntry } from '../lib/api'
 import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 import { formatDate } from '../lib/formatDate'
 import { categoryLabel } from '../lib/entryTypes'
@@ -46,7 +45,6 @@ function groupByMonth(entries: VehicleLogEntry[]): [string, VehicleLogEntry[]][]
 }
 
 export default function TimelinePage() {
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { vehicles, vehicle, selectedId, select, isLoading } = useSelectedVehicle()
 
@@ -56,16 +54,8 @@ export default function TimelinePage() {
     enabled: !!vehicle,
     staleTime: 60_000,
   })
-  const summaryQuery = useQuery({
-    queryKey: ['vehicle-summary', vehicle?.id],
-    queryFn: () => getVehicleSummary(vehicle!.id),
-    enabled: !!vehicle,
-    staleTime: 60_000,
-  })
-
   const entries = logQuery.data ?? []
   const groups = groupByMonth(entries)
-  const reminders = summaryQuery.data?.reminders ?? []
 
   function invalidate() {
     void queryClient.invalidateQueries({ queryKey: ['vehicle-log', vehicle?.id] })
@@ -92,23 +82,6 @@ export default function TimelinePage() {
       ) : (
         <>
           <VehicleSwitcher vehicles={vehicles} selectedId={selectedId} onSelect={select} />
-
-          {reminders.length > 0 && (
-            <button
-              onClick={() => navigate('/reminders')}
-              className="mt-3 flex w-full items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-left transition-colors hover:bg-surface-2"
-            >
-              <Bell size={16} className={reminders[0].overdue ? 'text-loss' : 'text-brand'} />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-ink">Reminders ({reminders.length})</p>
-                <p className="truncate text-xs text-ink-3">
-                  {reminders[0].label}
-                  {reminders[0].overdue ? ' · overdue' : ''}
-                </p>
-              </div>
-              <span className="text-xs text-ink-3">More…</span>
-            </button>
-          )}
 
           {entries.length === 0 ? (
             <p className="py-10 text-center text-sm text-ink-2">No entries yet.</p>
