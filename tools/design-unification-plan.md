@@ -78,19 +78,68 @@ already tonight, don't reintroduce it here).
       Transactions) now read evenly balanced inside the new `max-w-5xl` column — kept the
       `1.15fr_1fr` ratio, it reads fine at this width, no need to flatten to an even split.
 
-### Phase 3 — Migrate majordom-financiar's pages/components off Card.tsx/PageHeader.tsx
-- [ ] Inventory every one of the ~20 components using the old `Card` (grep
-      `from '../components/Card'` / `from './Card'`) and group by page, so each delegated task is
-      "one page's worth of cards," not one card at a time (too small/fragmented) or the whole app
-      (too big for Flash, per `delegate-by-complexity`'s file-count rule).
-- [ ] Per page/group: swap old `Card`/`PageHeader` usage for the new `components/ui/` primitives
-      + token classes, verify visually (screenshot or live browser check) before merging — this is
-      exactly the kind of change a passing `tsc`/`build` won't catch (wrong-but-valid Tailwind
-      classes render, they just look wrong).
-- [ ] Delete `components/Card.tsx`/`PageHeader.tsx` only once grep confirms zero remaining
-      importers — matches `duplication-prevention.md`'s "retire the old flow in the same task"
-      rule, just sequenced across several tasks instead of one, since one task can't safely touch
-      all ~20 call sites at once.
+### Phase 3 — majordom-financiar color/token migration + Card.tsx/PageHeader.tsx retirement
+
+**Re-scoped after the real inventory (2026-09-13):** only ONE file (`DuplicatesReviewPage.tsx`)
+actually imports the old `Card` component. The real duplication is different and bigger — 76
+occurrences across 30 files of the same raw Tailwind string repeated ad-hoc
+(`bg-surface border border-border rounded-2xl` and close variants), never going through a shared
+component at all. Split into two sub-phases so the highest-value, lowest-risk part (visual parity)
+ships first, and the deeper de-duplication (actually routing everything through one `<Card>`)
+follows once that's proven safe:
+
+**Phase 3a — mechanical color-token rename (visual parity, no structural change).** Old flat key →
+new token, per majordom-financiar's own semantic mapping (verify each file's actual usage matches
+this semantic, don't blind-`sed` — e.g. `border` collides with `border-hover`/future compound
+classes, ordered/longest-match-first replacement only):
+
+| old class | new class | notes |
+|---|---|---|
+| `bg-background` | `bg-token-paper` | page background |
+| `bg-surface` | `bg-token-surface` | card fill |
+| `bg-surface-2` | `bg-token-surface-2` | hover/nested |
+| `border-border` | `border-token-line` | default border |
+| `border-border-hover` | `border-token-line-strong` | |
+| `bg-accent` / `text-accent` | `bg-token-brand` / `text-token-brand-ink` | brand fill vs. readable accent text — check which is meant per call site, they're different tokens |
+| `bg-accent-hover` | `bg-token-brand-2` | |
+| `text-muted` | `text-token-ink-3` | secondary/caption text |
+| `text-muted-2` | `text-token-ink-2` | slightly higher contrast than `muted` |
+| `text-white` (as primary text/heading color, not literal white-on-accent) | `text-token-ink` | this app uses literal `text-white` for primary text throughout — the common case |
+| `bg-success` / `text-success` | `bg-token-gain` / `text-token-gain` | |
+| `bg-danger` / `text-danger` | `bg-token-loss` / `text-token-loss` | |
+| `bg-positive` / `text-positive` | `bg-token-gain` / `text-token-gain` | same semantic as success, just a second pre-existing name for it |
+| `bg-positive-dim` | `bg-token-gain-soft` | |
+| `bg-attention` / `text-attention` | `bg-token-warn` / `text-token-warn` | |
+| `bg-attention-dim` | `bg-token-warn-soft` | |
+| `bg-interactive` / `text-interactive` | `bg-token-brand-ink` / `text-token-brand-ink` | chat/CTA accent — closest existing semantic is the readable brand accent |
+| `bg-interactive-dim` | `bg-token-brand-soft` | |
+| `font-display` | `font-plex-sans` (headings only — check each use, some may want to just drop the special display face and use body weight/size, judge per component) | |
+| `font-mono` (majordom's own DM Mono key) | `font-plex-mono` | |
+
+File groups to delegate (avoid one file-count-blowing task; ~5-6 files per dispatch per
+`delegate-by-complexity`'s file-count rule):
+- [ ] Group 1 — confirmation cards A: `AccountTransferCard`, `BalanceAdjustmentCard`,
+      `BudgetCopyCard`, `BudgetRebalanceCard`, `CategoryActionCard`, `ClarificationCard`
+- [ ] Group 2 — confirmation cards B: `CloseAccountCard`, `CsvImportCard`, `FuelReceiptCard`,
+      `FuelioImportCard`, `GoalProposalCard`, `IncomeSourceCard`
+- [ ] Group 3 — confirmation cards C: `NotificationTimeCard`, `ProposalCard`, `ReachedGoalsCard`,
+      `ReceiptCard`, `SetupBalancesCard`, `TransferConversionCard`
+- [ ] Group 4 — confirmation cards D + dashboard components: `VehicleLogActionCard`,
+      `VehicleReminderCard`, `VehicleStatusCard`, `BudgetOverviewCard`, `CategoryOverviewCard`,
+      `GoalsSection`
+- [ ] Group 5 — pages: `AccountDetail.tsx`, `Accounts.tsx`, `Chat.tsx`, `ImportPage.tsx`,
+      `Settings.tsx`, `Dashboard.tsx` (Dashboard's own ad-hoc card divs, not the widget components
+      it renders — those are separate files already covered above)
+- [ ] Verify each group visually (live browser, not just `tsc`/`build` — wrong-but-valid Tailwind
+      classes compile fine and just look wrong) before merging.
+
+**Phase 3b — actual de-duplication (route repeated card markup through `components/ui/Card`).**
+Only after 3a proves the color migration is safe across all 30 files. Per
+`duplication-prevention.md`: extract to the shared primitive at point of touching each file again,
+not as a giant separate pass — but explicitly scoped as its own phase here since it's a real,
+separate risk profile (structural JSX changes, not just class renames) from 3a's mechanical
+rename. `Card.tsx`/`PageHeader.tsx` (the old ones) get deleted only once grep confirms zero
+remaining importers of the *old* components — `DuplicatesReviewPage.tsx` is the one file to check.
 
 ### Phase 4 — Font cleanup
 - [ ] Once Phase 3 fully lands (majordom-financiar) and 1a/1b confirm no app still references
