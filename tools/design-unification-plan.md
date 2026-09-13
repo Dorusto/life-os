@@ -77,6 +77,14 @@ already tonight, don't reintroduce it here).
       matching the new rail breakpoint. Live-verified: the two columns (Balance trend / Latest
       Transactions) now read evenly balanced inside the new `max-w-5xl` column — kept the
       `1.15fr_1fr` ratio, it reads fine at this width, no need to flatten to an even split.
+      **Re-verified 2026-09-14** after Doru reported Financial Goals/Categories Watchlist not
+      spanning full width in a fresh screenshot: `frontend/src/lib/dashboardWidgets.ts` already
+      declares both `goals` and `budget` as `column: 'full'`, which renders them through
+      `Dashboard.tsx`'s separate `space-y-6` full-width stack (line ~217), not through this
+      two-column grid at all — this claim and that report describe two different things, not a
+      contradiction. Source code confirms Financial Goals/Categories Watchlist are correctly
+      full-width today; the screenshot most likely predates this same evening's Phase 2/1c fix,
+      or came from an environment that hadn't rebuilt yet. No code change needed here.
 
 ### Phase 3 — majordom-financiar color/token migration + Card.tsx/PageHeader.tsx retirement
 
