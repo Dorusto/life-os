@@ -290,11 +290,11 @@ export default function ReceiptFlow() {
   }
 
   return (
-    <div className="min-h-dvh bg-background flex flex-col">
+    <div className="min-h-dvh bg-token-paper flex flex-col">
       {/* Back button */}
       <button
         onClick={() => navigate('/')}
-        className="absolute top-12 left-4 z-10 p-2 rounded-xl text-white/80 hover:text-white transition-colors"
+        className="absolute top-12 left-4 z-10 p-2 rounded-xl text-token-ink hover:text-token-ink transition-colors"
         aria-label="Go back"
       >
         <ChevronLeft size={24} />
@@ -302,7 +302,7 @@ export default function ReceiptFlow() {
 
       {/* Receipt image — photo mode only, takes up top portion of screen */}
       {!isManual && (
-        <div className="relative w-full bg-surface" style={{ height: '45vh' }}>
+        <div className="relative w-full bg-token-surface" style={{ height: '45vh' }}>
           {imageUrl && (
             <img
               src={imageUrl}
@@ -313,10 +313,10 @@ export default function ReceiptFlow() {
 
           {/* Uploading overlay */}
           {flowState === 'uploading' && (
-            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3">
-              <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-              <p className="text-white text-sm">Reading receipt…</p>
-              <p className="text-muted text-xs">This takes 30–60 seconds</p>
+            <div className="absolute inset-0 bg-token-paper backdrop-blur-sm flex flex-col items-center justify-center gap-3">
+              <div className="w-8 h-8 border-2 border-token-brand border-t-transparent rounded-full animate-spin" />
+              <p className="text-token-ink text-sm">Reading receipt…</p>
+              <p className="text-token-ink-3 text-xs">This takes 30–60 seconds</p>
             </div>
           )}
         </div>
@@ -325,8 +325,8 @@ export default function ReceiptFlow() {
       {/* Manual mode loading state (no image area to overlay) */}
       {isManual && flowState === 'uploading' && (
         <div className="flex-1 flex flex-col items-center justify-center gap-3">
-          <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-          <p className="text-muted text-sm">Loading…</p>
+          <div className="w-8 h-8 border-2 border-token-brand border-t-transparent rounded-full animate-spin" />
+          <p className="text-token-ink-3 text-sm">Loading…</p>
         </div>
       )}
 
@@ -341,7 +341,7 @@ export default function ReceiptFlow() {
           >
             {/* Category source hint (photo mode only) */}
             {draft?.category_source === 'history' && (
-              <p className="text-xs text-success text-center">
+              <p className="text-xs text-token-gain text-center">
                 ✓ Category from your history
               </p>
             )}
@@ -410,13 +410,13 @@ export default function ReceiptFlow() {
                             onChange={e => updateLineCategory(i, e.target.value)}
                             placeholder="New category name"
                             autoFocus
-                            className={`${inputClass} border-yellow-500/60 flex-1`}
+                            className={`${inputClass} border-token-warn flex-1`}
                           />
                           <button
                             onClick={() => setLines(prev => prev.map((l, idx) =>
                               idx === i ? { ...l, isNewCategory: false, categoryId: '', newCategoryGroup: '' } : l
                             ))}
-                            className="text-muted hover:text-white text-sm leading-none flex-shrink-0 px-1"
+                            className="text-token-ink-3 hover:text-token-ink text-sm leading-none flex-shrink-0 px-1"
                             title="Cancel"
                           >
                             ×
@@ -449,7 +449,7 @@ export default function ReceiptFlow() {
                         <button
                           onClick={() => removeLine(i)}
                           disabled={i === 0}
-                          className="w-7 h-7 flex items-center justify-center rounded-full text-muted hover:text-white disabled:invisible transition-colors"
+                          className="w-7 h-7 flex items-center justify-center rounded-full text-token-ink-3 hover:text-token-ink disabled:invisible transition-colors"
                           aria-label="Remove line"
                         >
                           <X size={16} />
@@ -461,7 +461,7 @@ export default function ReceiptFlow() {
                       <select
                         value={line.categoryId}
                         onChange={e => updateLineCategory(i, e.target.value)}
-                        className={`${inputClass} flex-1 ${line.categoryId === '' ? 'border-yellow-500/60' : ''}`}
+                        className={`${inputClass} flex-1 ${line.categoryId === '' ? 'border-token-warn' : ''}`}
                       >
                         <option value="">Select category…</option>
                         <option value={NEW_CATEGORY_VALUE}>+ Create new category</option>
@@ -487,7 +487,7 @@ export default function ReceiptFlow() {
                         <button
                           onClick={() => removeLine(i)}
                           disabled={i === 0}
-                          className="w-7 h-7 flex items-center justify-center rounded-full text-muted hover:text-white disabled:invisible transition-colors"
+                          className="w-7 h-7 flex items-center justify-center rounded-full text-token-ink-3 hover:text-token-ink disabled:invisible transition-colors"
                           aria-label="Remove line"
                         >
                           <X size={16} />
@@ -500,7 +500,7 @@ export default function ReceiptFlow() {
 
               {/* Running total vs top-level amount */}
               {lines.length > 1 && !isBalanced && (
-                <p className="text-xs text-attention text-center">
+                <p className="text-xs text-token-warn text-center">
                   {diff > 0
                     ? `${formatCurrency(diff)} unallocated`
                     : `${formatCurrency(Math.abs(diff))} over by`}
@@ -509,7 +509,7 @@ export default function ReceiptFlow() {
 
               <button
                 onClick={addLine}
-                className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-border text-muted hover:text-white hover:border-border-hover text-sm transition-colors"
+                className="flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-token-line text-token-ink-3 hover:text-token-ink hover:border-token-line-strong text-sm transition-colors"
               >
                 <Plus size={16} />
                 Add line
@@ -535,23 +535,23 @@ export default function ReceiptFlow() {
 
             {/* Possible bank-sync match found — hold off, let the user decide (#121) */}
             {possibleMatch && (
-              <div className="px-3 py-2.5 rounded-xl bg-attention-dim border border-attention/30 space-y-2">
-                <p className="text-attention text-xs">
-                  Found a similar bank transaction: <span className="text-white">{possibleMatch.payee || 'Unknown'}</span>{' '}
+              <div className="px-3 py-2.5 rounded-xl bg-token-warn-soft border border-token-warn space-y-2">
+                <p className="text-token-warn text-xs">
+                  Found a similar bank transaction: <span className="text-token-ink">{possibleMatch.payee || 'Unknown'}</span>{' '}
                   {formatCurrency(possibleMatch.amount)} on {possibleMatch.date}. Attach these details to it instead of creating a new transaction?
                 </p>
                 <div className="flex gap-2">
                   <button
                     onClick={() => doConfirm({ forceNew: true })}
                     disabled={flowState === 'confirming'}
-                    className="flex-1 py-1.5 rounded-lg border border-border text-muted hover:text-white text-xs transition-colors disabled:opacity-40"
+                    className="flex-1 py-1.5 rounded-lg border border-token-line text-token-ink-3 hover:text-token-ink text-xs transition-colors disabled:opacity-40"
                   >
                     Create new anyway
                   </button>
                   <button
                     onClick={() => doConfirm({ attachTo: possibleMatch.financial_id })}
                     disabled={flowState === 'confirming'}
-                    className="flex-1 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-medium transition-colors disabled:opacity-40"
+                    className="flex-1 py-1.5 rounded-lg bg-token-brand hover:bg-token-brand-2 text-white text-xs font-medium transition-colors disabled:opacity-40"
                   >
                     Attach to this
                   </button>
@@ -565,7 +565,7 @@ export default function ReceiptFlow() {
                 onClick={() => doConfirm()}
                 disabled={flowState === 'confirming' || !canConfirm}
                 className="
-                  mt-2 w-full py-4 rounded-2xl bg-accent hover:bg-accent-hover
+                  mt-2 w-full py-4 rounded-2xl bg-token-brand hover:bg-token-brand-2
                   text-white font-medium text-base
                   disabled:opacity-40 disabled:cursor-not-allowed
                   active:scale-[0.98] transition-all duration-150
@@ -592,10 +592,10 @@ export default function ReceiptFlow() {
       {/* Error state */}
       {flowState === 'error' && (
         <div className="flex-1 flex flex-col items-center justify-center px-5 gap-4">
-          <p className="text-danger text-center">{errorMessage}</p>
+          <p className="text-token-loss text-center">{errorMessage}</p>
           <button
             onClick={() => navigate('/')}
-            className="px-6 py-3 rounded-xl border border-border text-white hover:bg-surface transition-colors"
+            className="px-6 py-3 rounded-xl border border-token-line text-token-ink hover:bg-token-surface transition-colors"
           >
             Go back
           </button>
@@ -618,20 +618,20 @@ function Field({
 }) {
   return (
     <div className={`flex flex-col gap-1.5 ${className}`}>
-      <label className="text-xs text-muted uppercase tracking-wide">{label}</label>
+      <label className="text-xs text-token-ink-3 uppercase tracking-wide">{label}</label>
       {children}
     </div>
   )
 }
 
 const inputClass = `
-  w-full px-4 py-3 rounded-xl bg-surface border border-border
-  text-white text-base appearance-none
-  focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent
+  w-full px-4 py-3 rounded-xl bg-token-surface border border-token-line
+  text-token-ink text-base appearance-none
+  focus:outline-none focus:border-token-brand focus:ring-1 focus:ring-token-brand
   transition-colors
 `
 
-const labelClass = 'text-xs text-muted uppercase tracking-wide'
+const labelClass = 'text-xs text-token-ink-3 uppercase tracking-wide'
 
 /**
  * Success screen — shown after a transaction is confirmed.
@@ -640,7 +640,7 @@ const labelClass = 'text-xs text-muted uppercase tracking-wide'
  */
 function SuccessScreen({ notice }: { notice?: string }) {
   return (
-    <div className="min-h-dvh bg-background flex flex-col items-center justify-center gap-5">
+    <div className="min-h-dvh bg-token-paper flex flex-col items-center justify-center gap-5">
       <motion.div
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
@@ -652,10 +652,10 @@ function SuccessScreen({ notice }: { notice?: string }) {
           initial={{ scale: 0.8, opacity: 0.8 }}
           animate={{ scale: 1.4, opacity: 0 }}
           transition={{ duration: 1, repeat: Infinity, ease: 'easeOut' }}
-          className="absolute inset-0 rounded-full bg-success"
+          className="absolute inset-0 rounded-full bg-token-gain"
         />
         {/* Checkmark circle */}
-        <div className="w-20 h-20 rounded-full bg-success flex items-center justify-center">
+        <div className="w-20 h-20 rounded-full bg-token-gain flex items-center justify-center">
           <Check size={36} className="text-white" strokeWidth={2.5} />
         </div>
       </motion.div>
@@ -666,10 +666,10 @@ function SuccessScreen({ notice }: { notice?: string }) {
         transition={{ delay: 0.3 }}
         className="text-center"
       >
-        <p className="text-white text-lg font-medium">Saved!</p>
-        <p className="text-muted text-sm mt-1">Transaction added to Actual Budget</p>
+        <p className="text-token-ink text-lg font-medium">Saved!</p>
+        <p className="text-token-ink-3 text-sm mt-1">Transaction added to Actual Budget</p>
         {notice && (
-          <p className="text-attention text-sm mt-2 max-w-xs mx-auto">{notice}</p>
+          <p className="text-token-warn text-sm mt-2 max-w-xs mx-auto">{notice}</p>
         )}
       </motion.div>
     </div>
