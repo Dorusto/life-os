@@ -379,7 +379,9 @@ function WidgetShell({ editing, onRemove, children }: { editing: boolean; onRemo
       {editing && (
         <button
           onClick={onRemove}
-          className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-lg bg-token-loss border border-token-loss text-token-loss flex items-center justify-center"
+          // Bare text-white is deliberate here: it sits on a coloured fill
+          // (bg-token-loss), so it must NOT be migrated to text-token-ink.
+          className="absolute -top-2 -right-2 z-10 w-7 h-7 rounded-lg bg-token-loss border border-token-loss text-white flex items-center justify-center"
           aria-label="Remove widget"
         >
           <X size={13} />
