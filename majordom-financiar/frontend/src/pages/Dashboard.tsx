@@ -315,7 +315,7 @@ export default function Dashboard() {
             </button>
             <button
               onClick={() => setPeriodSheetOpen(true)}
-              className="inline-flex items-center gap-1.5 bg-token-surface border border-token-line rounded-lg px-3 py-2 text-xs font-semibold text-token-ink hover:border-interactive transition-colors"
+              className="inline-flex items-center gap-1.5 bg-token-surface border border-token-line rounded-lg px-3 py-2 text-xs font-semibold text-token-ink hover:border-token-brand-ink transition-colors"
             >
               <Calendar size={13} />
               {periodLabel}

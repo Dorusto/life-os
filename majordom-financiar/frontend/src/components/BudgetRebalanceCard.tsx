@@ -95,7 +95,7 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
             ))}
           </select>
           <p className="text-xs text-token-ink-3 pl-1">
-            {formatCurrency(sourceBudgeted)} → <span className="text-red-400">{formatCurrency(newSource)}</span>
+            {formatCurrency(sourceBudgeted)} → <span className="text-token-loss">{formatCurrency(newSource)}</span>
           </p>
         </div>
 
@@ -117,7 +117,7 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
             ))}
           </select>
           <p className="text-xs text-token-ink-3 pl-1">
-            {formatCurrency(destBudgeted)} → <span className="text-green-400">{formatCurrency(newDest)}</span>
+            {formatCurrency(destBudgeted)} → <span className="text-token-gain">{formatCurrency(newDest)}</span>
           </p>
         </div>
       </div>

@@ -92,7 +92,7 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
             ))}
           </select>
           <p className="text-xs text-token-ink-3 pl-1">
-            <span className="text-red-400">{formatCurrency(-Math.abs(amount))}</span>
+            <span className="text-token-loss">{formatCurrency(-Math.abs(amount))}</span>
           </p>
         </div>
 
@@ -159,7 +159,7 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
             </>
           )}
           <p className="text-xs text-token-ink-3 pl-1">
-            <span className="text-green-400">{formatCurrency(Math.abs(amount), { signDisplay: 'always' })}</span>
+            <span className="text-token-gain">{formatCurrency(Math.abs(amount), { signDisplay: 'always' })}</span>
           </p>
         </div>
       </div>

@@ -54,8 +54,8 @@ export default function BudgetCopyCard({ data, onConfirmed, onCancelled }: Props
         </p>
         {data.excluded_templates && data.excluded_templates.length > 0 && (
           <div className="flex items-start gap-1.5 mt-2">
-            <AlertCircle size={12} className="text-yellow-500 flex-shrink-0 mt-0.5" />
-            <p className="text-yellow-500 text-xs">
+            <AlertCircle size={12} className="text-token-warn flex-shrink-0 mt-0.5" />
+            <p className="text-token-warn text-xs">
               Skipped (goal templates, not blindly copied): {data.excluded_templates.join(', ')}
             </p>
           </div>

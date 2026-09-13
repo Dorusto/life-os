@@ -33,7 +33,7 @@ export default function BalanceAdjustmentCard({ data, onConfirmed, onCancelled }
     onCancelled()
   }
 
-  const diffColor = data.diff > 0 ? 'text-green-400' : data.diff < 0 ? 'text-red-400' : 'text-token-ink-3'
+  const diffColor = data.diff > 0 ? 'text-token-gain' : data.diff < 0 ? 'text-token-loss' : 'text-token-ink-3'
 
   return (
     <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[80%] space-y-3">
