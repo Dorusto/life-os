@@ -135,7 +135,7 @@ export default function Dashboard() {
         return <LatestTransactionsWidget transactions={transactions} navigate={navigate} isLoading={transactionsLoading} />
       case 'expenses':
         return (
-          <div className="bg-surface border border-border rounded-2xl">
+          <div className="bg-token-surface border border-token-line rounded-2xl">
             <Chart
               chart_type="pie"
               title="Expenses Structure"
@@ -159,18 +159,18 @@ export default function Dashboard() {
   const removedWidgets = WIDGETS.filter(w => !enabled[w.id])
 
   return (
-    <div className="h-dvh bg-background flex flex-col overflow-y-auto">
+    <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
       <PageHeader label={dateLabel} title="Dashboard" actions={<StandardHeaderActions />} />
 
       {notifState === 'default' && (
         <button
           onClick={handleEnableNotifications}
-          className="mx-5 mt-3 flex items-center gap-3 px-4 py-3 rounded-xl bg-surface border border-border hover:border-accent transition-colors text-left"
+          className="mx-5 mt-3 flex items-center gap-3 px-4 py-3 rounded-xl bg-token-surface border border-token-line hover:border-token-brand transition-colors text-left"
         >
-          <Bell size={18} className="text-accent flex-shrink-0" />
+          <Bell size={18} className="text-token-brand-ink flex-shrink-0" />
           <div>
-            <p className="text-white text-sm font-medium">Enable daily notifications</p>
-            <p className="text-muted text-xs">Get a daily summary from Majordom at 20:00</p>
+            <p className="text-token-ink text-sm font-medium">Enable daily notifications</p>
+            <p className="text-token-ink-3 text-xs">Get a daily summary from Majordom at 20:00</p>
           </div>
         </button>
       )}
@@ -178,25 +178,25 @@ export default function Dashboard() {
       {/* Empty state (brand-new install) or normal dashboard */}
       {homeData && accountCount === 0 ? (
         <section className="px-5 pt-4 pb-24">
-          <div className="bg-surface border border-border rounded-2xl px-5 py-6">
-            <h2 className="font-display text-xl font-bold text-white mb-4">Let's get started</h2>
-            <ul className="space-y-2 text-muted mb-5">
+          <div className="bg-token-surface border border-token-line rounded-2xl px-5 py-6">
+            <h2 className="font-plex-sans text-xl font-bold text-token-ink mb-4">Let's get started</h2>
+            <ul className="space-y-2 text-token-ink-3 mb-5">
               <li className="flex gap-2">
-                <span className="text-accent">→</span>
+                <span className="text-token-brand-ink">→</span>
                 Upload a CSV export from your bank
               </li>
               <li className="flex gap-2">
-                <span className="text-accent">→</span>
+                <span className="text-token-brand-ink">→</span>
                 Take a photo of a receipt
               </li>
               <li className="flex gap-2">
-                <span className="text-accent">→</span>
+                <span className="text-token-brand-ink">→</span>
                 Just ask a question — "How much did I spend on groceries?"
               </li>
             </ul>
             <button
               onClick={() => navigate('/chat')}
-              className="w-full py-3 rounded-xl bg-accent text-white font-semibold hover:opacity-90 transition-opacity"
+              className="w-full py-3 rounded-xl bg-token-brand text-token-ink font-semibold hover:opacity-90 transition-opacity"
             >
               Go to Chat
             </button>
@@ -206,8 +206,8 @@ export default function Dashboard() {
         <section className="px-5 pt-3 pb-36">
           {onBudgetTotal != null && (
             <div className="mb-5">
-              <p className="font-mono text-[11px] uppercase tracking-wide text-muted">On budget</p>
-              <p className="font-mono font-medium text-2xl mt-0.5 tabular-nums">
+              <p className="font-plex-mono text-[11px] uppercase tracking-wide text-token-ink-3">On budget</p>
+              <p className="font-plex-mono font-medium text-2xl mt-0.5 tabular-nums">
                 {formatCurrency(onBudgetTotal, { decimals: 0 })}
               </p>
             </div>
@@ -244,20 +244,20 @@ export default function Dashboard() {
             <>
               {removedWidgets.length > 0 && (
                 <div className="mt-6">
-                  <p className="font-mono text-[11px] uppercase tracking-wide text-muted mb-2">Add widgets</p>
+                  <p className="font-plex-mono text-[11px] uppercase tracking-wide text-token-ink-3 mb-2">Add widgets</p>
                   <div className="flex flex-col gap-2">
                     {removedWidgets.map(w => (
                       <div
                         key={w.id}
-                        className="flex items-center justify-between gap-3 bg-surface border border-dashed border-border-hover rounded-xl px-3.5 py-3"
+                        className="flex items-center justify-between gap-3 bg-token-surface border border-dashed border-token-line-strong rounded-xl px-3.5 py-3"
                       >
                         <div>
-                          <p className="text-sm font-semibold text-white">{w.name}</p>
-                          <p className="text-[11.5px] text-muted mt-0.5">{w.desc}</p>
+                          <p className="text-sm font-semibold text-token-ink">{w.name}</p>
+                          <p className="text-[11.5px] text-token-ink-3 mt-0.5">{w.desc}</p>
                         </div>
                         <button
                           onClick={() => addWidgetBack(w.id)}
-                          className="w-8 h-8 rounded-lg bg-interactive-dim text-interactive flex items-center justify-center flex-shrink-0"
+                          className="w-8 h-8 rounded-lg bg-token-brand-soft text-token-brand-ink flex items-center justify-center flex-shrink-0"
                           aria-label={`Add ${w.name} widget`}
                         >
                           <Plus size={15} />
@@ -270,13 +270,13 @@ export default function Dashboard() {
               <div className="flex justify-end gap-2.5 mt-5">
                 <button
                   onClick={cancelEdit}
-                  className="text-muted border border-border bg-surface font-semibold text-xs px-4 py-2 rounded-xl hover:text-white transition-colors"
+                  className="text-token-ink-3 border border-token-line bg-token-surface font-semibold text-xs px-4 py-2 rounded-xl hover:text-token-ink transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={doneEdit}
-                  className="bg-accent hover:bg-accent-hover text-white font-semibold text-xs px-4 py-2 rounded-xl transition-colors"
+                  className="bg-token-brand hover:bg-token-brand-2 text-token-ink font-semibold text-xs px-4 py-2 rounded-xl transition-colors"
                 >
                   Done
                 </button>
@@ -293,11 +293,11 @@ export default function Dashboard() {
           periods and seeing every widget react no longer requires scrolling
           down to the control and back up to look at the result. */}
       {homeData && accountCount !== 0 && (
-        <div className="fixed bottom-16 left-0 right-0 z-40 flex items-center justify-between gap-2 px-4 py-2.5 bg-background/95 backdrop-blur border-t border-border">
+        <div className="fixed bottom-16 left-0 right-0 z-40 flex items-center justify-between gap-2 px-4 py-2.5 bg-token-paper backdrop-blur border-t border-token-line">
           {!editing ? (
             <button
               onClick={enterEdit}
-              className="inline-flex items-center gap-1.5 bg-surface border border-border text-muted hover:text-white hover:border-border-hover text-xs font-semibold px-3 py-2 rounded-xl transition-colors flex-shrink-0"
+              className="inline-flex items-center gap-1.5 bg-token-surface border border-token-line text-token-ink-3 hover:text-token-ink hover:border-token-line-strong text-xs font-semibold px-3 py-2 rounded-xl transition-colors flex-shrink-0"
             >
               <Pencil size={13} />
               Customize
@@ -308,21 +308,21 @@ export default function Dashboard() {
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={() => shiftDashboardPeriod(-1)}
-              className="w-9 h-9 rounded-lg bg-surface border border-border text-muted hover:text-white flex items-center justify-center flex-shrink-0"
+              className="w-9 h-9 rounded-lg bg-token-surface border border-token-line text-token-ink-3 hover:text-token-ink flex items-center justify-center flex-shrink-0"
               aria-label="Previous period"
             >
               <ChevronLeft size={14} />
             </button>
             <button
               onClick={() => setPeriodSheetOpen(true)}
-              className="inline-flex items-center gap-1.5 bg-surface border border-border rounded-lg px-3 py-2 text-xs font-semibold text-white hover:border-interactive transition-colors"
+              className="inline-flex items-center gap-1.5 bg-token-surface border border-token-line rounded-lg px-3 py-2 text-xs font-semibold text-token-ink hover:border-interactive transition-colors"
             >
               <Calendar size={13} />
               {periodLabel}
             </button>
             <button
               onClick={() => shiftDashboardPeriod(1)}
-              className="w-9 h-9 rounded-lg bg-surface border border-border text-muted hover:text-white flex items-center justify-center flex-shrink-0"
+              className="w-9 h-9 rounded-lg bg-token-surface border border-token-line text-token-ink-3 hover:text-token-ink flex items-center justify-center flex-shrink-0"
               aria-label="Next period"
             >
               <ChevronRight size={14} />
@@ -353,7 +353,7 @@ function WidgetShell({ editing, onRemove, children }: { editing: boolean; onRemo
       {editing && (
         <button
           onClick={onRemove}
-          className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-lg bg-danger/15 border border-danger/40 text-danger flex items-center justify-center"
+          className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-lg bg-token-loss border border-token-loss text-token-loss flex items-center justify-center"
           aria-label="Remove widget"
         >
           <X size={13} />
@@ -387,7 +387,7 @@ function PeriodPickerSheet({ open, onClose, onApply }: { open: boolean; onClose:
     <BottomSheet open={open} onClose={onClose} title="Select period">
       {years.map(year => (
         <div key={year}>
-          <p className="font-mono text-xs text-muted mt-3 mb-1.5">{year}</p>
+          <p className="font-plex-mono text-xs text-token-ink-3 mt-3 mb-1.5">{year}</p>
           <div className="grid grid-cols-3 gap-2">
             {byYear[year].map(m => (
               <button
@@ -396,7 +396,7 @@ function PeriodPickerSheet({ open, onClose, onApply }: { open: boolean; onClose:
                   onApply(m.month, m.year)
                   onClose()
                 }}
-                className="text-[13px] font-semibold px-2 py-2.5 rounded-lg border transition-colors bg-surface border-border text-white hover:border-border-hover"
+                className="text-[13px] font-semibold px-2 py-2.5 rounded-lg border transition-colors bg-token-surface border-token-line text-token-ink hover:border-token-line-strong"
               >
                 {m.label.split(' ')[0]}
               </button>
@@ -465,7 +465,7 @@ function TrendWidget({ accounts, dashboardMonth, dashboardYear }: {
     series: [
       {
         label: 'Balance',
-        color: '#6366F1',
+        color: 'var(--brand)',
         points: historyPoints.map(p => ({ x: p.date, y: p.balance })),
       },
     ],
@@ -473,25 +473,25 @@ function TrendWidget({ accounts, dashboardMonth, dashboardYear }: {
   }
 
   return (
-    <div className="bg-gradient-to-br from-surface to-surface-2 border border-border rounded-2xl p-5">
+    <div className="bg-gradient-to-br from-token-surface to-token-surface-2 border border-token-line rounded-2xl p-5">
       <div className="flex items-center justify-between gap-2">
-        <span className="font-display font-bold text-[15px]">Balance trend</span>
+        <span className="font-plex-sans font-bold text-[15px]">Balance trend</span>
         <div className="relative">
           <button
             onClick={() => setMenuOpen(o => !o)}
-            className="inline-flex items-center gap-1.5 bg-surface-2 border border-border text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg"
+            className="inline-flex items-center gap-1.5 bg-token-surface-2 border border-token-line text-token-ink text-xs font-semibold px-2.5 py-1.5 rounded-lg"
           >
             {scope}
             <ChevronDown size={12} />
           </button>
           {menuOpen && (
-            <div className="absolute top-full right-0 mt-1.5 bg-surface-2 border border-border-hover rounded-xl p-1.5 min-w-[150px] shadow-lg z-10">
+            <div className="absolute top-full right-0 mt-1.5 bg-token-surface-2 border border-token-line-strong rounded-xl p-1.5 min-w-[150px] shadow-lg z-10">
               {TREND_SCOPES.map(s => (
                 <button
                   key={s}
                   onClick={() => { setScope(s); setMenuOpen(false) }}
                   className={`w-full text-left px-2.5 py-2 rounded-lg text-xs transition-colors ${
-                    scope === s ? 'text-white font-semibold' : 'text-muted hover:text-white hover:bg-white/5'
+                    scope === s ? 'text-token-ink font-semibold' : 'text-token-ink-3 hover:text-token-ink hover:bg-white/5'
                   }`}
                 >
                   {s}
@@ -503,32 +503,32 @@ function TrendWidget({ accounts, dashboardMonth, dashboardYear }: {
       </div>
       {hasSnapshot ? (
         <>
-          <p className="font-mono text-[10px] tracking-widest uppercase text-muted mt-3">Today</p>
-          <p className="font-mono font-medium text-3xl mt-1 tabular-nums">
+          <p className="font-plex-mono text-[10px] tracking-widest uppercase text-token-ink-3 mt-3">Today</p>
+          <p className="font-plex-mono font-medium text-3xl mt-1 tabular-nums">
             {amount != null ? formatCurrency(amount, { decimals: 0 }) : '—'}
           </p>
           {balanceHistoryQuery.isLoading ? (
             <WidgetLoading label="Loading historical balance…" className="mt-3" />
           ) : balanceHistoryQuery.isError ? (
-            <p className="text-muted text-xs mt-3">Couldn't load balance history.</p>
+            <p className="text-token-ink-3 text-xs mt-3">Couldn't load balance history.</p>
           ) : historyPoints.length >= 2 ? (
             <>
               <div className="mt-3">
                 <Chart chart_type="line" title="Balance trend" data={lineData} bare />
               </div>
               {periodDiff != null && periodPct != null && (
-                <p className={`text-xs mt-1.5 ${periodDiff >= 0 ? 'text-positive' : 'text-red-400'}`}>
+                <p className={`text-xs mt-1.5 ${periodDiff >= 0 ? 'text-token-gain' : 'text-token-loss'}`}>
                   {formatCurrency(periodDiff, { signDisplay: 'always' })} ·{' '}
                   {formatPercent(periodPct, { signDisplay: 'always' })} vs 30d ago
                 </p>
               )}
             </>
           ) : (
-            <p className="text-muted text-xs mt-3">Not enough balance history yet.</p>
+            <p className="text-token-ink-3 text-xs mt-3">Not enough balance history yet.</p>
           )}
         </>
       ) : (
-        <p className="text-muted text-xs mt-3">
+        <p className="text-token-ink-3 text-xs mt-3">
           {scope === 'Portfolio' ? 'No portfolio data source yet.' : 'Needs vehicle-manager cost data.'}
         </p>
       )}
@@ -584,7 +584,7 @@ function NetWorthWidget({ accounts, dashboardMonth, dashboardYear }: {
     series: [
       {
         label: 'Net Worth',
-        color: '#6366F1',
+        color: 'var(--brand)',
         points: historyPoints.map(p => ({ x: p.date, y: p.balance })),
       },
     ],
@@ -598,33 +598,33 @@ function NetWorthWidget({ accounts, dashboardMonth, dashboardYear }: {
   }
 
   return (
-    <div className="bg-gradient-to-br from-surface to-surface-2 border border-border rounded-2xl p-5">
+    <div className="bg-gradient-to-br from-token-surface to-token-surface-2 border border-token-line rounded-2xl p-5">
       <div className="flex items-center justify-between gap-2">
-        <span className="font-display font-bold text-[15px]">Net Worth</span>
+        <span className="font-plex-sans font-bold text-[15px]">Net Worth</span>
         <div className="relative flex items-center gap-1">
           <button
             onClick={() => navigate('/analytics')}
-            className="text-muted hover:text-white transition-colors"
+            className="text-token-ink-3 hover:text-token-ink transition-colors"
             aria-label="View analytics"
           >
             <ArrowUpRight size={15} />
           </button>
           <button
             onClick={() => setMenuOpen(o => !o)}
-            className="inline-flex items-center gap-1.5 bg-surface-2 border border-border text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg"
+            className="inline-flex items-center gap-1.5 bg-token-surface-2 border border-token-line text-token-ink text-xs font-semibold px-2.5 py-1.5 rounded-lg"
           >
             Include
             <ChevronDown size={12} />
           </button>
           {menuOpen && (
-            <div className="absolute top-full right-0 mt-1.5 bg-surface-2 border border-border-hover rounded-xl p-2.5 min-w-[190px] shadow-lg z-10">
+            <div className="absolute top-full right-0 mt-1.5 bg-token-surface-2 border border-token-line-strong rounded-xl p-2.5 min-w-[190px] shadow-lg z-10">
               {(['Loan', 'Vehicle', 'Rental'] as const).map(cat => (
-                <label key={cat} className="flex items-center gap-2 py-1.5 text-sm text-white cursor-pointer">
+                <label key={cat} className="flex items-center gap-2 py-1.5 text-sm text-token-ink cursor-pointer">
                   <input
                     type="checkbox"
                     checked={includePrefs[cat]}
                     onChange={() => toggleInclude(cat)}
-                    className="accent-accent"
+                    className="accent-token-brand"
                   />
                   {cat}
                 </label>
@@ -634,14 +634,14 @@ function NetWorthWidget({ accounts, dashboardMonth, dashboardYear }: {
         </div>
       </div>
 
-      <p className="font-mono font-medium text-3xl mt-2 tabular-nums">
+      <p className="font-plex-mono font-medium text-3xl mt-2 tabular-nums">
         {formatCurrency(currentTotal, { decimals: 0 })}
       </p>
 
       {balanceHistoryQuery.isLoading ? (
         <WidgetLoading label="Loading historical balance…" className="mt-3" />
       ) : balanceHistoryQuery.isError ? (
-        <p className="text-muted text-xs mt-3">Couldn't load net worth history.</p>
+        <p className="text-token-ink-3 text-xs mt-3">Couldn't load net worth history.</p>
       ) : historyPoints.length >= 2 ? (
         <>
           <div className="mt-3">
@@ -650,16 +650,16 @@ function NetWorthWidget({ accounts, dashboardMonth, dashboardYear }: {
           {startBalance != null && endBalance != null && (
             <div className="grid grid-cols-3 gap-2 mt-3">
               <div>
-                <p className="font-mono text-[10px] tracking-widest uppercase text-muted">Start</p>
-                <p className="text-sm text-white tabular-nums mt-0.5">{formatCurrency(startBalance)}</p>
+                <p className="font-plex-mono text-[10px] tracking-widest uppercase text-token-ink-3">Start</p>
+                <p className="text-sm text-token-ink tabular-nums mt-0.5">{formatCurrency(startBalance)}</p>
               </div>
               <div>
-                <p className="font-mono text-[10px] tracking-widest uppercase text-muted">Now</p>
-                <p className="text-sm text-white tabular-nums mt-0.5">{formatCurrency(endBalance)}</p>
+                <p className="font-plex-mono text-[10px] tracking-widest uppercase text-token-ink-3">Now</p>
+                <p className="text-sm text-token-ink tabular-nums mt-0.5">{formatCurrency(endBalance)}</p>
               </div>
               <div>
-                <p className="font-mono text-[10px] tracking-widest uppercase text-muted">Growth</p>
-                <p className={`text-sm tabular-nums mt-0.5 ${growthDiff != null && growthDiff >= 0 ? 'text-positive' : 'text-red-400'}`}>
+                <p className="font-plex-mono text-[10px] tracking-widest uppercase text-token-ink-3">Growth</p>
+                <p className={`text-sm tabular-nums mt-0.5 ${growthDiff != null && growthDiff >= 0 ? 'text-token-gain' : 'text-token-loss'}`}>
                   {growthDiff != null ? formatCurrency(growthDiff, { signDisplay: 'always' }) : '—'}
                   {growthPct != null ? ` · ${formatPercent(growthPct, { signDisplay: 'always' })}` : ''}
                 </p>
@@ -668,7 +668,7 @@ function NetWorthWidget({ accounts, dashboardMonth, dashboardYear }: {
           )}
         </>
       ) : (
-        <p className="text-muted text-xs mt-3">Not enough net worth history yet.</p>
+        <p className="text-token-ink-3 text-xs mt-3">Not enough net worth history yet.</p>
       )}
     </div>
   )
@@ -676,25 +676,25 @@ function NetWorthWidget({ accounts, dashboardMonth, dashboardYear }: {
 
 function LatestTransactionsWidget({ transactions, navigate, isLoading }: { transactions: Transaction[] | undefined; navigate: NavigateFn; isLoading?: boolean }) {
   return (
-    <div className="bg-surface border border-border rounded-2xl px-4 pt-4 pb-1.5">
+    <div className="bg-token-surface border border-token-line rounded-2xl px-4 pt-4 pb-1.5">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="font-display font-bold text-[15px]">Latest Transactions</span>
-        <button onClick={() => navigate('/transactions')} className="text-muted hover:text-white transition-colors" aria-label="See all transactions">
+        <span className="font-plex-sans font-bold text-[15px]">Latest Transactions</span>
+        <button onClick={() => navigate('/transactions')} className="text-token-ink-3 hover:text-token-ink transition-colors" aria-label="See all transactions">
           <ArrowUpRight size={16} />
         </button>
       </div>
       {isLoading ? (
         <WidgetLoading label="Loading transactions…" />
       ) : !transactions || transactions.length === 0 ? (
-        <p className="text-muted text-xs py-3">No transactions yet.</p>
+        <p className="text-token-ink-3 text-xs py-3">No transactions yet.</p>
       ) : (
         transactions.slice(0, 5).map(tx => (
-          <div key={tx.id} className="flex items-center gap-2.5 py-2.5 border-b border-border last:border-b-0">
+          <div key={tx.id} className="flex items-center gap-2.5 py-2.5 border-b border-token-line last:border-b-0">
             <div className="flex-1 min-w-0">
               <p className="text-[13.5px] font-medium truncate">{tx.merchant}</p>
-              <p className="text-[11.5px] text-muted truncate">{tx.category ?? 'Uncategorized'}</p>
+              <p className="text-[11.5px] text-token-ink-3 truncate">{tx.category ?? 'Uncategorized'}</p>
             </div>
-            <p className={`font-mono text-[13.5px] tabular-nums flex-shrink-0 ${!tx.is_expense ? 'text-positive' : ''}`}>
+            <p className={`font-plex-mono text-[13.5px] tabular-nums flex-shrink-0 ${!tx.is_expense ? 'text-token-gain' : ''}`}>
               {formatCurrency(tx.is_expense ? -Math.abs(tx.amount) : Math.abs(tx.amount), { signDisplay: 'always' })}
             </p>
           </div>
@@ -728,9 +728,9 @@ function toExpensesPieData(categories: BudgetCategory[] | undefined) {
 
 function CashFlowWidget({ periodLabel }: { periodLabel: string }) {
   return (
-    <div className="bg-surface border border-border rounded-2xl px-4 py-4">
-      <p className="font-display font-bold text-[15px]">Cash Flow</p>
-      <p className="text-muted text-xs mt-2">Needs an income/expense aggregation endpoint — coming soon ({periodLabel}).</p>
+    <div className="bg-token-surface border border-token-line rounded-2xl px-4 py-4">
+      <p className="font-plex-sans font-bold text-[15px]">Cash Flow</p>
+      <p className="text-token-ink-3 text-xs mt-2">Needs an income/expense aggregation endpoint — coming soon ({periodLabel}).</p>
     </div>
   )
 }
@@ -751,20 +751,20 @@ function VehicleCostsWidget({ dashboardMonth, dashboardYear }: {
   if (isLoading) {
     content = <WidgetLoading label="Loading vehicle costs…" className="mt-2" />
   } else if (isError) {
-    content = <p className="text-muted text-xs mt-2">Couldn't load vehicle cost data.</p>
+    content = <p className="text-token-ink-3 text-xs mt-2">Couldn't load vehicle cost data.</p>
   } else if (data && data.available === false) {
-    content = <p className="text-muted text-xs mt-2">{data.error || 'Vehicle data temporarily unavailable.'}</p>
+    content = <p className="text-token-ink-3 text-xs mt-2">{data.error || 'Vehicle data temporarily unavailable.'}</p>
   } else if (data && data.available === true && (data.vehicle_count ?? 0) === 0) {
-    content = <p className="text-muted text-xs mt-2">No active vehicles yet.</p>
+    content = <p className="text-token-ink-3 text-xs mt-2">No active vehicles yet.</p>
   } else if (data && data.available === true) {
     const totalCost = data.total_cost ?? 0
     const vehicleCount = data.vehicle_count ?? 0
     content = (
       <>
-        <p className="font-mono font-medium text-3xl mt-1 tabular-nums">
+        <p className="font-plex-mono font-medium text-3xl mt-1 tabular-nums">
           {formatCurrency(totalCost, { decimals: 0 })}
         </p>
-        <p className="text-muted text-xs mt-2">
+        <p className="text-token-ink-3 text-xs mt-2">
           {vehicleCount} vehicle{vehicleCount !== 1 ? 's' : ''}
           {data.cost_per_km != null && (
             <> · {formatCurrency(data.cost_per_km)}/km</>
@@ -773,12 +773,12 @@ function VehicleCostsWidget({ dashboardMonth, dashboardYear }: {
       </>
     )
   } else {
-    content = <p className="text-muted text-xs mt-2">No vehicle data available.</p>
+    content = <p className="text-token-ink-3 text-xs mt-2">No vehicle data available.</p>
   }
 
   return (
-    <div className="bg-surface border border-border rounded-2xl px-4 py-4">
-      <p className="font-display font-bold text-[15px]">Vehicle costs</p>
+    <div className="bg-token-surface border border-token-line rounded-2xl px-4 py-4">
+      <p className="font-plex-sans font-bold text-[15px]">Vehicle costs</p>
       {content}
     </div>
   )
@@ -805,13 +805,13 @@ function BudgetPeriodCard({
   const queryClient = useQueryClient()
 
   return (
-    <div className="bg-surface border border-border rounded-2xl overflow-hidden">
-      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-border/40">
+    <div className="bg-token-surface border border-token-line rounded-2xl overflow-hidden">
+      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-token-line">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="font-display font-bold text-[15px]">Categories Watchlist</span>
+          <span className="font-plex-sans font-bold text-[15px]">Categories Watchlist</span>
           <button
             onClick={() => setEditingGroups(o => !o)}
-            className={`text-muted hover:text-white transition-colors p-2.5 ${editingGroups ? 'text-accent' : ''}`}
+            className={`text-token-ink-3 hover:text-token-ink transition-colors p-2.5 ${editingGroups ? 'text-token-brand-ink' : ''}`}
             aria-label={editingGroups ? 'Exit group edit mode' : 'Edit groups'}
             title={editingGroups ? 'Exit group edit mode' : 'Edit groups'}
           >
