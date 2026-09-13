@@ -10,6 +10,7 @@ on:
     paths:
       - "majordom-financiar/**"
       - "tools/vehicle-manager/**"
+      - "tools/investment-manager/**"
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
 
@@ -23,9 +24,13 @@ jobs:
           git -C "$MAJORDOM_PATH" reset --hard origin/main
 
       - name: Rebuild and restart services
+        env:
+          COMPOSE_PROFILES: vehicle-manager,investment-manager
         run: |
           cd "$MAJORDOM_PATH/majordom-financiar"
-          docker compose build --no-cache majordom-api majordom-web vehicle-manager
+          docker compose build --no-cache majordom-api majordom-web \
+            vehicle-manager vehicle-manager-web \
+            investment-manager investment-manager-web
           for i in 1 2 3; do
             docker compose up -d --remove-orphans && exit 0
             echo "docker compose up -d failed (attempt $i), retrying after port release..."
