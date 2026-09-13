@@ -1,3 +1,8 @@
+---
+title: Analytics
+description: Learn about the four read-only charts on the Analytics tab.
+---
+
 # Analytics
 
 The Analytics tab shows four read-only charts that give you a quick overview of your finances. Each chart loads independently, so if one fails to load you'll see a "couldn't load" message for that chart while the others still work.
