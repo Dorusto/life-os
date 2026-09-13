@@ -176,7 +176,7 @@ export default function ImportPage({ initialFile, onDone }: ImportPageProps) {
   }
 
   return (
-    <div className="min-h-dvh bg-background flex flex-col pb-16">
+    <div className="min-h-dvh bg-token-paper flex flex-col pb-16">
       {/* Header */}
       <PageHeader label="Bank statements" title="Import CSV" bordered />
 
@@ -185,9 +185,9 @@ export default function ImportPage({ initialFile, onDone }: ImportPageProps) {
 
       {/* Error banner */}
       {error && (
-        <div className="mx-5 mt-2 px-4 py-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-start gap-2">
-          <AlertCircle size={16} className="text-red-400 flex-shrink-0 mt-0.5" />
-          <p className="text-red-400 text-sm">{error}</p>
+        <div className="mx-5 mt-2 px-4 py-3 rounded-xl bg-token-loss-soft border border-token-loss flex items-start gap-2">
+          <AlertCircle size={16} className="text-token-loss flex-shrink-0 mt-0.5" />
+          <p className="text-token-loss text-sm">{error}</p>
         </div>
       )}
 
@@ -270,14 +270,14 @@ function StepIndicator({ current }: { current: Step }) {
           <div key={label} className="flex items-center gap-2">
             <div className={`
               w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium
-              ${done  ? 'bg-success text-white' : ''}
-              ${active ? 'bg-accent text-white' : ''}
-              ${!done && !active ? 'bg-surface border border-border text-muted' : ''}
+              ${done  ? 'bg-token-gain text-token-ink' : ''}
+              ${active ? 'bg-token-brand text-token-ink' : ''}
+              ${!done && !active ? 'bg-token-surface border border-token-line text-token-ink-3' : ''}
             `}>
               {done ? <Check size={12} /> : n}
             </div>
-            <span className={`text-xs ${active ? 'text-white' : 'text-muted'}`}>{label}</span>
-            {i < labels.length - 1 && <div className="w-6 h-px bg-border mx-1" />}
+            <span className={`text-xs ${active ? 'text-token-ink' : 'text-token-ink-3'}`}>{label}</span>
+            {i < labels.length - 1 && <div className="w-6 h-px bg-token-line mx-1" />}
           </div>
         )
       })}
@@ -305,28 +305,28 @@ function Step1Upload({ file, fileInputRef, loading, onDrop, onFileChange, onPick
         onClick={onPickFile}
         className="
           flex-1 flex flex-col items-center justify-center gap-4
-          border-2 border-dashed border-border hover:border-accent
+          border-2 border-dashed border-token-line hover:border-token-brand
           rounded-2xl cursor-pointer transition-colors min-h-[200px]
         "
       >
         {file ? (
           <>
-            <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center">
-              <Check size={24} className="text-success" />
+            <div className="w-12 h-12 rounded-xl bg-token-gain flex items-center justify-center">
+              <Check size={24} className="text-token-gain" />
             </div>
             <div className="text-center">
-              <p className="text-white font-medium text-sm">{file.name}</p>
-              <p className="text-muted text-xs mt-0.5">{(file.size / 1024).toFixed(1)} KB</p>
+              <p className="text-token-ink font-medium text-sm">{file.name}</p>
+              <p className="text-token-ink-3 text-xs mt-0.5">{(file.size / 1024).toFixed(1)} KB</p>
             </div>
           </>
         ) : (
           <>
-            <div className="w-12 h-12 rounded-xl bg-surface flex items-center justify-center">
-              <Upload size={24} className="text-muted" />
+            <div className="w-12 h-12 rounded-xl bg-token-surface flex items-center justify-center">
+              <Upload size={24} className="text-token-ink-3" />
             </div>
             <div className="text-center">
-              <p className="text-white text-sm font-medium">Drop CSV here</p>
-              <p className="text-muted text-xs mt-0.5">or tap to browse</p>
+              <p className="text-token-ink text-sm font-medium">Drop CSV here</p>
+              <p className="text-token-ink-3 text-xs mt-0.5">or tap to browse</p>
             </div>
           </>
         )}
@@ -334,7 +334,7 @@ function Step1Upload({ file, fileInputRef, loading, onDrop, onFileChange, onPick
 
       <input ref={fileInputRef} type="file" accept=".csv" onChange={onFileChange} className="hidden" />
 
-      <p className="text-muted text-xs text-center">
+      <p className="text-token-ink-3 text-xs text-center">
         Supported: ING, Rabobank, crypto.com
       </p>
 
@@ -342,8 +342,8 @@ function Step1Upload({ file, fileInputRef, loading, onDrop, onFileChange, onPick
         onClick={onNext}
         disabled={!file || loading}
         className="
-          w-full py-4 rounded-2xl bg-accent hover:bg-accent-hover
-          text-white font-medium text-base
+          w-full py-4 rounded-2xl bg-token-brand hover:bg-token-brand-2
+          text-token-ink font-medium text-base
           disabled:opacity-40 disabled:cursor-not-allowed
           flex items-center justify-center gap-2 transition-all
         "
@@ -379,27 +379,27 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
   onNext: () => void
 }) {
   const selectClass = `
-    w-full bg-surface border border-border rounded-lg px-2 py-1.5
-    text-white text-xs appearance-none
-    focus:outline-none focus:border-accent transition-colors
+    w-full bg-token-surface border border-token-line rounded-lg px-2 py-1.5
+    text-token-ink text-xs appearance-none
+    focus:outline-none focus:border-token-brand transition-colors
   `
 
   return (
     <div className="flex-1 flex flex-col px-5 pt-2 pb-6 gap-4 overflow-hidden">
       {/* Account selector */}
       <div className="flex items-center gap-3">
-        <label className="text-xs text-muted whitespace-nowrap">Account</label>
+        <label className="text-xs text-token-ink-3 whitespace-nowrap">Account</label>
         <select
           value={accountId}
           onChange={e => onAccountChange(e.target.value)}
-          className={`${selectClass} ${!accountId ? 'border-yellow-500/60 text-yellow-500' : ''}`}
+          className={`${selectClass} ${!accountId ? 'border-token-warn text-token-warn' : ''}`}
         >
           <option value="" disabled>— select account —</option>
           {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
         </select>
       </div>
       {!accountId && (
-        <p className="text-yellow-500 text-xs">
+        <p className="text-token-warn text-xs">
           No account matched "{sourceName}". Select one or create it first in Actual Budget.
         </p>
       )}
@@ -407,38 +407,38 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
       {/* Table */}
       <div className="flex-1 overflow-y-auto -mx-5 px-5">
         <table className="w-full text-xs">
-          <thead className="sticky top-0 bg-background">
-            <tr className="text-muted">
+          <thead className="sticky top-0 bg-token-paper">
+            <tr className="text-token-ink-3">
               <th className="text-left pb-2 pr-2 font-medium">Date</th>
               <th className="text-left pb-2 pr-2 font-medium">Merchant</th>
               <th className="text-right pb-2 pr-2 font-medium">Amount</th>
               <th className="text-left pb-2 font-medium">Category</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-y divide-token-line">
             {rows.map(row => {
               const dimmed = row.duplicate || (row.isTransferCandidate && row.excluded)
               return (
               <tr key={row.id} className={dimmed ? 'opacity-40' : ''}>
-                <td className="py-2 pr-2 text-muted whitespace-nowrap">{row.date.slice(5)}</td>
-                <td className="py-2 pr-2 text-white max-w-[80px] truncate">
+                <td className="py-2 pr-2 text-token-ink-3 whitespace-nowrap">{row.date.slice(5)}</td>
+                <td className="py-2 pr-2 text-token-ink max-w-[80px] truncate">
                   <div className="flex items-center gap-1">
                     {row.duplicate && (
                       <span title="Already imported">
-                        <AlertCircle size={10} className="text-muted flex-shrink-0" />
+                        <AlertCircle size={10} className="text-token-ink-3 flex-shrink-0" />
                       </span>
                     )}
                     {row.possibleDuplicate && (
                       <span
                         title={`Possible duplicate — ${formatCurrency(row.existingAmount ?? 0)} already recorded for this merchant on this date`}
                       >
-                        <AlertCircle size={10} className="text-yellow-500 flex-shrink-0" />
+                        <AlertCircle size={10} className="text-token-warn flex-shrink-0" />
                       </span>
                     )}
                     {row.merchant}
                     {row.isTransferCandidate && (
                       <span
-                        className="bg-blue-500/10 text-blue-400 border border-blue-500/30 text-[10px] px-1 rounded whitespace-nowrap"
+                        className="bg-token-info-soft text-token-info border border-token-info text-[10px] px-1 rounded whitespace-nowrap"
                         title="Likely internal transfer from own account"
                       >
                         Transfer?
@@ -448,26 +448,26 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
                   {row.isTransferCandidate && (
                     <button
                       onClick={() => onToggleExclude(row.id)}
-                      className="text-[10px] text-blue-400 hover:text-blue-300 mt-0.5 block"
+                      className="text-[10px] text-token-info hover:text-token-info mt-0.5 block"
                     >
                       {row.excluded ? 'Include' : 'Exclude'}
                     </button>
                   )}
                 </td>
-                <td className="py-2 pr-2 text-white text-right whitespace-nowrap">
+                <td className="py-2 pr-2 text-token-ink text-right whitespace-nowrap">
                   {row.currency === 'EUR'
                     ? formatCurrency(row.is_expense ? -Math.abs(row.amount) : Math.abs(row.amount), { signDisplay: 'always' })
                     : `${row.is_expense ? '' : '+'}${row.currency}${row.amount.toFixed(2)}`}
                 </td>
                 <td className="py-2">
                   {row.duplicate ? (
-                    <span className="text-muted italic">already imported</span>
+                    <span className="text-token-ink-3 italic">already imported</span>
                   ) : row.isTransferCandidate && row.excluded ? (
-                    <span className="text-muted italic">Excluded</span>
+                    <span className="text-token-ink-3 italic">Excluded</span>
                   ) : (
                     <div className="flex flex-col gap-1">
                       {row.possibleDuplicate && (
-                        <span className="text-yellow-500 text-[10px]">
+                        <span className="text-token-warn text-[10px]">
                           possible duplicate — {formatCurrency(row.existingAmount ?? 0)} already recorded
                         </span>
                       )}
@@ -475,7 +475,7 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
                         <select
                           value={row.categoryName}
                           onChange={e => onCategoryChange(row.id, e.target.value)}
-                          className={`${selectClass} ${row.categoryName === '' ? 'border-yellow-500/60 pr-6' : !row.categoryConfirmed ? 'border-yellow-500/30 pr-6' : ''}`}
+                          className={`${selectClass} ${row.categoryName === '' ? 'border-token-warn pr-6' : !row.categoryConfirmed ? 'border-token-warn pr-6' : ''}`}
                         >
                           <option value="">— no category —</option>
                           {abCategories.map(name => (
@@ -484,7 +484,7 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
                         </select>
                         {(!row.categoryConfirmed || row.categoryName === '') && (
                           <span
-                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-yellow-500 text-xs pointer-events-none"
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 text-token-warn text-xs pointer-events-none"
                             title={row.categoryName === '' ? 'Needs a category' : 'Auto-suggested — verify if correct'}
                           >
                             ?
@@ -496,7 +496,7 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
                         value={row.notes}
                         onChange={e => onNotesChange(row.id, e.target.value)}
                         placeholder="note..."
-                        className="w-full bg-surface border border-border rounded px-2 py-1 text-white text-xs placeholder:text-muted focus:outline-none focus:border-accent transition-colors"
+                        className="w-full bg-token-surface border border-token-line rounded px-2 py-1 text-token-ink text-xs placeholder:text-token-ink-3 focus:outline-none focus:border-token-brand transition-colors"
                       />
                     </div>
                   )}
@@ -510,13 +510,13 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
 
       {/* Actions */}
       <div className="flex gap-3 pt-2">
-        <button onClick={onBack} className="flex-1 py-3 rounded-xl border border-border text-white hover:bg-surface transition-colors text-sm flex items-center justify-center gap-1">
+        <button onClick={onBack} className="flex-1 py-3 rounded-xl border border-token-line text-token-ink hover:bg-token-surface transition-colors text-sm flex items-center justify-center gap-1">
           <ChevronLeft size={16} /> Back
         </button>
         <button
           onClick={onNext}
           disabled={!accountId}
-          className="flex-1 py-3 rounded-xl bg-accent hover:bg-accent-hover text-white font-medium text-sm flex items-center justify-center gap-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 py-3 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-ink font-medium text-sm flex items-center justify-center gap-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Continue <ChevronRight size={16} />
         </button>
@@ -541,15 +541,15 @@ function Step3Confirm({ activeCount, duplicateCount, transferCandidateCount, nee
 }) {
   return (
     <div className="flex-1 flex flex-col px-5 pt-4 pb-6 gap-6">
-      <div className="bg-surface border border-border rounded-2xl p-5 flex flex-col gap-4">
-        <h2 className="text-white font-medium">Ready to import</h2>
+      <div className="bg-token-surface border border-token-line rounded-2xl p-5 flex flex-col gap-4">
+        <h2 className="text-token-ink font-medium">Ready to import</h2>
         <div className="space-y-2">
           <SummaryRow label="Transactions to import" value={String(activeCount)} />
           <SummaryRow label="Duplicates skipped" value={String(duplicateCount)} muted />
           {transferCandidateCount > 0 && (
             <SummaryRow label="Likely transfers excluded" value={String(transferCandidateCount)} muted />
           )}
-          <div className="h-px bg-border my-1" />
+          <div className="h-px bg-token-line my-1" />
           <SummaryRow
             label="Expenses"
             value={formatCurrency(-Math.abs(totalExpenses))}
@@ -565,9 +565,9 @@ function Step3Confirm({ activeCount, duplicateCount, transferCandidateCount, nee
       </div>
 
       {needsActionCount > 0 && (
-        <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-yellow-500/10 border border-yellow-500/30">
-          <AlertCircle size={16} className="text-yellow-500 flex-shrink-0 mt-0.5" />
-          <p className="text-yellow-500 text-sm">
+        <div className="flex items-start gap-2 px-4 py-3 rounded-xl bg-token-warn-soft border border-token-warn">
+          <AlertCircle size={16} className="text-token-warn flex-shrink-0 mt-0.5" />
+          <p className="text-token-warn text-sm">
             <span className="font-medium">{needsActionCount} {needsActionCount === 1 ? 'transaction is' : 'transactions are'} uncategorized (Other).</span>
             {' '}Go back and pick a category for the rows marked <span className="font-bold">?</span>
           </p>
@@ -575,12 +575,12 @@ function Step3Confirm({ activeCount, duplicateCount, transferCandidateCount, nee
       )}
 
       {autoSuggestedCount > 0 && needsActionCount === 0 && (
-        <p className="text-muted text-xs text-center">
-          {autoSuggestedCount} {autoSuggestedCount === 1 ? 'category was' : 'categories were'} auto-suggested (marked <span className="text-yellow-500 font-bold">?</span>). Verify if needed.
+        <p className="text-token-ink-3 text-xs text-center">
+          {autoSuggestedCount} {autoSuggestedCount === 1 ? 'category was' : 'categories were'} auto-suggested (marked <span className="text-token-warn font-bold">?</span>). Verify if needed.
         </p>
       )}
 
-      <p className="text-muted text-xs text-center">
+      <p className="text-token-ink-3 text-xs text-center">
         Transactions will be added to Actual Budget. This cannot be undone.
       </p>
 
@@ -588,14 +588,14 @@ function Step3Confirm({ activeCount, duplicateCount, transferCandidateCount, nee
         <button
           onClick={onBack}
           disabled={loading}
-          className="flex-1 py-3 rounded-xl border border-border text-white hover:bg-surface transition-colors text-sm flex items-center justify-center gap-1 disabled:opacity-40"
+          className="flex-1 py-3 rounded-xl border border-token-line text-token-ink hover:bg-token-surface transition-colors text-sm flex items-center justify-center gap-1 disabled:opacity-40"
         >
           <ChevronLeft size={16} /> Back
         </button>
         <button
           onClick={onImport}
           disabled={loading}
-          className="flex-1 py-3 rounded-xl bg-accent hover:bg-accent-hover text-white font-medium text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-40"
+          className="flex-1 py-3 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-ink font-medium text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-40"
         >
           {loading ? (
             <><Loader2 size={16} className="animate-spin" /> Importing...</>
@@ -611,8 +611,8 @@ function Step3Confirm({ activeCount, duplicateCount, transferCandidateCount, nee
 function SummaryRow({ label, value, muted, bold }: { label: string; value: string; muted?: boolean; bold?: boolean }) {
   return (
     <div className="flex items-center justify-between">
-      <span className={`text-sm ${muted ? 'text-muted' : 'text-white'}`}>{label}</span>
-      <span className={`text-sm ${bold ? 'text-white font-semibold' : muted ? 'text-muted' : 'text-white'}`}>{value}</span>
+      <span className={`text-sm ${muted ? 'text-token-ink-3' : 'text-token-ink'}`}>{label}</span>
+      <span className={`text-sm ${bold ? 'text-token-ink font-semibold' : muted ? 'text-token-ink-3' : 'text-token-ink'}`}>{value}</span>
     </div>
   )
 }
@@ -632,10 +632,10 @@ function Step4Done({ imported, skipped, merged, retroactivelyUpdated, onHome }: 
           initial={{ scale: 0.8, opacity: 0.8 }}
           animate={{ scale: 1.4, opacity: 0 }}
           transition={{ duration: 1, repeat: Infinity, ease: 'easeOut' }}
-          className="absolute inset-0 rounded-full bg-success"
+          className="absolute inset-0 rounded-full bg-token-gain"
         />
-        <div className="w-20 h-20 rounded-full bg-success flex items-center justify-center">
-          <Check size={36} className="text-white" strokeWidth={2.5} />
+        <div className="w-20 h-20 rounded-full bg-token-gain flex items-center justify-center">
+          <Check size={36} className="text-token-ink" strokeWidth={2.5} />
         </div>
       </motion.div>
 
@@ -645,8 +645,8 @@ function Step4Done({ imported, skipped, merged, retroactivelyUpdated, onHome }: 
         transition={{ delay: 0.3 }}
         className="text-center"
       >
-        <p className="text-white text-lg font-medium">Import complete!</p>
-        <p className="text-muted text-sm mt-1">
+        <p className="text-token-ink text-lg font-medium">Import complete!</p>
+        <p className="text-token-ink-3 text-sm mt-1">
           {imported} transactions added to Actual Budget
           {(merged ?? 0) > 0 && `, ${merged} categories updated`}
           {skipped > 0 && `, ${skipped} duplicates skipped`}
@@ -659,7 +659,7 @@ function Step4Done({ imported, skipped, merged, retroactivelyUpdated, onHome }: 
         animate={{ opacity: 1 }}
         transition={{ delay: 0.5 }}
         onClick={onHome}
-        className="px-8 py-3 rounded-xl border border-border text-white hover:bg-surface transition-colors text-sm"
+        className="px-8 py-3 rounded-xl border border-token-line text-token-ink hover:bg-token-surface transition-colors text-sm"
       >
         Back to Home
       </motion.button>
