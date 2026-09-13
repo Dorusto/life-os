@@ -100,6 +100,7 @@ classes, ordered/longest-match-first replacement only):
 | `bg-surface-2` | `bg-token-surface-2` | hover/nested |
 | `border-border` | `border-token-line` | default border |
 | `border-border-hover` | `border-token-line-strong` | |
+| `bg-border` | `bg-token-line` | a border color used as a fill (divider bars), same token either way |
 | `bg-accent` / `text-accent` / `border-accent` | `bg-token-brand` / `text-token-brand-ink` / `border-token-brand` | brand fill vs. readable accent text/border — check which is meant per call site, they're different tokens |
 | `bg-accent-hover` | `bg-token-brand-2` | |
 | `text-muted` | `text-token-ink-3` | secondary/caption text |
