@@ -30,17 +30,22 @@ export default function BottomSheet({ open, onClose, title, children }: BottomSh
       style={{ touchAction: 'none' }}
       onClick={onClose}
     >
+      {/* dvh (not vh) so mobile browser chrome doesn't push the panel off-screen.
+          Flex column: header stays fixed, only the body scrolls. */}
       <div
-        className="w-full bg-token-surface border-t border-token-line rounded-t-2xl px-6 pt-5 pb-8 space-y-3 max-h-[80vh] overflow-y-auto overscroll-contain"
+        className="w-full bg-token-surface border-t border-token-line rounded-t-2xl flex flex-col max-h-[85dvh]"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between px-6 pt-5 pb-3">
           <h2 className="text-token-ink font-semibold text-base">{title}</h2>
           <button onClick={onClose} className="text-token-ink-3 hover:text-token-ink transition-colors flex-shrink-0 ml-3">
             <X size={18} />
           </button>
         </div>
-        <div className="text-token-ink-3 text-xs leading-relaxed">{children}</div>
+        {/* min-h-0 lets this flex child actually shrink so it can scroll. */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-6 pb-8 text-token-ink-3 text-xs leading-relaxed">
+          {children}
+        </div>
       </div>
     </div>
   )
