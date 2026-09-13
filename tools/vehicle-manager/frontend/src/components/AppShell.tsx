@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { Home, History, BarChart3, Car, LogOut } from 'lucide-react'
+import SettingsButton from './SettingsButton'
 import { clearAuth, getUsername } from '../lib/auth'
 import { cn } from '../lib/ui'
 
@@ -71,15 +72,18 @@ export function AppShell({ children }: { children: ReactNode }) {
               <p className="truncate text-[13px] font-medium text-ink">{getUsername() ?? 'Signed in'}</p>
               <p className="text-[11px] text-ink-3">Vehicle manager</p>
             </div>
-            <button
-              type="button"
-              onClick={logout}
-              title="Sign out"
-              className="rounded p-1.5 text-ink-3 transition-colors hover:bg-surface-2 hover:text-loss"
-            >
-              <LogOut className="h-4 w-4" />
-              <span className="sr-only">Sign out</span>
-            </button>
+            <div className="flex shrink-0 items-center">
+              <SettingsButton className="rounded p-1.5 hover:bg-surface-2" />
+              <button
+                type="button"
+                onClick={logout}
+                title="Sign out"
+                className="rounded p-1.5 text-ink-3 transition-colors hover:bg-surface-2 hover:text-loss"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="sr-only">Sign out</span>
+              </button>
+            </div>
           </div>
         </div>
       </aside>

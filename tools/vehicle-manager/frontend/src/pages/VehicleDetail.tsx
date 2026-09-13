@@ -6,6 +6,7 @@ import Chart from '../components/Chart'
 import ChartSection from '../components/ChartSection'
 import LogEntryForm from '../components/LogEntryForm'
 import LogoutButton from '../components/LogoutButton'
+import SettingsButton from '../components/SettingsButton'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { Delta } from '../components/Delta'
@@ -233,7 +234,10 @@ export default function VehicleDetail() {
           <Button variant="ghost" size="sm" onClick={() => navigate('/vehicles')} className="-ml-3">
             <ChevronLeft size={16} /> Vehicles
           </Button>
-          <LogoutButton />
+          <div className="flex items-center gap-3">
+            <SettingsButton />
+            <LogoutButton />
+          </div>
         </div>
         <p className="font-mono text-[11px] uppercase tracking-wide text-ink-3">Vehicle</p>
         <h1 className="truncate text-2xl font-semibold text-ink">{vehicle.name}</h1>
