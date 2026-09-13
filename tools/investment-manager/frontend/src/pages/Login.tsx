@@ -85,6 +85,8 @@ export default function Login() {
               <TextInput
                 id="username"
                 autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
                 autoFocus
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}

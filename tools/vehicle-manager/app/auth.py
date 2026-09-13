@@ -186,7 +186,11 @@ async def login(request: LoginRequest) -> TokenResponse:
     The token must be included in all subsequent requests:
         Authorization: Bearer <token>
     """
-    hashed = USERS.get(request.username)
+    # Stripped: mobile keyboards/autocomplete commonly append a trailing
+    # space after accepting a suggestion, which would otherwise silently
+    # fail this exact dict-key lookup against the (also-stripped) stored
+    # username. See _load_users()'s own .strip() for the matching side.
+    hashed = USERS.get(request.username.strip())
 
     is_valid = False
     if hashed:
