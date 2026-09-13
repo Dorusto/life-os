@@ -33,3 +33,8 @@ Thumbs.db
 
 # Aider (should only ever appear if run outside an isolated worktree)
 .aider*
+
+# delegate-by-complexity dispatch worktrees — nested inside the repo rather
+# than as sibling folders next to life-os/ (2026-09-13, Doru flagged sibling
+# worktree folders in Proiecte-AI/ as unwanted clutter).
+.worktrees/
