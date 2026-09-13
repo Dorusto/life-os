@@ -157,7 +157,7 @@ function AccountRow({ account }: { account: AccountListItem }) {
         <Icon size={16} />
       </div>
       <p className="flex-1 min-w-0 text-[13.5px] font-semibold truncate">{account.name}</p>
-      <p className="font-mono text-sm tabular-nums flex-shrink-0">
+      <p className="font-plex-mono text-sm tabular-nums flex-shrink-0">
         {formatCurrency(account.balance, { decimals: 0 })}
       </p>
     </button>
