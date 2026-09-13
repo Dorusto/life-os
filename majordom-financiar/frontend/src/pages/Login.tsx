@@ -1,7 +1,17 @@
 import { useState, FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { login } from '../lib/api'
 import { saveAuth } from '../lib/auth'
+
+/**
+ * Only ever follow an in-app path as the post-login destination — a `next`
+ * value arriving in the URL must not become an open redirect.
+ */
+function safeNext(next: string | null): string | null {
+  if (!next) return null
+  if (!next.startsWith('/') || next.startsWith('//') || next.startsWith('/\\')) return null
+  return next
+}
 
 /**
  * Login page.
@@ -12,6 +22,7 @@ import { saveAuth } from '../lib/auth'
  */
 export default function Login() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -25,7 +36,10 @@ export default function Login() {
     try {
       const res = await login(username, password)
       saveAuth(res.access_token, res.username)
-      navigate('/', { replace: true })
+      // Return to the route the guard bounced us off (#12) — e.g. a cross-app
+      // /majordom?prefill=… deep link — instead of always the Dashboard.
+      const next = safeNext(new URLSearchParams(location.search).get('next'))
+      navigate(next ?? '/', { replace: true })
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Login failed'
       setError(

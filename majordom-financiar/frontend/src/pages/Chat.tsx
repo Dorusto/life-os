@@ -122,17 +122,23 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
       }
     }
   }, [showHelp, showMenu])
-  // Pre-fill the input from a "prefill" prompt passed via navigation state
-  // (e.g. tapping a "Needs attention" item on Home) — never auto-sent, the
-  // user reviews/edits before confirming, same as any other write action.
+  // Pre-fill the input from a "prefill" prompt — either router state (e.g.
+  // tapping a "Needs attention" item on Home) or a `?prefill=` query param
+  // (#12), which is all a cross-app link into the app can carry. Router state
+  // wins when both are present. Never auto-sent: the user reviews/edits and
+  // then confirms, same as any other write action (rule 30).
   useEffect(() => {
-    const prefill = (location.state as { prefill?: string } | null)?.prefill
+    const statePrefill = (location.state as { prefill?: string } | null)?.prefill
+    const paramPrefill = new URLSearchParams(location.search).get('prefill')
+    const prefill = statePrefill || paramPrefill
     if (prefill) {
       setInput(prefill)
+      // Drop the prefill from the URL/state so a reload or back/forward doesn't
+      // re-fill (and overwrite) whatever the user has typed since.
       navigate(location.pathname, { replace: true, state: {} })
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.state])
+  }, [location.state, location.search])
   const csvInputRef = useRef<HTMLInputElement>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
   const galleryInputRef = useRef<HTMLInputElement>(null)

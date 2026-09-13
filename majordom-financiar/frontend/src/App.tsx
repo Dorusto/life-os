@@ -35,8 +35,15 @@ import { AppShell } from './components/AppShell'
  * loop (same reason /login is never itself wrapped in ProtectedRoute).
  */
 function ProtectedRoute({ children, skipAbCheck }: { children: React.ReactNode; skipAbCheck?: boolean }) {
+  const location = useLocation()
+
   if (!isAuthenticated()) {
-    return <Navigate to="/login" replace />
+    // Carry the requested path through the login round trip (#12) — a cross-app
+    // /majordom?prefill=… deep link must land on chat afterwards, not Dashboard.
+    // A `?next=` query param (rather than router state) because it survives the
+    // replace-navigation to /login and a full page load.
+    const params = new URLSearchParams({ next: location.pathname + location.search })
+    return <Navigate to={`/login?${params.toString()}`} replace />
   }
   if (skipAbCheck) {
     return <>{children}</>
@@ -62,6 +69,18 @@ function AbConnectedGate({ children }: { children: React.ReactNode }) {
     return <Navigate to="/setup/ab" replace />
   }
   return <>{children}</>
+}
+
+/**
+ * `/majordom` is the cross-app entry point other apps link to (#12). Chat's
+ * canonical route stays `/chat` (BottomNav and the notification bell both rely
+ * on it) — this only forwards, carrying the query string so a link such as
+ * `/majordom?prefill=…` still prefills the input (a cross-app link can't carry
+ * router state, but it can carry a query param).
+ */
+function MajordomRedirect() {
+  const location = useLocation()
+  return <Navigate to={{ pathname: '/chat', search: location.search }} replace />
 }
 
 /**
@@ -252,6 +271,15 @@ function Layout() {
           element={
             <ProtectedRoute>
               <Chat messages={chatMessages} setMessages={setChatMessages} input={chatInput} setInput={setChatInput} />
+            </ProtectedRoute>
+          }
+        />
+        {/* Cross-app entry point (#12) — other apps link to /majordom. */}
+        <Route
+          path="/majordom"
+          element={
+            <ProtectedRoute>
+              <MajordomRedirect />
             </ProtectedRoute>
           }
         />
