@@ -49,44 +49,34 @@ already tonight, don't reintroduce it here).
 - [x] Written 2026-09-13.
 
 ### Phase 1 — Shell unification
-- [ ] **1a. investment-manager**: replace the mobile top-bar+drawer in `AppShell.tsx` with a
-      bottom tab bar (own component, matching vehicle-manager's `BottomNav.tsx` shape/token
-      usage). Keep the existing desktop rail untouched. Decide bottom-tab set: investment-manager
-      has 7 nav items (Dashboard/Holdings/Transactions/Income/Rebalancing/Goals/Settings) — too
-      many for one bottom bar. Use a 5-tab bar (Dashboard, Holdings, Transactions, Goals,
-      Settings) + a 6th "More" tab opening a small bottom sheet with Income + Rebalancing — a
-      standard, well-understood mobile pattern, not a novel one. `ConfirmDialog`/`SecurityModal`/
-      `GoalModal`/`TransactionModal`/`XtbImportModal` are unaffected (they're not nav).
-- [ ] **1b. vehicle-manager**: audited — confirmed it has NO shell wrapper at all. `App.tsx` routes
-      straight to each page component; `<BottomNav />` is rendered individually inside 5 of the 7
-      pages (`VehicleList`, `Dashboard`, `StatsPage`, `RemindersPage`, `TimelinePage` — not
-      `VehicleDetail`/`FuelioImport`/`Login`, which are full-screen flows by design, matching
-      majordom-financiar's own "hidden on full-screen flows" convention). Adding a desktop rail
-      properly means introducing a real `AppShell.tsx` wrapper (like investment-manager's) around
-      the nav-bearing routes in `App.tsx`, and removing each page's own individual `<BottomNav />`
-      call in favor of the shell rendering nav centrally once. **This is a routing-structure
-      change, not a mechanical port — do this part directly (Claude), then delegate only the
-      mechanical "remove the now-shell-owned `<BottomNav />` call from these 5 page files" cleanup
-      to Aider afterward**, per `delegate-by-complexity`'s own rule that routing/layout-structure
-      decisions aren't a good blind-delegation fit.
-- [ ] **1c. majordom-financiar**: currently has ONLY a mobile-width-constrained bottom nav (even
-      on desktop it just centers at `max-w-[480px]`, no rail). Add the desktop rail (reusing the
-      same `AppShell.tsx` structure/pattern), reskin the existing bottom nav onto the new token
-      colors (keep majordom-financiar's own 5 tabs: Dashboard/Accounts/Transactions/Majordom/
-      Analytics — these map to real, already-decided IA, not investment-manager's tab set).
-      **This phase also needs each page's own root wrapper changed** — pages currently assume
-      they own the full viewport width (`h-dvh`, full-bleed); once a desktop rail exists, content
-      needs a `max-w-*` centered column inside `<main>`, matching investment-manager's
-      `mx-auto max-w-6xl` pattern. Do this as part of 1c, not deferred to Phase 3 (every page
-      re-skin in Phase 3 would otherwise redo this wrapper change piecemeal).
+- [x] **1a. investment-manager** — shipped. New `MobileBottomNav.tsx` (5 tabs: Dashboard,
+      Holdings, Transactions, Goals, Settings) + `MoreSheet.tsx` (Income, Rebalancing, via the
+      existing `Modal`), `AppShell.tsx`'s old top-bar+drawer removed, desktop `<aside>` untouched.
+      Delegated to Aider/Flash, live-verified in browser (bottom nav renders correctly, More sheet
+      opens with both items) before merging.
+- [x] **1b. vehicle-manager** — shipped, scoped down from the original plan. New
+      `AppShell.tsx` (implemented directly, not delegated — a routing-structure decision) adds a
+      **desktop-only** left rail (`lg:` and up) around all protected routes in `App.tsx`. Mobile
+      is deliberately untouched: each page still renders its own header/BottomNav/full-bleed
+      layout exactly as before, zero regression risk. A full per-page teardown so mobile also
+      routes through one shared shell (matching investment-manager/majordom-financiar's page
+      structure more closely) is a separate, larger follow-up — not done in this pass. Live-
+      verified (tsc/build clean, rail hidden at mobile width, rail content correct when
+      force-displayed for inspection).
+- [x] **1c. majordom-financiar** — shipped. Replaced the old `md:max-w-[480px] md:mx-auto
+      md:border-x` phone-frame treatment with a real desktop rail (`AppShell.tsx`, `lg:` and up)
+      + a `lg:mx-auto lg:max-w-5xl` centered content column, same shape as the other two apps.
+      `BottomNav.tsx` reskinned onto `token-*` colors and given `lg:hidden` (it had no upper
+      cutoff before — was rendering under the new rail simultaneously until fixed). Kept
+      majordom-financiar's own 5 tabs (Dashboard/Accounts/Transactions/Majordom/Analytics) in
+      both the rail and the bottom nav — real, already-decided IA, not investment-manager's tab
+      set. Live-verified in browser.
 
-### Phase 2 — Fix the Dashboard grid bug (isolated, can run in parallel with Phase 1)
-- [ ] `Dashboard.tsx`'s `sm:grid sm:grid-cols-[1.15fr_1fr]` (line ~226) switches to two columns at
-      640px — too narrow for a genuinely two-column layout, producing the uneven/cramped look
-      Doru flagged. Change the breakpoint to `lg:` (1024px, matching the new rail breakpoint from
-      Phase 1c) and re-evaluate the column ratio once Phase 1c's max-width content column exists
-      (an even `1fr 1fr` may read better than `1.15fr 1fr` inside a narrower centered column —
-      judge visually once 1c lands, don't guess blind).
+### Phase 2 — Fix the Dashboard grid bug — shipped with 1c
+- [x] `Dashboard.tsx`'s two-column widget grid switched from `sm:` (640px) to `lg:` (1024px),
+      matching the new rail breakpoint. Live-verified: the two columns (Balance trend / Latest
+      Transactions) now read evenly balanced inside the new `max-w-5xl` column — kept the
+      `1.15fr_1fr` ratio, it reads fine at this width, no need to flatten to an even split.
 
 ### Phase 3 — Migrate majordom-financiar's pages/components off Card.tsx/PageHeader.tsx
 - [ ] Inventory every one of the ~20 components using the old `Card` (grep
