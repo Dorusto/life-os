@@ -33,6 +33,40 @@ export default {
         'info-dim':      '#1C2C47',
         interactive:     '#8B7BF0', // chat/CTA/active-tab accent for the new Card system
         'interactive-dim': '#241F47',
+
+        // Shared design-token layer ported from investment-manager
+        // (src/styles/tokens.css). Nested under `token` so every new utility
+        // class is unambiguously `bg-token-surface`, `text-token-ink`, etc.,
+        // and none of the pre-existing flat color keys above are shadowed.
+        token: {
+          paper: 'var(--paper)',
+          surface: 'var(--surface)',
+          'surface-2': 'var(--surface-2)',
+          'surface-sunken': 'var(--surface-sunken)',
+          ink: 'var(--ink)',
+          'ink-2': 'var(--ink-2)',
+          'ink-3': 'var(--ink-3)',
+          line: 'var(--line)',
+          'line-strong': 'var(--line-strong)',
+          overlay: 'var(--overlay)',
+          brand: 'var(--brand)',
+          'brand-2': 'var(--brand-2)',
+          'brand-soft': 'var(--brand-soft)',
+          'brand-ink': 'var(--brand-ink)',
+          gain: 'var(--gain)',
+          'gain-soft': 'var(--gain-soft)',
+          loss: 'var(--loss)',
+          'loss-soft': 'var(--loss-soft)',
+          warn: 'var(--warn)',
+          'warn-soft': 'var(--warn-soft)',
+          info: 'var(--info)',
+          c1: 'var(--c1)',
+          c2: 'var(--c2)',
+          c3: 'var(--c3)',
+          c4: 'var(--c4)',
+          c5: 'var(--c5)',
+          c6: 'var(--c6)',
+        },
       },
       fontFamily: {
         // System font stack — no web font download, fast, looks native on iOS/Android
@@ -41,6 +75,10 @@ export default {
         display: ['Syne', 'sans-serif'],
         // DM Mono for numbers
         mono: ['DM Mono', 'monospace'],
+        // Shared token-system faces (ported from investment-manager). Existing
+        // pages keep using `sans`/`display`/`mono` above until they migrate.
+        'plex-sans': ['IBM Plex Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        'plex-mono': ['IBM Plex Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       borderRadius: {
         'xl': '12px',
