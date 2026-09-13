@@ -52,24 +52,24 @@ export default function Accounts() {
   }
 
   return (
-    <div className="h-dvh bg-background flex flex-col overflow-y-auto">
+    <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
       <PageHeader
         label={accounts ? `${accounts.length} account${accounts.length !== 1 ? 's' : ''} · Actual Budget` : 'Actual Budget'}
         title="Accounts"
         actions={<StandardHeaderActions />}
       />
       <section className="px-5 pt-2 pb-24">
-        <p className="font-mono text-[11px] uppercase tracking-wide text-muted">Total</p>
-        <p className="font-mono font-medium text-3xl mt-1 tabular-nums">
+        <p className="font-plex-mono text-[11px] uppercase tracking-wide text-token-ink-3">Total</p>
+        <p className="font-plex-mono font-medium text-3xl mt-1 tabular-nums">
           {formatCurrency(total, { decimals: 0 })}
         </p>
 
         <div className="flex items-center justify-between mt-6 mb-2">
-          <p className="font-mono text-[11px] uppercase tracking-wide text-muted">Vehicles</p>
+          <p className="font-plex-mono text-[11px] uppercase tracking-wide text-token-ink-3">Vehicles</p>
           <button
             type="button"
             onClick={() => setAddVehicleOpen(true)}
-            className="inline-flex items-center gap-1.5 bg-surface border border-border text-white text-xs font-semibold px-3 py-2 rounded-xl hover:border-border-hover transition-colors"
+            className="inline-flex items-center gap-1.5 bg-token-surface border border-token-line text-token-ink text-xs font-semibold px-3 py-2 rounded-xl hover:border-token-line-strong transition-colors"
           >
             <Plus size={14} />
             Add vehicle
@@ -77,7 +77,7 @@ export default function Accounts() {
         </div>
         {vehicleAccounts.length > 0 && (
           <>
-            <p className="font-mono font-medium text-3xl mt-1 tabular-nums">
+            <p className="font-plex-mono font-medium text-3xl mt-1 tabular-nums">
               {formatCurrency(vehicleSubtotal, { decimals: 0 })}
             </p>
             <div className="space-y-2.5 mt-3">
@@ -96,12 +96,12 @@ export default function Accounts() {
           </>
         )}
         {vehicleAccounts.length === 0 && (
-          <p className="text-muted text-xs">No vehicles yet.</p>
+          <p className="text-token-ink-3 text-xs">No vehicles yet.</p>
         )}
 
         {onBudget.length > 0 && (
           <>
-            <p className="font-mono text-[11px] uppercase tracking-wide text-muted mt-6 mb-2">On budget</p>
+            <p className="font-plex-mono text-[11px] uppercase tracking-wide text-token-ink-3 mt-6 mb-2">On budget</p>
             <div className="space-y-2.5">
               {onBudget.map(a => <AccountRow key={a.id} account={a} />)}
             </div>
@@ -109,7 +109,7 @@ export default function Accounts() {
         )}
         {offBudget.length > 0 && (
           <>
-            <p className="font-mono text-[11px] uppercase tracking-wide text-muted mt-6 mb-2">Off budget</p>
+            <p className="font-plex-mono text-[11px] uppercase tracking-wide text-token-ink-3 mt-6 mb-2">Off budget</p>
             <div className="space-y-2.5">
               {offBudget.map(a => <AccountRow key={a.id} account={a} />)}
             </div>
@@ -151,13 +151,13 @@ function AccountRow({ account }: { account: AccountListItem }) {
   return (
     <button
       onClick={() => navigate(`/accounts/${account.id}`)}
-      className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-3.5 py-3.5 text-left hover:bg-surface-2 transition-colors"
+      className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-3.5 py-3.5 text-left hover:bg-token-surface-2 transition-colors"
     >
-      <div className="w-9 h-9 rounded-xl bg-surface-2 flex items-center justify-center text-muted flex-shrink-0">
+      <div className="w-9 h-9 rounded-xl bg-token-surface-2 flex items-center justify-center text-token-ink-3 flex-shrink-0">
         <Icon size={16} />
       </div>
       <p className="flex-1 min-w-0 text-[13.5px] font-semibold truncate">{account.name}</p>
-      <p className="font-mono text-sm tabular-nums flex-shrink-0">
+      <p className="font-plex-mono text-sm tabular-nums flex-shrink-0">
         {formatCurrency(account.balance, { decimals: 0 })}
       </p>
     </button>
@@ -182,23 +182,23 @@ function VehicleAccountRow({
         if (vehicle) navigate(`/accounts/${account.id}`)
         else onLinkRequest()
       }}
-      className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-3.5 py-3.5 text-left hover:bg-surface-2 transition-colors"
+      className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-3.5 py-3.5 text-left hover:bg-token-surface-2 transition-colors"
     >
-      <div className="w-9 h-9 rounded-xl bg-surface-2 flex items-center justify-center text-muted flex-shrink-0">
+      <div className="w-9 h-9 rounded-xl bg-token-surface-2 flex items-center justify-center text-token-ink-3 flex-shrink-0">
         <Car size={16} />
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-[13.5px] font-semibold truncate">{account.name}</p>
         {vehicle ? (
-          <p className="text-[11.5px] text-muted truncate">
+          <p className="text-[11.5px] text-token-ink-3 truncate">
             {[vehicle.make, vehicle.model].filter(Boolean).join(' ') || 'Vehicle'}
             {vehicle.year ? ` · ${vehicle.year}` : ''}
           </p>
         ) : (
-          <p className="text-[11.5px] text-muted truncate">Not linked to a vehicle profile — tap to link</p>
+          <p className="text-[11.5px] text-token-ink-3 truncate">Not linked to a vehicle profile — tap to link</p>
         )}
       </div>
-      <p className="font-mono text-sm tabular-nums flex-shrink-0">
+      <p className="font-plex-mono text-sm tabular-nums flex-shrink-0">
         {formatCurrency(account.balance, { decimals: 0 })}
       </p>
     </button>
