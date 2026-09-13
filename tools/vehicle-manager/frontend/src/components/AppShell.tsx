@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { Home, History, BarChart3, Car, LogOut } from 'lucide-react'
+import NotificationBell from './NotificationBell'
 import SettingsButton from './SettingsButton'
 import { clearAuth, getUsername } from '../lib/auth'
 import { cn } from '../lib/ui'
@@ -73,6 +74,10 @@ export function AppShell({ children }: { children: ReactNode }) {
               <p className="text-[11px] text-ink-3">Vehicle manager</p>
             </div>
             <div className="flex shrink-0 items-center">
+              <NotificationBell
+                className="rounded p-1.5 hover:bg-surface-2"
+                panelClassName="left-0 right-auto w-64"
+              />
               <SettingsButton className="rounded p-1.5 hover:bg-surface-2" />
               <button
                 type="button"
