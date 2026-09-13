@@ -149,13 +149,37 @@ done; ~28 more found. Continuing as Groups 6+:
       until Phase 3b retires it; migrate its colors now like any other file, retirement is
       separate), `components/PageHeader.tsx` (same — still rendering live on every page via
       `App.tsx`, migrate colors now, retire the whole component in Phase 3b)
-- [ ] Group 9: `pages/AbSetupWizard.tsx`, `Analytics.tsx`, `BudgetRealismReviewPage.tsx`,
-      `DuplicatesReviewPage.tsx`, `Login.tsx`, `ReceiptFlow.tsx`
-- [ ] Group 10: `pages/RecurringReviewPage.tsx`, `Transactions.tsx`,
-      `UncategorizedReviewPage.tsx`, `UnreconciledReviewPage.tsx`
-- [ ] After Groups 6-10: re-run the global sweep (`grep -rlE` for old classes across all of
-      `frontend/src`, not just the originally-suspected files) to confirm nothing else was missed
-      — this is exactly how Groups 6-10 themselves were found, don't skip repeating it.
+- [x] Group 6 (6 small shared components incl. old `Card`/`PageHeader`) — shipped, clean.
+- [x] Group 7 (`AbConnectionBanner`, `BottomSheet`, `ActionCardButtons`, `AddButton`,
+      `TransactionListCard`, `NotificationBell`) — shipped, 2 leftovers found+fixed after
+      Aider's own pass (`border-border`/`divide-border` in `NotificationBell`, `text-muted`/
+      `text-white` in `AddButton`).
+- [x] Group 8 (6 review pages + `Analytics`/`Login`) — shipped, clean.
+- [x] Group 9 (`CategoryFilterTree`, `NewGoalSheet`, `LinkVehicleSheet`, `AbSetupWizard`,
+      `EditVehicleModal`) — shipped, 1 leftover fixed (`bg-background` ×2 in `AbSetupWizard`).
+- [x] Group 10 (`DuplicatesReviewPage`, `BudgetDashboard`) — shipped, clean (the coupled
+      `Chart.tsx`/`BudgetDashboard.tsx` magic-string fix was done directly beforehand, see below).
+- [x] Group 11 (`Transactions.tsx`, 643 lines, alone given size) — shipped, clean.
+- [x] Group 12 (`ReceiptFlow.tsx`, 677 lines, alone) — shipped, 1 leftover fixed (`bg-background`).
+- [x] Group 13 (`Chart.tsx`, 923 lines, the shared chart renderer — alone, extra care) — shipped,
+      clean (plus a stale doc-comment fix).
+- [x] **Cross-file coupling fixed directly, before any delegation**: `Chart.tsx`'s `isWarning`
+      check compared `color === '#FF2D2D'` against a magic string `BudgetDashboard.tsx`'s
+      `getBudgetColor()` produces — migrating one side via an independent Aider dispatch without
+      the other would have silently broken the comparison. Both now use `'var(--loss)'`.
+- [x] **Final global sweep (after Groups 6-13) found and fixed one more round**: Group 1 (the
+      very first dispatch, before the red/green/yellow-500 pattern was known) had left several
+      `text-red-400`/`text-green-400`/`text-yellow-500` occurrences in 4 files, plus one
+      `hover:border-interactive` in `Dashboard.tsx`. Fixed directly. A repeat sweep after that
+      came back **completely clean across all of `frontend/src`** — Phase 3a is done.
+- [x] **Live-verified in browser** (Dashboard, Accounts, Transactions, Settings) after a full
+      rebuild — consistent styling throughout, no console errors, no visual regressions.
+      (Note: the Claude-in-Chrome `zoom` action rendered solid black on this dark theme at least
+      once despite real content underneath — a tool rendering quirk, confirmed via `screenshot`
+      and `getComputedStyle` showing correct light-on-dark colors; prefer plain `screenshot` over
+      `zoom` for whole-page dark-theme captures going forward.)
+
+**Phase 3a is complete.** Next: Phase 3b (structural de-duplication) and Phase 4 (font cleanup).
 
 **Phase 3b — actual de-duplication (route repeated card markup through `components/ui/Card`).**
 Only after 3a proves the color migration is safe across all 30 files. Per
