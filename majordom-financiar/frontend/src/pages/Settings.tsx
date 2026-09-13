@@ -130,7 +130,7 @@ function MenuScreen({ onNavigate }: { onNavigate: (page: SubPageKey) => void }) 
   }
 
   return (
-    <div className="h-dvh bg-background flex flex-col overflow-y-auto">
+    <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
       <PageHeader
         label="Majordom"
         title="Settings"
@@ -185,7 +185,7 @@ function SubPageShell({
   title, onBack, children,
 }: { title: string; onBack: () => void; children: ReactNode }) {
   return (
-    <div className="h-dvh bg-background flex flex-col overflow-y-auto">
+    <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
       <PageHeader
         label="Settings"
         title={title}
@@ -259,8 +259,8 @@ function StatusRow({ title, value, muted = false, icon: Icon }: { title: string;
 /** Checkmark row for "already active" selections. */
 function ActiveRow({ title, subtitle, icon: Icon }: { title: string; subtitle?: string; icon?: LucideIcon }) {
   return (
-    <div className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3.5">
-      {Icon && <Icon size={16} className="text-muted flex-shrink-0" />}
+    <div className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5">
+      {Icon && <Icon size={16} className="text-token-ink-3 flex-shrink-0" />}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-token-ink">{title}</p>
         {subtitle && <p className="text-xs text-token-ink-3 mt-0.5">{subtitle}</p>}
@@ -364,7 +364,7 @@ function SecurityBackupPage() {
 
 function CurrenciesPage() {
   return (
-    <div className="bg-surface border border-border rounded-2xl px-4 py-4">
+    <div className="bg-token-surface border border-token-line rounded-2xl px-4 py-4">
       <p className="text-sm text-token-ink-3">
         Actual Budget tracks one currency per budget file, not per account — there's no
         per-account currency data to show here.
@@ -504,7 +504,7 @@ function ConnectionsPage() {
         <Wallet size={16} className="text-token-ink-3 flex-shrink-0" />
         <span className="flex-1 text-sm font-semibold text-token-ink">Actual Budget</span>
         <span className="text-xs text-token-gain flex-shrink-0">Connected</span>
-        <ChevronRight size={14} className="text-muted flex-shrink-0" />
+        <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
       </a>
       <a
         href={`${origin}:3010`}
@@ -515,7 +515,7 @@ function ConnectionsPage() {
         <Car size={16} className="text-token-ink-3 flex-shrink-0" />
         <span className="flex-1 text-sm font-semibold text-token-ink">Vehicle Manager</span>
         <span className="text-xs text-token-gain flex-shrink-0">Connected</span>
-        <ChevronRight size={14} className="text-muted flex-shrink-0" />
+        <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
       </a>
       <a
         href={`${origin}:3020`}
@@ -526,7 +526,7 @@ function ConnectionsPage() {
         <LineChart size={16} className="text-token-ink-3 flex-shrink-0" />
         <span className="flex-1 text-sm font-semibold text-token-ink">Investment Manager</span>
         <span className="text-xs text-token-gain flex-shrink-0">Connected</span>
-        <ChevronRight size={14} className="text-muted flex-shrink-0" />
+        <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
       </a>
       {/* Majordom's own SQLite debug viewer — loopback-only since the tailscale-serve
           vs. 0.0.0.0 port conflict fix (2026-09-12/13), so no longer reachable from
@@ -540,7 +540,7 @@ function ConnectionsPage() {
         <Database size={16} className="text-token-ink-3 flex-shrink-0" />
         <span className="flex-1 text-sm font-semibold text-token-ink">Majordom Memory</span>
         <span className="text-xs text-token-ink-3 flex-shrink-0">Localhost only</span>
-        <ChevronRight size={14} className="text-muted flex-shrink-0" />
+        <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
       </a>
     </>
   )
