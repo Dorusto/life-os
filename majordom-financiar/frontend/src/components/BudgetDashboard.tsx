@@ -16,8 +16,8 @@ interface Props {
 }
 
 function getBudgetColor(percentage: number, budgeted: number): string {
-  if (budgeted === 0) return '#71717A'
-  if (percentage > 100) return '#FF2D2D'
+  if (budgeted === 0) return 'var(--ink-3)'
+  if (percentage > 100) return 'var(--loss)'
   const hue = Math.round(120 * (1 - percentage / 100))
   return `hsl(${hue}, 75%, 45%)`
 }

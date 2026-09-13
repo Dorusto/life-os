@@ -245,7 +245,7 @@ function PieChart({ title, data, refetch: initialRefetch, bare }: { title: strin
 
   const segments = [
     ...topSegs.map((s) => ({ ...s, color: colorForKey(s.name) })),
-    ...(rest.length > 0 ? [{ name: 'Other', value: otherValue, percentage: otherPct, color: '#3F3F46' }] : []),
+    ...(rest.length > 0 ? [{ name: 'Other', value: otherValue, percentage: otherPct, color: 'var(--line-strong)' }] : []),
   ]
 
   const wrapperClass = bare ? 'p-4' : 'bg-surface rounded-2xl p-4'
@@ -333,7 +333,7 @@ function Donut({ segments }: { segments: { name: string; percentage: number; col
 
   return (
     <svg width={size} height={size} className="flex-shrink-0">
-      <circle cx={cx} cy={cy} r={radius} fill="none" stroke="#2A2A2A" strokeWidth={strokeWidth} />
+      <circle cx={cx} cy={cy} r={radius} fill="none" stroke="var(--line)" strokeWidth={strokeWidth} />
       {paths}
     </svg>
   )
@@ -381,7 +381,7 @@ function ProgressListChart({
         {liveData.items.map((item) => {
           const barWidth = Math.min(item.percentage, 100)
           const color = item.color || colorForKey(item.label)
-          const isWarning = color === '#FF2D2D'
+          const isWarning = color === 'var(--loss)'
 
           return (
             <div key={item.label}>
