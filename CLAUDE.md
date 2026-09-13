@@ -38,6 +38,8 @@ Issue priority: GitHub Milestones + Labels, not a doc — see `majordom-financia
 
 When the user asks only to note a bug or idea → create a GitHub issue and stop. Do not implement.
 
+**Parallel track, started 2026-09-13 (experimental, not yet a replacement for the above):** development can also run directly from `opencode-61` (self-hosted DeepSeek agents via OpenRouter, own git push/PR, remote-supervised only — setup fully documented in the Second Brain vault's `opencode-agent-system/` guides, not duplicated here). Cost/speed/quality per batch tracked in `docs/opencode-experiment.md` — the open question it exists to answer is whether this ends up cheaper and better than Claude-delegates-via-Aider above, or gets reverted.
+
 ---
 
 ## Financial profile
