@@ -12,7 +12,7 @@ import {
   type DuplicateTransactionSide,
 } from '../lib/api'
 import PageHeader from '../components/PageHeader'
-import Card from '../components/Card'
+import { Card } from '../components/ui/Card'
 import ActionCardButtons from '../components/ActionCardButtons'
 import IconButton from '../components/IconButton'
 import StandardHeaderActions from '../components/StandardHeaderActions'
@@ -216,7 +216,7 @@ function DuplicatePairCard({
   }
 
   return (
-    <Card variant="list-item" accentColor="var(--warn)" accentSide="left">
+    <Card variant="list-item" className="border-l-[3px] border-l-token-warn">
       <div className="grid grid-cols-2 gap-3">
         <SideBlock title={isTransfer ? 'Transfer' : 'Manual entry'} side={pair.manual} keep={isTransfer} />
         <SideBlock title="Bank-synced" side={pair.synced} keep={!isTransfer} />

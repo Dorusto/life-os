@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { confirmCategoryAction, cancelCategoryAction, type CategoryActionData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
 import { formatCurrency } from '../lib/formatCurrency'
+import { Card } from './ui/Card'
 
 interface Props {
   data: CategoryActionData
@@ -132,7 +133,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const isClassifyIncome = data.action === 'classify_income'
 
   return (
-    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
+    <Card variant="bubble">
       <div>
         <p className="text-token-ink font-medium">
           {isDelete ? 'Delete category?' : isCreate ? 'Create category?' : isSetBudget ? 'Set budget amount?' : isCategorizeWithRule ? 'Categorize transactions?' : isSetBudgetCarryover ? `${data.enabled ? 'Enable' : 'Disable'} rollover overspending?` : isSetCategoryGoal ? 'Set savings goal?' : isSetTagGoal ? 'Set trip spending goal?' : isBankResync ? 'Resync bank account?' : isSetFireModel ? 'Update FIRE assumptions?' : isTagTransaction ? 'Tag transaction?' : isMarkReconciled ? 'Mark transactions reconciled?' : isMarkBudgetOutlier ? 'One-off distorting this category?' : isCreateSchedule ? 'Create recurring schedule?' : isDeactivateSchedule ? 'Deactivate schedule?' : isClassifyIncome ? 'Classify income category?' : 'Rename category?'}
@@ -590,6 +591,6 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         confirmDisabled={(isCreate && !categoryName) || (isSetBudget && !budgetAmount) || (isCategorizeWithRule && (!payee || !selectedCategory)) || (isTagTransaction && tag.trim() === '#') || (isCreateSchedule && (!scheduleName.trim() || !scheduleAmount)) || (isSetTagGoal && (!tagGoalAmount || !tagGoalByMonth.trim()))}
         confirmLabel={isDelete ? 'Delete' : isCreate ? 'Create' : isSetBudget ? 'Set budget' : isCategorizeWithRule ? 'Categorize' : isTagTransaction ? 'Tag' : isMarkReconciled ? 'Mark reconciled' : isMarkBudgetOutlier ? 'Tag as one-off' : isCreateSchedule ? 'Create schedule' : isDeactivateSchedule ? 'Deactivate' : isSetBudgetCarryover || isBankResync || isSetFireModel || isSetTagGoal || isSetCategoryGoal || isClassifyIncome ? 'Confirm' : 'Rename'}
       />
-    </div>
+    </Card>
   )
 }
