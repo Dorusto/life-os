@@ -57,11 +57,18 @@ already tonight, don't reintroduce it here).
       Settings) + a 6th "More" tab opening a small bottom sheet with Income + Rebalancing — a
       standard, well-understood mobile pattern, not a novel one. `ConfirmDialog`/`SecurityModal`/
       `GoalModal`/`TransactionModal`/`XtbImportModal` are unaffected (they're not nav).
-- [ ] **1b. vehicle-manager**: audit against the same shape — it currently has a bottom nav
-      (`BottomNav.tsx`, 4 tabs: Home/Timeline/Stats/Vehicles) but no desktop rail at all (check
-      `App.tsx`/layout). Add the desktop rail variant for consistency, following
-      investment-manager's `AppShell.tsx` structure (adapt nav items, brand mark, account footer
-      to vehicle-manager's own auth/branding).
+- [ ] **1b. vehicle-manager**: audited — confirmed it has NO shell wrapper at all. `App.tsx` routes
+      straight to each page component; `<BottomNav />` is rendered individually inside 5 of the 7
+      pages (`VehicleList`, `Dashboard`, `StatsPage`, `RemindersPage`, `TimelinePage` — not
+      `VehicleDetail`/`FuelioImport`/`Login`, which are full-screen flows by design, matching
+      majordom-financiar's own "hidden on full-screen flows" convention). Adding a desktop rail
+      properly means introducing a real `AppShell.tsx` wrapper (like investment-manager's) around
+      the nav-bearing routes in `App.tsx`, and removing each page's own individual `<BottomNav />`
+      call in favor of the shell rendering nav centrally once. **This is a routing-structure
+      change, not a mechanical port — do this part directly (Claude), then delegate only the
+      mechanical "remove the now-shell-owned `<BottomNav />` call from these 5 page files" cleanup
+      to Aider afterward**, per `delegate-by-complexity`'s own rule that routing/layout-structure
+      decisions aren't a good blind-delegation fit.
 - [ ] **1c. majordom-financiar**: currently has ONLY a mobile-width-constrained bottom nav (even
       on desktop it just centers at `max-w-[480px]`, no rail). Add the desktop rail (reusing the
       same `AppShell.tsx` structure/pattern), reskin the existing bottom nav onto the new token
