@@ -57,10 +57,18 @@ cd frontend && npm install && npm run dev
 Configuration is documented in `.env.example`. `TWELVE_DATA_API_KEY` is server-side only and is
 never exposed in the UI.
 
-## Tests
+## Development
+
+Run the backend test suite from this directory (`tools/investment-manager/`):
 
 ```bash
 .venv/bin/python -m pytest
+```
+
+Or, with the venv already active:
+
+```bash
+pytest
 ```
 
 ## Notes
