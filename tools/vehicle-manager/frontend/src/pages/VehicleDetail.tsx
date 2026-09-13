@@ -6,6 +6,7 @@ import Chart from '../components/Chart'
 import ChartSection from '../components/ChartSection'
 import LogEntryForm from '../components/LogEntryForm'
 import LogoutButton from '../components/LogoutButton'
+import MajordomButton from '../components/MajordomButton'
 import NotificationBell from '../components/NotificationBell'
 import SettingsButton from '../components/SettingsButton'
 import { Button } from '../components/Button'
@@ -238,6 +239,7 @@ export default function VehicleDetail() {
           <div className="flex items-center gap-3">
             <NotificationBell vehicleId={vehicle.id} />
             <SettingsButton />
+            <MajordomButton />
             <LogoutButton />
           </div>
         </div>

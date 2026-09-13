@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell } from 'lucide-react'
 import BottomNav from '../components/BottomNav'
 import LogoutButton from '../components/LogoutButton'
+import MajordomButton from '../components/MajordomButton'
 import NotificationBell from '../components/NotificationBell'
 import SettingsButton from '../components/SettingsButton'
 import VehicleSwitcher from '../components/VehicleSwitcher'
@@ -86,6 +87,7 @@ export default function RemindersPage() {
         <div className="flex items-center gap-3">
           <NotificationBell />
           <SettingsButton />
+          <MajordomButton />
           <LogoutButton />
         </div>
       </header>

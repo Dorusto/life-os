@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Car } from 'lucide-react'
 import BottomNav from '../components/BottomNav'
 import LogoutButton from '../components/LogoutButton'
+import MajordomButton from '../components/MajordomButton'
 import NotificationBell from '../components/NotificationBell'
 import SettingsButton from '../components/SettingsButton'
 import VehicleSwitcher from '../components/VehicleSwitcher'
@@ -34,6 +35,7 @@ export default function Dashboard() {
         <div className="flex items-center gap-3">
           <NotificationBell />
           <SettingsButton />
+          <MajordomButton />
           <LogoutButton />
         </div>
       </header>

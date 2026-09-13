@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { Home, History, BarChart3, Car, LogOut } from 'lucide-react'
+import MajordomButton from './MajordomButton'
 import NotificationBell from './NotificationBell'
 import SettingsButton from './SettingsButton'
 import { clearAuth, getUsername } from '../lib/auth'
@@ -79,6 +80,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 panelClassName="left-0 right-auto w-64"
               />
               <SettingsButton className="rounded p-1.5 hover:bg-surface-2" />
+              <MajordomButton className="rounded p-1.5 hover:bg-surface-2" />
               <button
                 type="button"
                 onClick={logout}
