@@ -209,17 +209,17 @@ function MonthNavTitle({
         type="button"
         disabled={loading}
         onClick={() => shift(-1)}
-        className="text-muted hover:text-white disabled:opacity-40 px-3 py-2 text-sm leading-none"
+        className="text-token-ink-3 hover:text-token-ink disabled:opacity-40 px-3 py-2 text-sm leading-none"
         aria-label="Previous month"
       >
         ‹
       </button>
-      <p className="text-xs text-muted uppercase tracking-wide text-center flex-1 truncate">{title}</p>
+      <p className="text-xs text-token-ink-3 uppercase tracking-wide text-center flex-1 truncate">{title}</p>
       <button
         type="button"
         disabled={loading}
         onClick={() => shift(1)}
-        className="text-muted hover:text-white disabled:opacity-40 px-3 py-2 text-sm leading-none"
+        className="text-token-ink-3 hover:text-token-ink disabled:opacity-40 px-3 py-2 text-sm leading-none"
         aria-label="Next month"
       >
         ›
@@ -248,7 +248,7 @@ function PieChart({ title, data, refetch: initialRefetch, bare }: { title: strin
     ...(rest.length > 0 ? [{ name: 'Other', value: otherValue, percentage: otherPct, color: 'var(--line-strong)' }] : []),
   ]
 
-  const wrapperClass = bare ? 'p-4' : 'bg-surface rounded-2xl p-4'
+  const wrapperClass = bare ? 'p-4' : 'bg-token-surface rounded-2xl p-4'
 
   return (
     <div className={wrapperClass}>
@@ -257,20 +257,20 @@ function PieChart({ title, data, refetch: initialRefetch, bare }: { title: strin
           {refetch?.mode === 'month_nav' ? (
             <MonthNavTitle title={liveTitle} refetch={refetch} loading={loading} onNav={refetchWith} />
           ) : (
-            <p className="text-xs text-muted uppercase tracking-wide">{liveTitle}</p>
+            <p className="text-xs text-token-ink-3 uppercase tracking-wide">{liveTitle}</p>
           )}
-          <p className="text-white text-2xl font-semibold mt-0.5">{formatCurrency(liveData.total)}</p>
+          <p className="text-token-ink text-2xl font-semibold mt-0.5">{formatCurrency(liveData.total)}</p>
           {liveData.count != null && (
-            <p className="text-muted text-xs mt-0.5">{liveData.count} transactions</p>
+            <p className="text-token-ink-3 text-xs mt-0.5">{liveData.count} transactions</p>
           )}
         </div>
         <Donut segments={segments} />
       </div>
 
-      {error && <p className="text-xs text-red-400 mb-2">{error}</p>}
+      {error && <p className="text-xs text-token-loss mb-2">{error}</p>}
 
       {segments.length === 0 ? (
-        <p className="text-muted text-sm text-center py-2">No expenses this month</p>
+        <p className="text-token-ink-3 text-sm text-center py-2">No expenses this month</p>
       ) : (
         <div className="space-y-2.5">
           {segments.map((seg) => (
@@ -278,14 +278,14 @@ function PieChart({ title, data, refetch: initialRefetch, bare }: { title: strin
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: seg.color }} />
-                  <span className="text-white text-xs truncate">{seg.name}</span>
+                  <span className="text-token-ink text-xs truncate">{seg.name}</span>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                  <span className="text-muted text-xs">{formatPercent(seg.percentage, { decimals: 0 })}</span>
-                  <span className="text-white text-xs font-medium w-16 text-right">{formatCurrency(seg.value)}</span>
+                  <span className="text-token-ink-3 text-xs">{formatPercent(seg.percentage, { decimals: 0 })}</span>
+                  <span className="text-token-ink text-xs font-medium w-16 text-right">{formatCurrency(seg.value)}</span>
                 </div>
               </div>
-              <div className="h-1 bg-background rounded-full overflow-hidden">
+              <div className="h-1 bg-token-paper rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-500"
                   style={{ width: `${seg.percentage}%`, backgroundColor: seg.color }}
@@ -360,23 +360,23 @@ function ProgressListChart({
     refetch?.mode === 'month_nav' ? (
       <MonthNavTitle title={liveTitle} refetch={refetch} loading={loading} onNav={refetchWith} />
     ) : (
-      <p className="text-xs text-muted uppercase tracking-wide mb-4">{liveTitle}</p>
+      <p className="text-xs text-token-ink-3 uppercase tracking-wide mb-4">{liveTitle}</p>
     )
 
   if (liveData.items.length === 0) {
     return (
-      <div className="bg-surface rounded-2xl p-4">
+      <div className="bg-token-surface rounded-2xl p-4">
         {chartTitle}
-        {error && <p className="text-xs text-red-400 mb-2">{error}</p>}
-        <p className="text-muted text-sm text-center py-4">{liveData.empty_message || 'No data available'}</p>
+        {error && <p className="text-xs text-token-loss mb-2">{error}</p>}
+        <p className="text-token-ink-3 text-sm text-center py-4">{liveData.empty_message || 'No data available'}</p>
       </div>
     )
   }
 
   return (
-    <div className="bg-surface rounded-2xl p-4">
+    <div className="bg-token-surface rounded-2xl p-4">
       {chartTitle}
-      {error && <p className="text-xs text-red-400 mb-2">{error}</p>}
+      {error && <p className="text-xs text-token-loss mb-2">{error}</p>}
       <div className="space-y-4">
         {liveData.items.map((item) => {
           const barWidth = Math.min(item.percentage, 100)
@@ -388,7 +388,7 @@ function ProgressListChart({
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-1.5 min-w-0">
                   {isWarning && <span className="text-sm">⚠️</span>}
-                  <span className="text-white text-sm font-medium truncate mr-2">{item.label}</span>
+                  <span className="text-token-ink text-sm font-medium truncate mr-2">{item.label}</span>
                 </div>
                 <span
                   className="text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0"
@@ -397,18 +397,18 @@ function ProgressListChart({
                   {formatPercent(item.percentage, { decimals: 0 })}
                 </span>
               </div>
-              <div className="h-2 bg-background rounded-full overflow-hidden">
+              <div className="h-2 bg-token-paper rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full transition-all duration-500"
                   style={{ width: `${barWidth}%`, backgroundColor: color }}
                 />
               </div>
               <div className="flex items-center justify-between mt-1">
-                <span className="text-muted text-xs">
+                <span className="text-token-ink-3 text-xs">
                   {formatCurrency(item.value)} / {formatCurrency(item.target)}
                 </span>
               </div>
-              {item.extra && <p className="text-xs text-muted mt-0.5">{item.extra}</p>}
+              {item.extra && <p className="text-xs text-token-ink-3 mt-0.5">{item.extra}</p>}
             </div>
           )
         })}
@@ -452,21 +452,21 @@ function MonthRangePicker({
         value={start}
         onChange={(e) => setStart(e.target.value)}
         disabled={loading}
-        className="bg-background text-white rounded px-2 py-1 text-[10px] border border-transparent focus:border-accent outline-none disabled:opacity-50"
+        className="bg-token-paper text-token-ink rounded px-2 py-1 text-[10px] border border-transparent focus:border-token-brand outline-none disabled:opacity-50"
       />
-      <span className="text-muted text-xs">–</span>
+      <span className="text-token-ink-3 text-xs">–</span>
       <input
         type="month"
         value={end}
         onChange={(e) => setEnd(e.target.value)}
         disabled={loading}
-        className="bg-background text-white rounded px-2 py-1 text-[10px] border border-transparent focus:border-accent outline-none disabled:opacity-50"
+        className="bg-token-paper text-token-ink rounded px-2 py-1 text-[10px] border border-transparent focus:border-token-brand outline-none disabled:opacity-50"
       />
       <button
         type="button"
         disabled={loading}
         onClick={apply}
-        className="bg-accent hover:bg-accent-hover disabled:opacity-50 text-white rounded-full px-3 py-1 text-[10px] transition-colors"
+        className="bg-token-brand hover:bg-token-brand-2 disabled:opacity-50 text-white rounded-full px-3 py-1 text-[10px] transition-colors"
       >
         Apply
       </button>
@@ -490,9 +490,9 @@ function BarChart({ title, data, refetch: initialRefetch }: { title: string; dat
 
   if (liveData.points.length === 0) {
     return (
-      <div className="bg-surface rounded-2xl p-4">
+      <div className="bg-token-surface rounded-2xl p-4">
         {rangePicker}
-        <p className="text-muted text-sm text-center py-4">{error || 'No data available'}</p>
+        <p className="text-token-ink-3 text-sm text-center py-4">{error || 'No data available'}</p>
       </div>
     )
   }
@@ -501,12 +501,12 @@ function BarChart({ title, data, refetch: initialRefetch }: { title: string; dat
   const scaleHeight = (value: number) => (value === 0 ? MIN_BAR_HEIGHT : Math.max((value / maxVal) * MAX_BAR_HEIGHT, MIN_BAR_HEIGHT))
 
   return (
-    <div className="bg-surface rounded-2xl p-4">
-      {liveTitle && <p className="text-xs text-muted uppercase tracking-wide mb-2">{liveTitle}</p>}
+    <div className="bg-token-surface rounded-2xl p-4">
+      {liveTitle && <p className="text-xs text-token-ink-3 uppercase tracking-wide mb-2">{liveTitle}</p>}
       {rangePicker}
-      {error && <p className="text-xs text-red-400 mb-2">{error}</p>}
+      {error && <p className="text-xs text-token-loss mb-2">{error}</p>}
 
-      <div className="flex items-center gap-4 mb-4 text-xs text-muted">
+      <div className="flex items-center gap-4 mb-4 text-xs text-token-ink-3">
         {liveData.series.map((s) => (
           <div key={s.label} className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.color }} />
@@ -521,10 +521,10 @@ function BarChart({ title, data, refetch: initialRefetch }: { title: string; dat
         {GRID_FRACTIONS.map((f) => (
           <div
             key={f}
-            className="absolute left-0 right-0 border-t border-border/60"
+            className="absolute left-0 right-0 border-t border-token-line"
             style={{ top: `${(1 - f) * 100}%` }}
           >
-            <span className="absolute left-0 -translate-y-1/2 text-[10px] text-muted-2 bg-surface/80 pr-1">
+            <span className="absolute left-0 -translate-y-1/2 text-[10px] text-token-ink-2 bg-token-surface pr-1">
               {formatCurrency(maxVal * f, { decimals: 0 })}
             </span>
           </div>
@@ -552,9 +552,9 @@ function BarChart({ title, data, refetch: initialRefetch }: { title: string; dat
                 ))}
                 {activePoint === pi && (
                   <div
-                    className={`absolute bottom-full mb-1.5 z-10 whitespace-nowrap rounded-md bg-surface-2 border border-border px-2 py-1 text-[10px] text-white shadow-lg ${tooltipPos}`}
+                    className={`absolute bottom-full mb-1.5 z-10 whitespace-nowrap rounded-md bg-token-surface-2 border border-token-line px-2 py-1 text-[10px] text-token-ink shadow-lg ${tooltipPos}`}
                   >
-                    <p className="text-muted-2 mb-0.5">{p.x}</p>
+                    <p className="text-token-ink-2 mb-0.5">{p.x}</p>
                     {p.values.map((v, i) => (
                       <p key={i} style={{ color: liveData.series[i]?.color || colorForKey(liveData.series[i]?.label ?? `series-${i}`) }}>
                         {liveData.series[i]?.label ?? `#${i + 1}`}: {formatCurrency(v)}
@@ -572,7 +572,7 @@ function BarChart({ title, data, refetch: initialRefetch }: { title: string; dat
                           const dateTo = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
                           navigate('/transactions', { state: { dateFrom, dateTo } })
                         }}
-                        className="mt-1 text-[10px] text-accent hover:text-white underline"
+                        className="mt-1 text-[10px] text-token-brand-ink hover:text-token-ink underline"
                       >
                         View transactions
                       </button>
@@ -588,7 +588,7 @@ function BarChart({ title, data, refetch: initialRefetch }: { title: string; dat
       <div className="flex justify-around gap-3 mt-2 pl-8">
         {liveData.points.map((p) => (
           <div key={p.x} className="flex-1 text-center">
-            <span className="text-xs text-muted">{p.x}</span>
+            <span className="text-xs text-token-ink-3">{p.x}</span>
           </div>
         ))}
       </div>
@@ -596,7 +596,7 @@ function BarChart({ title, data, refetch: initialRefetch }: { title: string; dat
       <div className="flex justify-around gap-3 mt-1 pl-8">
         {liveData.points.map((p) => (
           <div key={p.x} className="flex-1 text-center">
-            <span className="text-[10px] text-muted">
+            <span className="text-[10px] text-token-ink-3">
               {formatCurrency(p.values[0] || 0, { decimals: 0 })}
             </span>
           </div>
@@ -657,8 +657,8 @@ function PeriodSwitcher({
           onClick={() => onSelect(p.value)}
           className={`text-[10px] px-2 py-0.5 rounded-full transition-colors disabled:opacity-50 ${
             p.value === refetch.current
-              ? 'bg-accent text-white'
-              : 'bg-background text-muted hover:text-white'
+              ? 'bg-token-brand text-white'
+              : 'bg-token-paper text-token-ink-3 hover:text-token-ink'
           }`}
         >
           {p.label}
@@ -695,21 +695,21 @@ function DateRangePicker({
         value={start}
         onChange={(e) => setStart(e.target.value)}
         disabled={loading}
-        className="bg-background text-white rounded px-2 py-1 text-[10px] border border-transparent focus:border-accent outline-none disabled:opacity-50"
+        className="bg-token-paper text-token-ink rounded px-2 py-1 text-[10px] border border-transparent focus:border-token-brand outline-none disabled:opacity-50"
       />
-      <span className="text-muted text-xs">–</span>
+      <span className="text-token-ink-3 text-xs">–</span>
       <input
         type="date"
         value={end}
         onChange={(e) => setEnd(e.target.value)}
         disabled={loading}
-        className="bg-background text-white rounded px-2 py-1 text-[10px] border border-transparent focus:border-accent outline-none disabled:opacity-50"
+        className="bg-token-paper text-token-ink rounded px-2 py-1 text-[10px] border border-transparent focus:border-token-brand outline-none disabled:opacity-50"
       />
       <button
         type="button"
         disabled={loading}
         onClick={apply}
-        className="bg-accent hover:bg-accent-hover disabled:opacity-50 text-white rounded-full px-3 py-1 text-[10px] transition-colors"
+        className="bg-token-brand hover:bg-token-brand-2 disabled:opacity-50 text-white rounded-full px-3 py-1 text-[10px] transition-colors"
       >
         Apply
       </button>
@@ -733,7 +733,7 @@ function LineChart({
     data,
     initialRefetch
   )
-  const wrapperClass = bare ? 'p-4' : 'bg-surface rounded-2xl p-4'
+  const wrapperClass = bare ? 'p-4' : 'bg-token-surface rounded-2xl p-4'
   // Which point's tooltip is open — keyed by series label since each series
   // renders its own independent svg/point set.
   const [activePoint, setActivePoint] = useState<{ series: string; index: number } | null>(null)
@@ -747,11 +747,11 @@ function LineChart({
   if (allPoints.length < 2) {
     return (
       <div className={wrapperClass}>
-        <p className="text-xs text-muted uppercase tracking-wide mb-2">{liveTitle}</p>
+        <p className="text-xs text-token-ink-3 uppercase tracking-wide mb-2">{liveTitle}</p>
         {refetch?.mode === 'period_buttons' && (
           <PeriodSwitcher refetch={refetch} loading={loading} onSelect={handlePeriodSelect} />
         )}
-        <p className="text-muted text-sm text-center py-4">
+        <p className="text-token-ink-3 text-sm text-center py-4">
           {error || chartData.empty_message || 'Not enough data yet'}
         </p>
       </div>
@@ -778,7 +778,7 @@ function LineChart({
 
   return (
     <div className={wrapperClass}>
-      <p className="text-xs text-muted uppercase tracking-wide mb-2">{liveTitle}</p>
+      <p className="text-xs text-token-ink-3 uppercase tracking-wide mb-2">{liveTitle}</p>
       {refetch?.mode === 'period_buttons' && (
         <>
           <PeriodSwitcher refetch={refetch} loading={loading} onSelect={handlePeriodSelect} />
@@ -792,7 +792,7 @@ function LineChart({
           )}
         </>
       )}
-      {error && <p className="text-xs text-red-400 mb-2">{error}</p>}
+      {error && <p className="text-xs text-token-loss mb-2">{error}</p>}
 
       {chartData.series.map((s) => {
         const scaleX = (i: number) => padX + (i / (s.points.length - 1)) * (width - padX * 2)
@@ -823,13 +823,13 @@ function LineChart({
 
         return (
           <div key={s.label} className="mb-2">
-            <div className="flex items-center justify-between text-xs text-muted mb-1">
+            <div className="flex items-center justify-between text-xs text-token-ink-3 mb-1">
               <span>{s.label}</span>
               <span>
                 min {formatNumber(seriesMin, dec)} · max {formatNumber(seriesMax, dec)}
               </span>
             </div>
-            <p className="text-[10px] text-muted mb-1">
+            <p className="text-[10px] text-token-ink-3 mb-1">
               {formatDateFull(s.points[0].x)} – {formatDateFull(s.points[lastIdx].x)}
             </p>
             {/* Y-axis reference values — an HTML overlay, not SVG <text>, since
@@ -841,19 +841,19 @@ function LineChart({
                 return (
                   <div
                     key={f}
-                    className="absolute left-0 right-0 border-t border-border/40"
+                    className="absolute left-0 right-0 border-t border-token-line"
                     style={{ top: `${(scaleY(gridVal) / height) * 100}%` }}
                   />
                 )
               })}
               <span
-                className="absolute left-0.5 text-[11px] text-muted-2 -translate-y-1/2 bg-surface/80 px-0.5 rounded"
+                className="absolute left-0.5 text-[11px] text-token-ink-2 -translate-y-1/2 bg-token-surface px-0.5 rounded"
                 style={{ top: `${(scaleY(seriesMax) / height) * 100}%` }}
               >
                 {formatNumber(seriesMax, dec)}
               </span>
               <span
-                className="absolute left-0.5 text-[11px] text-muted-2 -translate-y-1/2 bg-surface/80 px-0.5 rounded"
+                className="absolute left-0.5 text-[11px] text-token-ink-2 -translate-y-1/2 bg-token-surface px-0.5 rounded"
                 style={{ top: `${(scaleY(seriesMin) / height) * 100}%` }}
               >
                 {formatNumber(seriesMin, dec)}
@@ -881,7 +881,7 @@ function LineChart({
               </svg>
               {activePoint?.series === s.label && s.points[activePoint.index] && (
                 <div
-                  className={`absolute z-10 -translate-y-full -mt-2 whitespace-nowrap rounded-md bg-surface-2 border border-border px-2 py-1 text-[10px] text-white shadow-lg ${
+                  className={`absolute z-10 -translate-y-full -mt-2 whitespace-nowrap rounded-md bg-token-surface-2 border border-token-line px-2 py-1 text-[10px] text-token-ink shadow-lg ${
                     activePoint.index === 0
                       ? ''
                       : activePoint.index === lastIdx
@@ -893,12 +893,12 @@ function LineChart({
                     top: `${(scaleY(s.points[activePoint.index].y) / height) * 100}%`,
                   }}
                 >
-                  <p className="text-muted-2">{formatDateFull(s.points[activePoint.index].x)}</p>
+                  <p className="text-token-ink-2">{formatDateFull(s.points[activePoint.index].x)}</p>
                   <p style={{ color: s.color }}>{formatNumber(s.points[activePoint.index].y)}</p>
                 </div>
               )}
             </div>
-            <div className="relative h-4 mt-1 text-[10px] text-muted">
+            <div className="relative h-4 mt-1 text-[10px] text-token-ink-3">
               {labelIndices.map((i) => {
                 const pct = (scaleX(i) / width) * 100
                 const isFirst = i === 0
