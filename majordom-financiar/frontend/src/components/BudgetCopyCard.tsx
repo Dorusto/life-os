@@ -46,10 +46,10 @@ export default function BudgetCopyCard({ data, onConfirmed, onCancelled }: Props
   }
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[420px] w-full space-y-3">
+    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[420px] w-full space-y-3">
       <div>
-        <p className="text-white font-medium">Copy budget to {data.target_month}?</p>
-        <p className="text-muted text-sm mt-0.5">
+        <p className="text-token-ink font-medium">Copy budget to {data.target_month}?</p>
+        <p className="text-token-ink-3 text-sm mt-0.5">
           Pre-filled from {data.source_month} — edit any amount before confirming.
         </p>
         {data.excluded_templates && data.excluded_templates.length > 0 && (
@@ -65,20 +65,20 @@ export default function BudgetCopyCard({ data, onConfirmed, onCancelled }: Props
       <div className="max-h-64 overflow-y-auto space-y-3 -mx-1 px-1">
         {Object.entries(groups).map(([groupName, cats]) => (
           <div key={groupName}>
-            <p className="text-muted text-[11px] uppercase tracking-wide mb-1">{groupName}</p>
+            <p className="text-token-ink-3 text-[11px] uppercase tracking-wide mb-1">{groupName}</p>
             <div className="space-y-1.5">
               {cats.map(c => (
                 <div key={c.category_id} className="flex items-center justify-between gap-2">
-                  <span className="text-white text-sm truncate">{c.category_name}</span>
+                  <span className="text-token-ink text-sm truncate">{c.category_name}</span>
                   <div className="flex items-center gap-1 flex-shrink-0">
-                    <span className="text-muted text-sm">€</span>
+                    <span className="text-token-ink-3 text-sm">€</span>
                     <input
                       type="number"
                       step="0.01"
                       min="0"
                       value={amounts[c.category_id] ?? ''}
                       onChange={e => setAmounts(prev => ({ ...prev, [c.category_id]: e.target.value }))}
-                      className="bg-background border border-border rounded-lg px-2 py-1 w-24 text-white text-sm text-right focus:outline-none focus:border-accent transition-colors"
+                      className="bg-token-paper border border-token-line rounded-lg px-2 py-1 w-24 text-token-ink text-sm text-right focus:outline-none focus:border-token-brand transition-colors"
                     />
                   </div>
                 </div>

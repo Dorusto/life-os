@@ -53,17 +53,17 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
   }
 
   const selectClass = `
-    w-full bg-surface-2 border border-border rounded-lg px-3 py-2
-    text-white text-sm focus:outline-none focus:border-accent
+    w-full bg-token-surface-2 border border-token-line rounded-lg px-3 py-2
+    text-token-ink text-sm focus:outline-none focus:border-token-brand
     disabled:opacity-50 appearance-none
   `
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
+    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
       <div>
-        <p className="text-white font-medium text-sm">Account transfer</p>
+        <p className="text-token-ink font-medium text-sm">Account transfer</p>
         <div className="flex items-center gap-1.5 mt-0.5">
-          <span className="text-muted text-xs">{data.date} ·</span>
+          <span className="text-token-ink-3 text-xs">{data.date} ·</span>
           <input
             type="number"
             step="0.01"
@@ -71,14 +71,14 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
             value={amount}
             onChange={e => setAmount(parseFloat(e.target.value) || 0)}
             disabled={loading}
-            className="w-24 bg-surface-2 border border-border rounded-lg px-2 py-1 text-white text-sm focus:outline-none focus:border-accent disabled:opacity-50"
+            className="w-24 bg-token-surface-2 border border-token-line rounded-lg px-2 py-1 text-token-ink text-sm focus:outline-none focus:border-token-brand disabled:opacity-50"
           />
         </div>
       </div>
 
       <div className="space-y-3">
         <div className="space-y-1">
-          <p className="text-muted text-xs uppercase tracking-wide">From</p>
+          <p className="text-token-ink-3 text-xs uppercase tracking-wide">From</p>
           <select
             value={fromId}
             onChange={e => setFromId(e.target.value)}
@@ -91,18 +91,18 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
               </option>
             ))}
           </select>
-          <p className="text-xs text-muted pl-1">
+          <p className="text-xs text-token-ink-3 pl-1">
             <span className="text-red-400">{formatCurrency(-Math.abs(amount))}</span>
           </p>
         </div>
 
-        <div className="flex items-center gap-1 text-muted text-xs pl-1">
+        <div className="flex items-center gap-1 text-token-ink-3 text-xs pl-1">
           <ArrowRight size={12} />
           <span>{formatCurrency(amount)}</span>
         </div>
 
         <div className="space-y-1">
-          <p className="text-muted text-xs uppercase tracking-wide">To</p>
+          <p className="text-token-ink-3 text-xs uppercase tracking-wide">To</p>
           {creatingNew ? (
             <div className="space-y-1.5">
               <input
@@ -111,15 +111,15 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
                 onChange={e => setNewAccountName(e.target.value)}
                 disabled={loading}
                 placeholder="New account name"
-                className="w-full bg-surface-2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-accent disabled:opacity-50"
+                className="w-full bg-token-surface-2 border border-token-line rounded-lg px-3 py-2 text-token-ink text-sm focus:outline-none focus:border-token-brand disabled:opacity-50"
               />
-              <label className="flex items-center gap-1.5 text-xs text-muted pl-1 cursor-pointer">
+              <label className="flex items-center gap-1.5 text-xs text-token-ink-3 pl-1 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={newAccountOffBudget}
                   onChange={e => setNewAccountOffBudget(e.target.checked)}
                   disabled={loading}
-                  className="accent-accent"
+                  className="accent-token-brand"
                 />
                 Off-budget (tracking only)
               </label>
@@ -128,7 +128,7 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
                   type="button"
                   onClick={() => { setCreatingNew(false); setToId(accounts[0].id) }}
                   disabled={loading}
-                  className="text-xs text-accent hover:underline pl-1"
+                  className="text-xs text-token-brand-ink hover:underline pl-1"
                 >
                   Use an existing account instead
                 </button>
@@ -152,20 +152,20 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
                 type="button"
                 onClick={() => { setCreatingNew(true); setNewAccountName('') }}
                 disabled={loading}
-                className="text-xs text-accent hover:underline pl-1"
+                className="text-xs text-token-brand-ink hover:underline pl-1"
               >
                 + Create new account instead
               </button>
             </>
           )}
-          <p className="text-xs text-muted pl-1">
+          <p className="text-xs text-token-ink-3 pl-1">
             <span className="text-green-400">{formatCurrency(Math.abs(amount), { signDisplay: 'always' })}</span>
           </p>
         </div>
       </div>
 
       {data.notes && (
-        <p className="text-muted text-xs">{data.notes}</p>
+        <p className="text-token-ink-3 text-xs">{data.notes}</p>
       )}
 
       <ActionCardButtons
