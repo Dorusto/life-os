@@ -100,7 +100,7 @@ classes, ordered/longest-match-first replacement only):
 | `bg-surface-2` | `bg-token-surface-2` | hover/nested |
 | `border-border` | `border-token-line` | default border |
 | `border-border-hover` | `border-token-line-strong` | |
-| `bg-accent` / `text-accent` | `bg-token-brand` / `text-token-brand-ink` | brand fill vs. readable accent text — check which is meant per call site, they're different tokens |
+| `bg-accent` / `text-accent` / `border-accent` | `bg-token-brand` / `text-token-brand-ink` / `border-token-brand` | brand fill vs. readable accent text/border — check which is meant per call site, they're different tokens |
 | `bg-accent-hover` | `bg-token-brand-2` | |
 | `text-muted` | `text-token-ink-3` | secondary/caption text |
 | `text-muted-2` | `text-token-ink-2` | slightly higher contrast than `muted` |
