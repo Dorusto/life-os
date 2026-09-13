@@ -127,7 +127,7 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
             type="checkbox"
             checked={createRule}
             onChange={e => setCreateRule(e.target.checked)}
-            className="mt-1 accent-accent"
+            className="mt-1 accent-token-brand"
           />
           <span className="text-token-ink text-xs">
             Create AB rule: if payee is "{proposal.payee}" and notes contain "{selectedCategory}", always set category to "{selectedCategory}"

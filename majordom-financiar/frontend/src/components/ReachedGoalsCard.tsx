@@ -64,7 +64,7 @@ export default function ReachedGoalsCard({ data, onConfirmed, onCancelled }: Pro
                 type="checkbox"
                 checked={checked[r.category_name] ?? false}
                 onChange={() => toggle(r.category_name)}
-                className="accent-accent flex-shrink-0"
+                className="accent-token-brand flex-shrink-0"
               />
               <span className="text-token-ink text-sm truncate">{r.category_name}</span>
             </span>

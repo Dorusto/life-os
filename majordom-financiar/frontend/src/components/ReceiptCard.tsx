@@ -84,7 +84,7 @@ export default function ReceiptCard({
   `
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm max-w-[420px] w-full overflow-hidden">
+    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm max-w-[420px] w-full overflow-hidden">
       {/* Photo thumbnail with loading overlay — hidden when no image */}
       {(imageUrl || status === 'loading') && (
         <div className="relative w-full h-[112px] bg-black flex-shrink-0">
@@ -96,7 +96,7 @@ export default function ReceiptCard({
             />
           )}
           {status === 'loading' && (
-            <div className="absolute inset-0 bg-background/70 backdrop-blur-sm flex flex-col items-center justify-center gap-2">
+            <div className="absolute inset-0 bg-token-overlay backdrop-blur-sm flex flex-col items-center justify-center gap-2">
               <Loader2 size={20} className="animate-spin text-token-brand-ink" />
               <p className="text-token-ink text-xs">Reading receipt…</p>
             </div>
@@ -107,8 +107,8 @@ export default function ReceiptCard({
       {status === 'error' && (
         <div className="px-4 py-4 space-y-3">
           <div className="flex items-start gap-2">
-            <AlertCircle size={16} className="text-red-400 flex-shrink-0 mt-0.5" />
-            <p className="text-red-400 text-sm">{error || 'Failed to read receipt'}</p>
+            <AlertCircle size={16} className="text-token-loss flex-shrink-0 mt-0.5" />
+            <p className="text-token-loss text-sm">{error || 'Failed to read receipt'}</p>
           </div>
           <button
             onClick={onCancelled}
@@ -123,7 +123,7 @@ export default function ReceiptCard({
         <div className="px-4 py-3 space-y-3">
           {/* Fuel/Grocery tab header — shown when receipt_type was fuel */}
           {onSwitchToFuel && (
-            <div className="flex gap-2 mb-2 border-b border-border">
+            <div className="flex gap-2 mb-2 border-b border-token-line">
               <button
                 onClick={onSwitchToFuel}
                 className="tab-inactive text-sm pb-2 px-1 text-token-ink-3 hover:text-token-ink transition-colors"
@@ -137,12 +137,12 @@ export default function ReceiptCard({
           )}
 
           {draft.category_source === 'history' && (
-            <p className="text-xs text-green-400">✓ Category from your history</p>
+            <p className="text-xs text-token-gain">✓ Category from your history</p>
           )}
 
           {/* Merchant */}
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted uppercase tracking-wide">Merchant</label>
+            <label className="text-xs text-token-ink-3 uppercase tracking-wide">Merchant</label>
             <input
               type="text"
               value={merchant}
@@ -155,7 +155,7 @@ export default function ReceiptCard({
           {/* Amount + Date row */}
           <div className="flex gap-2">
             <div className="flex flex-col gap-1 flex-1">
-              <label className="text-xs text-muted uppercase tracking-wide">Amount (EUR)</label>
+              <label className="text-xs text-token-ink-3 uppercase tracking-wide">Amount (EUR)</label>
               <input
                 type="number"
                 inputMode="decimal"
@@ -168,7 +168,7 @@ export default function ReceiptCard({
               />
             </div>
             <div className="flex flex-col gap-1 flex-1">
-              <label className="text-xs text-muted uppercase tracking-wide">Date</label>
+              <label className="text-xs text-token-ink-3 uppercase tracking-wide">Date</label>
               <input
                 type="date"
                 value={date}
@@ -180,7 +180,7 @@ export default function ReceiptCard({
 
           {/* Category */}
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted uppercase tracking-wide">Category</label>
+            <label className="text-xs text-token-ink-3 uppercase tracking-wide">Category</label>
             <select
               value={categoryId}
               onChange={e => setCategoryId(e.target.value)}
@@ -219,7 +219,7 @@ export default function ReceiptCard({
           {/* Account — only if multiple */}
           {draft.accounts.length > 1 && (
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-muted uppercase tracking-wide">Account</label>
+              <label className="text-xs text-token-ink-3 uppercase tracking-wide">Account</label>
               <select
                 value={accountId}
                 onChange={e => setAccountId(e.target.value)}
@@ -234,8 +234,8 @@ export default function ReceiptCard({
 
           {/* Possible bank-sync match found — hold off, let the user decide (#121) */}
           {possibleMatch && (
-            <div className="px-3 py-2.5 rounded-xl bg-yellow-500/10 border border-yellow-500/30 space-y-2">
-              <p className="text-yellow-500 text-xs">
+            <div className="px-3 py-2.5 rounded-xl bg-token-warn-soft border border-token-warn space-y-2">
+              <p className="text-token-warn text-xs">
                 Found a similar bank transaction: <span className="text-token-ink">{possibleMatch.payee || 'Unknown'}</span>{' '}
                 {formatCurrency(possibleMatch.amount)} on {possibleMatch.date}. Attach these details to it instead of creating a new transaction?
               </p>
@@ -264,7 +264,7 @@ export default function ReceiptCard({
               <button
                 onClick={onCancelled}
                 disabled={saving}
-                className="flex-1 py-2 rounded-xl border border-token-line text-token-ink-3 hover:text-token-ink hover:bg-surface-hover text-sm transition-colors disabled:opacity-40"
+                className="flex-1 py-2 rounded-xl border border-token-line text-token-ink-3 hover:text-token-ink hover:bg-token-surface-2 text-sm transition-colors disabled:opacity-40"
               >
                 Cancel
               </button>

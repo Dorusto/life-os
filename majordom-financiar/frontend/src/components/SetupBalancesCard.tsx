@@ -95,14 +95,14 @@ export default function SetupBalancesCard({ accounts, onComplete }: Props) {
               onClick={() => toggleSkip(acc.id, acc.balance)}
               className={`text-[11px] px-1.5 py-0.5 rounded-md border transition-colors ${
                 isSkipped
-                  ? 'border-yellow-500/40 text-yellow-500 bg-yellow-500/10'
+                  ? 'border-token-warn text-token-warn bg-token-warn-soft'
                   : 'border-token-line text-token-ink-3 hover:text-token-ink'
               }`}
             >
               {isSkipped ? 'Skipped' : 'Skip'}
             </button>
             <div className="flex items-center gap-1.5">
-              <span className="text-muted text-sm">€</span>
+              <span className="text-token-ink-3 text-sm">€</span>
               <input
                 type="number"
                 step="0.01"
@@ -128,7 +128,7 @@ export default function SetupBalancesCard({ accounts, onComplete }: Props) {
               className="flex-1 bg-token-paper border border-token-line rounded-lg px-2 py-1 text-token-ink text-sm focus:outline-none focus:border-token-brand transition-colors"
             />
             <div className="flex items-center gap-1.5">
-              <span className="text-muted text-sm">€</span>
+              <span className="text-token-ink-3 text-sm">€</span>
               <input
                 type="number"
                 step="0.01"
@@ -153,7 +153,7 @@ export default function SetupBalancesCard({ accounts, onComplete }: Props) {
         Add account
       </button>
 
-      {error && <p className="text-red-400 text-xs">{error}</p>}
+      {error && <p className="text-token-loss text-xs">{error}</p>}
 
       <button
         onClick={handleSubmit}
