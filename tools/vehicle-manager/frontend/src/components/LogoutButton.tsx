@@ -20,7 +20,7 @@ export default function LogoutButton() {
       type="button"
       onClick={handleLogout}
       aria-label="Log out"
-      className="flex items-center gap-1 text-muted hover:text-white transition-colors text-sm"
+      className="flex items-center gap-1 text-sm text-ink-3 transition-colors hover:text-ink"
     >
       <LogOut size={15} />
       <span>Log out</span>

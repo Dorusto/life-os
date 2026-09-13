@@ -12,6 +12,13 @@ const UNITS: Record<string, string> = {
   other: '€',
 }
 
+/** Shared with the ported Form components so the two can never drift apart. */
+const CONTROL =
+  'w-full rounded border border-line-strong bg-surface px-3 py-2 text-sm text-ink ' +
+  'placeholder:text-ink-3 focus:border-brand-2 focus:outline-none focus:ring-2 focus:ring-brand-soft'
+
+const LABEL = 'text-[13px] font-medium text-ink-2'
+
 /**
  * Add-a-log-entry form (fuel vs. expense), shared by the vehicle detail and
  * timeline screens so the two never drift apart.
@@ -92,7 +99,7 @@ export default function LogEntryForm({
     return (
       <button
         onClick={() => setOpen(true)}
-        className="w-full mt-3 py-2.5 rounded-xl border border-dashed border-border text-muted text-sm hover:text-white hover:border-border-hover transition-colors"
+        className="mt-3 w-full rounded border border-dashed border-line py-2.5 text-sm text-ink-3 transition-colors hover:border-line-strong hover:text-ink"
       >
         + Add entry
       </button>
@@ -100,20 +107,20 @@ export default function LogEntryForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="mt-3 bg-surface border border-border rounded-2xl p-4 space-y-3">
+    <form onSubmit={handleSubmit} className="mt-3 space-y-3 rounded-lg border border-line bg-surface p-4 shadow-sm">
       <div className="grid grid-cols-2 gap-3">
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-muted">Date</label>
+          <label className={LABEL}>Date</label>
           <input
             type="date" required value={date} onChange={(e) => setDate(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-background border border-border text-white text-sm focus:outline-none focus:border-accent"
+            className={CONTROL}
           />
         </div>
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-muted">Category</label>
+          <label className={LABEL}>Category</label>
           <select
             value={entryType} onChange={(e) => setEntryType(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-background border border-border text-white text-sm focus:outline-none focus:border-accent capitalize"
+            className={`${CONTROL} capitalize`}
           >
             {ENTRY_TYPES.map((t) => (
               <option key={t} value={t} className="capitalize">{t}</option>
@@ -123,10 +130,10 @@ export default function LogEntryForm({
       </div>
 
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-muted">Odometer (km)</label>
+        <label className={LABEL}>Odometer (km)</label>
         <input
           type="number" step="1" value={odoKm} onChange={(e) => setOdoKm(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-background border border-border text-white text-sm focus:outline-none focus:border-accent"
+          className={CONTROL}
         />
       </div>
 
@@ -134,68 +141,78 @@ export default function LogEntryForm({
         <>
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-muted">Liters</label>
+              <label className={LABEL}>Liters</label>
               <input
                 type="number" step="0.01" value={fuelLiters} onChange={(e) => setFuelLiters(e.target.value)}
-                className="px-3 py-2 rounded-lg bg-background border border-border text-white text-sm focus:outline-none focus:border-accent"
+                className={CONTROL}
               />
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-muted">Price/L</label>
+              <label className={LABEL}>Price/L</label>
               <input
                 type="number" step="0.001" value={fuelPricePerLiter} onChange={(e) => setFuelPricePerLiter(e.target.value)}
-                className="px-3 py-2 rounded-lg bg-background border border-border text-white text-sm focus:outline-none focus:border-accent"
+                className={CONTROL}
               />
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <label className="flex items-center gap-1.5 text-xs text-muted">
-              <input type="checkbox" checked={fuelFullTank} onChange={(e) => setFuelFullTank(e.target.checked)} />
+            <label className="flex items-center gap-1.5 text-xs text-ink-2">
+              <input
+                type="checkbox"
+                className="accent-brand"
+                checked={fuelFullTank}
+                onChange={(e) => setFuelFullTank(e.target.checked)}
+              />
               Full tank
             </label>
-            <label className="flex items-center gap-1.5 text-xs text-muted">
-              <input type="checkbox" checked={fuelMissed} onChange={(e) => setFuelMissed(e.target.checked)} />
+            <label className="flex items-center gap-1.5 text-xs text-ink-2">
+              <input
+                type="checkbox"
+                className="accent-brand"
+                checked={fuelMissed}
+                onChange={(e) => setFuelMissed(e.target.checked)}
+              />
               Missed fill-up
             </label>
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs text-muted">Station (optional)</label>
+            <label className={LABEL}>Station (optional)</label>
             <input
               type="text" value={location} onChange={(e) => setLocation(e.target.value)}
-              className="px-3 py-2 rounded-lg bg-background border border-border text-white text-sm focus:outline-none focus:border-accent"
+              className={CONTROL}
             />
           </div>
         </>
       ) : (
         <div className="flex flex-col gap-1">
-          <label className="text-xs text-muted">Cost ({UNITS[entryType] ?? '€'})</label>
+          <label className={LABEL}>Cost ({UNITS[entryType] ?? '€'})</label>
           <input
             type="number" step="0.01" value={costTotal} onChange={(e) => setCostTotal(e.target.value)}
-            className="px-3 py-2 rounded-lg bg-background border border-border text-white text-sm focus:outline-none focus:border-accent"
+            className={CONTROL}
           />
         </div>
       )}
 
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-muted">Notes</label>
+        <label className={LABEL}>Notes</label>
         <input
           type="text" value={notes} onChange={(e) => setNotes(e.target.value)}
-          className="px-3 py-2 rounded-lg bg-background border border-border text-white text-sm focus:outline-none focus:border-accent"
+          className={CONTROL}
         />
       </div>
 
-      {error && <p className="text-danger text-xs">{error}</p>}
+      {error && <p className="text-xs text-loss">{error}</p>}
 
       <div className="flex gap-2 pt-1">
         <button
           type="button" onClick={() => { setOpen(false); reset() }}
-          className="flex-1 py-2 rounded-lg border border-border text-muted text-sm hover:text-white transition-colors"
+          className="flex-1 rounded border border-line-strong py-2 text-sm text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
         >
           Cancel
         </button>
         <button
           type="submit" disabled={saving}
-          className="flex-1 py-2 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-hover disabled:opacity-40 transition-colors"
+          className="flex-1 rounded border border-transparent bg-brand py-2 text-sm font-medium text-white transition-colors hover:bg-brand-2 disabled:opacity-50"
         >
           {saving ? 'Saving…' : 'Save'}
         </button>

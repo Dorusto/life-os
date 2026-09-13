@@ -6,6 +6,12 @@ import Chart from '../components/Chart'
 import ChartSection from '../components/ChartSection'
 import LogEntryForm from '../components/LogEntryForm'
 import LogoutButton from '../components/LogoutButton'
+import { Button } from '../components/Button'
+import { Card } from '../components/Card'
+import { Delta } from '../components/Delta'
+import { Loading } from '../components/Feedback'
+import { MetricTile } from '../components/MetricTile'
+import { TypePill } from '../components/Pill'
 import {
   ApiError,
   getVehicle,
@@ -29,9 +35,9 @@ function formatMoney(n: number | null | undefined): string {
 
 function InfoRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start justify-between gap-3">
-      <p className="text-[13.5px] text-muted shrink-0">{label}</p>
-      <p className="text-[13.5px] font-semibold text-right">{value || '—'}</p>
+    <div className="flex items-start justify-between gap-3 border-b border-line py-2 last:border-0">
+      <p className="shrink-0 text-[13px] text-ink-2">{label}</p>
+      <p className="text-right text-[13px] font-medium text-ink">{value || '—'}</p>
     </div>
   )
 }
@@ -141,26 +147,25 @@ export default function VehicleDetail() {
   }
 
   if (vehicleQuery.isLoading) {
-    return <p className="text-muted text-sm text-center py-16">Loading…</p>
+    return <Loading />
   }
 
   if (!vehicle) {
     return (
-      <div className="min-h-dvh bg-background flex flex-col px-5 pt-14">
-        <button
+      <div className="flex min-h-dvh flex-col bg-paper px-5 pt-14">
+        <Button
+          variant="ghost"
+          size="sm"
           onClick={() => navigate('/vehicles')}
-          className="flex items-center gap-1 text-muted hover:text-white transition-colors text-sm self-start"
+          className="-ml-3 self-start"
         >
           <ChevronLeft size={16} /> Vehicles
-        </button>
-        <div className="flex-1 flex flex-col items-center justify-center gap-3 pb-24">
-          <p className="text-white text-xl font-bold">Vehicle not found</p>
-          <button
-            onClick={() => navigate('/vehicles')}
-            className="text-accent text-sm font-medium hover:opacity-80 transition-opacity"
-          >
+        </Button>
+        <div className="flex flex-1 flex-col items-center justify-center gap-3 pb-24">
+          <p className="text-xl font-semibold text-ink">Vehicle not found</p>
+          <Button variant="secondary" size="sm" onClick={() => navigate('/vehicles')}>
             Back to vehicles
-          </button>
+          </Button>
         </div>
       </div>
     )
@@ -196,53 +201,56 @@ export default function VehicleDetail() {
     : 'Class default'
 
   return (
-    <div className="h-dvh bg-background flex flex-col overflow-y-auto">
+    <div className="flex h-dvh flex-col overflow-y-auto bg-paper">
       <header className="flex-shrink-0 px-5 pb-3 pt-14">
-        <div className="flex items-center justify-between mb-3">
-          <button
-            onClick={() => navigate('/vehicles')}
-            className="flex items-center gap-1 text-muted hover:text-white transition-colors text-sm"
-          >
+        <div className="mb-3 flex items-center justify-between">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/vehicles')} className="-ml-3">
             <ChevronLeft size={16} /> Vehicles
-          </button>
+          </Button>
           <LogoutButton />
         </div>
-        <p className="font-mono text-[11px] uppercase tracking-wide text-muted">Vehicle</p>
-        <h1 className="text-3xl font-bold text-white truncate">{vehicle.name}</h1>
+        <p className="font-mono text-[11px] uppercase tracking-wide text-ink-3">Vehicle</p>
+        <h1 className="truncate text-2xl font-semibold text-ink">{vehicle.name}</h1>
       </header>
 
       <section className="px-5 pt-2 pb-24">
         {projection404 ? (
-          <div className="mt-4 bg-surface border border-border rounded-2xl p-4">
-            <p className="text-muted text-sm">This vehicle has no purchase price set — value tracking is unavailable.</p>
-          </div>
+          <Card className="mt-4">
+            <p className="text-sm text-ink-2">
+              This vehicle has no purchase price set — value tracking is unavailable.
+            </p>
+          </Card>
         ) : (
           projection && (
-            <>
-              <p className="font-mono text-[11px] uppercase tracking-wide text-muted mt-4">Current value</p>
-              <p className="font-mono font-medium text-3xl mt-1 tabular-nums">{formatMoney(currentValue)}</p>
-              {purchasePrice != null && delta != null && deltaPct != null && (
-                <p className="text-xs text-muted mt-1">
-                  {delta >= 0 ? '+' : ''}{formatMoney(delta)} ({formatPercent(deltaPct)}) since acquired {formatDate(purchaseDate)}
-                </p>
-              )}
+            <Card className="mt-4">
+              <MetricTile
+                label="Current value"
+                value={formatMoney(currentValue)}
+                emphasis
+                hint={
+                  purchasePrice != null && delta != null && deltaPct != null ? (
+                    <span className="inline-flex flex-wrap items-center gap-1">
+                      <Delta value={deltaPct / 100} eur={delta} />
+                      <span>since acquired {formatDate(purchaseDate)}</span>
+                    </span>
+                  ) : undefined
+                }
+              />
 
-              <div className="grid grid-cols-3 gap-3 mt-4">
-                <div className="bg-surface border border-border rounded-2xl p-3">
-                  <p className="text-[10px] text-muted uppercase tracking-wide">Purchase price</p>
-                  <p className="font-mono text-sm font-semibold mt-1">{purchasePrice != null ? formatMoney(purchasePrice) : '—'}</p>
-                  {purchaseDate && <p className="text-[10px] text-muted mt-0.5">{formatDate(purchaseDate)}</p>}
-                </div>
-                <div className="bg-surface border border-border rounded-2xl p-3">
-                  <p className="text-[10px] text-muted uppercase tracking-wide">Depreciation</p>
-                  <p className="font-mono text-sm font-semibold mt-1">
-                    {purchasePrice != null ? formatMoney(purchasePrice - currentValue) : '—'}
-                  </p>
-                </div>
-                <div className="bg-surface border border-border rounded-2xl p-3">
-                  <p className="text-[10px] text-muted uppercase tracking-wide">Projected in {projectionYears}y</p>
-                  <p className="font-mono text-sm font-semibold mt-1">{curveLast ? formatMoney(curveLast.value) : '—'}</p>
-                </div>
+              <div className="mt-4 grid grid-cols-3 gap-3">
+                <MetricTile
+                  label="Purchase price"
+                  value={purchasePrice != null ? formatMoney(purchasePrice) : '—'}
+                  hint={purchaseDate ? formatDate(purchaseDate) : undefined}
+                />
+                <MetricTile
+                  label="Depreciation"
+                  value={purchasePrice != null ? formatMoney(purchasePrice - currentValue) : '—'}
+                />
+                <MetricTile
+                  label={`Projected in ${projectionYears}y`}
+                  value={curveLast ? formatMoney(curveLast.value) : '—'}
+                />
               </div>
 
               {projection.curve.length > 0 && (
@@ -262,11 +270,11 @@ export default function VehicleDetail() {
                   />
                 </div>
               )}
-            </>
+            </Card>
           )
         )}
 
-        <div className="mt-4 bg-surface border border-border rounded-2xl px-4 py-3 space-y-2.5">
+        <Card className="mt-4">
           <InfoRow label="Class" value={vehicle.vehicle_class || '—'} />
           <InfoRow label="Year" value={vehicle.year ? String(vehicle.year) : '—'} />
           <InfoRow label="Mileage" value={mileage ? `${formatNumber(mileage)} km` : '—'} />
@@ -275,10 +283,10 @@ export default function VehicleDetail() {
             label="Salvage floor"
             value={salvageFloorAmount != null ? `${formatPercent(vehicle.salvage_floor_pct ?? 0)} ≈ ${formatMoney(salvageFloorAmount)}` : '—'}
           />
-        </div>
+        </Card>
 
-        <h3 className="mt-6 mb-2 text-xs text-muted uppercase tracking-wide">Reminders</h3>
-        <div className="bg-surface border border-border rounded-2xl px-4 py-3 space-y-2.5">
+        <h3 className="mb-2 mt-6 text-xs uppercase tracking-wide text-ink-2">Reminders</h3>
+        <Card>
           <InfoRow label="APK / inspection due" value={formatDate(vehicle.apk_due)} />
           <InfoRow label="Insurance due" value={formatDate(vehicle.insurance_due)} />
           <InfoRow
@@ -292,26 +300,27 @@ export default function VehicleDetail() {
                 : '—'
             }
           />
-        </div>
+        </Card>
 
-        <h3 className="mt-6 mb-2 text-xs text-muted uppercase tracking-wide">Override history</h3>
-        {history.length === 0 ? (
-          <p className="text-muted text-sm">No overrides yet.</p>
-        ) : (
-          <div className="space-y-2">
-            {history.map(entry => (
-              <div key={entry.id} className="bg-surface border border-border rounded-xl px-3 py-2.5">
-                <div className="flex items-center justify-between">
-                  <p className="font-mono text-sm font-semibold">{formatMoney(entry.value)}</p>
-                  <span className="text-xs text-muted">{formatDate(entry.date)}</span>
+        <Card title="Override history" className="mt-6">
+          {history.length === 0 ? (
+            <p className="text-sm text-ink-2">No overrides yet.</p>
+          ) : (
+            <div>
+              {history.map(entry => (
+                <div key={entry.id} className="border-b border-line py-2.5 first:pt-0 last:border-0 last:pb-0">
+                  <div className="flex items-center justify-between">
+                    <p className="font-mono text-sm font-medium text-ink tnum">{formatMoney(entry.value)}</p>
+                    <span className="text-xs text-ink-3">{formatDate(entry.date)}</span>
+                  </div>
+                  {entry.note && <p className="mt-1 text-xs text-ink-2">{entry.note}</p>}
                 </div>
-                {entry.note && <p className="text-xs text-muted mt-1">{entry.note}</p>}
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </Card>
 
-        <h3 className="mt-6 mb-3 text-xs text-muted uppercase tracking-wide">Fuel & Costs</h3>
+        <h3 className="mb-3 mt-6 text-xs uppercase tracking-wide text-ink-2">Fuel & Costs</h3>
         <div className="space-y-4">
           <ChartSection data={consumptionQuery.data} />
           <ChartSection data={distanceQuery.data} />
@@ -320,25 +329,28 @@ export default function VehicleDetail() {
           <ChartSection data={mileageQuery.data} />
         </div>
 
-        <h3 className="mt-6 mb-3 text-xs text-muted uppercase tracking-wide">Log</h3>
+        <h3 className="mb-3 mt-6 text-xs uppercase tracking-wide text-ink-2">Log</h3>
         {log.length === 0 ? (
-          <p className="text-muted text-sm">No log entries yet.</p>
+          <p className="text-sm text-ink-2">No log entries yet.</p>
         ) : (
           <div className="space-y-2">
             {log.map(entry => (
-              <div key={entry.id} className="bg-surface border border-border rounded-xl px-3 py-2.5 flex items-start justify-between gap-2">
+              <div
+                key={entry.id}
+                className="flex items-start justify-between gap-2 rounded-lg border border-line bg-surface px-3 py-2.5"
+              >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs uppercase tracking-wide text-muted-2">{entry.entry_type}</span>
-                    <span className="text-xs text-muted">{formatDate(entry.date)}</span>
+                    <TypePill type={entry.entry_type} />
+                    <span className="text-xs text-ink-3">{formatDate(entry.date)}</span>
                   </div>
                   {entry.entry_type === 'fuel' ? (
-                    <p className="text-sm mt-0.5">
+                    <p className="mt-1 text-sm text-ink tnum">
                       {entry.fuel_liters != null ? `${entry.fuel_liters} L` : ''}
                       {entry.cost_total != null ? ` · ${formatMoney(entry.cost_total)}` : ''}
                     </p>
                   ) : (
-                    <p className="text-sm mt-0.5">
+                    <p className="mt-1 text-sm text-ink">
                       {entry.cost_total != null ? formatMoney(entry.cost_total) : ''}
                       {entry.notes ? ` · ${entry.notes}` : ''}
                     </p>
@@ -347,7 +359,7 @@ export default function VehicleDetail() {
                 <button
                   onClick={() => handleDelete(entry.id)}
                   disabled={deletingId === entry.id}
-                  className="text-muted hover:text-danger transition-colors shrink-0 p-1 disabled:opacity-40"
+                  className="shrink-0 rounded p-1 text-ink-3 transition-colors hover:bg-surface-2 hover:text-loss disabled:opacity-40"
                   aria-label="Delete entry"
                 >
                   <Trash2 size={14} />

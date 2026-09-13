@@ -20,18 +20,18 @@ export default function VehicleSwitcher({
   if (vehicle) {
     const odo = vehicle.last_odo ?? vehicle.manual_mileage
     return (
-      <div className="relative bg-surface border border-border rounded-2xl px-4 py-3">
+      <div className="relative rounded-lg border border-line bg-surface px-4 py-3 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-background flex items-center justify-center flex-shrink-0">
-            <Car size={17} className="text-muted" strokeWidth={1.5} />
+          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-surface-sunken">
+            <Car size={17} className="text-ink-3" strokeWidth={1.5} />
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-white text-sm font-medium truncate">{vehicle.name}</p>
-            <p className="text-muted text-xs">
+            <p className="truncate text-sm font-medium text-ink">{vehicle.name}</p>
+            <p className="font-mono text-xs text-ink-3">
               {odo != null ? `${formatNumber(odo)} km` : 'No odometer yet'}
             </p>
           </div>
-          {vehicles.length > 1 && <ChevronDown size={16} className="text-muted flex-shrink-0" />}
+          {vehicles.length > 1 && <ChevronDown size={16} className="flex-shrink-0 text-ink-3" />}
         </div>
         {vehicles.length > 1 && (
           <select
@@ -52,7 +52,7 @@ export default function VehicleSwitcher({
   }
 
   return (
-    <div className="w-full bg-surface border border-dashed border-border rounded-2xl px-4 py-3 text-muted text-sm">
+    <div className="w-full rounded-lg border border-dashed border-line bg-surface px-4 py-3 text-sm text-ink-3">
       No vehicles yet
     </div>
   )

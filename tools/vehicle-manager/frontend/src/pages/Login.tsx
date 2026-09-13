@@ -1,5 +1,7 @@
 import { useState, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Button } from '../components/Button'
+import { Field, TextInput } from '../components/Form'
 import { login } from '../lib/api'
 import { saveAuth } from '../lib/auth'
 
@@ -38,83 +40,63 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-6">
+    <div className="flex min-h-dvh flex-col items-center justify-center bg-paper px-6">
       {/* Logo */}
       <div className="mb-10 flex flex-col items-center gap-3">
-        <div className="w-14 h-14 rounded-2xl bg-accent flex items-center justify-center">
-          <span className="text-white text-2xl font-bold">MT</span>
+        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand">
+          <span className="text-2xl font-bold text-white">MT</span>
         </div>
         <div className="text-center">
-          <h1 className="text-white text-xl font-semibold tracking-tight">Majordom Transport</h1>
-          <p className="text-muted text-sm mt-0.5">Your vehicles, tracked</p>
+          <h1 className="text-xl font-semibold tracking-tight text-ink">Majordom Transport</h1>
+          <p className="mt-0.5 text-sm text-ink-2">Your vehicles, tracked</p>
         </div>
       </div>
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="w-full max-w-sm flex flex-col gap-3">
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="username" className="text-sm text-muted">Username</label>
-          <input
+      <form onSubmit={handleSubmit} className="flex w-full max-w-sm flex-col gap-4">
+        <Field label="Username" htmlFor="username">
+          <TextInput
             id="username"
             type="text"
             autoCapitalize="none"
             autoComplete="username"
             autoCorrect="off"
             value={username}
-            onChange={e => setUsername(e.target.value)}
+            onChange={(e) => setUsername(e.target.value)}
             placeholder="username"
             required
-            className="
-              w-full px-4 py-3 rounded-xl bg-surface border border-border
-              text-white placeholder-muted-2 text-base
-              focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent
-              transition-colors
-            "
+            className="py-3 text-base"
           />
-        </div>
+        </Field>
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="password" className="text-sm text-muted">Password</label>
-          <input
+        <Field label="Password" htmlFor="password">
+          <TextInput
             id="password"
             type="password"
             autoComplete="current-password"
             value={password}
-            onChange={e => setPassword(e.target.value)}
+            onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
             required
-            className="
-              w-full px-4 py-3 rounded-xl bg-surface border border-border
-              text-white placeholder-muted-2 text-base
-              focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent
-              transition-colors
-            "
+            className="py-3 text-base"
           />
-        </div>
+        </Field>
 
         {/* Error message */}
-        {error && (
-          <p className="text-danger text-sm text-center">{error}</p>
-        )}
+        {error && <p className="text-center text-sm text-loss">{error}</p>}
 
-        <button
+        <Button
           type="submit"
+          variant="primary"
           disabled={loading || !username || !password}
-          className="
-            mt-2 w-full py-3.5 rounded-xl bg-accent text-white text-base font-medium
-            hover:bg-accent-hover active:scale-[0.98]
-            disabled:opacity-40 disabled:cursor-not-allowed
-            transition-all duration-150
-          "
+          className="mt-2 w-full"
         >
           {loading ? 'Signing in…' : 'Sign in'}
-        </button>
+        </Button>
       </form>
 
       {/* Footer */}
-      <p className="mt-12 text-muted-2 text-xs">
-        Self-hosted · Zero cloud · 100% yours
-      </p>
+      <p className="mt-12 text-xs text-ink-3">Self-hosted · Zero cloud · 100% yours</p>
     </div>
   )
 }

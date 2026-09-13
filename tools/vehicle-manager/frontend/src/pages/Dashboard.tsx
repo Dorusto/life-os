@@ -4,21 +4,15 @@ import { Bell, Car } from 'lucide-react'
 import BottomNav from '../components/BottomNav'
 import LogoutButton from '../components/LogoutButton'
 import VehicleSwitcher from '../components/VehicleSwitcher'
+import { Button } from '../components/Button'
+import { Card } from '../components/Card'
+import { ErrorState, Loading } from '../components/Feedback'
+import { MetricTile } from '../components/MetricTile'
 import { getVehicleSummary } from '../lib/api'
 import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 import { formatDate } from '../lib/formatDate'
 import { reminderHorizon } from '../lib/reminders'
 import { useSelectedVehicle } from '../lib/useSelectedVehicle'
-
-function Metric({ label, value, sub }: { label: string; value: string; sub?: string }) {
-  return (
-    <div className="bg-background rounded-xl px-3 py-2.5">
-      <p className="text-[10px] text-muted uppercase tracking-wide">{label}</p>
-      <p className="font-mono text-base font-semibold text-white mt-0.5">{value}</p>
-      {sub && <p className="text-[10px] text-muted mt-0.5">{sub}</p>}
-    </div>
-  )
-}
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -34,108 +28,129 @@ export default function Dashboard() {
   const reminders = summary?.reminders ?? []
 
   return (
-    <div className="min-h-dvh bg-background px-4 pt-8 pb-24">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-white text-xl font-semibold">Majordom Transport</h1>
+    <div className="min-h-dvh bg-paper px-4 pb-24 pt-8">
+      <header className="mb-4 flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-ink">Majordom Transport</h1>
         <LogoutButton />
-      </div>
+      </header>
 
       {isLoading ? (
-        <p className="text-muted text-sm text-center py-8">Loading…</p>
+        <Loading />
       ) : vehicles.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
-          <Car className="w-10 h-10 text-muted-2" strokeWidth={1.5} />
-          <p className="text-muted text-sm">No vehicles yet</p>
-          <button
-            onClick={() => navigate('/import')}
-            className="text-accent text-sm font-semibold hover:opacity-80 transition-opacity"
-          >
+          <Car className="h-10 w-10 text-ink-3" strokeWidth={1.5} />
+          <p className="text-sm text-ink-2">No vehicles yet</p>
+          <Button size="sm" onClick={() => navigate('/import')}>
             Import from Fuelio
-          </button>
+          </Button>
         </div>
       ) : (
         <>
           <VehicleSwitcher vehicles={vehicles} selectedId={selectedId} onSelect={select} />
 
-          <button
-            onClick={() => navigate(`/vehicles/${vehicle!.id}`)}
-            className="mt-2 w-full text-center text-muted text-xs hover:text-white transition-colors"
-          >
-            View vehicle details →
-          </button>
-
-          <h2 className="mt-5 mb-2 text-xs text-muted uppercase tracking-wide">Fuel economy</h2>
-          <div className="bg-surface border border-border rounded-2xl p-3 grid grid-cols-3 gap-2">
-            <Metric
-              label="Average"
-              value={summary?.avg_consumption != null ? `${formatNumber(summary.avg_consumption, 1)}` : '—'}
-              sub="L/100km"
-            />
-            <Metric
-              label="Last fill"
-              value={summary?.last_consumption != null ? `${formatNumber(summary.last_consumption, 1)}` : '—'}
-              sub="L/100km"
-            />
-            <Metric
-              label="Last price"
-              value={summary?.last_fuel_price != null ? formatCurrency(summary.last_fuel_price, { decimals: 3 }) : '—'}
-              sub={summary?.last_fuel_date ? formatDate(summary.last_fuel_date) : undefined}
-            />
+          <div className="mt-3 text-center">
+            <Button variant="ghost" size="sm" onClick={() => navigate(`/vehicles/${vehicle!.id}`)}>
+              View vehicle details →
+            </Button>
           </div>
 
-          <h2 className="mt-5 mb-2 text-xs text-muted uppercase tracking-wide">Costs</h2>
-          <div className="bg-surface border border-border rounded-2xl p-3 grid grid-cols-3 gap-2">
-            <Metric label="This month" value={summary ? formatCurrency(summary.cost_this_month) : '—'} />
-            <Metric label="This year" value={summary ? formatCurrency(summary.cost_this_year) : '—'} />
-            <Metric label="All time" value={summary ? formatCurrency(summary.total_cost) : '—'} />
-          </div>
-
-          <h2 className="mt-5 mb-2 text-xs text-muted uppercase tracking-wide">Distance</h2>
-          <div className="bg-surface border border-border rounded-2xl p-3 grid grid-cols-3 gap-2">
-            <Metric
-              label="Odometer"
-              value={summary?.last_odo != null ? `${formatNumber(summary.last_odo)}` : '—'}
-              sub="km"
-            />
-            <Metric
-              label="This month"
-              value={summary ? `${formatNumber(summary.distance_this_month)}` : '—'}
-              sub="km"
-            />
-            <Metric
-              label="This year"
-              value={summary ? `${formatNumber(summary.distance_this_year)}` : '—'}
-              sub="km"
-            />
-          </div>
-
-          <div className="mt-5 flex items-center justify-between mb-2">
-            <h2 className="text-xs text-muted uppercase tracking-wide">Reminders</h2>
-            {reminders.length > 0 && (
-              <Link to="/reminders" className="text-accent text-xs hover:opacity-80">
-                View all
-              </Link>
-            )}
-          </div>
-          {reminders.length === 0 ? (
-            <p className="text-muted text-sm">Nothing due.</p>
-          ) : (
-            <div className="space-y-2">
-              {reminders.slice(0, 2).map((r) => (
-                <div key={r.kind} className="bg-surface border border-border rounded-xl px-3 py-2.5 flex items-center gap-3">
-                  <Bell size={15} className={r.overdue ? 'text-danger' : 'text-muted'} />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-white text-sm truncate">{r.label}</p>
-                    <p className="text-muted text-xs">
-                      {r.due_date ? formatDate(r.due_date) : r.due_odo != null ? `${formatNumber(r.due_odo)} km` : ''}
-                    </p>
-                  </div>
-                  <span className={`text-xs shrink-0 ${r.overdue ? 'text-danger' : 'text-muted'}`}>
-                    {reminderHorizon(r).text}
-                  </span>
-                </div>
-              ))}
+          {summaryQuery.isError ? (
+            <div className="mt-5">
+              <ErrorState
+                message="Couldn't load this vehicle's summary."
+                onRetry={() => void summaryQuery.refetch()}
+              />
             </div>
+          ) : (
+            <>
+              <Card title="Fuel economy" className="mt-5">
+                <div className="grid grid-cols-3 gap-3">
+                  <MetricTile
+                    label="Average"
+                    value={summary?.avg_consumption != null ? formatNumber(summary.avg_consumption, 1) : '—'}
+                    hint="L/100km"
+                  />
+                  <MetricTile
+                    label="Last fill"
+                    value={summary?.last_consumption != null ? formatNumber(summary.last_consumption, 1) : '—'}
+                    hint="L/100km"
+                  />
+                  <MetricTile
+                    label="Last price"
+                    value={
+                      summary?.last_fuel_price != null
+                        ? formatCurrency(summary.last_fuel_price, { decimals: 3 })
+                        : '—'
+                    }
+                    hint={summary?.last_fuel_date ? formatDate(summary.last_fuel_date) : undefined}
+                  />
+                </div>
+              </Card>
+
+              <Card title="Costs" className="mt-5">
+                <div className="grid grid-cols-3 gap-3">
+                  <MetricTile label="This month" value={summary ? formatCurrency(summary.cost_this_month) : '—'} />
+                  <MetricTile label="This year" value={summary ? formatCurrency(summary.cost_this_year) : '—'} />
+                  <MetricTile label="All time" value={summary ? formatCurrency(summary.total_cost) : '—'} />
+                </div>
+              </Card>
+
+              <Card title="Distance" className="mt-5">
+                <div className="grid grid-cols-3 gap-3">
+                  <MetricTile
+                    label="Odometer"
+                    value={summary?.last_odo != null ? formatNumber(summary.last_odo) : '—'}
+                    hint="km"
+                  />
+                  <MetricTile
+                    label="This month"
+                    value={summary ? formatNumber(summary.distance_this_month) : '—'}
+                    hint="km"
+                  />
+                  <MetricTile
+                    label="This year"
+                    value={summary ? formatNumber(summary.distance_this_year) : '—'}
+                    hint="km"
+                  />
+                </div>
+              </Card>
+
+              <div className="mt-5 mb-2 flex items-center justify-between">
+                <h2 className="text-xs uppercase tracking-wide text-ink-2">Reminders</h2>
+                {reminders.length > 0 && (
+                  <Link to="/reminders" className="text-xs text-brand hover:opacity-80">
+                    View all
+                  </Link>
+                )}
+              </div>
+              {reminders.length === 0 ? (
+                <p className="text-sm text-ink-2">Nothing due.</p>
+              ) : (
+                <div className="space-y-2">
+                  {reminders.slice(0, 2).map((r) => (
+                    <div
+                      key={r.kind}
+                      className="flex items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3"
+                    >
+                      <Bell size={15} className={r.overdue ? 'text-loss' : 'text-ink-3'} />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm text-ink">{r.label}</p>
+                        <p className="text-xs text-ink-3">
+                          {r.due_date
+                            ? formatDate(r.due_date)
+                            : r.due_odo != null
+                              ? `${formatNumber(r.due_odo)} km`
+                              : ''}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 text-xs ${r.overdue ? 'text-loss' : 'text-ink-3'}`}>
+                        {reminderHorizon(r).text}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           )}
         </>
       )}

@@ -2,32 +2,59 @@
 export default {
   // Tailwind only generates CSS for classes actually used in these files
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  // Theming is driven entirely by the tokens in src/styles/tokens.css, swapped
+  // on <html data-theme="dark">. This makes the `dark:` variant use the same
+  // switch, in case a component ever needs it. No `dark:` classes are used
+  // today — components reference tokens, not color literals.
+  darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
     extend: {
+      // Every color points at a CSS custom property in src/styles/tokens.css,
+      // so the palette has exactly one definition. Opacity modifiers (e.g.
+      // bg-ink/50) are intentionally not used — dedicated -soft tokens exist
+      // instead, because a var() color can't be alpha-composited by Tailwind.
       colors: {
-        // Same dark palette as majordom-financiar/frontend — kept identical so
-        // the copied Chart.tsx (and the shared look/feel) work unmodified.
-        background: '#0F0F0F',   // page background
-        surface:    '#1A1A1A',   // cards, inputs, modals
-        'surface-2': '#222222',  // hover states, nested surfaces
-        border:     '#2A2A2A',   // default border
-        'border-hover': '#3D3D3D',
-        accent:     '#6366F1',   // indigo-500 — primary action color
-        'accent-hover': '#4F52D4',
-        muted:      '#71717A',   // secondary text (zinc-500)
-        'muted-2':  '#82828C',   // ~5:1 contrast against #0F0F0F background (WCAG AA)
-        success:    '#22C55E',   // green-500
-        danger:     '#EF4444',   // red-500
+        paper: 'var(--paper)',
+        surface: 'var(--surface)',
+        'surface-2': 'var(--surface-2)',
+        'surface-sunken': 'var(--surface-sunken)',
+        ink: 'var(--ink)',
+        'ink-2': 'var(--ink-2)',
+        'ink-3': 'var(--ink-3)',
+        line: 'var(--line)',
+        'line-strong': 'var(--line-strong)',
+        overlay: 'var(--overlay)',
+        brand: 'var(--brand)',
+        'brand-2': 'var(--brand-2)',
+        'brand-soft': 'var(--brand-soft)',
+        'brand-ink': 'var(--brand-ink)',
+        gain: 'var(--gain)',
+        'gain-soft': 'var(--gain-soft)',
+        loss: 'var(--loss)',
+        'loss-soft': 'var(--loss-soft)',
+        warn: 'var(--warn)',
+        'warn-soft': 'var(--warn-soft)',
+        info: 'var(--info)',
       },
       fontFamily: {
-        // System font stack — no web font download, fast, looks native on iOS/Android
-        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        display: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+        sans: ['IBM Plex Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        mono: ['IBM Plex Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       borderRadius: {
-        'xl': '12px',
-        '2xl': '16px',
+        sm: 'var(--r-sm)',
+        DEFAULT: 'var(--r)',
+        lg: 'var(--r-lg)',
+        xl: 'var(--r-xl)',
+      },
+      boxShadow: {
+        sm: 'var(--shadow-sm)',
+        DEFAULT: 'var(--shadow)',
+        lg: 'var(--shadow-lg)',
+      },
+      fontSize: {
+        // Tightened display ladder; body sizes stay on Tailwind's defaults.
+        display: ['2.75rem', { lineHeight: '1.05', letterSpacing: '-0.02em' }],
+        'display-sm': ['2rem', { lineHeight: '1.1', letterSpacing: '-0.015em' }],
       },
     },
   },

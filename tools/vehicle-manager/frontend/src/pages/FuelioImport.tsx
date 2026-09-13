@@ -2,6 +2,8 @@ import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, Upload } from 'lucide-react'
+import { Button } from '../components/Button'
+import { Card } from '../components/Card'
 import { importFuelio, type FuelioImportResult } from '../lib/api'
 
 /**
@@ -35,61 +37,66 @@ export default function FuelioImport() {
   }
 
   return (
-    <div className="min-h-dvh bg-background px-5 pt-[3.5rem] pb-24">
-      <button
+    <div className="min-h-dvh bg-paper px-5 pb-24 pt-[3.5rem]">
+      <Button
+        variant="ghost"
+        size="sm"
         onClick={() => navigate('/vehicles')}
-        className="flex items-center gap-1 text-muted hover:text-white transition-colors text-sm mb-6"
+        className="-ml-3 mb-6"
       >
         <ChevronLeft size={16} /> Vehicles
-      </button>
+      </Button>
 
-      <h1 className="text-white text-xl font-semibold mb-1">Import from Fuelio</h1>
-      <p className="text-muted text-sm mb-6">
+      <h1 className="mb-1 text-xl font-semibold text-ink">Import from Fuelio</h1>
+      <p className="mb-6 text-sm text-ink-2">
         Upload a Fuelio sync CSV export to create or update a vehicle and its fuel/cost log.
       </p>
 
       {result ? (
-        <div className="bg-surface border border-border rounded-2xl p-4 space-y-2">
-          <p className="text-white font-semibold">{result.vehicle_name}</p>
-          <p className="text-sm text-muted">
-            {result.fuel_entries} fuel entries imported{result.fuel_skipped ? ` (${result.fuel_skipped} skipped)` : ''}
+        <Card>
+          <p className="font-semibold text-ink">{result.vehicle_name}</p>
+          <p className="mt-2 text-sm text-ink-2">
+            {result.fuel_entries} fuel entries imported
+            {result.fuel_skipped ? ` (${result.fuel_skipped} skipped)` : ''}
           </p>
-          <p className="text-sm text-muted">
-            {result.cost_entries} cost entries imported{result.cost_skipped ? ` (${result.cost_skipped} skipped)` : ''}
+          <p className="text-sm text-ink-2">
+            {result.cost_entries} cost entries imported
+            {result.cost_skipped ? ` (${result.cost_skipped} skipped)` : ''}
           </p>
-          <button
-            onClick={() => navigate('/vehicles')}
-            className="mt-2 text-accent text-sm font-semibold hover:opacity-80 transition-opacity"
-          >
-            Back to vehicles
-          </button>
-        </div>
+          <div className="mt-4">
+            <Button variant="secondary" size="sm" onClick={() => navigate('/vehicles')}>
+              Back to vehicles
+            </Button>
+          </div>
+        </Card>
       ) : (
         <>
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className="border border-dashed border-border rounded-2xl p-8 flex flex-col items-center gap-3 cursor-pointer hover:border-border-hover transition-colors"
-          >
-            <Upload className="w-8 h-8 text-muted-2" strokeWidth={1.5} />
-            <p className="text-sm text-muted">{file ? file.name : 'Tap to choose a CSV file'}</p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".csv"
-              className="hidden"
-              onChange={e => setFile(e.target.files?.[0] ?? null)}
-            />
-          </div>
-
-          {error && <p className="text-danger text-sm mt-3">{error}</p>}
-
           <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex w-full flex-col items-center gap-3 rounded-lg border border-dashed border-line-strong bg-surface px-8 py-10 transition-colors hover:bg-surface-2"
+          >
+            <Upload className="h-8 w-8 text-ink-3" strokeWidth={1.5} />
+            <p className="text-sm text-ink-2">{file ? file.name : 'Tap to choose a CSV file'}</p>
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".csv"
+            className="hidden"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          />
+
+          {error && <p className="mt-3 text-sm text-loss">{error}</p>}
+
+          <Button
+            variant="primary"
             onClick={handleImport}
             disabled={!file || importing}
-            className="mt-4 w-full py-3 rounded-xl bg-accent text-white text-sm font-medium hover:bg-accent-hover disabled:opacity-40 transition-colors"
+            className="mt-4 w-full"
           >
             {importing ? 'Importing…' : 'Import'}
-          </button>
+          </Button>
         </>
       )}
     </div>
