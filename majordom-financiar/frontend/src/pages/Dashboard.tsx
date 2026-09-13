@@ -223,7 +223,7 @@ export default function Dashboard() {
             </div>
           )}
 
-          <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[1.15fr_1fr] lg:items-start">
+          <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start">
             <div className="flex flex-col gap-6">
               {leftWidgets.map(w => (
                 <WidgetShell key={w.id} editing={editing} onRemove={() => removeWidget(w.id)}>
