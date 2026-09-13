@@ -75,7 +75,7 @@ export default function NotificationBell() {
         {totalCount === 0 ? (
           <p className="text-token-ink-3 text-xs py-2">You're all caught up.</p>
         ) : (
-          <div className="-mx-6 border-t border-border divide-y divide-border">
+          <div className="-mx-6 border-t border-token-line divide-y divide-token-line">
             {duplicateCount > 0 && (
               <button
                 onClick={() => { setOpen(false); navigate('/duplicates') }}

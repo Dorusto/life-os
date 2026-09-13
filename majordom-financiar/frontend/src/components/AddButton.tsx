@@ -30,8 +30,8 @@ export default function AddButton() {
           >
             <Camera size={18} className="text-token-brand-ink flex-shrink-0" />
             <div>
-              <p className="text-white text-sm font-semibold">Photo</p>
-              <p className="text-muted text-xs">Scan a receipt, AI proposes the details</p>
+              <p className="text-token-ink text-sm font-semibold">Photo</p>
+              <p className="text-token-ink-3 text-xs">Scan a receipt, AI proposes the details</p>
             </div>
           </button>
           <button
@@ -40,8 +40,8 @@ export default function AddButton() {
           >
             <Upload size={18} className="text-token-brand-ink flex-shrink-0" />
             <div>
-              <p className="text-white text-sm font-semibold">CSV</p>
-              <p className="text-muted text-xs">Import a bank export</p>
+              <p className="text-token-ink text-sm font-semibold">CSV</p>
+              <p className="text-token-ink-3 text-xs">Import a bank export</p>
             </div>
           </button>
           <button
@@ -50,8 +50,8 @@ export default function AddButton() {
           >
             <PenLine size={18} className="text-token-brand-ink flex-shrink-0" />
             <div>
-              <p className="text-white text-sm font-semibold">Manual entry</p>
-              <p className="text-muted text-xs">No AI involved — you fill in every field</p>
+              <p className="text-token-ink text-sm font-semibold">Manual entry</p>
+              <p className="text-token-ink-3 text-xs">No AI involved — you fill in every field</p>
             </div>
           </button>
         </div>
