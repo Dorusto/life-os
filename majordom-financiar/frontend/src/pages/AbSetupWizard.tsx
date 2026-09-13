@@ -91,7 +91,7 @@ export default function AbSetupWizard() {
 
   if (connectedBudgetName) {
     return (
-      <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-6 text-center">
+      <div className="min-h-dvh bg-token-paper flex flex-col items-center justify-center px-6 text-center">
         <div className="w-14 h-14 rounded-2xl bg-token-gain flex items-center justify-center mb-6">
           <span className="text-token-gain text-2xl">✓</span>
         </div>
@@ -118,7 +118,7 @@ export default function AbSetupWizard() {
   `
 
   return (
-    <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-6 py-10">
+    <div className="min-h-dvh bg-token-paper flex flex-col items-center justify-center px-6 py-10">
       <div className="mb-8 flex flex-col items-center gap-3 text-center">
         <div className="w-14 h-14 rounded-2xl bg-token-brand flex items-center justify-center">
           <span className="text-white text-2xl font-bold">M</span>
