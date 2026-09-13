@@ -1,28 +1,67 @@
+@import './styles/tokens.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Page background/ink come from the token layer (imported in main.tsx, so it's
-   already in the cascade) — no color is hardcoded here, which is what makes a
-   theme swap automatic. */
-html, body, #root {
-  background-color: var(--paper);
-  color: var(--ink);
-  min-height: 100dvh;
-}
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
 
-/* Remove tap highlight on mobile — looks more native */
-* {
-  -webkit-tap-highlight-color: transparent;
-}
+  html,
+  body,
+  #root {
+    min-height: 100dvh;
+  }
 
-/* Custom scrollbar — subtle, follows the current theme's tokens */
-::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 2px; }
+  body {
+    @apply bg-paper text-ink font-sans antialiased;
+    margin: 0;
+  }
+
+  /* Remove tap highlight on mobile — looks more native. */
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--brand-2);
+    outline-offset: 2px;
+    border-radius: 3px;
+  }
+
+  /* Numbers that line up in columns — the ledger's whole premise. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: 'tnum' 1;
+  }
+
+  ::selection {
+    background: var(--brand-soft);
+  }
+
+  /* Custom scrollbar — subtle, follows the current theme's tokens. */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 2px; }
+}
 
 @layer utilities {
-  /* Tabular figures — the ledger choice: columns of numbers align digit for
-     digit. See DESIGN.md's typography section. */
-  .tnum { font-variant-numeric: tabular-nums; }
+  /* A fine double rule, the one recurring "statement" motif. */
+  .statement-rule {
+    border-top: 1px solid var(--line-strong);
+    border-bottom: 1px solid var(--line);
+    height: 4px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }

@@ -5,6 +5,7 @@ import BottomNav from '../components/BottomNav'
 import LogoutButton from '../components/LogoutButton'
 import LogEntryForm from '../components/LogEntryForm'
 import VehicleSwitcher from '../components/VehicleSwitcher'
+import { Loading } from '../components/Feedback'
 import { deleteLogEntry, getVehicleLog, getVehicleSummary, type VehicleLogEntry } from '../lib/api'
 import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 import { formatDate } from '../lib/formatDate'
@@ -78,16 +79,16 @@ export default function TimelinePage() {
   }
 
   return (
-    <div className="min-h-dvh bg-background px-4 pt-8 pb-24">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-white text-xl font-semibold">Timeline</h1>
+    <div className="min-h-dvh bg-paper px-4 pb-24 pt-8">
+      <header className="mb-4 flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-ink">Timeline</h1>
         <LogoutButton />
-      </div>
+      </header>
 
       {isLoading ? (
-        <p className="text-muted text-sm text-center py-8">Loading…</p>
+        <Loading />
       ) : !vehicle ? (
-        <p className="text-muted text-sm text-center py-8">No vehicles yet.</p>
+        <p className="py-8 text-center text-sm text-ink-2">No vehicles yet.</p>
       ) : (
         <>
           <VehicleSwitcher vehicles={vehicles} selectedId={selectedId} onSelect={select} />
@@ -95,52 +96,52 @@ export default function TimelinePage() {
           {reminders.length > 0 && (
             <button
               onClick={() => navigate('/reminders')}
-              className="mt-3 w-full bg-surface border border-border rounded-2xl px-4 py-3 flex items-center gap-3 text-left"
+              className="mt-3 flex w-full items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-left transition-colors hover:bg-surface-2"
             >
-              <Bell size={16} className={reminders[0].overdue ? 'text-danger' : 'text-accent'} />
+              <Bell size={16} className={reminders[0].overdue ? 'text-loss' : 'text-brand'} />
               <div className="min-w-0 flex-1">
-                <p className="text-white text-sm font-medium">Reminders ({reminders.length})</p>
-                <p className="text-muted text-xs truncate">
+                <p className="text-sm font-medium text-ink">Reminders ({reminders.length})</p>
+                <p className="truncate text-xs text-ink-3">
                   {reminders[0].label}
                   {reminders[0].overdue ? ' · overdue' : ''}
                 </p>
               </div>
-              <span className="text-muted text-xs">More…</span>
+              <span className="text-xs text-ink-3">More…</span>
             </button>
           )}
 
           {entries.length === 0 ? (
-            <p className="text-muted text-sm text-center py-10">No entries yet.</p>
+            <p className="py-10 text-center text-sm text-ink-2">No entries yet.</p>
           ) : (
             groups.map(([month, monthEntries]) => (
               <div key={month} className="mt-5">
-                <p className="text-xs text-muted font-semibold mb-2">{monthLabel(month)}</p>
+                <p className="mb-2 text-xs font-semibold text-ink-2">{monthLabel(month)}</p>
                 <div className="space-y-2">
                   {monthEntries.map((entry) => {
                     const Icon = iconFor(entry.entry_type)
                     return (
                       <div
                         key={entry.id}
-                        className="bg-surface border border-border rounded-xl px-3 py-3 flex items-start gap-3"
+                        className="flex items-start gap-3 rounded-lg border border-line bg-surface px-3 py-3"
                       >
-                        <div className="w-8 h-8 rounded-full bg-background flex items-center justify-center flex-shrink-0">
-                          <Icon size={15} className="text-accent" strokeWidth={1.7} />
+                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-surface-2">
+                          <Icon size={15} className="text-brand" strokeWidth={1.7} />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-start justify-between gap-2">
-                            <p className="text-white text-sm font-medium">{categoryLabel(entry.entry_type)}</p>
+                            <p className="text-sm font-medium text-ink">{categoryLabel(entry.entry_type)}</p>
                             {entry.cost_total != null && (
-                              <p className="font-mono text-sm text-white flex-shrink-0">
+                              <p className="flex-shrink-0 font-mono text-sm text-ink tnum">
                                 {formatCurrency(entry.cost_total)}
                               </p>
                             )}
                           </div>
-                          <p className="text-muted text-xs mt-0.5">
+                          <p className="mt-0.5 text-xs text-ink-3">
                             {formatDate(entry.date)}
                             {entry.odo_km != null ? ` · ${formatNumber(entry.odo_km)} km` : ''}
                           </p>
                           {entry.entry_type === 'fuel' ? (
-                            <p className="text-muted text-xs mt-0.5">
+                            <p className="mt-0.5 text-xs text-ink-3">
                               {entry.fuel_liters != null ? `${entry.fuel_liters} L` : ''}
                               {entry.fuel_price_per_liter != null
                                 ? ` · ${formatCurrency(entry.fuel_price_per_liter, { decimals: 3 })}/L`
@@ -148,12 +149,12 @@ export default function TimelinePage() {
                               {entry.location ? ` · ${entry.location}` : ''}
                             </p>
                           ) : (
-                            entry.notes && <p className="text-muted text-xs mt-0.5">{entry.notes}</p>
+                            entry.notes && <p className="mt-0.5 text-xs text-ink-3">{entry.notes}</p>
                           )}
                         </div>
                         <button
                           onClick={() => handleDelete(entry.id)}
-                          className="text-muted hover:text-danger transition-colors shrink-0 p-1"
+                          className="shrink-0 rounded p-1 text-ink-3 transition-colors hover:bg-surface-2 hover:text-loss"
                           aria-label="Delete entry"
                         >
                           <Trash2 size={14} />

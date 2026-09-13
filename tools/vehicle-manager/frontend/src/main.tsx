@@ -21,9 +21,9 @@ import '@fontsource/ibm-plex-mono/latin-ext-500.css'
 import '@fontsource/ibm-plex-mono/latin-600.css'
 import '@fontsource/ibm-plex-mono/latin-ext-600.css'
 
-// Tokens must be in the cascade before index.css, which reads them for the
-// page background/ink. Single source of truth: src/styles/tokens.css.
-import './styles/tokens.css'
+// Design tokens are imported at the very top of index.css (index.css →
+// src/styles/tokens.css), so they're in the cascade before any Tailwind layer
+// that reads them. Single source of truth: src/styles/tokens.css.
 import App from './App'
 import './index.css'
 

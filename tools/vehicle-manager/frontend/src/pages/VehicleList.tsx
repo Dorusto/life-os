@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { Car, Upload } from 'lucide-react'
 import BottomNav from '../components/BottomNav'
 import LogoutButton from '../components/LogoutButton'
+import { Button } from '../components/Button'
+import { ErrorState, Loading } from '../components/Feedback'
 import { getVehicles } from '../lib/api'
 import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 
@@ -13,46 +15,39 @@ import { formatCurrency, formatNumber } from '../lib/formatCurrency'
  */
 export default function VehicleList() {
   const navigate = useNavigate()
-  const { data: vehicles, isLoading, error } = useQuery({
+  const { data: vehicles, isLoading, error, refetch } = useQuery({
     queryKey: ['vehicles'],
     queryFn: getVehicles,
   })
 
   return (
-    <div className="min-h-dvh bg-background px-4 pt-8 pb-24">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-white text-xl font-semibold">Vehicles</h1>
-        <div className="flex items-center gap-4">
-          <button
-            onClick={() => navigate('/import')}
-            className="flex items-center gap-1.5 text-accent text-sm font-medium hover:opacity-80 transition-opacity"
-          >
+    <div className="min-h-dvh bg-paper px-4 pb-24 pt-8">
+      <header className="mb-6 flex items-center justify-between">
+        <h1 className="text-xl font-semibold text-ink">Vehicles</h1>
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/import')} className="-mr-2 text-brand">
             <Upload size={15} /> Import
-          </button>
+          </Button>
           <LogoutButton />
         </div>
-      </div>
+      </header>
 
-      {isLoading && (
-        <p className="text-muted text-sm text-center py-8">Loading…</p>
-      )}
+      {isLoading && <Loading />}
 
       {error && (
-        <p className="text-danger text-sm text-center py-8">
-          Failed to load vehicles. Is vehicle-manager running?
-        </p>
+        <ErrorState
+          message="Failed to load vehicles. Is vehicle-manager running?"
+          onRetry={() => void refetch()}
+        />
       )}
 
       {vehicles && vehicles.length === 0 && (
         <div className="flex flex-col items-center gap-3 py-16 text-center">
-          <Car className="w-10 h-10 text-muted-2" strokeWidth={1.5} />
-          <p className="text-muted text-sm">No vehicles yet</p>
-          <button
-            onClick={() => navigate('/import')}
-            className="mt-1 text-accent text-sm font-semibold hover:opacity-80 transition-opacity"
-          >
+          <Car className="h-10 w-10 text-ink-3" strokeWidth={1.5} />
+          <p className="text-sm text-ink-2">No vehicles yet</p>
+          <Button size="sm" onClick={() => navigate('/import')}>
             Import from Fuelio
-          </button>
+          </Button>
         </div>
       )}
 
@@ -64,19 +59,21 @@ export default function VehicleList() {
               <li key={v.id}>
                 <button
                   onClick={() => navigate(`/vehicles/${v.id}`)}
-                  className="w-full bg-surface hover:bg-surface-2 rounded-xl px-4 py-3 text-left transition-colors flex items-center gap-3"
+                  className="flex w-full items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3 text-left transition-colors hover:bg-surface-2"
                 >
-                  <Car className="w-5 h-5 text-muted flex-shrink-0" strokeWidth={1.5} />
+                  <Car className="h-5 w-5 flex-shrink-0 text-ink-3" strokeWidth={1.5} />
                   <div className="min-w-0 flex-1">
-                    <p className="text-white text-sm font-medium truncate">{v.name}</p>
-                    {subtitle && <p className="text-muted text-xs truncate">{subtitle}</p>}
+                    <p className="truncate text-sm font-medium text-ink">{v.name}</p>
+                    {subtitle && <p className="truncate text-xs text-ink-3">{subtitle}</p>}
                   </div>
-                  <div className="text-right shrink-0">
+                  <div className="shrink-0 text-right">
                     {v.current_value != null && (
-                      <p className="font-mono text-sm text-white">{formatCurrency(v.current_value, { decimals: 0 })}</p>
+                      <p className="font-mono text-sm text-ink tnum">
+                        {formatCurrency(v.current_value, { decimals: 0 })}
+                      </p>
                     )}
                     {v.last_odo != null && (
-                      <p className="text-muted text-xs">{formatNumber(v.last_odo)} km</p>
+                      <p className="text-xs text-ink-3 tnum">{formatNumber(v.last_odo)} km</p>
                     )}
                   </div>
                 </button>
