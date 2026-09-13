@@ -10,6 +10,7 @@ import {
   type NetWorthHistoryPoint,
 } from '../lib/api'
 import Chart from '../components/Chart'
+import InvestmentProjection from '../components/InvestmentProjection'
 import PageHeader from '../components/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import WidgetLoading from '../components/WidgetLoading'
@@ -18,7 +19,8 @@ import { asTrendBarData, extractCashFlow, type CashFlowPoint } from '../lib/cash
 import { formatCurrency } from '../lib/formatCurrency'
 
 /**
- * Analytics — section tabs (Overview / Trends / Cash Flow / Net Worth / Drivers)
+ * Analytics — section tabs (Overview / Trends / Cash Flow / Net Worth / Drivers /
+ * Projection)
  * over the chart endpoints the app already exposes. Overview is the original four charts,
  * unchanged. Trends re-slices the spending-trend response (no new endpoint, no
  * period change) into Expenses / Income / Savings bar + cumulative line views.
@@ -27,12 +29,14 @@ import { formatCurrency } from '../lib/formatCurrency'
  * dedicated net-worth-history endpoint for account balances at each period end
  * and draws assets, liabilities and the resulting net as charts. Drivers is the
  * "saved vs grown" reading of that same move — a section-level pending state
- * until a market-value history source exists (see renderDrivers below).
+ * until a market-value history source exists (see renderDrivers below). Projection, by
+ * contrast, needs no data source at all: a compound-growth calculator over the user's
+ * own inputs (see InvestmentProjection).
  *
  * See docs/decisions.md#planned-folded-into-analytics.
  */
 
-type Section = 'overview' | 'trends' | 'cashflow' | 'networth' | 'drivers'
+type Section = 'overview' | 'trends' | 'cashflow' | 'networth' | 'drivers' | 'projection'
 
 const SECTIONS: { value: Section; label: string }[] = [
   { value: 'overview', label: 'Overview' },
@@ -40,6 +44,7 @@ const SECTIONS: { value: Section; label: string }[] = [
   { value: 'cashflow', label: 'Cash Flow' },
   { value: 'networth', label: 'Net Worth' },
   { value: 'drivers', label: 'Drivers' },
+  { value: 'projection', label: 'Projection' },
 ]
 
 type TrendTab = 'expenses' | 'income' | 'savings'
@@ -558,6 +563,10 @@ export default function AnalyticsPage() {
         {section === 'networth' && renderNetWorth()}
 
         {section === 'drivers' && renderDrivers()}
+
+        {/* Projection — the one section with no endpoint behind it: pure
+            client-side compound growth over the user's own inputs. */}
+        {section === 'projection' && <InvestmentProjection />}
       </section>
     </div>
   )
