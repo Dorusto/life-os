@@ -98,14 +98,19 @@ class _FakeClock:
 
 @pytest.fixture(autouse=True)
 def _clear_rate_limiter():
-    """The sliding window is module-level state: a burst in one test must not
-    make the next test's first call wait."""
+    """The sliding window and the 429 cooldown are module-level state: a burst
+    or a rejection in one test must not affect the next test's first call."""
     market_data._call_timestamps.clear()
+    market_data._rate_limited_until = 0.0
     yield
     market_data._call_timestamps.clear()
+    market_data._rate_limited_until = 0.0
 
 
 class _StubResponse:
+    status_code = 200
+    headers: dict = {}
+
     def raise_for_status(self) -> None:
         return None
 
@@ -157,3 +162,37 @@ def test_rejected_calls_still_consume_the_window(monkeypatch):
     with pytest.raises(market_data.MarketDataError):
         market_data._get_json("/price", {"symbol": "ACME.US"})
     assert clock.sleeps, "the throttled call waits even though it will fail"
+
+
+class _StubResponse429:
+    status_code = 429
+    headers: dict = {}
+
+    def raise_for_status(self) -> None:
+        raise AssertionError("must not be reached — 429 is handled before raise_for_status")
+
+    def json(self) -> dict:
+        raise AssertionError("must not be reached")
+
+
+def test_429_enters_cooldown_and_skips_remaining_calls_without_waiting(monkeypatch):
+    """Live bug, 2026-09-13: one 429 used to leave every other ticker in the
+    same dashboard load still queuing behind the sliding window (each one
+    sleeping out its own turn before also being rejected) — a ~15-20 holding
+    load turned into a 15-20 minute blocking call on the single uvicorn
+    worker. After the first 429, later calls must fail immediately, with no
+    further sleep, until the cooldown passes."""
+    clock = _FakeClock()
+    _patch_transport(monkeypatch, clock, lambda *a, **k: _StubResponse429())
+
+    with pytest.raises(market_data.MarketDataError):
+        market_data._get_json("/price", {"symbol": "ACME.US"})
+    slept_after_first_429 = list(clock.sleeps)
+
+    with pytest.raises(market_data.MarketDataError):
+        market_data._get_json("/time_series", {"symbol": "OTHER.US"})
+    assert clock.sleeps == slept_after_first_429, "cooldown must skip _throttle entirely, no extra sleep"
+
+    clock.now += market_data.RATE_LIMIT_COOLDOWN_SECONDS
+    monkeypatch.setattr(market_data.httpx, "get", lambda *a, **k: _StubResponse())
+    market_data._get_json("/price", {"symbol": "ACME.US"})  # no longer in cooldown, retries live

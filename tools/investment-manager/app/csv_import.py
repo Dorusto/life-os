@@ -160,11 +160,44 @@ def _find_sheet(workbook):
 
 
 def _find_header_row(rows: list[list]) -> int | None:
+    """Locate the header row by content, case-insensitively.
+
+    XTB's own exports have been observed with inconsistent header casing
+    across accounts/export dates (e.g. "TYPE" vs "Type") — matching
+    case-sensitively made a real, valid export fail to import. Comparison is
+    case-insensitive; the header text itself (used for the column-name -> index
+    map below) is still taken verbatim from the file, only lowercased for the
+    lookup key.
+    """
+    type_key = COL_TYPE.lower()
+    id_key = COL_ID.lower()
+    ticker_key = COL_TICKER.lower()
     for idx, row in enumerate(rows):
-        cells = {_norm(c) for c in row}
-        if COL_TYPE in cells and (COL_ID in cells or COL_TICKER in cells):
+        cells = {_norm(c).lower() for c in row}
+        if type_key in cells and (id_key in cells or ticker_key in cells):
             return idx
     return None
+
+
+def _describe_rows_for_diagnostics(rows: list[list], limit: int = 6) -> str:
+    """First few non-empty rows' cell text, for a header-not-found error.
+
+    Shown only to the user who uploaded the file, in their own browser — never
+    logged server-side or persisted anywhere. Lets them (or a future support
+    conversation) see exactly what the parser saw without needing the raw
+    file shared anywhere.
+    """
+    lines = []
+    shown = 0
+    for row in rows:
+        cells = [_norm(c) for c in row if _norm(c)]
+        if not cells:
+            continue
+        lines.append(" | ".join(cells[:10]))
+        shown += 1
+        if shown >= limit:
+            break
+    return "\n".join(lines) if lines else "(sheet appears empty)"
 
 
 def parse_xtb(file_bytes: bytes) -> dict:
@@ -175,7 +208,14 @@ def parse_xtb(file_bytes: bytes) -> dict:
     transactions (deduplicating on ``external_id``).
     """
     try:
-        workbook = load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
+        # NOT read_only: that mode trusts the worksheet XML's <dimension> tag
+        # for row/column bounds, and third-party exporters (XTB's included,
+        # confirmed live 2026-09-13) can leave it wrong/stale, silently
+        # truncating iter_rows() to a couple of rows instead of raising. These
+        # exports are at most a few thousand rows — full in-memory load is
+        # fine, and it reads the real row count regardless of a bad dimension
+        # hint.
+        workbook = load_workbook(io.BytesIO(file_bytes), data_only=True)
     except Exception as exc:  # openpyxl raises several unrelated types
         raise ValueError(f"Could not read the workbook — is it a valid .xlsx file? ({exc})")
 
@@ -192,13 +232,19 @@ def parse_xtb(file_bytes: bytes) -> dict:
 
     header_idx = _find_header_row(rows)
     if header_idx is None:
-        raise ValueError("Could not find the Cash Operations header row")
+        raise ValueError(
+            "Could not find the Cash Operations header row. Expected a row containing "
+            f"'{COL_TYPE}' and either '{COL_ID}' or '{COL_TICKER}' (case-insensitive). "
+            f"First rows found in the sheet:\n{_describe_rows_for_diagnostics(rows)}"
+        )
 
     header = [_norm(c) for c in rows[header_idx]]
-    col = {name: i for i, name in enumerate(header)}
+    # Lowercased keys — column lookups below are case-insensitive to match
+    # _find_header_row's own tolerance (see its docstring).
+    col = {name.lower(): i for i, name in enumerate(header)}
 
     def cell(row: list, name: str):
-        idx = col.get(name)
+        idx = col.get(name.lower())
         if idx is None or idx >= len(row):
             return None
         return row[idx]

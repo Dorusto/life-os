@@ -45,6 +45,30 @@ RATE_LIMIT_WINDOW_SECONDS = 60.0
 # window. Bounded by RATE_LIMIT_MAX_CALLS, so it never grows.
 _call_timestamps: deque[float] = deque()
 
+# Set on an actual HTTP 429 from Twelve Data. Live-verified 2026-09-13: without
+# this, one rejected call still left every *other* ticker in the same request
+# queuing behind `_throttle`'s sliding window (each one sleeping, then getting
+# rejected too) — a ~15-20 holding dashboard load turned into a 15-20 minute
+# blocking call on the single uvicorn worker, which also starved `/health`
+# (`_throttle` blocks the event loop, see `_get_json`'s own docstring) and left
+# the dashboard showing €0.00 the entire time. Once the server has said no,
+# further calls fail immediately from cache instead of re-attempting.
+_rate_limited_until = 0.0
+# Live-observed 2026-09-13: a shorter cooldown (90s) kept re-triggering a
+# fresh 429 on the very first retry, each one itself spending another credit
+# and pushing the real reset further out. 5 minutes trades a slower recovery
+# for not continuing to hammer an account that is still over its real quota.
+RATE_LIMIT_COOLDOWN_SECONDS = 300.0
+
+
+def _in_cooldown() -> bool:
+    return time.monotonic() < _rate_limited_until
+
+
+def _enter_cooldown(seconds: float = RATE_LIMIT_COOLDOWN_SECONDS) -> None:
+    global _rate_limited_until
+    _rate_limited_until = time.monotonic() + max(seconds, RATE_LIMIT_COOLDOWN_SECONDS)
+
 
 class MarketDataError(Exception):
     """No live value and no cached fallback is available."""
@@ -137,9 +161,21 @@ def _get_json(path: str, params: dict) -> dict:
     """
     params = {**params, "apikey": _api_key()}
     # Only after the key resolves, so a misconfigured key cannot burn a slot.
+    if _in_cooldown():
+        raise MarketDataError("Twelve Data rate limit cooldown active")
     _throttle()
     try:
         resp = httpx.get(f"{TWELVE_DATA_BASE}{path}", params=params, timeout=10.0)
+        if resp.status_code == 429:
+            retry_after = resp.headers.get("Retry-After")
+            cooldown = RATE_LIMIT_COOLDOWN_SECONDS
+            if retry_after:
+                try:
+                    cooldown = max(cooldown, float(retry_after))
+                except ValueError:
+                    pass
+            _enter_cooldown(cooldown)
+            raise MarketDataError("Twelve Data rate limit exceeded (429)")
         resp.raise_for_status()
         payload = resp.json()
     except (httpx.HTTPError, ValueError) as exc:

@@ -395,11 +395,17 @@ def build_value_series(db_path: str | None = None, start_date: str | None = None
         except market_data.MarketDataError as exc:
             logger.warning("No price history for %s: %s", ticker, exc)
             history = []
+        # _resolve_price_at() forward-fills from the last history point <=
+        # target_date, so fallback only ever gets used when history is
+        # entirely empty — skip the extra live call otherwise (halves API
+        # calls in the common case, and matters more now that a single 429
+        # triggers a rate-limit cooldown for every remaining ticker too).
         fallback = None
-        try:
-            fallback = market_data.get_price(ticker, currency)
-        except market_data.MarketDataError:
-            fallback = None
+        if not history:
+            try:
+                fallback = market_data.get_price(ticker, currency)
+            except market_data.MarketDataError:
+                fallback = None
 
         ledger = sorted(
             ((t["date"], t) for t in txns if t["type"] in ("buy", "sell") and t.get("quantity")),
