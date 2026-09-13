@@ -115,12 +115,12 @@ export default function NewGoalSheet({ open, onClose, onCreated }: Props) {
       ) : (
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="space-y-1">
-            <p className="text-muted text-xs">Account</p>
+            <p className="text-token-ink-3 text-xs">Account</p>
             <select
               value={accountName}
               onChange={e => setAccountName(e.target.value)}
               required
-              className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
             >
               <option value="" disabled>Select an account</option>
               {accounts?.map(a => (
@@ -130,47 +130,47 @@ export default function NewGoalSheet({ open, onClose, onCreated }: Props) {
           </div>
 
           <div className="space-y-1">
-            <p className="text-muted text-xs">Target amount</p>
-            <div className="flex items-center gap-1.5 bg-background border border-border rounded-xl px-3 py-2">
-              <span className="text-muted text-sm">€</span>
+            <p className="text-token-ink-3 text-xs">Target amount</p>
+            <div className="flex items-center gap-1.5 bg-token-paper border border-token-line rounded-xl px-3 py-2">
+              <span className="text-token-ink-3 text-sm">€</span>
               <input
                 type="number"
                 min={0}
                 required
                 value={target}
                 onChange={e => setTarget(e.target.value)}
-                className="flex-1 bg-transparent text-white text-sm font-mono outline-none min-w-0"
+                className="flex-1 bg-transparent text-token-ink text-sm font-plex-mono outline-none min-w-0"
               />
             </div>
           </div>
 
           <div className="space-y-1">
-            <p className="text-muted text-xs">Deadline <span className="text-muted/60">(optional)</span></p>
+            <p className="text-token-ink-3 text-xs">Deadline <span className="text-token-ink-3">(optional)</span></p>
             <input
               type="month"
               value={deadline}
               onChange={e => setDeadline(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm font-mono outline-none focus:border-accent"
+              className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm font-plex-mono outline-none focus:border-token-brand"
             />
           </div>
 
           <div className="space-y-1">
-            <p className="text-muted text-xs">Description <span className="text-muted/60">(optional)</span></p>
+            <p className="text-token-ink-3 text-xs">Description <span className="text-token-ink-3">(optional)</span></p>
             <input
               type="text"
               value={note}
               onChange={e => setNote(e.target.value)}
               placeholder="e.g. trip to Scandinavia"
-              className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
             />
           </div>
 
-          {error && <p className="text-danger text-xs">{error}</p>}
+          {error && <p className="text-token-loss text-xs">{error}</p>}
 
           <button
             type="submit"
             disabled={loading || !accountName || !target}
-            className="w-full bg-accent hover:bg-accent-hover disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors"
+            className="w-full bg-token-brand hover:bg-token-brand-2 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors"
           >
             {loading ? 'Setting up…' : 'Continue'}
           </button>

@@ -92,16 +92,16 @@ export default function AbSetupWizard() {
   if (connectedBudgetName) {
     return (
       <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-6 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-positive/20 flex items-center justify-center mb-6">
-          <span className="text-positive text-2xl">✓</span>
+        <div className="w-14 h-14 rounded-2xl bg-token-gain flex items-center justify-center mb-6">
+          <span className="text-token-gain text-2xl">✓</span>
         </div>
-        <h1 className="text-white text-xl font-semibold tracking-tight">Connected to Actual Budget</h1>
-        <p className="text-muted text-sm mt-1.5">{connectedBudgetName}</p>
+        <h1 className="text-token-ink text-xl font-semibold tracking-tight">Connected to Actual Budget</h1>
+        <p className="text-token-ink-3 text-sm mt-1.5">{connectedBudgetName}</p>
         <button
           onClick={() => navigate('/', { replace: true })}
           className="
-            mt-8 px-6 py-3 rounded-xl bg-accent text-white text-base font-medium
-            hover:bg-accent-hover active:scale-[0.98] transition-all duration-150
+            mt-8 px-6 py-3 rounded-xl bg-token-brand text-white text-base font-medium
+            hover:bg-token-brand-2 active:scale-[0.98] transition-all duration-150
           "
         >
           Continue to Home
@@ -111,21 +111,21 @@ export default function AbSetupWizard() {
   }
 
   const inputClass = `
-    w-full px-4 py-3 rounded-xl bg-surface border border-border
-    text-white placeholder-muted-2 text-base
-    focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent
+    w-full px-4 py-3 rounded-xl bg-token-surface border border-token-line
+    text-token-ink placeholder-token-ink-2 text-base
+    focus:outline-none focus:border-token-brand focus:ring-1 focus:ring-token-brand
     transition-colors
   `
 
   return (
     <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-6 py-10">
       <div className="mb-8 flex flex-col items-center gap-3 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-accent flex items-center justify-center">
+        <div className="w-14 h-14 rounded-2xl bg-token-brand flex items-center justify-center">
           <span className="text-white text-2xl font-bold">M</span>
         </div>
         <div>
-          <h1 className="text-white text-xl font-semibold tracking-tight">Connect Actual Budget</h1>
-          <p className="text-muted text-sm mt-0.5 max-w-xs">
+          <h1 className="text-token-ink text-xl font-semibold tracking-tight">Connect Actual Budget</h1>
+          <p className="text-token-ink-3 text-sm mt-0.5 max-w-xs">
             Majordom needs one connection to your Actual Budget server before it can do anything.
           </p>
         </div>
@@ -133,7 +133,7 @@ export default function AbSetupWizard() {
 
       <form onSubmit={handleTest} className="w-full max-w-sm flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="ab-url" className="text-sm text-muted">Server URL</label>
+          <label htmlFor="ab-url" className="text-sm text-token-ink-3">Server URL</label>
           <input
             id="ab-url"
             type="text"
@@ -148,7 +148,7 @@ export default function AbSetupWizard() {
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="ab-password" className="text-sm text-muted">Server password</label>
+          <label htmlFor="ab-password" className="text-sm text-token-ink-3">Server password</label>
           <input
             id="ab-password"
             type="password"
@@ -159,13 +159,13 @@ export default function AbSetupWizard() {
             required
             className={inputClass}
           />
-          <p className="text-muted-2 text-xs">
+          <p className="text-token-ink-2 text-xs">
             The Actual Budget server's own password (Settings → Advanced) — not a bank password.
           </p>
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="ab-file" className="text-sm text-muted">Budget file</label>
+          <label htmlFor="ab-file" className="text-sm text-token-ink-3">Budget file</label>
           {files && files.length > 0 ? (
             <select
               id="ab-file"
@@ -190,24 +190,24 @@ export default function AbSetupWizard() {
               className={inputClass}
             />
           )}
-          <p className="text-muted-2 text-xs">
+          <p className="text-token-ink-2 text-xs">
             Don't know the exact name? Leave it blank and press "Test connection" — Majordom will
             list the budgets available on that server.
           </p>
         </div>
 
-        {testError && <p className="text-danger text-sm text-center">{testError}</p>}
+        {testError && <p className="text-token-loss text-sm text-center">{testError}</p>}
         {tested && !testError && (
-          <p className="text-positive text-sm text-center">Connection verified.</p>
+          <p className="text-token-gain text-sm text-center">Connection verified.</p>
         )}
-        {saveError && <p className="text-danger text-sm text-center">{saveError}</p>}
+        {saveError && <p className="text-token-loss text-sm text-center">{saveError}</p>}
 
         <button
           type="submit"
           disabled={testing || saving || !baseUrl || !password}
           className="
-            mt-2 w-full py-3.5 rounded-xl bg-surface border border-border text-white text-base font-medium
-            hover:bg-surface-2 active:scale-[0.98]
+            mt-2 w-full py-3.5 rounded-xl bg-token-surface border border-token-line text-token-ink text-base font-medium
+            hover:bg-token-surface-2 active:scale-[0.98]
             disabled:opacity-40 disabled:cursor-not-allowed
             transition-all duration-150
           "
@@ -220,8 +220,8 @@ export default function AbSetupWizard() {
           onClick={handleSave}
           disabled={!tested || !file || saving}
           className="
-            w-full py-3.5 rounded-xl bg-accent text-white text-base font-medium
-            hover:bg-accent-hover active:scale-[0.98]
+            w-full py-3.5 rounded-xl bg-token-brand text-white text-base font-medium
+            hover:bg-token-brand-2 active:scale-[0.98]
             disabled:opacity-40 disabled:cursor-not-allowed
             transition-all duration-150
           "
@@ -230,7 +230,7 @@ export default function AbSetupWizard() {
         </button>
       </form>
 
-      <p className="mt-10 text-muted-2 text-xs">
+      <p className="mt-10 text-token-ink-2 text-xs">
         Self-hosted · Zero cloud · 100% yours
       </p>
     </div>

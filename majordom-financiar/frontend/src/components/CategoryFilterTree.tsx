@@ -57,12 +57,12 @@ function CategoryGroupRow({
           type="checkbox"
           checked={allSelected}
           onChange={toggleGroup}
-          className="accent-accent"
+          className="accent-token-brand"
         />
-        <span className="text-white text-sm font-medium truncate">{name}</span>
-        <span className="text-muted text-xs flex-shrink-0">— {totalCount}</span>
+        <span className="text-token-ink text-sm font-medium truncate">{name}</span>
+        <span className="text-token-ink-3 text-xs flex-shrink-0">— {totalCount}</span>
       </label>
-      <div className="ml-6 border-l border-border/40 pl-3">
+      <div className="ml-6 border-l border-token-line pl-3">
         {visibleCats.map(cat => {
           const checked = selected.includes(cat.id)
           return (
@@ -77,9 +77,9 @@ function CategoryGroupRow({
                       : [...selected, cat.id]
                   )
                 }
-                className="accent-accent"
+                className="accent-token-brand"
               />
-              <span className="text-muted text-sm truncate">{cat.name}</span>
+              <span className="text-token-ink-3 text-sm truncate">{cat.name}</span>
             </label>
           )
         })}
@@ -129,11 +129,11 @@ export default function CategoryFilterTree({ categories, selected, onChange }: P
         value={search}
         onChange={e => setSearch(e.target.value)}
         placeholder="Search categories..."
-        className="w-full bg-surface-2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-accent disabled:opacity-50"
+        className="w-full bg-token-surface-2 border border-token-line rounded-lg px-3 py-2 text-token-ink text-sm focus:outline-none focus:border-token-brand disabled:opacity-50"
       />
-      <div className="max-h-60 overflow-y-auto border border-border rounded-lg px-2 py-1">
+      <div className="max-h-60 overflow-y-auto border border-token-line rounded-lg px-2 py-1">
         {groups.length === 0 ? (
-          <p className="text-muted text-sm text-center py-4">
+          <p className="text-token-ink-3 text-sm text-center py-4">
             No categories match your search.
           </p>
         ) : (
@@ -151,13 +151,13 @@ export default function CategoryFilterTree({ categories, selected, onChange }: P
         )}
       </div>
       <div className="flex items-center justify-between mt-1">
-        <p className="text-muted text-xs">
+        <p className="text-token-ink-3 text-xs">
           {selected.length} {selected.length === 1 ? 'category' : 'categories'} selected
         </p>
         {selected.length > 0 && (
           <button
             onClick={() => onChange([])}
-            className="text-accent hover:text-white text-xs font-semibold"
+            className="text-token-brand-ink hover:text-token-ink text-xs font-semibold"
           >
             Clear
           </button>
