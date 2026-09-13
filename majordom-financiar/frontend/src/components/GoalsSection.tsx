@@ -39,7 +39,7 @@ const GOAL_CHIPS: { label: string; colorClass: string; prefill: string }[] = [
 
 /**
  * Financial Goals — a single widget-card (matches the shell every other
- * Dashboard/Planned widget uses: bg-surface border rounded-2xl, title inside)
+ * Dashboard/Planned widget uses: bg-token-surface border rounded-2xl, title inside)
  * instead of the older label-above-separate-accent-cards layout. Rendered on
  * both Dashboard (as the existing 'goals' widget) and the new Planned page —
  * same component, not duplicated (decisions.md#nav-five-tabs supersession).
@@ -119,7 +119,7 @@ function PortfolioIndependenceRow({ data, navigate }: { data: FireData; navigate
   const trend = data.trend_months
 
   return (
-    <div className="py-3.5 border-b border-border last:border-b-0">
+    <div className="py-3.5 border-b border-token-line last:border-b-0">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-token-ink font-semibold text-[15px]">
           Portfolio Independence
@@ -202,7 +202,7 @@ function ExpenseCoverageRow({ data }: { data: ExpenseCoverageData }) {
   const pct = Math.min(data.coverage_pct, 100)
 
   return (
-    <div className="py-3.5 border-b border-border last:border-b-0">
+    <div className="py-3.5 border-b border-token-line last:border-b-0">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-token-ink font-semibold text-[15px]">
           Expense Coverage
@@ -251,7 +251,7 @@ interface GoalRowProps {
 
 function GoalRow({ goal, color, navigate }: GoalRowProps) {
   return (
-    <div className="py-3.5 border-b border-border last:border-b-0">
+    <div className="py-3.5 border-b border-token-line last:border-b-0">
       <div className="flex items-baseline justify-between gap-2">
         <p className="text-token-ink font-semibold text-[15px]">
           {goal.name}
@@ -265,7 +265,7 @@ function GoalRow({ goal, color, navigate }: GoalRowProps) {
                   onClick={() => navigate('/chat', {
                     state: { prefill: `Set the description for my ${goal.name} goal to: ` },
                   })}
-                  className="mt-1.5 underline underline-offset-2 font-medium text-white"
+                  className="mt-1.5 underline underline-offset-2 font-medium text-token-ink"
                 >
                   Set a description →
                 </button>
