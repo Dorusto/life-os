@@ -2,10 +2,12 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Apply dark background globally — avoids flash of white on load */
+/* Page background/ink come from the token layer (imported in main.tsx, so it's
+   already in the cascade) — no color is hardcoded here, which is what makes a
+   theme swap automatic. */
 html, body, #root {
-  background-color: #0F0F0F;
-  color: #FAFAFA;
+  background-color: var(--paper);
+  color: var(--ink);
   min-height: 100dvh;
 }
 
@@ -14,7 +16,13 @@ html, body, #root {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Custom scrollbar — subtle, matches dark theme */
+/* Custom scrollbar — subtle, follows the current theme's tokens */
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #2A2A2A; border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 2px; }
+
+@layer utilities {
+  /* Tabular figures — the ledger choice: columns of numbers align digit for
+     digit. See DESIGN.md's typography section. */
+  .tnum { font-variant-numeric: tabular-nums; }
+}

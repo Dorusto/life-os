@@ -15,7 +15,7 @@ const TABS = [
  */
 export default function BottomNav() {
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-[20] bg-surface border-t border-border">
+    <nav className="fixed inset-x-0 bottom-0 z-[20] border-t border-line bg-surface">
       <div className="flex items-stretch">
         {TABS.map(({ to, label, icon: Icon, end }) => (
           <NavLink
@@ -23,8 +23,8 @@ export default function BottomNav() {
             to={to}
             end={end}
             className={({ isActive }) =>
-              `flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] transition-colors ${
-                isActive ? 'text-accent' : 'text-muted hover:text-white'
+              `flex flex-1 flex-col items-center gap-0.5 py-2.5 text-[10px] transition-colors ${
+                isActive ? 'text-brand-ink' : 'text-ink-3 hover:text-ink'
               }`
             }
           >
