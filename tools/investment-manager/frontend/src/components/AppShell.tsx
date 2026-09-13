@@ -13,6 +13,7 @@ import {
 import { clearAuth, getUsername } from '../lib/auth'
 import { cn } from '../lib/ui'
 import { ThemeToggle } from './ThemeToggle'
+import { TopBarActions } from './TopBarActions'
 import { MobileBottomNav } from './MobileBottomNav'
 import { MoreSheet } from './MoreSheet'
 
@@ -111,7 +112,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <main className="min-w-0 px-4 py-6 pb-20 sm:px-6 lg:px-[2.5rem] lg:py-9 lg:pb-9">
-        <div className="mx-auto max-w-6xl">{children}</div>
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-3 flex justify-end">
+            <TopBarActions />
+          </div>
+          {children}
+        </div>
       </main>
 
       <MobileBottomNav onMoreClick={() => setMoreOpen(true)} moreOpen={moreOpen} />
