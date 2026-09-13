@@ -206,11 +206,15 @@ remaining importers of the *old* components — `DuplicatesReviewPage.tsx` is th
 - [ ] investment-manager and vehicle-manager weren't touched by this phase — they already use IBM
       Plex Sans/Mono as their own real defaults from the start (nothing to retire there).
 
-### Phase 5 — Cross-app consistency pass
-- [ ] Once 1-4 land: a live side-by-side check (browser) of the three apps' Dashboard-equivalent
-      screens, nav, and one chart each — this is the step that catches "technically migrated but
-      doesn't actually look the same" drift a diff can't. Per Doru's own original instructions,
-      this kind of visual check happens at the end, not per micro-task.
+### Phase 5 — Cross-app consistency pass — done 2026-09-13
+- [x] Live-checked all three apps' Dashboard/Home screens, nav shells, and one chart each.
+      majordom-financiar and investment-manager: clean. **vehicle-manager had a real bug**: its
+      pre-existing `BottomNav.tsx` had no `lg:hidden` (unlike investment-manager's brand-new
+      `MobileBottomNav`, built with the cutoff from day one) — after Phase 1b added the desktop
+      rail, the bottom nav kept rendering underneath it simultaneously at desktop widths, the same
+      bug class already caught for majordom-financiar's own bottom nav during Phase 1c but missed
+      here since this file was pre-existing, not newly written alongside its own breakpoint. Fixed
+      (`lg:hidden` added), rebuilt, re-verified — clean now on all three apps.
 
 ## Circuit breaker
 
