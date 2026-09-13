@@ -55,16 +55,16 @@ export default function BudgetOverviewCard({ data, onConfirmed, onCancelled }: P
   }
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[460px] w-full space-y-3">
+    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[460px] w-full space-y-3">
       <div>
-        <p className="text-white font-medium">Budget — {data.month}</p>
-        <p className="text-muted text-sm mt-0.5">Edit any amount, toggle rollover, then save.</p>
+        <p className="text-token-ink font-medium">Budget — {data.month}</p>
+        <p className="text-token-ink-3 text-sm mt-0.5">Edit any amount, toggle rollover, then save.</p>
       </div>
 
       <div className="max-h-72 overflow-y-auto space-y-3 -mx-1 px-1">
         {data.groups.map(group => (
           <div key={group.name}>
-            <p className="text-muted text-[11px] uppercase tracking-wide mb-1">{group.name}</p>
+            <p className="text-token-ink-3 text-[11px] uppercase tracking-wide mb-1">{group.name}</p>
             <div className="space-y-2">
               {group.categories.map(cat => {
                 const parsed = parseFloat(amounts[cat.id])
@@ -72,31 +72,31 @@ export default function BudgetOverviewCard({ data, onConfirmed, onCancelled }: P
                 return (
                   <div key={cat.id} className="space-y-1">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-white text-sm truncate">{cat.name}</span>
-                      <label className="flex items-center gap-1 text-[10px] text-muted cursor-pointer flex-shrink-0">
+                      <span className="text-token-ink text-sm truncate">{cat.name}</span>
+                      <label className="flex items-center gap-1 text-[10px] text-token-ink-3 cursor-pointer flex-shrink-0">
                         <input
                           type="checkbox"
                           checked={carryover[cat.id]}
                           onChange={e => setCarryover(prev => ({ ...prev, [cat.id]: e.target.checked }))}
-                          className="accent-accent"
+                          className="accent-token-brand"
                         />
                         rollover
                       </label>
                     </div>
                     <div className="flex items-center gap-3 flex-wrap">
                       <div className="flex items-center gap-1">
-                        <span className="text-muted text-xs">€</span>
+                        <span className="text-token-ink-3 text-xs">€</span>
                         <input
                           type="number"
                           step="0.01"
                           min="0"
                           value={amounts[cat.id] ?? ''}
                           onChange={e => setAmounts(prev => ({ ...prev, [cat.id]: e.target.value }))}
-                          className="bg-background border border-border rounded-lg px-2 py-1 w-24 text-white text-sm text-right focus:outline-none focus:border-accent transition-colors"
+                          className="bg-token-paper border border-token-line rounded-lg px-2 py-1 w-24 text-token-ink text-sm text-right focus:outline-none focus:border-token-brand transition-colors"
                         />
                       </div>
-                      <span className="text-muted text-xs">spent {formatCurrency(cat.spent)}</span>
-                      <span className={`text-xs ${liveBalance < 0 ? 'text-red-400' : 'text-muted'}`}>
+                      <span className="text-token-ink-3 text-xs">spent {formatCurrency(cat.spent)}</span>
+                      <span className={`text-xs ${liveBalance < 0 ? 'text-token-loss' : 'text-token-ink-3'}`}>
                         balance {formatCurrency(liveBalance)}
                       </span>
                     </div>

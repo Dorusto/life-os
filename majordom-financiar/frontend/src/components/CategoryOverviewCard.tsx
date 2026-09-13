@@ -164,10 +164,10 @@ export default function CategoryOverviewCard({ data, onConfirmed, onCancelled }:
   }
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[420px] w-full space-y-3">
+    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[420px] w-full space-y-3">
       <div>
-        <p className="text-white font-medium">Groups &amp; categories</p>
-        <p className="text-muted text-sm mt-0.5">Click a name to rename it. Add categories or groups below.</p>
+        <p className="text-token-ink font-medium">Groups &amp; categories</p>
+        <p className="text-token-ink-3 text-sm mt-0.5">Click a name to rename it. Add categories or groups below.</p>
       </div>
 
       <div className="max-h-72 overflow-y-auto space-y-3 -mx-1 px-1">
@@ -180,14 +180,14 @@ export default function CategoryOverviewCard({ data, onConfirmed, onCancelled }:
                 onChange={e => setEditValue(e.target.value)}
                 onBlur={() => saveEditGroup(group.key)}
                 onKeyDown={e => { if (e.key === 'Enter') saveEditGroup(group.key); if (e.key === 'Escape') setEditingGroupKey(null) }}
-                className="w-full bg-background border border-accent rounded-lg px-2 py-1 text-white text-sm font-medium mb-1 outline-none"
+                className="w-full bg-token-paper border border-token-brand rounded-lg px-2 py-1 text-token-ink text-sm font-medium mb-1 outline-none"
               />
             ) : (
               <div className="flex items-center justify-between gap-2 mb-1">
                 <button
                   onClick={() => startEditGroup(group.key, group.displayName)}
                   className={`flex items-center gap-1.5 text-sm font-medium transition-colors ${
-                    group.key.startsWith('new:') ? 'text-accent' : 'text-white hover:text-accent'
+                    group.key.startsWith('new:') ? 'text-token-brand-ink' : 'text-token-ink hover:text-token-brand-ink'
                   }`}
                 >
                   {group.displayName}
@@ -196,7 +196,7 @@ export default function CategoryOverviewCard({ data, onConfirmed, onCancelled }:
                 {group.key.startsWith('new:') && (
                   <button
                     onClick={() => removePendingGroup(group.key.slice('new:'.length))}
-                    className="text-muted hover:text-white"
+                    className="text-token-ink-3 hover:text-token-ink"
                   >
                     <X size={12} />
                   </button>
@@ -204,7 +204,7 @@ export default function CategoryOverviewCard({ data, onConfirmed, onCancelled }:
               </div>
             )}
 
-            <div className="pl-3 border-l border-border space-y-1">
+            <div className="pl-3 border-l border-token-line space-y-1">
               {group.existingCategories.map(cat => (
                 <div key={cat.id}>
                   {editingCategory === cat.name ? (
@@ -214,12 +214,12 @@ export default function CategoryOverviewCard({ data, onConfirmed, onCancelled }:
                       onChange={e => setEditValue(e.target.value)}
                       onBlur={() => saveEditCategory(cat.name)}
                       onKeyDown={e => { if (e.key === 'Enter') saveEditCategory(cat.name); if (e.key === 'Escape') setEditingCategory(null) }}
-                      className="w-full bg-background border border-accent rounded-lg px-2 py-1 text-white text-sm outline-none"
+                      className="w-full bg-token-paper border border-token-brand rounded-lg px-2 py-1 text-token-ink text-sm outline-none"
                     />
                   ) : (
                     <button
                       onClick={() => startEditCategory(cat.name)}
-                      className="flex items-center gap-1.5 text-muted text-sm hover:text-white transition-colors"
+                      className="flex items-center gap-1.5 text-token-ink-3 text-sm hover:text-token-ink transition-colors"
                     >
                       {renamedCategories[cat.name] ?? cat.name}
                       <Pencil size={10} className="opacity-40" />
@@ -230,8 +230,8 @@ export default function CategoryOverviewCard({ data, onConfirmed, onCancelled }:
 
               {newCategories.filter(c => c.targetKey === group.key).map(c => (
                 <div key={c.tempId} className="flex items-center justify-between gap-2 text-sm">
-                  <span className="text-accent">{c.name}</span>
-                  <button onClick={() => removePendingCategory(c.tempId)} className="text-muted hover:text-white">
+                  <span className="text-token-brand-ink">{c.name}</span>
+                  <button onClick={() => removePendingCategory(c.tempId)} className="text-token-ink-3 hover:text-token-ink">
                     <X size={12} />
                   </button>
                 </div>
@@ -245,12 +245,12 @@ export default function CategoryOverviewCard({ data, onConfirmed, onCancelled }:
                   onChange={e => setNewCategoryValue(e.target.value)}
                   onBlur={() => submitNewCategory(group.key)}
                   onKeyDown={e => { if (e.key === 'Enter') submitNewCategory(group.key); if (e.key === 'Escape') { setAddingCategoryFor(null); setNewCategoryValue('') } }}
-                  className="w-full bg-background border border-accent rounded-lg px-2 py-1 text-white text-sm outline-none"
+                  className="w-full bg-token-paper border border-token-brand rounded-lg px-2 py-1 text-token-ink text-sm outline-none"
                 />
               ) : (
                 <button
                   onClick={() => setAddingCategoryFor(group.key)}
-                  className="flex items-center gap-1 text-accent text-xs opacity-90 hover:opacity-100"
+                  className="flex items-center gap-1 text-token-brand-ink text-xs opacity-90 hover:opacity-100"
                 >
                   <Plus size={11} /> add category
                 </button>
@@ -268,12 +268,12 @@ export default function CategoryOverviewCard({ data, onConfirmed, onCancelled }:
           onChange={e => setNewGroupValue(e.target.value)}
           onBlur={submitNewGroup}
           onKeyDown={e => { if (e.key === 'Enter') submitNewGroup(); if (e.key === 'Escape') { setAddingGroup(false); setNewGroupValue('') } }}
-          className="w-full bg-background border border-accent rounded-lg px-3 py-2 text-white text-sm outline-none"
+          className="w-full bg-token-paper border border-token-brand rounded-lg px-3 py-2 text-token-ink text-sm outline-none"
         />
       ) : (
         <button
           onClick={() => setAddingGroup(true)}
-          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-border text-accent text-sm font-medium hover:bg-surface-hover transition-colors"
+          className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-token-line text-token-brand-ink text-sm font-medium hover:bg-token-surface-2 transition-colors"
         >
           <Plus size={14} /> Add group
         </button>
