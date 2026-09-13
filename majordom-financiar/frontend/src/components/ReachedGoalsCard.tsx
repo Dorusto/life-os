@@ -44,10 +44,10 @@ export default function ReachedGoalsCard({ data, onConfirmed, onCancelled }: Pro
   const anySelected = reached.some(r => checked[r.category_name])
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[420px] w-full space-y-3">
+    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[420px] w-full space-y-3">
       <div>
-        <p className="text-white font-medium">Clean up reached goals?</p>
-        <p className="text-muted text-sm mt-0.5">
+        <p className="text-token-ink font-medium">Clean up reached goals?</p>
+        <p className="text-token-ink-3 text-sm mt-0.5">
           Their target month has passed — clearing the goal template stops it from blocking
           "Overwrite with budget template".
         </p>
@@ -66,9 +66,9 @@ export default function ReachedGoalsCard({ data, onConfirmed, onCancelled }: Pro
                 onChange={() => toggle(r.category_name)}
                 className="accent-accent flex-shrink-0"
               />
-              <span className="text-white text-sm truncate">{r.category_name}</span>
+              <span className="text-token-ink text-sm truncate">{r.category_name}</span>
             </span>
-            <span className="text-muted text-xs whitespace-nowrap">
+            <span className="text-token-ink-3 text-xs whitespace-nowrap">
               {formatCurrency(r.target_amount)} by {r.target_month}
             </span>
           </label>

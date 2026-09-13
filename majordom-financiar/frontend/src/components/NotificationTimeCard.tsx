@@ -32,16 +32,16 @@ export default function NotificationTimeCard({ data, onConfirmed, onCancelled }:
   }
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 w-[92%] max-w-sm space-y-3">
-      <p className="text-white font-medium">Update daily notification time</p>
+    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 w-[92%] max-w-sm space-y-3">
+      <p className="text-token-ink font-medium">Update daily notification time</p>
 
       <div className="space-y-1">
-        <p className="text-muted text-xs">Time</p>
+        <p className="text-token-ink-3 text-xs">Time</p>
         <input
           type="time"
           value={time}
           onChange={e => setTime(e.target.value)}
-          className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+          className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
         />
       </div>
 

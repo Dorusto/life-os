@@ -78,17 +78,17 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
   const formattedDate = formatDate(proposal.date)
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[80%] space-y-3">
+    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[80%] space-y-3">
       <div>
-        <p className="text-white font-medium">{proposal.payee}</p>
-        <p className="text-muted text-sm">{formatCurrency(proposal.amount)} · {formattedDate}</p>
+        <p className="text-token-ink font-medium">{proposal.payee}</p>
+        <p className="text-token-ink-3 text-sm">{formatCurrency(proposal.amount)} · {formattedDate}</p>
       </div>
 
       {/* Category selector */}
       <select
         value={selectedCategory}
         onChange={e => setSelectedCategory(e.target.value)}
-        className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-accent"
+        className="w-full bg-token-paper border border-token-line rounded-lg px-3 py-2 text-token-ink text-sm focus:outline-none focus:border-token-brand"
       >
         {categories.length === 0 ? (
           <option value={proposal.category_name}>{proposal.category_name}</option>
@@ -112,7 +112,7 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
 
       {/* Category auto-fill source label — informational only, never a warning */}
       {proposal.category_source && (
-        <span className="inline-block bg-surface-2 text-muted text-[10px] font-bold px-1.5 py-0.5 rounded">
+        <span className="inline-block bg-token-surface-2 text-token-ink-3 text-[10px] font-bold px-1.5 py-0.5 rounded">
           {proposal.category_source === 'rule' ? 'Rule'
             : proposal.category_source === 'notes_match' ? 'Notes match'
             : proposal.category_source === 'guess' ? 'Guess'
@@ -129,7 +129,7 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
             onChange={e => setCreateRule(e.target.checked)}
             className="mt-1 accent-accent"
           />
-          <span className="text-white text-xs">
+          <span className="text-token-ink text-xs">
             Create AB rule: if payee is "{proposal.payee}" and notes contain "{selectedCategory}", always set category to "{selectedCategory}"
           </span>
         </label>
@@ -140,7 +140,7 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
         <select
           value={selectedAccountId}
           onChange={e => setSelectedAccountId(e.target.value)}
-          className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-accent"
+          className="w-full bg-token-paper border border-token-line rounded-lg px-3 py-2 text-token-ink text-sm focus:outline-none focus:border-token-brand"
         >
           {accounts.map(acc => (
             <option key={acc.id} value={acc.id}>{acc.name}</option>
