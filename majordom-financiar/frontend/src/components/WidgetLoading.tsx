@@ -14,7 +14,7 @@ import { Loader2 } from 'lucide-react'
  */
 export default function WidgetLoading({ label, className = 'py-3' }: { label: string; className?: string }) {
   return (
-    <div className={`flex items-center gap-2 text-muted text-xs ${className}`}>
+    <div className={`flex items-center gap-2 text-token-ink-3 text-xs ${className}`}>
       <Loader2 size={14} className="animate-spin" />
       {label}
     </div>

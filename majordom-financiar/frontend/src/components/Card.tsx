@@ -26,7 +26,7 @@ export default function Card({ variant = 'list-item', accentColor, accentSide = 
 
   return (
     <div
-      className={`bg-surface border border-border rounded-2xl overflow-hidden ${VARIANT_PADDING[variant]} ${className}`}
+      className={`bg-token-surface border border-token-line rounded-2xl overflow-hidden ${VARIANT_PADDING[variant]} ${className}`}
       style={accentStyle}
     >
       {children}

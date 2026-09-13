@@ -19,7 +19,7 @@ export default function InfoIcon({ title, children }: InfoIconProps) {
       <button
         onClick={() => setOpen(true)}
         aria-label={`About ${title}`}
-        className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-surface-2 text-muted text-[10px] font-bold italic ml-1.5 align-middle p-0"
+        className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-token-surface-2 text-token-ink-3 text-[10px] font-bold italic ml-1.5 align-middle p-0"
       >
         i
       </button>
