@@ -46,7 +46,7 @@ const EMPTY_FILTERS: FiltersState = {
 }
 
 const INPUT_CLS =
-  'w-full bg-surface-2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-accent disabled:opacity-50'
+  'w-full bg-token-surface-2 border border-token-line rounded-lg px-3 py-2 text-token-ink text-sm focus:outline-none focus:border-token-brand disabled:opacity-50'
 
 function loadViewPref(): View {
   try {
@@ -267,17 +267,17 @@ export default function TransactionsPage() {
   )
 
   return (
-    <div className="h-dvh bg-background flex flex-col overflow-y-auto">
+    <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
       <PageHeader label="All transactions" title="Transactions" actions={<StandardHeaderActions />} bordered />
 
       <section className="flex-1 px-5 pb-40">
         {/* Toolbar: list/table toggle + filters */}
         <div className="flex items-center justify-between py-3">
-          <div className="flex items-center gap-1 bg-surface border border-border rounded-lg p-1">
+          <div className="flex items-center gap-1 bg-token-surface border border-token-line rounded-lg p-1">
             <button
               onClick={() => changeView('list')}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                view === 'list' ? 'bg-accent text-white' : 'text-muted hover:text-white'
+                view === 'list' ? 'bg-token-brand text-white' : 'text-token-ink-3 hover:text-token-ink'
               }`}
             >
               <List size={14} /> List
@@ -285,7 +285,7 @@ export default function TransactionsPage() {
             <button
               onClick={() => changeView('table')}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                view === 'table' ? 'bg-accent text-white' : 'text-muted hover:text-white'
+                view === 'table' ? 'bg-token-brand text-white' : 'text-token-ink-3 hover:text-token-ink'
               }`}
             >
               <Table2 size={14} /> Table
@@ -293,7 +293,7 @@ export default function TransactionsPage() {
             <button
               onClick={toggleSelectionMode}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                selectionMode ? 'bg-accent text-white' : 'text-muted hover:text-white'
+                selectionMode ? 'bg-token-brand text-white' : 'text-token-ink-3 hover:text-token-ink'
               }`}
             >
               <CheckSquare size={14} /> Select
@@ -301,7 +301,7 @@ export default function TransactionsPage() {
           </div>
           <button
             onClick={openFilters}
-            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-surface border border-border text-white font-semibold text-sm hover:bg-surface-2 transition-colors"
+            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-token-surface border border-token-line text-token-ink font-semibold text-sm hover:bg-token-surface-2 transition-colors"
           >
             <Filter size={14} /> Filters
           </button>
@@ -313,8 +313,8 @@ export default function TransactionsPage() {
             onClick={() => setUncategorizedOnly(v => !v)}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
               uncategorizedOnly
-                ? 'bg-accent border-accent text-white'
-                : 'bg-surface border-border text-muted hover:text-white'
+                ? 'bg-token-brand border-token-brand text-white'
+                : 'bg-token-surface border-token-line text-token-ink-3 hover:text-token-ink'
             }`}
           >
             Uncategorized
@@ -323,27 +323,27 @@ export default function TransactionsPage() {
         </div>
 
         {loading && transactions.length === 0 && (
-          <div className="flex items-center justify-center py-16 text-muted">
+          <div className="flex items-center justify-center py-16 text-token-ink-3">
             <Loader2 size={18} className="animate-spin" />
           </div>
         )}
         {!loading && error && transactions.length === 0 && (
-          <p className="text-red-400 text-sm py-8">{error}</p>
+          <p className="text-token-loss text-sm py-8">{error}</p>
         )}
         {!loading && !error && transactions.length === 0 && (
-          <p className="text-muted text-sm py-8">No transactions match the current filters.</p>
+          <p className="text-token-ink-3 text-sm py-8">No transactions match the current filters.</p>
         )}
 
         {transactions.length > 0 && view === 'list' && (
           <>
             {selectionMode && (
             <div className="flex items-center justify-between py-2">
-              <label className="flex items-center gap-2 text-muted text-xs cursor-pointer">
+              <label className="flex items-center gap-2 text-token-ink-3 text-xs cursor-pointer">
                 <input
                   type="checkbox"
                   checked={allVisibleSelected}
                   onChange={toggleSelectAll}
-                  className="w-4 h-4 accent-accent"
+                  className="w-4 h-4 accent-token-brand"
                 />
                 Select all
               </label>
@@ -353,9 +353,9 @@ export default function TransactionsPage() {
               {monthGroups.map(group => (
                 <div key={group.label}>
                   <div className="flex items-center justify-between px-1 pb-1.5">
-                    <span className="text-muted text-xs font-semibold uppercase tracking-wide">{group.label}</span>
+                    <span className="text-token-ink-3 text-xs font-semibold uppercase tracking-wide">{group.label}</span>
                     <span
-                      className={`font-mono text-xs tabular-nums ${group.total >= 0 ? 'text-positive' : 'text-muted'}`}
+                      className={`font-plex-mono text-xs tabular-nums ${group.total >= 0 ? 'text-token-gain' : 'text-token-ink-3'}`}
                     >
                       {formatCurrency(group.total, { decimals: 0, signDisplay: 'always' })}
                     </span>
@@ -367,29 +367,29 @@ export default function TransactionsPage() {
                       return (
                         <label
                           key={tx.id}
-                          className={`flex items-center px-3.5 py-3 rounded-xl bg-surface hover:bg-surface-2 transition-colors cursor-pointer ${selectionMode ? 'gap-3' : ''}`}
+                          className={`flex items-center px-3.5 py-3 rounded-xl bg-token-surface hover:bg-token-surface-2 transition-colors cursor-pointer ${selectionMode ? 'gap-3' : ''}`}
                         >
                           {selectionMode && (
                             <input
                               type="checkbox"
                               checked={selected.has(tx.id)}
                               onChange={() => toggleRow(tx.id)}
-                              className="w-4 h-4 accent-accent flex-shrink-0"
+                              className="w-4 h-4 accent-token-brand flex-shrink-0"
                             />
                           )}
                           <div className="flex-1 min-w-0">
-                            <p className="text-white text-sm font-medium truncate">{tx.merchant || 'Unknown'}</p>
+                            <p className="text-token-ink text-sm font-medium truncate">{tx.merchant || 'Unknown'}</p>
                             <div className="flex items-center gap-1.5 mt-0.5">
                               {!hideChip && (
-                              <span className="inline-block bg-surface-2 text-muted text-[10px] font-bold px-1.5 py-0.5 rounded">
+                              <span className="inline-block bg-token-surface-2 text-token-ink-3 text-[10px] font-bold px-1.5 py-0.5 rounded">
                                 {tx.category ?? 'Uncategorized'}
                               </span>
                               )}
-                              <span className="text-muted text-xs flex-shrink-0">{formatDate(tx.date)}</span>
+                              <span className="text-token-ink-3 text-xs flex-shrink-0">{formatDate(tx.date)}</span>
                             </div>
                           </div>
                           <span
-                            className={`font-mono text-[13.5px] tabular-nums flex-shrink-0 ${!tx.is_expense ? 'text-positive' : 'text-white'}`}
+                            className={`font-plex-mono text-[13.5px] tabular-nums flex-shrink-0 ${!tx.is_expense ? 'text-token-gain' : 'text-token-ink'}`}
                           >
                             {amountText(tx)}
                           </span>
@@ -407,14 +407,14 @@ export default function TransactionsPage() {
           <div className="overflow-x-auto -mx-5 px-5">
             <table className="w-full text-sm border-collapse min-w-[540px]">
               <thead>
-                <tr className="text-left text-muted text-xs">
+                <tr className="text-left text-token-ink-3 text-xs">
                   <th className="py-2 pr-2 w-8">
                     <label className="flex items-center justify-center w-full h-full cursor-pointer">
                       <input
                         type="checkbox"
                         checked={allVisibleSelected}
                         onChange={toggleSelectAll}
-                        className="w-4 h-4 accent-accent"
+                        className="w-4 h-4 accent-token-brand"
                       />
                     </label>
                   </th>
@@ -428,12 +428,12 @@ export default function TransactionsPage() {
               <tbody>
                 {monthGroups.map(group => (
                   <Fragment key={group.label}>
-                    <tr className="border-t border-border">
+                    <tr className="border-t border-token-line">
                       <td colSpan={6} className="py-2 px-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-muted text-xs font-semibold uppercase tracking-wide">{group.label}</span>
+                          <span className="text-token-ink-3 text-xs font-semibold uppercase tracking-wide">{group.label}</span>
                           <span
-                            className={`font-mono text-xs tabular-nums ${group.total >= 0 ? 'text-positive' : 'text-muted'}`}
+                            className={`font-plex-mono text-xs tabular-nums ${group.total >= 0 ? 'text-token-gain' : 'text-token-ink-3'}`}
                           >
                             {formatCurrency(group.total, { decimals: 0, signDisplay: 'always' })}
                           </span>
@@ -441,25 +441,25 @@ export default function TransactionsPage() {
                       </td>
                     </tr>
                     {group.items.map(tx => (
-                      <tr key={tx.id} className="border-t border-border">
+                      <tr key={tx.id} className="border-t border-token-line">
                         <td className="py-2.5 pr-2">
                           <label className="flex items-center justify-center w-full h-full cursor-pointer">
                             <input
                               type="checkbox"
                               checked={selected.has(tx.id)}
                               onChange={() => toggleRow(tx.id)}
-                              className="w-4 h-4 accent-accent"
+                              className="w-4 h-4 accent-token-brand"
                             />
                           </label>
                         </td>
-                        <td className="py-2.5 pr-3 text-muted whitespace-nowrap">{formatDate(tx.date)}</td>
-                        <td className="py-2.5 pr-3 text-white whitespace-nowrap max-w-[20ch] truncate">
+                        <td className="py-2.5 pr-3 text-token-ink-3 whitespace-nowrap">{formatDate(tx.date)}</td>
+                        <td className="py-2.5 pr-3 text-token-ink whitespace-nowrap max-w-[20ch] truncate">
                           {tx.merchant || 'Unknown'}
                         </td>
-                        <td className="py-2.5 pr-3 text-muted whitespace-nowrap">{tx.category ?? 'Uncategorized'}</td>
-                        <td className="py-2.5 pr-3 text-muted whitespace-nowrap">{tx.account}</td>
+                        <td className="py-2.5 pr-3 text-token-ink-3 whitespace-nowrap">{tx.category ?? 'Uncategorized'}</td>
+                        <td className="py-2.5 pr-3 text-token-ink-3 whitespace-nowrap">{tx.account}</td>
                         <td
-                          className={`py-2.5 text-right font-mono tabular-nums whitespace-nowrap ${!tx.is_expense ? 'text-positive' : 'text-white'}`}
+                          className={`py-2.5 text-right font-plex-mono tabular-nums whitespace-nowrap ${!tx.is_expense ? 'text-token-gain' : 'text-token-ink'}`}
                         >
                           {amountText(tx)}
                         </td>
@@ -476,7 +476,7 @@ export default function TransactionsPage() {
           <button
             onClick={() => load(true)}
             disabled={loadingMore}
-            className="mt-4 w-full py-3 rounded-xl bg-surface border border-border text-white text-sm font-semibold hover:bg-surface-2 transition-colors disabled:opacity-50"
+            className="mt-4 w-full py-3 rounded-xl bg-token-surface border border-token-line text-token-ink text-sm font-semibold hover:bg-token-surface-2 transition-colors disabled:opacity-50"
           >
             {loadingMore ? 'Loading…' : 'Load more'}
           </button>
@@ -486,7 +486,7 @@ export default function TransactionsPage() {
       <BottomSheet open={filtersOpen} onClose={() => setFiltersOpen(false)} title="Filters">
         <div className="flex flex-col gap-3 pt-1">
           <div className="grid grid-cols-2 gap-2">
-            <label className="flex flex-col gap-1 text-muted text-xs">
+            <label className="flex flex-col gap-1 text-token-ink-3 text-xs">
               From
               <input
                 type="date"
@@ -495,7 +495,7 @@ export default function TransactionsPage() {
                 className={INPUT_CLS}
               />
             </label>
-            <label className="flex flex-col gap-1 text-muted text-xs">
+            <label className="flex flex-col gap-1 text-token-ink-3 text-xs">
               To
               <input
                 type="date"
@@ -506,7 +506,7 @@ export default function TransactionsPage() {
             </label>
           </div>
 
-          <label className="flex flex-col gap-1 text-muted text-xs">
+          <label className="flex flex-col gap-1 text-token-ink-3 text-xs">
             Account
             <select
               value={draft.accountId}
@@ -528,7 +528,7 @@ export default function TransactionsPage() {
             onChange={ids => setDraft({ ...draft, categoryIds: ids })}
           />
 
-          <label className="flex flex-col gap-1 text-muted text-xs">
+          <label className="flex flex-col gap-1 text-token-ink-3 text-xs">
             Payee
             <input
               type="text"
@@ -540,7 +540,7 @@ export default function TransactionsPage() {
           </label>
 
           <div className="grid grid-cols-2 gap-2">
-            <label className="flex flex-col gap-1 text-muted text-xs">
+            <label className="flex flex-col gap-1 text-token-ink-3 text-xs">
               Min amount (€)
               <input
                 type="number"
@@ -552,7 +552,7 @@ export default function TransactionsPage() {
                 className={INPUT_CLS}
               />
             </label>
-            <label className="flex flex-col gap-1 text-muted text-xs">
+            <label className="flex flex-col gap-1 text-token-ink-3 text-xs">
               Max amount (€)
               <input
                 type="number"
@@ -566,7 +566,7 @@ export default function TransactionsPage() {
             </label>
           </div>
 
-          <label className="flex flex-col gap-1 text-muted text-xs">
+          <label className="flex flex-col gap-1 text-token-ink-3 text-xs">
             Type
             <select
               value={draft.isExpense}
@@ -582,13 +582,13 @@ export default function TransactionsPage() {
           <div className="flex gap-2 pt-2">
             <button
               onClick={clearFilters}
-              className="flex-1 py-2.5 rounded-xl bg-surface-2 border border-border text-white text-sm font-semibold hover:bg-white/5 transition-colors"
+              className="flex-1 py-2.5 rounded-xl bg-token-surface-2 border border-token-line text-token-ink text-sm font-semibold hover:bg-white/5 transition-colors"
             >
               Clear
             </button>
             <button
               onClick={applyFilters}
-              className="flex-1 py-2.5 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-semibold transition-colors"
+              className="flex-1 py-2.5 rounded-xl bg-token-brand hover:bg-token-brand-2 text-white text-sm font-semibold transition-colors"
             >
               Apply
             </button>
@@ -597,11 +597,11 @@ export default function TransactionsPage() {
       </BottomSheet>
 
       {bulkNotice && selected.size === 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-border px-4 py-3 z-40 flex items-center justify-between gap-2">
+        <div className="fixed bottom-0 left-0 right-0 bg-token-surface border-t border-token-line px-4 py-3 z-40 flex items-center justify-between gap-2">
           <p className="text-amber-400 text-xs">{bulkNotice}</p>
           <button
             onClick={() => setBulkNotice(null)}
-            className="text-muted hover:text-white flex-shrink-0"
+            className="text-token-ink-3 hover:text-token-ink flex-shrink-0"
             aria-label="Dismiss"
           >
             <X size={14} />
@@ -610,13 +610,13 @@ export default function TransactionsPage() {
       )}
 
       {selected.size > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-surface border-t border-border px-4 py-3 z-40">
+        <div className="fixed bottom-0 left-0 right-0 bg-token-surface border-t border-token-line px-4 py-3 z-40">
           <div className="flex items-center gap-2">
-            <p className="text-white text-sm font-semibold flex-shrink-0">{selected.size} selected</p>
+            <p className="text-token-ink text-sm font-semibold flex-shrink-0">{selected.size} selected</p>
             <select
               value={bulkCategoryId}
               onChange={e => setBulkCategoryId(e.target.value)}
-              className="flex-1 min-w-0 bg-surface-2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-accent disabled:opacity-50"
+              className="flex-1 min-w-0 bg-token-surface-2 border border-token-line rounded-lg px-3 py-2 text-token-ink text-sm focus:outline-none focus:border-token-brand disabled:opacity-50"
             >
               <option value="">Set category…</option>
               {categories?.map(c => (
@@ -628,13 +628,13 @@ export default function TransactionsPage() {
             <button
               onClick={applyBulk}
               disabled={!bulkCategoryId || bulkSaving}
-              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-semibold transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-token-brand hover:bg-token-brand-2 text-white text-sm font-semibold transition-colors disabled:opacity-50"
             >
               {bulkSaving && <Loader2 size={14} className="animate-spin" />}
               Apply
             </button>
           </div>
-          {bulkError && <p className="text-red-400 text-xs mt-1.5">{bulkError}</p>}
+          {bulkError && <p className="text-token-loss text-xs mt-1.5">{bulkError}</p>}
         </div>
       )}
     </div>
