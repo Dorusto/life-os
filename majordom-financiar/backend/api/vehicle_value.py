@@ -67,14 +67,6 @@ class VehicleLinkAccountRequest(BaseModel):
     ab_account_id: str
 
 
-class VehicleValueOverrideRequest(BaseModel):
-    mode: str
-    value: float
-    direction: str | None = None
-    date: str
-    note: str | None = None
-
-
 @router.get("/vehicle/list")
 async def list_vehicles(current_user: str = Depends(get_current_user)):
     """Return all active vehicles from vehicle-manager."""
@@ -83,20 +75,6 @@ async def list_vehicles(current_user: str = Depends(get_current_user)):
         return await client.list_vehicles(active_only=True)
     except VehicleClientError as e:
         _raise_vehicle_error(e)
-
-
-@router.get("/vehicle/{vehicle_id}")
-async def get_vehicle(vehicle_id: int, current_user: str = Depends(get_current_user)):
-    """Return one vehicle by id."""
-    client = _get_client()
-    try:
-        vehicle = await client.get_vehicle(vehicle_id)
-    except VehicleClientError as e:
-        _raise_vehicle_error(e)
-
-    if vehicle is None:
-        raise HTTPException(status_code=404, detail="Vehicle not found")
-    return vehicle
 
 
 @router.post("/vehicle")
@@ -153,57 +131,3 @@ async def link_vehicle_account(
         return await client.link_account(vehicle_id, body.ab_account_id)
     except VehicleClientError as e:
         _raise_vehicle_error(e)
-
-
-@router.post("/vehicle/{vehicle_id}/value-override")
-async def create_value_override(
-    vehicle_id: int,
-    body: VehicleValueOverrideRequest,
-    current_user: str = Depends(get_current_user),
-):
-    """Create a manual value override in vehicle-manager."""
-    client = _get_client()
-    try:
-        result = await client.create_value_override(
-            vehicle_id=vehicle_id,
-            mode=body.mode,
-            value=body.value,
-            direction=body.direction,
-            date=body.date,
-            note=body.note,
-        )
-    except VehicleClientError as e:
-        _raise_vehicle_error(e)
-
-    return result or {"vehicle_id": vehicle_id}
-
-
-@router.get("/vehicle/{vehicle_id}/value-history")
-async def get_value_history(
-    vehicle_id: int,
-    current_user: str = Depends(get_current_user),
-):
-    """Return the value override history for a vehicle."""
-    client = _get_client()
-    try:
-        return await client.get_value_history(vehicle_id)
-    except VehicleClientError as e:
-        _raise_vehicle_error(e)
-
-
-@router.get("/vehicle/{vehicle_id}/value-projection")
-async def get_value_projection(
-    vehicle_id: int,
-    years: int = 12,
-    current_user: str = Depends(get_current_user),
-):
-    """Return a value projection curve from vehicle-manager."""
-    client = _get_client()
-    try:
-        result = await client.get_value_projection(vehicle_id, years)
-    except VehicleClientError as e:
-        _raise_vehicle_error(e)
-
-    if result is None:
-        raise HTTPException(status_code=404, detail="Vehicle not found")
-    return result
