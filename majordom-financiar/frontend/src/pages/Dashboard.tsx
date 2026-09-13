@@ -246,21 +246,17 @@ export default function Dashboard() {
             </div>
           )}
 
-          <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 lg:items-start">
-            <div className="flex flex-col gap-6">
-              {leftWidgets.map(w => (
-                <WidgetShell key={w.id} editing={editing} onRemove={() => removeWidget(w.id)}>
-                  {renderWidget(w.id)}
-                </WidgetShell>
-              ))}
-            </div>
-            <div className="flex flex-col gap-6">
-              {rightWidgets.map(w => (
-                <WidgetShell key={w.id} editing={editing} onRemove={() => removeWidget(w.id)}>
-                  {renderWidget(w.id)}
-                </WidgetShell>
-              ))}
-            </div>
+          {/* One auto-flow grid: two per row at lg, three at xl. Concatenating
+              left then right keeps the same reading order the old two-column
+              split produced, while auto-placement is free to flow across the
+              full row. The left/right distinction in the registry no longer
+              maps to a fixed column — it only contributes this ordering. */}
+          <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:items-start">
+            {[...leftWidgets, ...rightWidgets].map(w => (
+              <WidgetShell key={w.id} editing={editing} onRemove={() => removeWidget(w.id)}>
+                {renderWidget(w.id)}
+              </WidgetShell>
+            ))}
           </div>
 
           {editing && (
