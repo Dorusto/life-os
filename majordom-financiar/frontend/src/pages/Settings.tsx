@@ -18,6 +18,7 @@ import { clearAuth } from '../lib/auth'
 import { requestAndSubscribe } from '../lib/push'
 import PageHeader from '../components/PageHeader'
 import IconButton from '../components/IconButton'
+import StandardHeaderActions from '../components/StandardHeaderActions'
 
 type PageKey =
   | 'menu'
@@ -134,7 +135,13 @@ function MenuScreen({ onNavigate }: { onNavigate: (page: SubPageKey) => void }) 
       <PageHeader
         label="Majordom"
         title="Settings"
-        actions={<IconButton icon={ChevronLeft} onClick={() => navigate('/')} label="Back to Dashboard" />}
+        actions={
+          <>
+            <IconButton icon={ChevronLeft} onClick={() => navigate('/')} label="Back to Dashboard" />
+            {/* Bell only — Settings must not carry a gear that links to itself. */}
+            <StandardHeaderActions variant="bell-only" />
+          </>
+        }
       />
       <section className="px-5 pt-2 pb-24 space-y-6">
         <button
@@ -189,7 +196,13 @@ function SubPageShell({
       <PageHeader
         label="Settings"
         title={title}
-        actions={<IconButton icon={ChevronLeft} onClick={onBack} label="Back to Settings" />}
+        actions={
+          <>
+            <IconButton icon={ChevronLeft} onClick={onBack} label="Back to Settings" />
+            {/* Bell only — same no-self-link rule as the menu screen above. */}
+            <StandardHeaderActions variant="bell-only" />
+          </>
+        }
       />
       <section className="px-5 pt-2 pb-24 space-y-2.5">{children}</section>
     </div>

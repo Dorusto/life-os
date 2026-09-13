@@ -6,6 +6,7 @@ import { getAccountList, getTransactions, setAccountType, ACCOUNT_TYPES } from '
 import { formatCurrency } from '../lib/formatCurrency'
 import { listVehicles } from '../lib/vehicleValueApi'
 import DetailPageSkeleton from '../components/DetailPageSkeleton'
+import StandardHeaderActions from '../components/StandardHeaderActions'
 import { groupByMonth } from '../lib/groupByMonth'
 
 type Tab = 'details' | 'transactions'
@@ -135,12 +136,19 @@ export default function AccountDetail() {
   return (
     <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
       <header className="flex-shrink-0 px-5 pb-3 pt-14">
-        <button
-          onClick={() => navigate('/accounts')}
-          className="flex items-center gap-1 text-token-ink-3 hover:text-token-ink transition-colors text-sm mb-3"
-        >
-          <ChevronLeft size={16} /> Accounts
-        </button>
+        {/* Header stays hand-built: the balance figure lives inside it and the
+            back affordance is a text link, so PageHeader can't take it over
+            without changing the layout (TASK_SPEC gotcha). Only the shared
+            cluster is added, top-right, so bell/gear can't drift from the tabs. */}
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <button
+            onClick={() => navigate('/accounts')}
+            className="flex items-center gap-1 text-token-ink-3 hover:text-token-ink transition-colors text-sm"
+          >
+            <ChevronLeft size={16} /> Accounts
+          </button>
+          <StandardHeaderActions variant="no-add" />
+        </div>
         <p className="font-plex-mono text-[11px] uppercase tracking-wide text-token-ink-3">Balance</p>
         <h1 className="font-plex-sans text-3xl font-bold text-token-ink truncate">{account.name}</h1>
         <p className="font-plex-mono font-medium text-3xl mt-1 tabular-nums">

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Send, Plus, Camera, Image, FileText, HelpCircle, Trash2, MoreVertical, Settings } from 'lucide-react'
+import { Send, Plus, Camera, Image, FileText, HelpCircle, Trash2, MoreVertical } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, saveChatHistory, clearChatHistory, proposeSavingsBudget, type SetupAccount, type BalanceAdjustmentData, type CloseAccountData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type CategoryOverviewData, type BudgetOverviewData, type FuelConfirmResponse, type VehicleLogActionData, type VehicleReminderData, type VehicleStatusData, type TransferConversionData, type NotificationTimeData } from '../lib/api'
 import CsvImportCard from '../components/CsvImportCard'
@@ -31,7 +31,7 @@ import TransactionListCard, { TransactionListData } from '../components/Transact
 import PageHeader from '../components/PageHeader'
 import IconButton from '../components/IconButton'
 import BottomSheet from '../components/BottomSheet'
-import NotificationBell from '../components/NotificationBell'
+import StandardHeaderActions from '../components/StandardHeaderActions'
 import type { BudgetRebalanceData, ClarificationData, AccountTransferData } from '../lib/api'
 import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 
@@ -1062,8 +1062,10 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
         actions={
           <>
             <IconButton icon={MoreVertical} onClick={() => setShowMenu(true)} label="More options" />
-            <NotificationBell />
-            <IconButton icon={Settings} onClick={() => navigate('/settings')} label="Settings" />
+            {/* Bell + gear go through the shared cluster so Chat can't drift on
+                order/size vs. the other tabs (#241). No Add here — the input
+                bar's + button already owns photo/CSV attachment. */}
+            <StandardHeaderActions variant="no-add" />
           </>
         }
       />

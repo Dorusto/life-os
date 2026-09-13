@@ -15,6 +15,7 @@ import PageHeader from '../components/PageHeader'
 import Card from '../components/Card'
 import ActionCardButtons from '../components/ActionCardButtons'
 import IconButton from '../components/IconButton'
+import StandardHeaderActions from '../components/StandardHeaderActions'
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatDate, formatMonthYear } from '../lib/formatDate'
 
@@ -106,7 +107,12 @@ export default function DuplicatesReviewPage() {
         <PageHeader
           label="Review"
           title={formatMonthTitle(selectedMonth)}
-          actions={backToMonths}
+          actions={
+            <>
+              {backToMonths}
+              <StandardHeaderActions variant="no-add" />
+            </>
+          }
         />
         <div className="flex-1 px-5 pb-24 space-y-3">
           {pairsLoading ? (
@@ -140,7 +146,12 @@ export default function DuplicatesReviewPage() {
       <PageHeader
         label="Review"
         title="Duplicates"
-        actions={backToMonths}
+        actions={
+          <>
+            {backToMonths}
+            <StandardHeaderActions variant="no-add" />
+          </>
+        }
       />
       <div className="flex-1 px-5 pb-24 space-y-3">
         <p className="text-xs text-token-ink-3 px-1">

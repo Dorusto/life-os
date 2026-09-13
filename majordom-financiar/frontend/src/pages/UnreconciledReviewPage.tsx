@@ -5,6 +5,7 @@ import { ArrowLeft, Landmark } from 'lucide-react'
 import { getUnreconciledGroups, type CategoryActionData } from '../lib/api'
 import PageHeader from '../components/PageHeader'
 import IconButton from '../components/IconButton'
+import StandardHeaderActions from '../components/StandardHeaderActions'
 import CategoryActionCard from '../components/CategoryActionCard'
 
 /**
@@ -40,11 +41,14 @@ export default function UnreconciledReviewPage() {
         label="Review"
         title="Unreconciled"
         actions={
-          <IconButton
-            icon={ArrowLeft}
-            onClick={() => navigate('/')}
-            label="Back to home"
-          />
+          <>
+            <IconButton
+              icon={ArrowLeft}
+              onClick={() => navigate('/')}
+              label="Back to home"
+            />
+            <StandardHeaderActions variant="no-add" />
+          </>
         }
       />
       <div className="flex-1 px-5 pb-24 space-y-3">
