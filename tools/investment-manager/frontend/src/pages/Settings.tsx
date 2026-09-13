@@ -15,6 +15,10 @@ export default function SettingsPage() {
   const [benchmark, setBenchmark] = useState('')
   const [assumedPct, setAssumedPct] = useState('')
   const [saved, setSaved] = useState(false)
+  // The API key is write-only: the backend never returns it, so this starts
+  // (and is reset to) empty and is only ever sent, never read back.
+  const [apiKey, setApiKey] = useState('')
+  const [keySaved, setKeySaved] = useState(false)
 
   useEffect(() => {
     if (settings.data) {
@@ -34,6 +38,18 @@ export default function SettingsPage() {
       queryClient.invalidateQueries({ queryKey: ['settings'] })
       queryClient.invalidateQueries({ queryKey: ['summary'] })
       window.setTimeout(() => setSaved(false), 2500)
+    },
+  })
+
+  const saveKey = useMutation({
+    mutationFn: () => updateSettings({ twelve_data_api_key: apiKey.trim() }),
+    onSuccess: () => {
+      setApiKey('') // never keep the key in component state longer than needed
+      setKeySaved(true)
+      // Refresh so the Configured / Not configured indicator reflects the save.
+      queryClient.invalidateQueries({ queryKey: ['settings'] })
+      queryClient.invalidateQueries({ queryKey: ['summary'] })
+      window.setTimeout(() => setKeySaved(false), 2500)
     },
   })
 
@@ -83,7 +99,34 @@ export default function SettingsPage() {
         </Card>
 
         <Card title="Market data">
-          <div className="flex items-start gap-3">
+          <Field
+            label="Twelve Data API key"
+            hint="Write-only: saving a new key replaces the stored one, and the value is never shown again."
+          >
+            <TextInput
+              type="password"
+              autoComplete="off"
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="Paste your Twelve Data API key"
+            />
+          </Field>
+          <div className="mt-4 flex items-center gap-3">
+            <Button
+              type="button"
+              variant="primary"
+              disabled={saveKey.isPending || apiKey.trim() === ''}
+              onClick={() => saveKey.mutate()}
+            >
+              <Save className="h-4 w-4" /> {saveKey.isPending ? 'Saving…' : 'Save API key'}
+            </Button>
+            {keySaved && <span className="text-[13px] text-gain">Saved</span>}
+            {saveKey.isError && (
+              <span className="text-[13px] text-loss">{(saveKey.error as Error).message}</span>
+            )}
+          </div>
+
+          <div className="mt-5 flex items-start gap-3 border-t border-line pt-5">
             {configured ? (
               <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-gain" aria-hidden />
             ) : (

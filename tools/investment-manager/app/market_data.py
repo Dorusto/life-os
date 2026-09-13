@@ -56,9 +56,20 @@ def _is_fresh(fetched_at: str | None) -> bool:
 
 
 def _api_key() -> str:
-    key = os.getenv("TWELVE_DATA_API_KEY", "").strip()
+    """Twelve Data key, from the stored setting first, then the env var.
+
+    Read fresh on every call (a single indexed SQLite lookup) rather than
+    cached at import time, so a key saved through the Settings UI takes effect
+    without a container restart. The stored setting wins over
+    ``TWELVE_DATA_API_KEY`` when both are present, so an existing .env-based
+    setup keeps working unchanged until a key is saved in the UI.
+
+    The key value is never logged and never included in a raised message.
+    """
+    stored = database.get_setting("twelve_data_api_key")
+    key = (stored or os.getenv("TWELVE_DATA_API_KEY", "")).strip()
     if not key:
-        raise MarketDataError("TWELVE_DATA_API_KEY is not configured")
+        raise MarketDataError("Twelve Data API key is not configured")
     return key
 
 

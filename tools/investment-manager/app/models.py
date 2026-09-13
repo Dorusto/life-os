@@ -130,6 +130,9 @@ class Goal(BaseModel):
 class SettingsUpdate(BaseModel):
     benchmark_ticker: str | None = None
     assumed_annual_return: float | None = Field(None, ge=-1, le=1)
+    # Write-only: setting this stores the key, but no response ever returns it
+    # (see main.py's _public_settings). Omitted/blank leaves the stored key alone.
+    twelve_data_api_key: str | None = None
 
 
 # ---------------------------------------------------------------------------

@@ -398,6 +398,8 @@ export function getSettings(): Promise<Settings> {
 export function updateSettings(input: {
   benchmark_ticker?: string
   assumed_annual_return?: number
+  /** Write-only: a stored key is never returned by GET/PUT /settings. */
+  twelve_data_api_key?: string
 }): Promise<Settings> {
   return sendJson<Settings>('/settings', 'PUT', input)
 }

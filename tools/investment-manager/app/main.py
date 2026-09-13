@@ -297,13 +297,34 @@ async def goal_projection(goal_id: int, caller: str = AUTH):
 # Settings
 # ---------------------------------------------------------------------------
 
+def _market_data_configured() -> bool:
+    """Whether a Twelve Data key is available, from the stored setting or env.
+
+    Deliberately reduced to a boolean at the REST boundary: the key value
+    itself must never appear in a response body or a log line (plan section 6).
+    """
+    stored = (database.get_setting("twelve_data_api_key") or "").strip()
+    env = os.getenv("TWELVE_DATA_API_KEY", "").strip()
+    return bool(stored or env)
+
+
+def _public_settings() -> dict:
+    """Stored settings, minus the API key, plus the configuration flag.
+
+    ``database.get_settings()`` returns the raw settings table, which now
+    includes ``twelve_data_api_key``; the key is write-only (set via PUT, never
+    read back), so it is stripped here to keep a single choke point for every
+    settings response.
+    """
+    settings = dict(database.get_settings())
+    settings.pop("twelve_data_api_key", None)
+    settings["market_data_configured"] = _market_data_configured()
+    return settings
+
+
 @app.get("/settings")
 async def get_settings(caller: str = AUTH):
-    settings = dict(database.get_settings())
-    # Never expose the API key itself — it is a server-side env var only
-    # (plan section 6: the Settings page only owns the benchmark ticker).
-    settings["market_data_configured"] = bool(os.getenv("TWELVE_DATA_API_KEY", "").strip())
-    return settings
+    return _public_settings()
 
 
 @app.put("/settings")
@@ -312,7 +333,11 @@ async def update_settings(body: SettingsUpdate, caller: str = AUTH):
         database.set_setting("benchmark_ticker", body.benchmark_ticker)
     if body.assumed_annual_return is not None:
         database.set_setting("assumed_annual_return", str(body.assumed_annual_return))
+    # Write-only field: an omitted or blank key leaves the stored one untouched,
+    # so saving another setting (or clearing the input) cannot blank it. The
+    # value is never logged and never echoed back.
+    api_key = (body.twelve_data_api_key or "").strip()
+    if api_key:
+        database.set_setting("twelve_data_api_key", api_key)
     # Same shape as GET /settings, so clients can use the response directly.
-    settings = dict(database.get_settings())
-    settings["market_data_configured"] = bool(os.getenv("TWELVE_DATA_API_KEY", "").strip())
-    return settings
+    return _public_settings()
