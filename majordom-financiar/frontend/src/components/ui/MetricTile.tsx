@@ -16,7 +16,7 @@ export function MetricTile({ label, value, hint, className, emphasis = false }: 
       <p className="text-[13px] text-token-ink-2">{label}</p>
       <p
         className={cn(
-          'mt-1 font-mono tnum text-token-ink',
+          'mt-1 font-plex-mono tnum text-token-ink',
           emphasis ? 'text-2xl font-semibold' : 'text-lg font-medium',
         )}
       >

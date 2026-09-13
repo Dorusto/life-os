@@ -3,13 +3,9 @@ import { createRoot } from 'react-dom/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import App from './App'
 import './index.css'
-import '@fontsource/syne/700.css'
-import '@fontsource/syne/800.css'
-import '@fontsource/dm-mono/400.css'
-import '@fontsource/dm-mono/500.css'
-// Shared token-system faces (ported from investment-manager, see
-// src/styles/tokens.css) — not yet used by any page until they migrate off
-// sans/display/mono above, but the @font-face rules must load regardless.
+// IBM Plex Sans/Mono (ported from investment-manager, see src/styles/tokens.css)
+// are now the app's only fonts — Syne/DM Mono retired 2026-09-13 once the
+// whole-app color/token migration confirmed nothing still referenced them.
 import '@fontsource/ibm-plex-sans/latin-400.css'
 import '@fontsource/ibm-plex-sans/latin-ext-400.css'
 import '@fontsource/ibm-plex-sans/latin-500.css'

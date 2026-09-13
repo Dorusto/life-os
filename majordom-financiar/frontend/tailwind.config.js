@@ -70,14 +70,11 @@ export default {
         },
       },
       fontFamily: {
-        // System font stack — no web font download, fast, looks native on iOS/Android
-        sans: ['-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
-        // Syne for display/headings
-        display: ['Syne', 'sans-serif'],
-        // DM Mono for numbers
-        mono: ['DM Mono', 'monospace'],
-        // Shared token-system faces (ported from investment-manager). Existing
-        // pages keep using `sans`/`display`/`mono` above until they migrate.
+        // IBM Plex Sans/Mono (ported from investment-manager) are now the
+        // app's only fonts, including the Tailwind base/preflight default —
+        // Syne (`display`) and DM Mono (`mono`) retired 2026-09-13 once the
+        // whole-app color/token migration confirmed nothing referenced them.
+        sans: ['IBM Plex Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         'plex-sans': ['IBM Plex Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         'plex-mono': ['IBM Plex Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
