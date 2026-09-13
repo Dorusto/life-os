@@ -18,25 +18,28 @@ import { asTrendBarData, extractCashFlow, type CashFlowPoint } from '../lib/cash
 import { formatCurrency } from '../lib/formatCurrency'
 
 /**
- * Analytics — section tabs (Overview / Trends / Cash Flow / Net Worth) over the
- * chart endpoints the app already exposes. Overview is the original four charts,
+ * Analytics — section tabs (Overview / Trends / Cash Flow / Net Worth / Drivers)
+ * over the chart endpoints the app already exposes. Overview is the original four charts,
  * unchanged. Trends re-slices the spending-trend response (no new endpoint, no
  * period change) into Expenses / Income / Savings bar + cumulative line views.
  * Cash Flow pairs that response's own latest month with the month-scoped
  * spending breakdown, both pinned to the same period. Net Worth asks the
  * dedicated net-worth-history endpoint for account balances at each period end
- * and draws assets, liabilities and the resulting net as charts.
+ * and draws assets, liabilities and the resulting net as charts. Drivers is the
+ * "saved vs grown" reading of that same move — a section-level pending state
+ * until a market-value history source exists (see renderDrivers below).
  *
  * See docs/decisions.md#planned-folded-into-analytics.
  */
 
-type Section = 'overview' | 'trends' | 'cashflow' | 'networth'
+type Section = 'overview' | 'trends' | 'cashflow' | 'networth' | 'drivers'
 
 const SECTIONS: { value: Section; label: string }[] = [
   { value: 'overview', label: 'Overview' },
   { value: 'trends', label: 'Trends' },
   { value: 'cashflow', label: 'Cash Flow' },
   { value: 'networth', label: 'Net Worth' },
+  { value: 'drivers', label: 'Drivers' },
 ]
 
 type TrendTab = 'expenses' | 'income' | 'savings'
@@ -490,6 +493,44 @@ export default function AnalyticsPage() {
     )
   }
 
+  // --- Drivers (saved vs grown) ---
+  //
+  // The section's intended two-series contract is "saved" against "grown" over
+  // the same periods the Net Worth section charts. Both halves come from
+  // portfolio valuations at each period end, which this app does not own:
+  // docs/decisions.md#portfolio-becomes-separate-service keeps investment
+  // computation in the separate investment app, consumed here by API only, so
+  // there is no market-value history source to read today.
+  //
+  // "Saved" on its own is derivable — the spending-trend response's own income
+  // and expense series give income − expenses per month (extractCashFlow). The
+  // "grown" half is not, and it must not be approximated as net-worth change −
+  // savings: a period's balance change also carries transfers, one-off spending
+  // and revaluations, so calling the remainder market growth would present a
+  // derived number as observed data. With half the pair unavailable, the
+  // section says so instead of charting a one-sided view that would read as the
+  // whole story.
+  //
+  // When a market-value history source exists, this function builds its two
+  // series through the shared Chart component, exactly like the Net Worth
+  // charts above; the pending card below is the only branch to replace.
+  function renderDrivers() {
+    return (
+      <div className="bg-token-surface rounded-2xl p-4 border border-token-line">
+        <p className="text-[11px] text-token-ink-3 uppercase tracking-wide">
+          Net worth drivers · saved vs grown
+        </p>
+        <p className="text-token-ink text-sm mt-2">No market-value history source yet.</p>
+        <p className="text-token-ink-3 text-xs mt-2">
+          Splitting each period's net-worth change into what was saved and what the market grew needs
+          the portfolio's value at each period end — a market-value history this app doesn't have.
+          Nothing is charted here until that source is available: the gap between balance change and
+          savings also holds transfers and spending, so it can't stand in for market growth.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
       <PageHeader
@@ -515,6 +556,8 @@ export default function AnalyticsPage() {
         {section === 'cashflow' && renderCashFlow()}
 
         {section === 'networth' && renderNetWorth()}
+
+        {section === 'drivers' && renderDrivers()}
       </section>
     </div>
   )
