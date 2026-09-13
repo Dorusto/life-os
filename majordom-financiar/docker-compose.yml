@@ -147,8 +147,14 @@ services:
     container_name: vehicle-manager-web
     restart: unless-stopped
     ports:
+      # Loopback-only (127.0.0.1), not 0.0.0.0 -- `tailscale serve` binds this
+      # exact port on the Tailscale interface, and a wildcard 0.0.0.0 bind
+      # can't coexist with that specific-address bind (same root cause
+      # already documented for majordom-sqlite-web/actual-budget: whichever
+      # binds second silently fails, `docker inspect` shows empty
+      # NetworkSettings.Ports even though the container reports "running").
       # Change VEHICLE_MANAGER_WEB_PORT in .env to use a different port (default: 3010)
-      - "${VEHICLE_MANAGER_WEB_PORT:-3010}:80"
+      - "127.0.0.1:${VEHICLE_MANAGER_WEB_PORT:-3010}:80"
     depends_on:
       vehicle-manager:
         condition: service_started
@@ -211,8 +217,11 @@ services:
     container_name: investment-manager-web
     restart: unless-stopped
     ports:
+      # Loopback-only (127.0.0.1), not 0.0.0.0 -- same tailscale-serve-vs-
+      # wildcard-bind conflict as vehicle-manager-web's own port, see its
+      # comment for the full explanation.
       # Change INVESTMENT_MANAGER_WEB_PORT in .env to use a different port (default: 3020)
-      - "${INVESTMENT_MANAGER_WEB_PORT:-3020}:80"
+      - "127.0.0.1:${INVESTMENT_MANAGER_WEB_PORT:-3020}:80"
     depends_on:
       investment-manager:
         condition: service_started
