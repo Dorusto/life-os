@@ -203,7 +203,7 @@ export default function Dashboard() {
           </div>
         </section>
       ) : (
-        <section className="px-5 pt-3 pb-36">
+        <section className="px-5 pt-3 pb-24">
           {onBudgetTotal != null && (
             <div className="mb-5">
               <p className="font-plex-mono text-[11px] uppercase tracking-wide text-token-ink-3">On budget</p>
@@ -286,18 +286,21 @@ export default function Dashboard() {
         </section>
       )}
 
-      {/* Always-visible bottom bar — fixed above BottomNav, not part of the
-          scrollable content. Combines Customize (used to sit in its own row
-          at the top, wasting vertical space) with the period control (used
-          to live at the bottom of the scrollable widget list) — switching
-          periods and seeing every widget react no longer requires scrolling
-          down to the control and back up to look at the result. */}
+      {/* Always-visible bottom bar — sticky, so it lives inside the content
+          column: above BottomNav on mobile (bottom-16) and flush with the
+          bottom at lg: where the nav is hidden. Being in the content column
+          means it respects AppShell's rail with no hardcoded offset.
+          Combines Customize (used to sit in its own row at the top, wasting
+          vertical space) with the period control (used to live at the bottom
+          of the scrollable widget list) — switching periods and seeing every
+          widget react no longer requires scrolling down to the control and
+          back up to look at the result. */}
       {homeData && accountCount !== 0 && (
-        <div className="fixed bottom-16 left-0 right-0 z-40 flex items-center justify-between gap-2 px-4 py-2.5 bg-token-paper backdrop-blur border-t border-token-line">
+        <div className="sticky bottom-16 lg:bottom-0 z-40 flex items-center justify-between gap-2 px-4 py-2.5 bg-token-paper/95 backdrop-blur border-t border-token-line">
           {!editing ? (
             <button
               onClick={enterEdit}
-              className="inline-flex items-center gap-1.5 bg-token-surface border border-token-line text-token-ink-3 hover:text-token-ink hover:border-token-line-strong text-xs font-semibold px-3 py-2 rounded-xl transition-colors flex-shrink-0"
+              className="inline-flex items-center gap-1.5 bg-token-surface-2 border border-token-line text-token-ink hover:border-token-line-strong text-xs font-semibold px-3 py-2 rounded-xl transition-colors flex-shrink-0"
             >
               <Pencil size={13} />
               Customize
@@ -308,21 +311,21 @@ export default function Dashboard() {
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={() => shiftDashboardPeriod(-1)}
-              className="w-9 h-9 rounded-lg bg-token-surface border border-token-line text-token-ink-3 hover:text-token-ink flex items-center justify-center flex-shrink-0"
+              className="w-9 h-9 rounded-lg bg-token-surface-2 border border-token-line text-token-ink-3 hover:text-token-ink flex items-center justify-center flex-shrink-0"
               aria-label="Previous period"
             >
               <ChevronLeft size={14} />
             </button>
             <button
               onClick={() => setPeriodSheetOpen(true)}
-              className="inline-flex items-center gap-1.5 bg-token-surface border border-token-line rounded-lg px-3 py-2 text-xs font-semibold text-token-ink hover:border-token-brand-ink transition-colors"
+              className="inline-flex items-center gap-1.5 bg-token-surface-2 border border-token-line rounded-lg px-3 py-2 text-xs font-semibold text-token-ink hover:border-token-brand-ink transition-colors"
             >
               <Calendar size={13} />
               {periodLabel}
             </button>
             <button
               onClick={() => shiftDashboardPeriod(1)}
-              className="w-9 h-9 rounded-lg bg-token-surface border border-token-line text-token-ink-3 hover:text-token-ink flex items-center justify-center flex-shrink-0"
+              className="w-9 h-9 rounded-lg bg-token-surface-2 border border-token-line text-token-ink-3 hover:text-token-ink flex items-center justify-center flex-shrink-0"
               aria-label="Next period"
             >
               <ChevronRight size={14} />
