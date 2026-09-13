@@ -119,7 +119,7 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
                   checked={newAccountOffBudget}
                   onChange={e => setNewAccountOffBudget(e.target.checked)}
                   disabled={loading}
-                  className="accent-accent"
+                  className="accent-token-brand"
                 />
                 Off-budget (tracking only)
               </label>

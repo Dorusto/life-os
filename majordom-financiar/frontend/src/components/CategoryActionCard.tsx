@@ -465,7 +465,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
                 checked={createRule}
                 onChange={e => setCreateRule(e.target.checked)}
                 disabled={!data.is_consistent}
-                className="mt-1 accent-accent"
+                className="mt-1 accent-token-brand"
               />
               <div>
                 <span className="text-token-ink text-sm">
