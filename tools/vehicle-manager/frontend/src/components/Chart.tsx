@@ -589,7 +589,7 @@ function BarChart({ title, data, refetch: initialRefetch }: { title: string; dat
                           const dateTo = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
                           navigate('/transactions', { state: { dateFrom, dateTo } })
                         }}
-                        className="mt-1 text-[10px] text-accent hover:text-white underline"
+                        className="mt-1 text-[10px] text-brand-ink hover:text-ink underline"
                       >
                         View transactions
                       </button>
