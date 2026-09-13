@@ -71,10 +71,10 @@ interface CsvImportCardProps {
 export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImportCardProps) {
   if (data.status === 'loading') {
     return (
-      <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-5 max-w-[520px] w-full">
+      <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-5 max-w-[520px] w-full">
         <div className="flex items-center gap-3">
-          <Loader2 size={18} className="animate-spin text-accent" />
-          <p className="text-white text-sm">Analyzing CSV…</p>
+          <Loader2 size={18} className="animate-spin text-token-brand-ink" />
+          <p className="text-token-ink text-sm">Analyzing CSV…</p>
         </div>
       </div>
     )
@@ -82,14 +82,14 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
 
   if (data.status === 'error') {
     return (
-      <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-5 max-w-[520px] w-full space-y-3">
+      <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-5 max-w-[520px] w-full space-y-3">
         <div className="flex items-start gap-2">
-          <AlertCircle size={16} className="text-red-400 flex-shrink-0 mt-0.5" />
-          <p className="text-red-400 text-sm">{data.error || 'Failed to parse CSV'}</p>
+          <AlertCircle size={16} className="text-token-loss flex-shrink-0 mt-0.5" />
+          <p className="text-token-loss text-sm">{data.error || 'Failed to parse CSV'}</p>
         </div>
         <button
           onClick={onCancelled}
-          className="text-sm text-muted hover:text-white transition-colors"
+          className="text-sm text-token-ink-3 hover:text-token-ink transition-colors"
         >
           Dismiss
         </button>
@@ -250,16 +250,16 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
   }
 
   const selectClass = `
-    w-full bg-background border border-border rounded-lg px-2 py-1.5
-    text-white text-xs appearance-none
-    focus:outline-none focus:border-accent transition-colors
+    w-full bg-token-paper border border-token-line rounded-lg px-2 py-1.5
+    text-token-ink text-xs appearance-none
+    focus:outline-none focus:border-token-brand transition-colors
   `
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[600px] w-full space-y-3">
+    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[600px] w-full space-y-3">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <p className="text-white text-sm font-medium">
+        <p className="text-token-ink text-sm font-medium">
           Import CSV — {preview.source_name} — {preview.total_rows} transactions
         </p>
       </div>
@@ -267,39 +267,39 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
       {/* Account selector */}
       {creatingAccount ? (
         <div className="space-y-1.5">
-          <label className="text-xs text-muted whitespace-nowrap">New account name</label>
+          <label className="text-xs text-token-ink-3 whitespace-nowrap">New account name</label>
           <input
             type="text"
             value={newAccountName}
             onChange={e => setNewAccountName(e.target.value)}
             placeholder={preview.source_name}
-            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white text-sm placeholder:text-muted focus:outline-none focus:border-accent transition-colors"
+            className="w-full bg-token-paper border border-token-line rounded-lg px-3 py-2 text-token-ink text-sm placeholder:text-token-ink-3 focus:outline-none focus:border-token-brand transition-colors"
             autoFocus
           />
-          <label className="flex items-center gap-1.5 text-xs text-muted cursor-pointer">
+          <label className="flex items-center gap-1.5 text-xs text-token-ink-3 cursor-pointer">
             <input
               type="checkbox"
               checked={newAccountOffBudget}
               onChange={e => setNewAccountOffBudget(e.target.checked)}
-              className="rounded border-border"
+              className="rounded border-token-line"
             />
             Off-budget (tracking only)
           </label>
           <button
             type="button"
             onClick={() => { setCreatingAccount(false); setNewAccountName('') }}
-            className="text-xs text-accent hover:underline"
+            className="text-xs text-token-brand-ink hover:underline"
           >
             Use an existing account instead
           </button>
         </div>
       ) : (
         <div className="flex items-center gap-3">
-          <label className="text-xs text-muted whitespace-nowrap">Account</label>
+          <label className="text-xs text-token-ink-3 whitespace-nowrap">Account</label>
           <select
             value={accountId}
             onChange={e => setAccountId(e.target.value)}
-            className={`${selectClass} ${!accountId ? 'border-yellow-500/60 text-yellow-500' : ''}`}
+            className={`${selectClass} ${!accountId ? 'border-token-warn text-token-warn' : ''}`}
           >
             <option value="" disabled>— select account —</option>
             {preview.accounts.map((acc: AccountOption) => (
@@ -309,18 +309,18 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
         </div>
       )}
       {!creatingAccount && !accountId && (
-        <p className="text-yellow-500 text-xs">
+        <p className="text-token-warn text-xs">
           No account matched "{preview.source_name}". Select one, or{' '}
           <button
             type="button"
             onClick={() => { setCreatingAccount(true); setNewAccountName(preview.source_name) }}
-            className="text-accent hover:underline"
+            className="text-token-brand-ink hover:underline"
           >
             create a new account
           </button>.
         </p>
       )}
-      {accountError && <p className="text-red-400 text-xs">{accountError}</p>}
+      {accountError && <p className="text-token-loss text-xs">{accountError}</p>}
 
       <datalist id="csv-import-category-groups">
         {preview.category_groups.map(g => <option key={g} value={g} />)}
@@ -329,8 +329,8 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
       {/* Transaction list */}
       <div className="max-h-72 overflow-y-auto -mx-4 px-4">
         <table className="w-full text-xs">
-          <thead className="sticky top-0 bg-surface">
-            <tr className="text-muted">
+          <thead className="sticky top-0 bg-token-surface">
+            <tr className="text-token-ink-3">
               <th className="text-left pb-1 pr-2 font-medium w-[42px]">Date</th>
               <th className="text-left pb-1 pr-2 font-medium">Merchant</th>
               <th className="text-right pb-1 pr-2 font-medium w-[72px]">Amount</th>
@@ -342,19 +342,19 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
               const dimmed = row.duplicate || (row.isTransferCandidate && row.excluded)
               return (
                 <tr key={row.id} className={dimmed ? 'opacity-40' : ''}>
-                  <td className="py-1 pr-2 text-muted whitespace-nowrap">{row.date.slice(5)}</td>
-                  <td className="py-1 pr-2 text-white truncate max-w-0">
+                  <td className="py-1 pr-2 text-token-ink-3 whitespace-nowrap">{row.date.slice(5)}</td>
+                  <td className="py-1 pr-2 text-token-ink truncate max-w-0">
                     <div className="flex items-center gap-1">
                       {row.duplicate && (
                         <span title="Already imported">
-                          <AlertCircle size={10} className="text-muted flex-shrink-0" />
+                          <AlertCircle size={10} className="text-token-ink-3 flex-shrink-0" />
                         </span>
                       )}
                       {row.possibleDuplicate && (
                         <span
                           title={`Possible duplicate — ${formatCurrency(row.existingAmount ?? 0)} already recorded for this merchant on this date`}
                         >
-                          <AlertCircle size={10} className="text-yellow-500 flex-shrink-0" />
+                          <AlertCircle size={10} className="text-token-warn flex-shrink-0" />
                         </span>
                       )}
                       <input
@@ -363,11 +363,11 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
                         onChange={e => handleMerchantChange(row.id, e.target.value)}
                         disabled={row.duplicate}
                         title="Edit — also used as the rule's match text when 'Save as rule' is checked"
-                        className="min-w-0 flex-1 bg-transparent text-white text-xs focus:outline-none focus:bg-background rounded px-0.5 -mx-0.5 disabled:opacity-60"
+                        className="min-w-0 flex-1 bg-transparent text-token-ink text-xs focus:outline-none focus:bg-token-paper rounded px-0.5 -mx-0.5 disabled:opacity-60"
                       />
                       {row.isTransferCandidate && (
                         <span
-                          className="bg-blue-500/10 text-blue-400 border border-blue-500/30 text-[10px] px-1 rounded whitespace-nowrap"
+                          className="bg-token-info-soft text-token-info border border-token-info text-[10px] px-1 rounded whitespace-nowrap"
                           title="Likely internal transfer"
                         >
                           Transfer?
@@ -377,20 +377,20 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
                     {row.isTransferCandidate && (
                       <button
                         onClick={() => handleToggleExclude(row.id)}
-                        className="text-[10px] text-blue-400 hover:text-blue-300 mt-0.5 block"
+                        className="text-[10px] text-token-info hover:text-token-info mt-0.5 block"
                       >
                         {row.excluded ? 'Include' : 'Exclude'}
                       </button>
                     )}
                   </td>
-                  <td className="py-1 pr-2 text-white text-right whitespace-nowrap">
+                  <td className="py-1 pr-2 text-token-ink text-right whitespace-nowrap">
                     {row.currency === 'EUR'
                       ? formatCurrency(row.is_expense ? -Math.abs(row.amount) : Math.abs(row.amount), { signDisplay: 'always' })
                       : `${row.is_expense ? '' : '+'}${row.currency}${row.amount.toFixed(2)}`}
                   </td>
                   <td className="py-1">
                     {row.duplicate ? (
-                      <span className="text-muted italic">duplicate</span>
+                      <span className="text-token-ink-3 italic">duplicate</span>
                     ) : row.isManualTransfer && row.transferToAccountId ? (
                       // Transfer confirmed — full "A → B" badge + undo button + save-as-rule
                       (() => {
@@ -401,7 +401,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
                         return (
                           <div>
                             <div className="flex items-center gap-1.5">
-                              <span className="text-blue-400 text-[11px] bg-blue-500/10 border border-blue-500/30 px-2 py-1 rounded-lg whitespace-nowrap leading-tight">
+                              <span className="text-token-info text-[11px] bg-token-info-soft border border-token-info px-2 py-1 rounded-lg whitespace-nowrap leading-tight">
                                 {fromName} → {toName}
                               </span>
                               <button
@@ -410,18 +410,18 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
                                     ? { ...r, isManualTransfer: false, transferToAccountId: '', categoryName: '', excluded: false }
                                     : r
                                 ))}
-                                className="text-muted hover:text-red-400 text-sm leading-none flex-shrink-0"
+                                className="text-token-ink-3 hover:text-token-loss text-sm leading-none flex-shrink-0"
                                 title="Remove transfer"
                               >
                                 ×
                               </button>
                             </div>
-                            <label className="flex items-center gap-1 text-[10px] text-muted mt-0.5 cursor-pointer">
+                            <label className="flex items-center gap-1 text-[10px] text-token-ink-3 mt-0.5 cursor-pointer">
                               <input
                                 type="checkbox"
                                 checked={row.createRule}
                                 onChange={() => handleToggleCreateRule(row.id)}
-                                className="rounded border-border h-2.5 w-2.5"
+                                className="rounded border-token-line h-2.5 w-2.5"
                               />
                               Save as rule
                             </label>
@@ -436,7 +436,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
                         <select
                           value=""
                           onChange={e => handleTransferAccountChange(row.id, e.target.value)}
-                          className={`${selectClass} border-yellow-500/60 flex-1`}
+                          className={`${selectClass} border-token-warn flex-1`}
                           autoFocus
                         >
                           <option value="" disabled>
@@ -450,7 +450,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
                         </select>
                         <button
                           onClick={() => handleTransferAccountChange(row.id, '')}
-                          className="text-muted hover:text-white text-sm leading-none flex-shrink-0 px-1"
+                          className="text-token-ink-3 hover:text-token-ink text-sm leading-none flex-shrink-0 px-1"
                           title="Cancel transfer"
                         >
                           ×
@@ -466,11 +466,11 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
                             onChange={e => setRows(prev => prev.map(r => r.id === row.id ? { ...r, categoryName: e.target.value } : r))}
                             placeholder="New category name"
                             autoFocus
-                            className={`${selectClass} border-yellow-500/60 flex-1`}
+                            className={`${selectClass} border-token-warn flex-1`}
                           />
                           <button
                             onClick={() => setRows(prev => prev.map(r => r.id === row.id ? { ...r, isNewCategory: false, categoryName: '' } : r))}
-                            className="text-muted hover:text-white text-sm leading-none flex-shrink-0 px-1"
+                            className="text-token-ink-3 hover:text-token-ink text-sm leading-none flex-shrink-0 px-1"
                             title="Cancel"
                           >
                             ×
@@ -485,12 +485,12 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
                           className={selectClass}
                         />
                         {row.categoryName !== '' && (
-                          <label className="flex items-center gap-1 text-[10px] text-muted cursor-pointer">
+                          <label className="flex items-center gap-1 text-[10px] text-token-ink-3 cursor-pointer">
                             <input
                               type="checkbox"
                               checked={row.createRule}
                               onChange={() => handleToggleCreateRule(row.id)}
-                              className="rounded border-border h-2.5 w-2.5"
+                              className="rounded border-token-line h-2.5 w-2.5"
                             />
                             Save as rule
                           </label>
@@ -503,7 +503,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
                           <select
                             value={row.categoryName}
                             onChange={e => handleCategoryChange(row.id, e.target.value)}
-                            className={`${selectClass} ${row.categoryName === '' ? 'border-yellow-500/60 pr-5' : !row.categoryConfirmed ? 'border-yellow-500/30 pr-5' : ''}`}
+                            className={`${selectClass} ${row.categoryName === '' ? 'border-token-warn pr-5' : !row.categoryConfirmed ? 'border-token-warn pr-5' : ''}`}
                           >
                             <option value={TRANSFER_VALUE}>
                               {row.is_expense ? '↔ Transfer to…' : '↔ Transfer from…'}
@@ -516,7 +516,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
                           </select>
                           {(!row.categoryConfirmed || row.categoryName === '') && (
                             <span
-                              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-yellow-500 text-xs pointer-events-none"
+                              className="absolute right-1.5 top-1/2 -translate-y-1/2 text-token-warn text-xs pointer-events-none"
                               title={row.categoryName === '' ? 'Needs a category' : 'Auto-suggested — verify if correct'}
                             >
                               ?
@@ -524,12 +524,12 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
                           )}
                         </div>
                         {row.categoryName !== '' && (
-                          <label className="flex items-center gap-1 text-[10px] text-muted mt-0.5 cursor-pointer">
+                          <label className="flex items-center gap-1 text-[10px] text-token-ink-3 mt-0.5 cursor-pointer">
                             <input
                               type="checkbox"
                               checked={row.createRule}
                               onChange={() => handleToggleCreateRule(row.id)}
-                              className="rounded border-border h-2.5 w-2.5"
+                              className="rounded border-token-line h-2.5 w-2.5"
                             />
                             Save as rule
                           </label>
@@ -545,7 +545,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
       </div>
 
       {/* Summary */}
-      <div className="flex items-center gap-3 text-xs text-muted flex-wrap">
+      <div className="flex items-center gap-3 text-xs text-token-ink-3 flex-wrap">
         <span>{activeRows.filter(r => r.is_expense).length} expenses ({formatCurrency(-Math.abs(totalExpenses))})</span>
         {totalIncome > 0 && <span>| {activeRows.filter(r => !r.is_expense).length} income ({formatCurrency(Math.abs(totalIncome), { signDisplay: 'always' })})</span>}
         {duplicateCount > 0 && <span>| {duplicateCount} duplicates skipped</span>}
@@ -554,9 +554,9 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
       {/* Info for uncategorized — not a blocker, they import as uncategorized and
           surface later via the digest nudge (M4.5) */}
       {needsActionCount > 0 && (
-        <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/30">
-          <AlertCircle size={14} className="text-yellow-500 flex-shrink-0 mt-0.5" />
-          <p className="text-yellow-500 text-xs">
+        <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-token-warn-soft border border-token-warn">
+          <AlertCircle size={14} className="text-token-warn flex-shrink-0 mt-0.5" />
+          <p className="text-token-warn text-xs">
             <span className="font-medium">{needsActionCount}</span> transaction{needsActionCount > 1 ? 's' : ''} will import uncategorized — pick a category now or review later
           </p>
         </div>
@@ -567,14 +567,14 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
         <button
           onClick={onCancelled}
           disabled={importing}
-          className="flex-1 py-2 rounded-xl border border-border text-muted hover:text-white hover:bg-surface-hover text-sm transition-colors disabled:opacity-40"
+          className="flex-1 py-2 rounded-xl border border-token-line text-token-ink-3 hover:text-token-ink hover:bg-token-surface-2 text-sm transition-colors disabled:opacity-40"
         >
           Cancel
         </button>
         <button
           onClick={handleImport}
           disabled={(creatingAccount ? !newAccountName.trim() : !accountId) || importing}
-          className="flex-1 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+          className="flex-1 py-2 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-ink text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
         >
           {importing ? (
             <><Loader2 size={14} className="animate-spin" /> Importing...</>
