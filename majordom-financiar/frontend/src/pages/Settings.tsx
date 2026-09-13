@@ -130,7 +130,7 @@ function MenuScreen({ onNavigate }: { onNavigate: (page: SubPageKey) => void }) 
   }
 
   return (
-    <div className="h-dvh bg-background flex flex-col overflow-y-auto">
+    <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
       <PageHeader
         label="Majordom"
         title="Settings"
@@ -140,27 +140,27 @@ function MenuScreen({ onNavigate }: { onNavigate: (page: SubPageKey) => void }) 
         <button
           onClick={handleSync}
           disabled={syncState === 'syncing'}
-          className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3.5 disabled:opacity-60 hover:border-border-hover transition-colors"
+          className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5 disabled:opacity-60 hover:border-token-line-strong transition-colors"
         >
-          <RefreshCw size={16} className={`text-muted flex-shrink-0 ${syncState === 'syncing' ? 'animate-spin' : ''}`} />
-          <span className="flex-1 text-left text-sm font-semibold text-white">
+          <RefreshCw size={16} className={`text-token-ink-3 flex-shrink-0 ${syncState === 'syncing' ? 'animate-spin' : ''}`} />
+          <span className="flex-1 text-left text-sm font-semibold text-token-ink">
             {syncState === 'failed' ? 'Sync failed — tap to retry' : 'Sync accounts'}
           </span>
         </button>
 
         {MENU_GROUPS.map(group => (
           <div key={group.label}>
-            <p className="text-xs tracking-[0.2em] uppercase text-muted mb-2.5">{group.label}</p>
+            <p className="text-xs tracking-[0.2em] uppercase text-token-ink-3 mb-2.5">{group.label}</p>
             <div className="space-y-2">
               {group.items.map(item => (
                 <button
                   key={item.key}
                   onClick={() => onNavigate(item.key)}
-                  className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3.5 hover:border-border-hover transition-colors"
+                  className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5 hover:border-token-line-strong transition-colors"
                 >
-                  <item.icon size={16} className="text-muted flex-shrink-0" />
-                  <span className="flex-1 text-left text-sm font-semibold text-white">{item.label}</span>
-                  <ChevronRight size={14} className="text-muted flex-shrink-0" />
+                  <item.icon size={16} className="text-token-ink-3 flex-shrink-0" />
+                  <span className="flex-1 text-left text-sm font-semibold text-token-ink">{item.label}</span>
+                  <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
                 </button>
               ))}
             </div>
@@ -169,10 +169,10 @@ function MenuScreen({ onNavigate }: { onNavigate: (page: SubPageKey) => void }) 
 
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3.5 mt-2 hover:border-danger/50 transition-colors"
+          className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5 mt-2 hover:border-token-loss transition-colors"
         >
-          <LogOut size={16} className="text-danger flex-shrink-0" />
-          <span className="flex-1 text-left text-sm font-semibold text-danger">Log out</span>
+          <LogOut size={16} className="text-token-loss flex-shrink-0" />
+          <span className="flex-1 text-left text-sm font-semibold text-token-loss">Log out</span>
         </button>
       </section>
     </div>
@@ -185,7 +185,7 @@ function SubPageShell({
   title, onBack, children,
 }: { title: string; onBack: () => void; children: ReactNode }) {
   return (
-    <div className="h-dvh bg-background flex flex-col overflow-y-auto">
+    <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
       <PageHeader
         label="Settings"
         title={title}
@@ -223,11 +223,11 @@ function NavRow({ icon: Icon, title, onClick }: { icon: LucideIcon; title: strin
   return (
     <button
       onClick={onClick}
-      className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3.5 hover:border-border-hover transition-colors"
+      className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5 hover:border-token-line-strong transition-colors"
     >
-      <Icon size={16} className="text-muted flex-shrink-0" />
-      <span className="flex-1 text-left text-sm font-semibold text-white">{title}</span>
-      <ChevronRight size={14} className="text-muted flex-shrink-0" />
+      <Icon size={16} className="text-token-ink-3 flex-shrink-0" />
+      <span className="flex-1 text-left text-sm font-semibold text-token-ink">{title}</span>
+      <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
     </button>
   )
 }
@@ -235,11 +235,11 @@ function NavRow({ icon: Icon, title, onClick }: { icon: LucideIcon; title: strin
 /** Inert placeholder row — looks like a setting but does nothing. */
 function InertRow({ title, subtitle, icon: Icon }: { title: string; subtitle?: string; icon?: LucideIcon }) {
   return (
-    <div className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3.5">
-      {Icon && <Icon size={16} className="text-muted flex-shrink-0" />}
+    <div className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5">
+      {Icon && <Icon size={16} className="text-token-ink-3 flex-shrink-0" />}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-white">{title}</p>
-        {subtitle && <p className="text-xs text-muted mt-0.5">{subtitle}</p>}
+        <p className="text-sm font-semibold text-token-ink">{title}</p>
+        {subtitle && <p className="text-xs text-token-ink-3 mt-0.5">{subtitle}</p>}
       </div>
     </div>
   )
@@ -248,10 +248,10 @@ function InertRow({ title, subtitle, icon: Icon }: { title: string; subtitle?: s
 /** Row with a trailing value/status on the right (non-interactive). */
 function StatusRow({ title, value, muted = false, icon: Icon }: { title: string; value: string; muted?: boolean; icon?: LucideIcon }) {
   return (
-    <div className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3.5">
-      {Icon && <Icon size={16} className="text-muted flex-shrink-0" />}
-      <span className="flex-1 text-sm font-semibold text-white">{title}</span>
-      <span className={`text-xs ${muted ? 'text-muted' : 'text-white'} flex-shrink-0`}>{value}</span>
+    <div className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5">
+      {Icon && <Icon size={16} className="text-token-ink-3 flex-shrink-0" />}
+      <span className="flex-1 text-sm font-semibold text-token-ink">{title}</span>
+      <span className={`text-xs ${muted ? 'text-token-ink-3' : 'text-token-ink'} flex-shrink-0`}>{value}</span>
     </div>
   )
 }
@@ -259,20 +259,20 @@ function StatusRow({ title, value, muted = false, icon: Icon }: { title: string;
 /** Checkmark row for "already active" selections. */
 function ActiveRow({ title, subtitle, icon: Icon }: { title: string; subtitle?: string; icon?: LucideIcon }) {
   return (
-    <div className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3.5">
-      {Icon && <Icon size={16} className="text-muted flex-shrink-0" />}
+    <div className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5">
+      {Icon && <Icon size={16} className="text-token-ink-3 flex-shrink-0" />}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-white">{title}</p>
-        {subtitle && <p className="text-xs text-muted mt-0.5">{subtitle}</p>}
+        <p className="text-sm font-semibold text-token-ink">{title}</p>
+        {subtitle && <p className="text-xs text-token-ink-3 mt-0.5">{subtitle}</p>}
       </div>
-      <Check size={16} className="text-accent flex-shrink-0" />
+      <Check size={16} className="text-token-brand-ink flex-shrink-0" />
     </div>
   )
 }
 
 function Toggle({ on }: { on: boolean }) {
   return (
-    <span className={`relative inline-flex h-6 w-10 rounded-full transition-colors flex-shrink-0 ${on ? 'bg-accent' : 'bg-border'}`}>
+    <span className={`relative inline-flex h-6 w-10 rounded-full transition-colors flex-shrink-0 ${on ? 'bg-token-brand' : 'bg-token-line'}`}>
       <span
         className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform ${on ? 'translate-x-4' : ''}`}
       />
@@ -287,11 +287,11 @@ function ToggleRow({
     <button
       onClick={onToggle}
       disabled={!onToggle}
-      className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3.5 hover:border-border-hover transition-colors disabled:hover:border-border"
+      className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5 hover:border-token-line-strong transition-colors disabled:hover:border-token-line"
     >
       <div className="flex-1 text-left min-w-0">
-        <p className="text-sm font-semibold text-white">{title}</p>
-        {subtitle && <p className="text-xs text-muted mt-0.5">{subtitle}</p>}
+        <p className="text-sm font-semibold text-token-ink">{title}</p>
+        {subtitle && <p className="text-xs text-token-ink-3 mt-0.5">{subtitle}</p>}
       </div>
       <Toggle on={on} />
     </button>
@@ -299,7 +299,7 @@ function ToggleRow({
 }
 
 function SectionLabel({ children }: { children: ReactNode }) {
-  return <p className="text-xs tracking-[0.2em] uppercase text-muted pt-3 mb-2.5">{children}</p>
+  return <p className="text-xs tracking-[0.2em] uppercase text-token-ink-3 pt-3 mb-2.5">{children}</p>
 }
 
 // ---------- Personal ----------
@@ -364,8 +364,8 @@ function SecurityBackupPage() {
 
 function CurrenciesPage() {
   return (
-    <div className="bg-surface border border-border rounded-2xl px-4 py-4">
-      <p className="text-sm text-muted">
+    <div className="bg-token-surface border border-token-line rounded-2xl px-4 py-4">
+      <p className="text-sm text-token-ink-3">
         Actual Budget tracks one currency per budget file, not per account — there's no
         per-account currency data to show here.
       </p>
@@ -396,7 +396,7 @@ function CategoriesPage() {
       <div className="pt-2">
         <NavRow icon={Sparkles} title="Open in Majordom chat" onClick={() => navigate('/chat')} />
       </div>
-      <p className="text-xs text-muted px-1 pt-1">
+      <p className="text-xs text-token-ink-3 px-1 pt-1">
         Categories are managed conversationally in chat — this page is a live summary, not an editor.
       </p>
     </>
@@ -410,15 +410,15 @@ function PayeesPage() {
     staleTime: 120_000,
   })
 
-  if (isLoading) return <p className="text-sm text-muted px-1">Loading…</p>
-  if (!payees || payees.length === 0) return <p className="text-sm text-muted px-1">No payees yet.</p>
+  if (isLoading) return <p className="text-sm text-token-ink-3 px-1">Loading…</p>
+  if (!payees || payees.length === 0) return <p className="text-sm text-token-ink-3 px-1">No payees yet.</p>
 
   return (
-    <div className="bg-surface border border-border rounded-2xl px-4 py-1.5">
+    <div className="bg-token-surface border border-token-line rounded-2xl px-4 py-1.5">
       {payees.map((p: PayeeItem) => (
-        <div key={p.id} className="flex items-center justify-between gap-3 py-2.5 border-b border-border last:border-b-0">
-          <span className="text-sm font-medium text-white truncate">{p.name}</span>
-          <span className="text-xs text-muted flex-shrink-0">
+        <div key={p.id} className="flex items-center justify-between gap-3 py-2.5 border-b border-token-line last:border-b-0">
+          <span className="text-sm font-medium text-token-ink truncate">{p.name}</span>
+          <span className="text-xs text-token-ink-3 flex-shrink-0">
             {p.transaction_count} transaction{p.transaction_count !== 1 ? 's' : ''}
           </span>
         </div>
@@ -434,15 +434,15 @@ function SchedulesPage() {
     staleTime: 120_000,
   })
 
-  if (isLoading) return <p className="text-sm text-muted px-1">Loading…</p>
-  if (!schedules || schedules.length === 0) return <p className="text-sm text-muted px-1">No scheduled payments.</p>
+  if (isLoading) return <p className="text-sm text-token-ink-3 px-1">Loading…</p>
+  if (!schedules || schedules.length === 0) return <p className="text-sm text-token-ink-3 px-1">No scheduled payments.</p>
 
   return (
-    <div className="bg-surface border border-border rounded-2xl px-4 py-1.5">
+    <div className="bg-token-surface border border-token-line rounded-2xl px-4 py-1.5">
       {schedules.map((s: ScheduleItem) => (
-        <div key={s.id} className="flex items-center justify-between gap-3 py-2.5 border-b border-border last:border-b-0">
-          <span className="text-sm font-medium text-white truncate">{s.name}</span>
-          <span className={`text-xs flex-shrink-0 ${s.active ? 'text-white' : 'text-muted'}`}>
+        <div key={s.id} className="flex items-center justify-between gap-3 py-2.5 border-b border-token-line last:border-b-0">
+          <span className="text-sm font-medium text-token-ink truncate">{s.name}</span>
+          <span className={`text-xs flex-shrink-0 ${s.active ? 'text-token-ink' : 'text-token-ink-3'}`}>
             {s.active ? 'Active' : 'Inactive'}
           </span>
         </div>
@@ -457,7 +457,7 @@ function ImportExportPage() {
     <>
       <NavRow icon={ArrowRightLeft} title="Import CSV" onClick={() => navigate('/chat')} />
       <InertRow title="Export transactions" />
-      <p className="text-xs text-muted px-1 pt-1">
+      <p className="text-xs text-token-ink-3 px-1 pt-1">
         CSV import runs from the chat input's + button / the Dashboard's Add sheet.
       </p>
     </>
@@ -471,7 +471,7 @@ function AiPage() {
       <StatusRow title="Chat" value="deepseek/deepseek-chat" icon={Sparkles} />
       <StatusRow title="Vision" value="google/gemini-2.5-flash-lite" icon={Sparkles} />
       <StatusRow title="Local fallback" value="qwen3.5:9b" icon={Sparkles} />
-      <p className="text-xs text-muted px-1 pt-1">
+      <p className="text-xs text-token-ink-3 px-1 pt-1">
         Models run via OpenRouter (local fallback via Ollama). Not editable here.
       </p>
     </>
@@ -482,7 +482,7 @@ function AiIntegrationsPage() {
   return (
     <>
       <InertRow title="MCP server" subtitle="Inbound — not built yet" icon={Plug} />
-      <p className="text-xs text-muted px-1 pt-1">Tracked as a future roadmap item.</p>
+      <p className="text-xs text-token-ink-3 px-1 pt-1">Tracked as a future roadmap item.</p>
     </>
   )
 }
@@ -499,34 +499,34 @@ function ConnectionsPage() {
         href={actualBudgetUrl}
         target="_blank"
         rel="noopener noreferrer"
-        className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3.5 hover:border-border-hover transition-colors"
+        className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5 hover:border-token-line-strong transition-colors"
       >
-        <Wallet size={16} className="text-muted flex-shrink-0" />
-        <span className="flex-1 text-sm font-semibold text-white">Actual Budget</span>
-        <span className="text-xs text-positive flex-shrink-0">Connected</span>
-        <ChevronRight size={14} className="text-muted flex-shrink-0" />
+        <Wallet size={16} className="text-token-ink-3 flex-shrink-0" />
+        <span className="flex-1 text-sm font-semibold text-token-ink">Actual Budget</span>
+        <span className="text-xs text-token-gain flex-shrink-0">Connected</span>
+        <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
       </a>
       <a
         href={`${origin}:3010`}
         target="_blank"
         rel="noopener noreferrer"
-        className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3.5 hover:border-border-hover transition-colors"
+        className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5 hover:border-token-line-strong transition-colors"
       >
-        <Car size={16} className="text-muted flex-shrink-0" />
-        <span className="flex-1 text-sm font-semibold text-white">Vehicle Manager</span>
-        <span className="text-xs text-positive flex-shrink-0">Connected</span>
-        <ChevronRight size={14} className="text-muted flex-shrink-0" />
+        <Car size={16} className="text-token-ink-3 flex-shrink-0" />
+        <span className="flex-1 text-sm font-semibold text-token-ink">Vehicle Manager</span>
+        <span className="text-xs text-token-gain flex-shrink-0">Connected</span>
+        <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
       </a>
       <a
         href={`${origin}:3020`}
         target="_blank"
         rel="noopener noreferrer"
-        className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3.5 hover:border-border-hover transition-colors"
+        className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5 hover:border-token-line-strong transition-colors"
       >
-        <LineChart size={16} className="text-muted flex-shrink-0" />
-        <span className="flex-1 text-sm font-semibold text-white">Investment Manager</span>
-        <span className="text-xs text-positive flex-shrink-0">Connected</span>
-        <ChevronRight size={14} className="text-muted flex-shrink-0" />
+        <LineChart size={16} className="text-token-ink-3 flex-shrink-0" />
+        <span className="flex-1 text-sm font-semibold text-token-ink">Investment Manager</span>
+        <span className="text-xs text-token-gain flex-shrink-0">Connected</span>
+        <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
       </a>
       {/* Majordom's own SQLite debug viewer — loopback-only since the tailscale-serve
           vs. 0.0.0.0 port conflict fix (2026-09-12/13), so no longer reachable from
@@ -535,12 +535,12 @@ function ConnectionsPage() {
         href={`${origin}:8888`}
         target="_blank"
         rel="noopener noreferrer"
-        className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3.5 hover:border-border-hover transition-colors"
+        className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5 hover:border-token-line-strong transition-colors"
       >
-        <Database size={16} className="text-muted flex-shrink-0" />
-        <span className="flex-1 text-sm font-semibold text-white">Majordom Memory</span>
-        <span className="text-xs text-muted flex-shrink-0">Localhost only</span>
-        <ChevronRight size={14} className="text-muted flex-shrink-0" />
+        <Database size={16} className="text-token-ink-3 flex-shrink-0" />
+        <span className="flex-1 text-sm font-semibold text-token-ink">Majordom Memory</span>
+        <span className="text-xs text-token-ink-3 flex-shrink-0">Localhost only</span>
+        <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
       </a>
     </>
   )
@@ -626,23 +626,23 @@ function BudgetPacingPage() {
   }
 
   const inputClass = `
-    w-full px-4 py-3 rounded-xl bg-surface border border-border
-    text-white placeholder-muted-2 text-base
-    focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent
+    w-full px-4 py-3 rounded-xl bg-token-surface border border-token-line
+    text-token-ink placeholder-token-ink-2 text-base
+    focus:outline-none focus:border-token-brand focus:ring-1 focus:ring-token-brand
     transition-colors
   `
 
-  if (isLoading) return <p className="text-sm text-muted px-1">Loading…</p>
+  if (isLoading) return <p className="text-sm text-token-ink-3 px-1">Loading…</p>
 
   return (
     <>
-      <p className="text-xs text-muted px-1">
+      <p className="text-xs text-token-ink-3 px-1">
         Discretionary spending is tracked against your annual income minus fixed expenses and
         sinking funds — Majordom only nudges you when you're over pace for the year, not every month.
       </p>
 
       <div className="flex flex-col gap-1.5 pt-2">
-        <label htmlFor="annual-income" className="text-sm text-muted px-1">Annual income (€)</label>
+        <label htmlFor="annual-income" className="text-sm text-token-ink-3 px-1">Annual income (€)</label>
         <input
           id="annual-income"
           type="number"
@@ -677,16 +677,16 @@ function BudgetPacingPage() {
         />
       ))}
 
-      {saveError && <p className="text-danger text-sm text-center pt-2">{saveError}</p>}
-      {saved && <p className="text-positive text-sm text-center pt-2">Saved.</p>}
+      {saveError && <p className="text-token-loss text-sm text-center pt-2">{saveError}</p>}
+      {saved && <p className="text-token-gain text-sm text-center pt-2">Saved.</p>}
 
       <button
         type="button"
         disabled={saving}
         onClick={handleSave}
         className="
-          mt-2 w-full py-3.5 rounded-xl bg-surface border border-border text-white text-base font-medium
-          hover:bg-surface-2 active:scale-[0.98]
+          mt-2 w-full py-3.5 rounded-xl bg-token-surface border border-token-line text-token-ink text-base font-medium
+          hover:bg-token-surface-2 active:scale-[0.98]
           disabled:opacity-40 disabled:cursor-not-allowed
           transition-all duration-150
         "

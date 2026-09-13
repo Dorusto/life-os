@@ -157,13 +157,13 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
           className={`
             px-4 py-3 text-sm leading-relaxed rounded-2xl
             ${msg.role === 'user'
-              ? 'bg-accent text-white rounded-br-sm'
-              : 'bg-surface border border-border text-white rounded-bl-sm'
+              ? 'bg-token-brand text-token-ink rounded-br-sm'
+              : 'bg-token-surface border border-token-line text-token-ink rounded-bl-sm'
             }
           `}
         >
           {msg.role === 'assistant' ? (
-            <div className="[&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_ul]:my-1 [&_li]:my-0 [&_a]:text-accent [&_a]:underline">
+            <div className="[&_p]:my-2 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0 [&_ul]:my-1 [&_li]:my-0 [&_a]:text-token-brand-ink [&_a]:underline">
               <ReactMarkdown>{msg.content}</ReactMarkdown>
             </div>
           ) : (
@@ -171,7 +171,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
           )}
         </div>
         {msg.ts && (
-          <span className="text-[10px] text-muted mt-1 px-1">
+          <span className="text-[10px] text-token-ink-3 mt-1 px-1">
             {new Date(msg.ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
         )}
@@ -183,7 +183,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
   // BESPOKE branches reproduce their exact existing behaviour.
   const CARD_RENDER: Record<string, (msg: Message, idx: number) => React.ReactNode | null> = {
     status: (msg) => (
-      <p className="text-xs text-muted italic px-1">{msg.content}</p>
+      <p className="text-xs text-token-ink-3 italic px-1">{msg.content}</p>
     ),
     budget_rebalance: (msg, idx) => {
       if (!msg.budgetRebalance) return null
@@ -1053,7 +1053,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
   }
 
   return (
-    <div className="h-dvh pb-16 bg-background flex flex-col">
+    <div className="h-dvh pb-16 bg-token-paper flex flex-col">
       {/* Header */}
       <PageHeader
         label="Your financial advisor"
@@ -1071,20 +1071,20 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
       {/* Overflow menu — Clear history + Help, moved off the header to make room for
           NotificationBell/Settings parity with the other tabs (#241). */}
       <BottomSheet open={showMenu} onClose={() => setShowMenu(false)} title="More options">
-        <div className="-mx-6 border-t border-border divide-y divide-border">
+        <div className="-mx-6 border-t border-token-line divide-y divide-token-line">
           <button
             onClick={() => { setShowMenu(false); handleClearHistory() }}
             className="w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-white/5 transition-colors"
           >
-            <Trash2 size={16} className="text-danger flex-shrink-0" />
-            <span className="flex-1 text-white text-sm">Clear chat history</span>
+            <Trash2 size={16} className="text-token-loss flex-shrink-0" />
+            <span className="flex-1 text-token-ink text-sm">Clear chat history</span>
           </button>
           <button
             onClick={() => { setShowMenu(false); setShowHelp(true) }}
             className="w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-white/5 transition-colors"
           >
-            <HelpCircle size={16} className="text-muted flex-shrink-0" />
-            <span className="flex-1 text-white text-sm">How to use Majordom</span>
+            <HelpCircle size={16} className="text-token-ink-3 flex-shrink-0" />
+            <span className="flex-1 text-token-ink text-sm">How to use Majordom</span>
           </button>
         </div>
       </BottomSheet>
@@ -1093,67 +1093,67 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
       <BottomSheet open={showHelp} onClose={() => setShowHelp(false)} title="How to use Majordom">
             <div className="space-y-4 text-sm">
               <div>
-                <p className="text-white font-medium mb-1">What is Majordom?</p>
-                <p className="text-muted leading-relaxed">Majordom is your personal finance assistant. Talk to it naturally — it understands your budget, accounts, and spending history.</p>
+                <p className="text-token-ink font-medium mb-1">What is Majordom?</p>
+                <p className="text-token-ink-3 leading-relaxed">Majordom is your personal finance assistant. Talk to it naturally — it understands your budget, accounts, and spending history.</p>
               </div>
 
               <div>
-                <p className="text-white font-medium mb-2">What you can ask</p>
-                <ul className="space-y-1.5 text-muted">
-                  <li className="flex gap-2"><span className="text-accent">→</span> "How much did I spend on groceries this month?"</li>
-                  <li className="flex gap-2"><span className="text-accent">→</span> "Am I over budget on restaurants?"</li>
-                  <li className="flex gap-2"><span className="text-accent">→</span> "Transfer €200 from ING to savings"</li>
-                  <li className="flex gap-2"><span className="text-accent">→</span> "Add a transaction — coffee at Starbucks, €4.50"</li>
-                  <li className="flex gap-2"><span className="text-accent">→</span> "What's my current balance?"</li>
+                <p className="text-token-ink font-medium mb-2">What you can ask</p>
+                <ul className="space-y-1.5 text-token-ink-3">
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> "How much did I spend on groceries this month?"</li>
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> "Am I over budget on restaurants?"</li>
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> "Transfer €200 from ING to savings"</li>
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> "Add a transaction — coffee at Starbucks, €4.50"</li>
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> "What's my current balance?"</li>
                 </ul>
               </div>
 
               <div>
-                <p className="text-white font-medium mb-2">Budget & goals</p>
-                <p className="text-muted mb-2">Goal tracking works by checking that your account balance is on target — you don't need to move money into a separate account.</p>
-                <ul className="space-y-1.5 text-muted">
-                  <li className="flex gap-2"><span className="text-accent">→</span> "Show me my budget for this month"</li>
-                  <li className="flex gap-2"><span className="text-accent">→</span> "Set my Restaurants budget to €150"</li>
-                  <li className="flex gap-2"><span className="text-accent">→</span> "Set a €5000 savings goal on my Car account by 2028"</li>
-                  <li className="flex gap-2"><span className="text-accent">→</span> "Copy last month's budget to this month"</li>
+                <p className="text-token-ink font-medium mb-2">Budget & goals</p>
+                <p className="text-token-ink-3 mb-2">Goal tracking works by checking that your account balance is on target — you don't need to move money into a separate account.</p>
+                <ul className="space-y-1.5 text-token-ink-3">
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> "Show me my budget for this month"</li>
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> "Set my Restaurants budget to €150"</li>
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> "Set a €5000 savings goal on my Car account by 2028"</li>
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> "Copy last month's budget to this month"</li>
                 </ul>
               </div>
 
               <div>
-                <p className="text-white font-medium mb-2">Categories & rules</p>
-                <ul className="space-y-1.5 text-muted">
-                  <li className="flex gap-2"><span className="text-accent">→</span> "Create a category called Hobbies"</li>
-                  <li className="flex gap-2"><span className="text-accent">→</span> "Always categorize Albert Heijn as Groceries"</li>
-                  <li className="flex gap-2"><span className="text-accent">→</span> "Show me my uncategorized transactions"</li>
+                <p className="text-token-ink font-medium mb-2">Categories & rules</p>
+                <ul className="space-y-1.5 text-token-ink-3">
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> "Create a category called Hobbies"</li>
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> "Always categorize Albert Heijn as Groceries"</li>
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> "Show me my uncategorized transactions"</li>
                 </ul>
               </div>
 
               <div>
-                <p className="text-white font-medium mb-2">Vehicle tracking <span className="text-muted font-normal">(if you've enabled the vehicle module)</span></p>
-                <ul className="space-y-1.5 text-muted">
-                  <li className="flex gap-2"><span className="text-accent">→</span> Photograph a gas station receipt — Majordom detects it's fuel and logs the refuel to the right vehicle automatically</li>
-                  <li className="flex gap-2"><span className="text-accent">→</span> "Log a refuel — 45 liters, €78"</li>
-                  <li className="flex gap-2"><span className="text-accent">→</span> "How many km until my next service?"</li>
-                  <li className="flex gap-2"><span className="text-accent">→</span> "Remind me before my APK expires"</li>
+                <p className="text-token-ink font-medium mb-2">Vehicle tracking <span className="text-token-ink-3 font-normal">(if you've enabled the vehicle module)</span></p>
+                <ul className="space-y-1.5 text-token-ink-3">
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> Photograph a gas station receipt — Majordom detects it's fuel and logs the refuel to the right vehicle automatically</li>
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> "Log a refuel — 45 liters, €78"</li>
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> "How many km until my next service?"</li>
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> "Remind me before my APK expires"</li>
                 </ul>
               </div>
 
               <div>
-                <p className="text-white font-medium mb-2">Import bank transactions</p>
-                <p className="text-muted leading-relaxed">Tap <span className="text-white font-medium">+</span> in the input bar to:</p>
-                <ul className="space-y-1 text-muted mt-1">
-                  <li className="flex gap-2"><span className="text-accent">→</span> Take a photo of a receipt</li>
-                  <li className="flex gap-2"><span className="text-accent">→</span> Upload a CSV export from your bank</li>
+                <p className="text-token-ink font-medium mb-2">Import bank transactions</p>
+                <p className="text-token-ink-3 leading-relaxed">Tap <span className="text-token-ink font-medium">+</span> in the input bar to:</p>
+                <ul className="space-y-1 text-token-ink-3 mt-1">
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> Take a photo of a receipt</li>
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> Upload a CSV export from your bank</li>
                 </ul>
               </div>
 
               <div>
-                <p className="text-white font-medium mb-2">Tips</p>
-                <ul className="space-y-1.5 text-muted">
-                  <li className="flex gap-2"><span className="text-accent">→</span> Majordom learns your merchants — categories improve over time</li>
-                  <li className="flex gap-2"><span className="text-accent">→</span> Always review transactions marked with <span className="text-yellow-500 font-medium">?</span> before importing</li>
-                  <li className="flex gap-2"><span className="text-accent">→</span> Income and transfers need to be named once — Majordom remembers them</li>
-                  <li className="flex gap-2"><span className="text-accent">→</span> Ask "when's my next backup?" or "notify me at 8pm instead" to check or adjust alerts</li>
+                <p className="text-token-ink font-medium mb-2">Tips</p>
+                <ul className="space-y-1.5 text-token-ink-3">
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> Majordom learns your merchants — categories improve over time</li>
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> Always review transactions marked with <span className="text-token-warn font-medium">?</span> before importing</li>
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> Income and transfers need to be named once — Majordom remembers them</li>
+                  <li className="flex gap-2"><span className="text-token-brand-ink">→</span> Ask "when's my next backup?" or "notify me at 8pm instead" to check or adjust alerts</li>
                 </ul>
               </div>
             </div>
@@ -1173,7 +1173,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
         {/* Loading indicator — hidden once text starts streaming in */}
         {loading && messages[messages.length - 1]?.role !== 'assistant' && (
           <div className="flex items-end gap-2">
-            <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3">
+            <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3">
               <TypingDots />
             </div>
           </div>
@@ -1182,13 +1182,13 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
         {/* Starter suggestions (only shown when there are only welcome message) */}
         {messages.length === 1 && (
           <div className="space-y-2 mt-6">
-            <p className="text-muted text-sm">Try asking:</p>
+            <p className="text-token-ink-3 text-sm">Try asking:</p>
             <div className="flex flex-wrap gap-2">
               {starterSuggestions.map((suggestion, idx) => (
                 <button
                   key={idx}
                   onClick={() => handleSuggestionClick(suggestion)}
-                  className="bg-surface hover:bg-surface-hover border border-border text-white text-sm px-4 py-2 rounded-xl transition-colors"
+                  className="bg-token-surface hover:bg-token-surface-2 border border-token-line text-token-ink text-sm px-4 py-2 rounded-xl transition-colors"
                 >
                   {suggestion}
                 </button>
@@ -1203,7 +1203,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
       {/* Input bar */}
       <form
         onSubmit={handleSend}
-        className="flex-shrink-0 bg-background border-t border-border px-4 py-3 flex gap-2 items-end"
+        className="flex-shrink-0 bg-token-paper border-t border-token-line px-4 py-3 flex gap-2 items-end"
       >
         {/* + media button */}
         <div className="relative flex-shrink-0" ref={mediaMenuRef}>
@@ -1213,8 +1213,8 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
             className={`
               w-10 h-10 rounded-xl border flex items-center justify-center transition-all
               ${showMediaMenu
-                ? 'bg-accent border-accent text-white'
-                : 'bg-surface border-border text-muted hover:border-accent hover:text-white'}
+                ? 'bg-token-brand border-token-brand text-token-ink'
+                : 'bg-token-surface border-token-line text-token-ink-3 hover:border-token-brand hover:text-token-ink'}
             `}
             aria-label="Add media"
           >
@@ -1222,7 +1222,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
           </button>
 
           {showMediaMenu && (
-            <div className="absolute bottom-12 left-0 w-[208px] bg-surface border border-border rounded-2xl shadow-xl overflow-hidden z-50">
+            <div className="absolute bottom-12 left-0 w-[208px] bg-token-surface border border-token-line rounded-2xl shadow-xl overflow-hidden z-50">
               {([
                 { icon: Camera,   label: 'Take photo',          action: () => cameraInputRef.current?.click() },
                 { icon: Image,    label: 'Choose from gallery',  action: () => galleryInputRef.current?.click() },
@@ -1232,9 +1232,9 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
                   key={label}
                   type="button"
                   onClick={() => { action(); setShowMediaMenu(false) }}
-                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-white hover:bg-surface-hover transition-colors text-left"
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-token-ink hover:bg-token-surface-2 transition-colors text-left"
                 >
-                  <Icon size={16} className="text-muted flex-shrink-0" />
+                  <Icon size={16} className="text-token-ink-3 flex-shrink-0" />
                   {label}
                 </button>
               ))}
@@ -1250,9 +1250,9 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
           placeholder="Ask about your spending…"
           rows={1}
           className="
-            flex-1 bg-surface border border-border rounded-xl px-4 py-3
-            text-white text-sm placeholder:text-muted
-            focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent
+            flex-1 bg-token-surface border border-token-line rounded-xl px-4 py-3
+            text-token-ink text-sm placeholder:text-token-ink-3
+            focus:outline-none focus:border-token-brand focus:ring-1 focus:ring-token-brand
             resize-none transition-colors
           "
           style={{ maxHeight: '120px', overflowY: 'auto' }}
@@ -1261,14 +1261,14 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
           type="submit"
           disabled={!input.trim() || loading}
           className="
-            w-10 h-10 rounded-xl bg-accent hover:bg-accent-hover
+            w-10 h-10 rounded-xl bg-token-brand hover:bg-token-brand-2
             flex items-center justify-center flex-shrink-0
             disabled:opacity-40 disabled:cursor-not-allowed
             active:scale-95 transition-all duration-150
           "
           aria-label="Send"
         >
-          <Send size={16} className="text-white" />
+          <Send size={16} className="text-token-ink" />
         </button>
       </form>
 
@@ -1321,7 +1321,7 @@ function TypingDots() {
       {[0, 1, 2].map(i => (
         <span
           key={i}
-          className="w-1.5 h-1.5 rounded-full bg-muted animate-bounce"
+          className="w-1.5 h-1.5 rounded-full bg-token-ink-3 animate-bounce"
           style={{ animationDelay: `${i * 150}ms` }}
         />
       ))}
@@ -1344,28 +1344,28 @@ function PendingFuelStatsDisplay({ msg, draft: propDraft, stats: propStats }: {
   const name = resolvedStats.vehicle_name ?? vehicleName
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm max-w-[420px] w-full px-4 py-3 space-y-1">
+    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm max-w-[420px] w-full px-4 py-3 space-y-1">
       {resolvedStats.success ? (
         <>
-          <p className="text-sm text-white font-medium">✅ Refuel logged — {name}</p>
+          <p className="text-sm text-token-ink font-medium">✅ Refuel logged — {name}</p>
           {resolvedStats.liters != null && (
-            <p className="text-xs text-muted">
+            <p className="text-xs text-token-ink-3">
               {resolvedStats.liters}L
               {resolvedStats.price_per_liter != null && ` → ${formatCurrency(resolvedStats.price_per_liter, { decimals: 3 })}/L`}
               {resolvedStats.fuel_grade && ` (${resolvedStats.fuel_grade})`}
             </p>
           )}
           {(resolvedStats.km_since_last != null || resolvedStats.consumption_l100km != null || resolvedStats.cost_per_km != null) && (
-            <p className="text-xs text-muted">
+            <p className="text-xs text-token-ink-3">
               {resolvedStats.km_since_last != null && `+${formatNumber(resolvedStats.km_since_last)} km`}
               {resolvedStats.consumption_l100km != null && `  |  ${formatNumber(resolvedStats.consumption_l100km, 1)} L/100km`}
               {resolvedStats.cost_per_km != null && `  |  ${formatCurrency(resolvedStats.cost_per_km, { decimals: 3 })}/km`}
             </p>
           )}
-          {resolvedDraft?.merchant && <p className="text-xs text-muted">{resolvedDraft.merchant}</p>}
+          {resolvedDraft?.merchant && <p className="text-xs text-token-ink-3">{resolvedDraft.merchant}</p>}
         </>
       ) : (
-        <p className="text-xs text-red-400">❌ Failed to save fuel receipt.</p>
+        <p className="text-xs text-token-loss">❌ Failed to save fuel receipt.</p>
       )}
     </div>
   )
