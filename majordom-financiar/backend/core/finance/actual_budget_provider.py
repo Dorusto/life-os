@@ -309,6 +309,13 @@ class ActualBudgetProvider:
     ) -> list[dict]:
         return await self._client().get_balance_history(scope, days, end_date)
 
+    async def get_net_worth_history(
+        self, granularity: str = "month", include_types: list[str] | None = None
+    ) -> dict:
+        return await self._client().get_net_worth_history(
+            granularity, include_types,
+        )
+
     async def bulk_update_category(self, financial_ids: list[str], category_id: str) -> int:
         return await self._client().bulk_update_category(financial_ids, category_id)
 

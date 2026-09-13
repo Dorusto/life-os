@@ -1,10 +1,13 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import {
+  ACCOUNT_TYPES,
   getSpendingChartData,
   getBudgetChartData,
   getSpendingTrendData,
   getSavingsRateData,
+  getNetWorthHistory,
+  type NetWorthHistoryPoint,
 } from '../lib/api'
 import Chart from '../components/Chart'
 import PageHeader from '../components/PageHeader'
@@ -20,8 +23,9 @@ import { formatCurrency } from '../lib/formatCurrency'
  * unchanged. Trends re-slices the spending-trend response (no new endpoint, no
  * period change) into Expenses / Income / Savings bar + cumulative line views.
  * Cash Flow pairs that response's own latest month with the month-scoped
- * spending breakdown, both pinned to the same period. Net Worth is a later pass
- * of issue 15.
+ * spending breakdown, both pinned to the same period. Net Worth asks the
+ * dedicated net-worth-history endpoint for account balances at each period end
+ * and draws assets, liabilities and the resulting net as charts.
  *
  * See docs/decisions.md#planned-folded-into-analytics.
  */
@@ -41,6 +45,13 @@ const TREND_TABS: { value: TrendTab; label: string }[] = [
   { value: 'expenses', label: 'Expenses' },
   { value: 'income', label: 'Income' },
   { value: 'savings', label: 'Savings' },
+]
+
+type Granularity = 'month' | 'week'
+
+const GRANULARITY_TABS: { value: Granularity; label: string }[] = [
+  { value: 'month', label: 'Monthly' },
+  { value: 'week', label: 'Weekly' },
 ]
 
 /** Pill tab strip — same token-class pattern as AccountDetail's Details/Transactions switch. */
@@ -119,6 +130,27 @@ export default function AnalyticsPage() {
     queryFn: () => getSavingsRateData(),
     staleTime: 120_000,
   })
+
+  // --- Net Worth ---
+  //
+  // Both controls are server-side: every bucket is a balance snapshot summed over
+  // the selected accounts, so changing the granularity or the type filter means
+  // recomputing, not re-slicing. The endpoint reads through the cached read
+  // connection (rule 32), so re-requesting the same parameters is cheap.
+  const [netWorthGranularity, setNetWorthGranularity] = useState<Granularity>('month')
+  const [netWorthTypes, setNetWorthTypes] = useState<string[]>([])
+
+  const netWorthQuery = useQuery({
+    queryKey: ['analytics-net-worth', netWorthGranularity, netWorthTypes],
+    queryFn: () => getNetWorthHistory(netWorthGranularity, netWorthTypes),
+    staleTime: 120_000,
+  })
+
+  function toggleNetWorthType(type: string) {
+    setNetWorthTypes((prev) =>
+      prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]
+    )
+  }
 
   // --- Cash Flow ---
   //
@@ -339,6 +371,125 @@ export default function AnalyticsPage() {
     )
   }
 
+  // --- Net Worth section ---
+  //
+  // Deliberately two bar charts rather than one stacked chart: Chart's bar
+  // renderer scales every series against one shared maximum, so a single chart
+  // would flatten the liabilities bars (a few thousand) beside the assets (an
+  // order of magnitude larger). Two charts read correctly and need no change to
+  // Chart.tsx's contract, so the Dashboard widgets are untouched.
+  function renderNetWorth() {
+    const periodLabel = netWorthGranularity === 'month' ? 'monthly' : 'weekly'
+
+    function renderBody() {
+      if (netWorthQuery.isLoading) {
+        return <WidgetLoading label="Loading net worth history…" />
+      }
+      if (netWorthQuery.isError || !netWorthQuery.data) {
+        return <p className="text-token-ink-3 text-xs">Couldn't load net worth history.</p>
+      }
+
+      const { points, account_count } = netWorthQuery.data
+
+      // A type filter matching no account is a real state, and an all-zero chart
+      // would misread as "net worth is zero" rather than "nothing to include".
+      // The controls stay above this, so it's escapable.
+      if (account_count === 0) {
+        return (
+          <p className="text-token-ink-3 text-xs">
+            No accounts carry the selected type{netWorthTypes.length === 1 ? '' : 's'} — untick a
+            filter to widen the history.
+          </p>
+        )
+      }
+      if (points.length === 0) {
+        return <p className="text-token-ink-3 text-xs">No account balances to chart yet.</p>
+      }
+
+      // One series per point — the shared bar renderer draws each value in a
+      // point independently (the shape Trends builds too). No month/year on these
+      // points: a point is a balance snapshot, so the renderer's "View
+      // transactions" drill-down would open an unrelated month's transactions
+      // rather than anything that explains the balance.
+      function barData(label: string, valueOf: (point: NetWorthHistoryPoint) => number) {
+        return {
+          series: [{ label, color: colorForKey(label) }],
+          points: points.map((point) => ({ x: point.x, values: [valueOf(point)] })),
+        }
+      }
+
+      return (
+        <div className="space-y-6">
+          <Chart
+            chart_type="bar"
+            title={`Assets · ${periodLabel}`}
+            data={barData('Assets', (point) => point.assets)}
+          />
+          <Chart
+            chart_type="bar"
+            title={`Liabilities · ${periodLabel}`}
+            data={barData('Liabilities', (point) => point.liabilities)}
+          />
+          {/* The section's headline figure, from the same snapshots — assets
+              minus liabilities, which is the one series here that isn't a
+              magnitude-scaled bar. */}
+          <Chart
+            chart_type="line"
+            title={`Net worth · ${periodLabel}`}
+            data={{
+              series: [
+                {
+                  label: 'Net worth',
+                  color: colorForKey('Net worth'),
+                  points: points.map((point) => ({ x: point.x, y: point.net })),
+                },
+              ],
+            }}
+          />
+        </div>
+      )
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+          <PillTabs
+            tabs={GRANULARITY_TABS}
+            value={netWorthGranularity}
+            onChange={setNetWorthGranularity}
+          />
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-[11px] text-token-ink-3 uppercase tracking-wide">Include</span>
+            {ACCOUNT_TYPES.map((type) => (
+              <label
+                key={type}
+                className="flex items-center gap-1.5 text-xs text-token-ink cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={netWorthTypes.includes(type)}
+                  onChange={() => toggleNetWorthType(type)}
+                  className="accent-token-brand"
+                />
+                {type}
+              </label>
+            ))}
+          </div>
+        </div>
+
+        <p className="text-[11px] text-token-ink-3">
+          Balances at each {periodLabel} period end — an account counts as an asset while its balance
+          is positive and as a liability while it is negative.
+          {netWorthTypes.length === 0
+            ? ' All accounts included.'
+            : ` Filtered to ${netWorthTypes.join(', ')} accounts, by the type they carry today.`}
+        </p>
+
+        {renderBody()}
+      </div>
+    )
+  }
+
   return (
     <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
       <PageHeader
@@ -363,13 +514,7 @@ export default function AnalyticsPage() {
 
         {section === 'cashflow' && renderCashFlow()}
 
-        {/* Net Worth is a separate sub-spec of issue 15. */}
-
-        {section === 'networth' && (
-          <p className="text-token-ink-3 text-sm text-center py-8">
-            Net Worth is coming in a later pass.
-          </p>
-        )}
+        {section === 'networth' && renderNetWorth()}
       </section>
     </div>
   )

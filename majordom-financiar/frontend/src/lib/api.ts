@@ -330,6 +330,51 @@ export async function getSavingsRateData(): Promise<ChartResponse> {
   return request<ChartResponse>('/finance/savings-rate')
 }
 
+// --- Net worth history (Analytics → Net Worth, issue 15 part 3) ---
+
+export interface NetWorthHistoryPoint {
+  /** The bucket's own x label, e.g. "Aug '25" (month) or "W34 '25" (week). */
+  x: string
+  /** Present only when the bucket is a calendar month — same convention as the
+   *  spending-trend points, so a caller can pin a month-scoped view to it. */
+  month?: number
+  year?: number
+  /** Last day folded into this bucket's snapshot (YYYY-MM-DD). */
+  end_date: string
+  /** Positive balances at `end_date`, summed across the included accounts. */
+  assets: number
+  /** Absolute value of every negative balance at `end_date`, summed. */
+  liabilities: number
+  /** assets − liabilities. */
+  net: number
+}
+
+export interface NetWorthHistory {
+  granularity: 'month' | 'week'
+  /** How many accounts the snapshots were summed over — 0 means the type filter
+   *  matched nothing, which is not the same as a net worth of zero. */
+  account_count: number
+  /** Oldest first, already capped to the endpoint's max bucket count. */
+  points: NetWorthHistoryPoint[]
+}
+
+/**
+ * Assets vs liabilities per period end (#15 part 3).
+ *
+ * `include` is a list of ACCOUNT_TYPES values; empty means every account. The
+ * filter is a *current* account-type tag with no history, so it selects which
+ * accounts the snapshots are summed over — it does not change how each snapshot
+ * is split into assets and liabilities (that follows the balance's sign).
+ */
+export async function getNetWorthHistory(
+  granularity: 'month' | 'week' = 'month',
+  include: string[] = []
+): Promise<NetWorthHistory> {
+  const qs = new URLSearchParams({ granularity })
+  if (include.length > 0) qs.set('include', include.join(','))
+  return request<NetWorthHistory>(`/finance/net-worth-history?${qs}`)
+}
+
 export async function setAccountType(accountId: string, accountType: string): Promise<AccountListItem> {
   return request<AccountListItem>(`/accounts/${accountId}/type`, {
     method: 'POST',
