@@ -23,6 +23,7 @@ import Chat, { type Message, INITIAL_MESSAGES } from './pages/Chat'
 import { getChatHistory } from './lib/api'
 import BottomNav from './components/BottomNav'
 import AbConnectionBanner from './components/AbConnectionBanner'
+import { AppShell } from './components/AppShell'
 
 /**
  * ProtectedRoute: redirects to /login if the user is not authenticated.
@@ -130,7 +131,8 @@ function Layout() {
 
   return (
     <>
-      <div className="md:max-w-[480px] md:mx-auto md:min-h-dvh md:border-x md:border-border">
+      <AppShell>
+      <div className="lg:mx-auto lg:max-w-5xl">
         <Routes>
         <Route path="/login" element={<Login />} />
         <Route
@@ -257,6 +259,7 @@ function Layout() {
         <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
+      </AppShell>
 
       {/* Bottom nav rendered outside Routes so it persists across page changes */}
       {showNav && isAuthenticated() && <BottomNav />}

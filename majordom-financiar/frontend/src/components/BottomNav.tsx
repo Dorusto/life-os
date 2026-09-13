@@ -3,7 +3,9 @@ import { LayoutGrid, Layers, Table2, MessageCircle, BarChart3 } from 'lucide-rea
 
 /**
  * Bottom navigation bar — 5 persistent tabs (decisions.md#planned-folded-into-analytics).
- * Hidden on /login and /receipt (full-screen flows).
+ * Hidden on /login and /receipt (full-screen flows), and at `lg:` and up, where
+ * `AppShell`'s desktop rail (same 5 destinations) takes over instead — see
+ * tools/design-unification-plan.md Phase 1c.
  * CSV import and Photo capture are reached via the + Add button in headers.
  *
  * Uses NavLink so the active tab is highlighted automatically.
@@ -20,13 +22,7 @@ const tabs = [
 
 export default function BottomNav() {
   return (
-    <nav className="
-      fixed bottom-0 left-0 right-0 z-50
-      md:max-w-[480px] md:mx-auto md:left-0 md:right-0
-      bg-surface border-t border-border
-      flex items-stretch
-      pb-safe
-    ">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-stretch border-t border-token-line bg-token-surface pb-safe lg:hidden">
       {tabs.map(({ to, icon: Icon, label }) => (
         <NavLink
           key={to}
@@ -35,7 +31,7 @@ export default function BottomNav() {
           className={({ isActive }) => `
             flex-1 flex flex-col items-center justify-center gap-1 py-3
             text-[10px] font-medium transition-colors
-            ${isActive ? 'text-accent' : 'text-muted hover:text-white'}
+            ${isActive ? 'text-token-brand-ink' : 'text-token-ink-3 hover:text-token-ink'}
           `}
         >
           {({ isActive }) => (
