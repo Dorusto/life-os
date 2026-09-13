@@ -1,15 +1,9 @@
 import { type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Home, History, BarChart3, Car, LogOut } from 'lucide-react'
+import { Car, LogOut } from 'lucide-react'
 import { clearAuth, getUsername } from '../lib/auth'
+import { NAV_TABS } from '../lib/navTabs'
 import { cn } from '../lib/ui'
-
-const NAV = [
-  { to: '/', label: 'Home', icon: Home, end: true },
-  { to: '/timeline', label: 'Timeline', icon: History, end: false },
-  { to: '/stats', label: 'Stats', icon: BarChart3, end: false },
-  { to: '/vehicles', label: 'Vehicles', icon: Car, end: false },
-]
 
 function BrandMark() {
   return (
@@ -48,7 +42,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
         <nav className="flex-1 space-y-1 px-3">
-          {NAV.map(({ to, label, icon: Icon, end }) => (
+          {NAV_TABS.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}

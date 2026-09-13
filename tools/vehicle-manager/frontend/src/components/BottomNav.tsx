@@ -1,12 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { Home, History, BarChart3, Car } from 'lucide-react'
-
-const TABS = [
-  { to: '/', label: 'Home', icon: Home, end: true },
-  { to: '/timeline', label: 'Timeline', icon: History, end: false },
-  { to: '/stats', label: 'Stats', icon: BarChart3, end: false },
-  { to: '/vehicles', label: 'Vehicles', icon: Car, end: false },
-]
+import { NAV_TABS } from '../lib/navTabs'
 
 /**
  * Fixed bottom tab bar, mirroring Fuelio's Home / Timeline / Costs / More
@@ -17,7 +10,7 @@ export default function BottomNav() {
   return (
     <nav className="fixed inset-x-0 bottom-0 z-[20] border-t border-line bg-surface lg:hidden">
       <div className="flex items-stretch">
-        {TABS.map(({ to, label, icon: Icon, end }) => (
+        {NAV_TABS.map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}
