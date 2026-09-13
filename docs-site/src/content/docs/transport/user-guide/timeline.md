@@ -22,10 +22,10 @@ All entries are collected by the month they were recorded, newest month at the t
 Each entry card shows:
 
 - **Icon** – a small circle with an icon that matches the entry type:
-  - 🛢️ Fuel → a fuel drop
-  - 🛡️ Insurance → a shield
-  - 🔧 Service / Maintenance → a wrench
-  - 💵 Other → a dollar circle
+  - Fuel → a fuel‑drop icon
+  - Insurance → a shield icon
+  - Service / Maintenance → a wrench icon
+  - Other → a dollar‑circle icon
 - **Type label** – the human‑readable category (Fuel, Service, Maintenance, Insurance, Other).
 - **Cost** – displayed on the right, right‑aligned in a monospaced font, using the currency format configured in the app.
 - **Date and odometer** – the date the entry was recorded and, if available, the odometer reading (e.g. “12 Sep 2026 · 42,000 km”).
@@ -37,7 +37,7 @@ Each entry card shows:
 
 ## Delete button
 
-Every entry has a trash can icon on the right. Tapping it permanently removes that entry and automatically refreshes both the log and the summary data (including consumption stats and reminders). There is no confirmation step – the entry is deleted immediately.
+Every entry has a trash‑can icon on the right. Tapping it permanently removes that entry and automatically refreshes both the log and the summary data (including consumption stats and reminders). There is no confirmation step – the entry is deleted immediately.
 
 ## Empty state
 
