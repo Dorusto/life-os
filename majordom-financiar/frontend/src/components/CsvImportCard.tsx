@@ -524,12 +524,12 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
                           )}
                         </div>
                         {row.categoryName !== '' && (
-                          <label className="flex items-center gap-1 text-[10px] text-muted mt-0.5 cursor-pointer">
+                          <label className="flex items-center gap-1 text-[10px] text-token-ink-3 mt-0.5 cursor-pointer">
                             <input
                               type="checkbox"
                               checked={row.createRule}
                               onChange={() => handleToggleCreateRule(row.id)}
-                              className="rounded border-border h-2.5 w-2.5"
+                              className="rounded border-token-line h-2.5 w-2.5"
                             />
                             Save as rule
                           </label>
