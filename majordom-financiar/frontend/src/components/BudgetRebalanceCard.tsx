@@ -89,7 +89,7 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
             className={selectClass}
           >
             {categories.map(c => (
-              <option key={c.name} value={c.name} style={{ background: '#1A1A1A' }}>
+              <option key={c.name} value={c.name} style={{ background: 'var(--surface-2)' }}>
                 {c.name} · {formatCurrency(c.budgeted)}
               </option>
             ))}
@@ -111,7 +111,7 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
             className={selectClass}
           >
             {categories.map(c => (
-              <option key={c.name} value={c.name} style={{ background: '#1A1A1A' }}>
+              <option key={c.name} value={c.name} style={{ background: 'var(--surface-2)' }}>
                 {c.name} · {formatCurrency(c.budgeted)}
               </option>
             ))}

@@ -86,7 +86,7 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
             className={selectClass}
           >
             {accounts.map(a => (
-              <option key={a.id} value={a.id} style={{ background: '#1A1A1A' }}>
+              <option key={a.id} value={a.id} style={{ background: 'var(--surface-2)' }}>
                 {a.name} · {formatCurrency(a.balance)}
               </option>
             ))}
@@ -143,7 +143,7 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
                 className={selectClass}
               >
                 {accounts.map(a => (
-                  <option key={a.id} value={a.id} style={{ background: '#1A1A1A' }}>
+                  <option key={a.id} value={a.id} style={{ background: 'var(--surface-2)' }}>
                     {a.name} · {formatCurrency(a.balance)}
                   </option>
                 ))}
