@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { Settings as SettingsIcon } from 'lucide-react'
 import { cn } from '../lib/ui'
+import { NotificationBell } from './NotificationBell'
 
 /**
  * Shared class for an icon-only control in the top-right group. Kept in one
@@ -23,6 +24,7 @@ export function TopBarActions() {
       <Link to="/settings" className={iconControlClass} aria-label="Settings" title="Settings">
         <SettingsIcon className="h-[18px] w-[18px]" aria-hidden />
       </Link>
+      <NotificationBell buttonClassName={iconControlClass} />
     </div>
   )
 }
