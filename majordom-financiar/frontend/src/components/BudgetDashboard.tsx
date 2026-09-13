@@ -161,9 +161,9 @@ export default function BudgetDashboard({ categories, editing, onDataChange }: P
   }
 
   return (
-    <div className="border-t border-border/40 px-4 pb-2">
+    <div className="border-t border-token-line px-4 pb-2">
       {orderedGroups.length === 0 && !editing ? (
-        <p className="text-muted text-sm text-center py-4">No budget data this month</p>
+        <p className="text-token-ink-3 text-sm text-center py-4">No budget data this month</p>
       ) : (
         <div>
           {orderedGroups.map((groupName, idx) => {
@@ -176,7 +176,7 @@ export default function BudgetDashboard({ categories, editing, onDataChange }: P
             const groupColor = groupName === 'Income' ? INCOME_COLOR : colorForKey(groupName)
 
             return (
-              <div key={groupName} className={isLast ? '' : 'border-b border-border/20'}>
+              <div key={groupName} className={isLast ? '' : 'border-b border-token-line'}>
                 <GroupRow
                   name={groupName}
                   color={groupColor}
@@ -218,12 +218,12 @@ export default function BudgetDashboard({ categories, editing, onDataChange }: P
                               if (e.key === 'Enter') handleAddCategory(groupName)
                               if (e.key === 'Escape') { setAddingCategoryGroup(null); setNewCategoryValue('') }
                             }}
-                            className="w-full bg-background border border-accent rounded-lg px-3 py-1.5 text-white text-sm outline-none"
+                            className="w-full bg-token-paper border border-token-brand rounded-lg px-3 py-1.5 text-token-ink text-sm outline-none"
                           />
                         ) : (
                           <button
                             onClick={() => { setAddingCategoryGroup(groupName); setNewCategoryValue('') }}
-                            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl border border-dashed border-border text-accent text-sm font-medium hover:bg-surface-hover transition-colors"
+                            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-xl border border-dashed border-token-line text-token-brand-ink text-sm font-medium hover:bg-token-surface-2 transition-colors"
                           >
                             <Plus size={14} /> Add category
                           </button>
@@ -248,12 +248,12 @@ export default function BudgetDashboard({ categories, editing, onDataChange }: P
                     if (e.key === 'Enter') handleAddGroup()
                     if (e.key === 'Escape') { setAddingGroup(false); setNewGroupValue('') }
                   }}
-                  className="w-full bg-background border border-accent rounded-lg px-3 py-2 text-white text-sm outline-none"
+                  className="w-full bg-token-paper border border-token-brand rounded-lg px-3 py-2 text-token-ink text-sm outline-none"
                 />
               ) : (
                 <button
                   onClick={() => setAddingGroup(true)}
-                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-border text-accent text-sm font-medium hover:bg-surface-hover transition-colors"
+                  className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-token-line text-token-brand-ink text-sm font-medium hover:bg-token-surface-2 transition-colors"
                 >
                   <Plus size={14} /> Add group
                 </button>
@@ -261,7 +261,7 @@ export default function BudgetDashboard({ categories, editing, onDataChange }: P
             </div>
           )}
           {uiError && editing && (
-            <p className="text-danger text-xs mt-2 px-1">{uiError}</p>
+            <p className="text-token-loss text-xs mt-2 px-1">{uiError}</p>
           )}
         </div>
       )}
@@ -311,16 +311,16 @@ function GroupRow({
       >
         <div className="flex items-center gap-2 min-w-0">
           <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-          <span className="text-white text-sm font-semibold truncate">{name}</span>
+          <span className="text-token-ink text-sm font-semibold truncate">{name}</span>
           <button
             onClick={(e) => { e.stopPropagation(); onToggle() }}
-            className="text-muted hover:text-white transition-colors"
+            className="text-token-ink-3 hover:text-token-ink transition-colors"
             aria-label={isExpanded ? 'Collapse' : 'Expand'}
           >
             {isExpanded ? '▲' : '▼'}
           </button>
           {editing && index === 0 && (
-            <span className="text-muted-2 text-[10px] uppercase tracking-wide ml-1">top</span>
+            <span className="text-token-ink-2 text-[10px] uppercase tracking-wide ml-1">top</span>
           )}
         </div>
         <div className="flex items-center gap-3 flex-shrink-0 ml-2">
@@ -329,7 +329,7 @@ function GroupRow({
               <button
                 onClick={() => onMove(-1)}
                 disabled={index === 0}
-                className="w-6 h-6 rounded-lg bg-surface-2 border border-border text-muted hover:text-white disabled:opacity-40 flex items-center justify-center"
+                className="w-6 h-6 rounded-lg bg-token-surface-2 border border-token-line text-token-ink-3 hover:text-token-ink disabled:opacity-40 flex items-center justify-center"
                 aria-label={`Move ${name} up`}
               >
                 <ChevronUp size={13} />
@@ -337,27 +337,27 @@ function GroupRow({
               <button
                 onClick={() => onMove(1)}
                 disabled={index === total - 1}
-                className="w-6 h-6 rounded-lg bg-surface-2 border border-border text-muted hover:text-white disabled:opacity-40 flex items-center justify-center"
+                className="w-6 h-6 rounded-lg bg-token-surface-2 border border-token-line text-token-ink-3 hover:text-token-ink disabled:opacity-40 flex items-center justify-center"
                 aria-label={`Move ${name} down`}
               >
                 <ChevronDown size={13} />
               </button>
               <button
                 onClick={onDelete}
-                className="w-6 h-6 rounded-lg bg-danger/15 border border-danger/40 text-danger hover:bg-danger/25 flex items-center justify-center"
+                className="w-6 h-6 rounded-lg bg-token-loss border border-token-loss text-token-loss hover:bg-token-loss flex items-center justify-center"
                 aria-label={`Delete ${name} group`}
               >
                 <Trash2 size={13} />
               </button>
             </div>
           )}
-          <span className={`font-mono text-sm tabular-nums ${isIncome ? 'text-positive' : 'text-white'}`}>
+          <span className={`font-plex-mono text-sm tabular-nums ${isIncome ? 'text-token-gain' : 'text-token-ink'}`}>
             {formatCurrency(spent)}
           </span>
         </div>
       </div>
       {hasBudget && (
-        <div className="h-1.5 bg-border rounded-full overflow-hidden mt-2 ml-[18px]">
+        <div className="h-1.5 bg-token-line rounded-full overflow-hidden mt-2 ml-[18px]">
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{ width: `${Math.min(percentage, 100)}%`, backgroundColor: barColor }}
@@ -385,16 +385,16 @@ function SubcategoryRow({
   const hasBudget = budgeted > 0
   const barColor = getBudgetColor(percentage, budgeted)
   return (
-    <button onClick={onClick} className={`w-full text-left py-2 ${isLast ? '' : 'border-b border-border/10'}`}>
+    <button onClick={onClick} className={`w-full text-left py-2 ${isLast ? '' : 'border-b border-token-line'}`}>
       <div className="flex items-center justify-between gap-3 ml-3">
         <div className="flex items-center gap-2 min-w-0">
           <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-          <span className="text-muted text-xs truncate">{category_name}</span>
+          <span className="text-token-ink-3 text-xs truncate">{category_name}</span>
         </div>
-        <span className="font-mono text-xs tabular-nums text-white">{formatCurrency(spent)}</span>
+        <span className="font-plex-mono text-xs tabular-nums text-token-ink">{formatCurrency(spent)}</span>
       </div>
       {hasBudget && (
-        <div className="h-1.5 bg-border rounded-full overflow-hidden mt-1.5 ml-[15px]">
+        <div className="h-1.5 bg-token-line rounded-full overflow-hidden mt-1.5 ml-[15px]">
           <div
             className="h-full rounded-full transition-all duration-500"
             style={{ width: `${Math.min(percentage, 100)}%`, backgroundColor: barColor }}
