@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { isAuthenticated } from './lib/auth'
+import { AppShell } from './components/AppShell'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import VehicleList from './pages/VehicleList'
@@ -23,7 +24,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const protectedPage = (node: React.ReactNode) => <ProtectedRoute>{node}</ProtectedRoute>
+  const protectedPage = (node: React.ReactNode) => (
+    <ProtectedRoute>
+      <AppShell>{node}</AppShell>
+    </ProtectedRoute>
+  )
 
   return (
     <BrowserRouter>
