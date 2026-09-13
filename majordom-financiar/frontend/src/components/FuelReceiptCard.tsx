@@ -171,7 +171,7 @@ export default function FuelReceiptCard({
   const labelCls = 'text-xs text-token-ink-3 uppercase tracking-wide'
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm max-w-[420px] w-full overflow-hidden">
+    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm max-w-[420px] w-full overflow-hidden">
       {/* Photo thumbnail — only shown if imageUrl is provided */}
       {imageUrl && (
         <div className="relative w-full h-[112px] bg-black flex-shrink-0">
