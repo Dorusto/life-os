@@ -22,7 +22,10 @@ interface PieSegment {
 interface PieData {
   total: number
   income: number
-  count: number
+  /** Optional: a pie whose source has no transaction count (e.g. the
+      dashboard's budget-derived "Expenses Structure") omits it, and the header
+      hides the subtitle rather than stating a false "0 transactions". */
+  count?: number
   segments: PieSegment[]
 }
 
@@ -110,7 +113,7 @@ interface MonthRangeRefetch {
 type RefetchConfig = PeriodButtonsRefetch | MonthNavRefetch | MonthRangeRefetch
 
 type ChartProps =
-  | { chart_type: 'pie'; title: string; data: PieData; refetch?: RefetchConfig }
+  | { chart_type: 'pie'; title: string; data: PieData; refetch?: RefetchConfig; bare?: boolean }
   | { chart_type: 'progress_list'; title: string; data: ProgressListData; refetch?: RefetchConfig }
   | { chart_type: 'bar'; title: string; data: BarData; refetch?: RefetchConfig }
   // `bare` drops the chart's own bg-surface/rounded/padding wrapper, for a
@@ -122,7 +125,7 @@ type ChartProps =
 export default function Chart(props: ChartProps) {
   switch (props.chart_type) {
     case 'pie':
-      return <PieChart title={props.title} data={props.data} refetch={props.refetch} />
+      return <PieChart title={props.title} data={props.data} refetch={props.refetch} bare={props.bare} />
     case 'progress_list':
       return <ProgressListChart title={props.title} data={props.data} refetch={props.refetch} />
     case 'bar':
@@ -227,7 +230,7 @@ function MonthNavTitle({
 
 // --- Pie / donut ---
 
-function PieChart({ title, data, refetch: initialRefetch }: { title: string; data: PieData; refetch?: RefetchConfig }) {
+function PieChart({ title, data, refetch: initialRefetch, bare }: { title: string; data: PieData; refetch?: RefetchConfig; bare?: boolean }) {
   const { title: liveTitle, data: liveData, refetch, loading, error, refetchWith } = useChartRefetch(
     title,
     data,
@@ -245,8 +248,10 @@ function PieChart({ title, data, refetch: initialRefetch }: { title: string; dat
     ...(rest.length > 0 ? [{ name: 'Other', value: otherValue, percentage: otherPct, color: '#3F3F46' }] : []),
   ]
 
+  const wrapperClass = bare ? 'p-4' : 'bg-surface rounded-2xl p-4'
+
   return (
-    <div className="bg-surface rounded-2xl p-4">
+    <div className={wrapperClass}>
       <div className="flex items-baseline justify-between mb-4">
         <div className="flex-1 min-w-0">
           {refetch?.mode === 'month_nav' ? (
@@ -255,7 +260,9 @@ function PieChart({ title, data, refetch: initialRefetch }: { title: string; dat
             <p className="text-xs text-muted uppercase tracking-wide">{liveTitle}</p>
           )}
           <p className="text-white text-2xl font-semibold mt-0.5">{formatCurrency(liveData.total)}</p>
-          <p className="text-muted text-xs mt-0.5">{liveData.count} transactions</p>
+          {liveData.count != null && (
+            <p className="text-muted text-xs mt-0.5">{liveData.count} transactions</p>
+          )}
         </div>
         <Donut segments={segments} />
       </div>

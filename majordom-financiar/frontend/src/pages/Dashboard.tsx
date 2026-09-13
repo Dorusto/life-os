@@ -21,7 +21,6 @@ import { useState, useEffect, useRef } from 'react'
 import { formatCurrency, formatPercent } from '../lib/formatCurrency'
 import { formatWeekdayDate } from '../lib/formatDate'
 import WidgetLoading from '../components/WidgetLoading'
-import { colorForKey } from '../lib/chartColors'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -53,7 +52,7 @@ export default function Dashboard() {
   const [dashboardYear, setDashboardYear] = useState(now.getFullYear())
   const [periodSheetOpen, setPeriodSheetOpen] = useState(false)
 
-  const { data: periodBudget, isLoading: periodBudgetLoading } = useQuery({
+  const { data: periodBudget } = useQuery({
     queryKey: ['budget-period', dashboardMonth, dashboardYear],
     queryFn: () => getBudgetPeriod('month', dashboardMonth, dashboardYear),
     staleTime: 60_000,
@@ -135,7 +134,16 @@ export default function Dashboard() {
       case 'latest':
         return <LatestTransactionsWidget transactions={transactions} navigate={navigate} isLoading={transactionsLoading} />
       case 'expenses':
-        return <ExpensesStructureWidget categories={periodCategories} isLoading={periodBudgetLoading} />
+        return (
+          <div className="bg-surface border border-border rounded-2xl">
+            <Chart
+              chart_type="pie"
+              title="Expenses Structure"
+              data={toExpensesPieData(periodCategories)}
+              bare
+            />
+          </div>
+        )
       case 'cashflow':
         return <CashFlowWidget periodLabel={periodLabel} />
       case 'vehicle':
@@ -696,62 +704,26 @@ function LatestTransactionsWidget({ transactions, navigate, isLoading }: { trans
   )
 }
 
-/** Expenses Structure — real data, reused from the same BudgetCategory[] the
-    Budget widget already fetches (no new endpoint needed). */
-function ExpensesStructureWidget({ categories, isLoading }: { categories: BudgetCategory[] | undefined; isLoading?: boolean }) {
-  const expenseCats = (categories ?? []).filter(c => c.group_name !== 'Income' && c.spent > 0)
-  const sorted = [...expenseCats].sort((a, b) => b.spent - a.spent)
-  const top = sorted.slice(0, 4)
-  const otherTotal = sorted.slice(4).reduce((sum, c) => sum + c.spent, 0)
-  const slices: { category_name: string; spent: number }[] = otherTotal > 0 ? [...top, { category_name: 'Other', spent: otherTotal }] : top
-  const total = slices.reduce((sum, s) => sum + s.spent, 0)
+/** Budget-period categories → the generic pie contract, so "Expenses Structure"
+    renders through the same Chart component (and inherits its header and empty
+    state) as every other pie, instead of a bespoke conic-gradient widget.
+    No `count`: categories aren't transactions, so the pie header omits the
+    subtitle rather than stating a false "0". */
+function toExpensesPieData(categories: BudgetCategory[] | undefined) {
+  const sorted = (categories ?? [])
+    .filter(c => c.group_name !== 'Income' && c.spent > 0)
+    .sort((a, b) => b.spent - a.spent)
+  const total = sorted.reduce((sum, c) => sum + c.spent, 0)
 
-  if (isLoading || total === 0) {
-    return (
-      <div className="bg-surface border border-border rounded-2xl p-4">
-        <p className="font-display font-bold text-[15px] mb-2">Expenses Structure</p>
-        {isLoading ? (
-          <WidgetLoading label="Loading spending…" />
-        ) : (
-          <p className="text-muted text-xs">No spending recorded this period yet.</p>
-        )}
-      </div>
-    )
+  return {
+    total,
+    income: 0,
+    segments: sorted.map(c => ({
+      name: c.category_name,
+      value: c.spent,
+      percentage: total > 0 ? (c.spent / total) * 100 : 0,
+    })),
   }
-
-  let acc = 0
-  const gradientStops = slices.map((s) => {
-    const start = (acc / total) * 100
-    acc += s.spent
-    const end = (acc / total) * 100
-    return `${colorForKey(s.category_name)} ${start}% ${end}%`
-  }).join(', ')
-
-  return (
-    <div className="bg-surface border border-border rounded-2xl p-4">
-      <p className="font-display font-bold text-[15px] mb-3">Expenses Structure</p>
-      <div className="flex items-center gap-4 flex-wrap">
-        <div
-          className="w-24 h-24 rounded-full flex-shrink-0 flex items-center justify-center"
-          style={{ background: `conic-gradient(${gradientStops})` }}
-        >
-          <div className="w-[60%] h-[60%] rounded-full bg-surface flex flex-col items-center justify-center">
-            <span className="text-[9px] text-muted uppercase tracking-wide">Total</span>
-            <span className="font-mono text-[11px] mt-0.5">{formatCurrency(total, { decimals: 0 })}</span>
-          </div>
-        </div>
-        <div className="flex-1 min-w-[120px] flex flex-col gap-1.5">
-          {slices.map((s) => (
-            <div key={s.category_name} className="flex items-center gap-2 text-xs">
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: colorForKey(s.category_name) }} />
-              <span className="flex-1 min-w-0 truncate">{s.category_name}</span>
-              <span className="font-mono text-muted tabular-nums">{formatCurrency(s.spent, { decimals: 0 })}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
 }
 
 function CashFlowWidget({ periodLabel }: { periodLabel: string }) {
