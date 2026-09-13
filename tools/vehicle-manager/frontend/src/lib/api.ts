@@ -229,6 +229,8 @@ export interface VehiclePatch {
   service_interval_months?: number | null
   last_service_km?: number | null
   last_service_date?: string | null
+  purchase_price?: number | null
+  purchase_date?: string | null
   name?: string
 }
 
