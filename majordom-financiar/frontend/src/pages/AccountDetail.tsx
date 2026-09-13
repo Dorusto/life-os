@@ -1,9 +1,10 @@
-import { useState, type ChangeEvent } from 'react'
+import { useEffect, useState, type ChangeEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft } from 'lucide-react'
 import { getAccountList, getTransactions, setAccountType, ACCOUNT_TYPES } from '../lib/api'
 import { formatCurrency } from '../lib/formatCurrency'
+import { listVehicles } from '../lib/vehicleValueApi'
 import DetailPageSkeleton from '../components/DetailPageSkeleton'
 import { groupByMonth } from '../lib/groupByMonth'
 
@@ -42,12 +43,58 @@ export default function AccountDetail() {
     enabled: !!account,
   })
 
+  // Vehicle-linked accounts keep no transactions of their own here — that
+  // activity lives in vehicle-manager, which is its own standalone frontend
+  // (decisions.md#vehicle-manager-standalone-frontend). Resolve the linked
+  // vehicle and hand off to it instead of rendering the (always empty) local
+  // list. Same query key as Accounts.tsx, so the list it just fetched is
+  // reused rather than refetched.
+  const isVehicleAccount = account?.account_type === 'Vehicle'
+
+  const { data: vehicles, isPending: vehiclesPending } = useQuery({
+    queryKey: ['vehicle-list'],
+    queryFn: () => listVehicles(),
+    enabled: isVehicleAccount,
+    staleTime: 120_000,
+  })
+
+  const vehicleAppUrl = import.meta.env.VITE_VEHICLE_APP_URL?.replace(/\/+$/, '')
+  const linkedVehicle = isVehicleAccount
+    ? vehicles?.find(v => v.ab_account_id === account?.id)
+    : undefined
+  const vehicleUrl =
+    vehicleAppUrl && linkedVehicle ? `${vehicleAppUrl}/vehicles/${linkedVehicle.id}` : null
+
+  useEffect(() => {
+    // Cross-origin (the vehicle app is its own deployment), so this is a
+    // window.location.assign, not a react-router navigate().
+    if (vehicleUrl) window.location.assign(vehicleUrl)
+  }, [vehicleUrl])
+
+  // Only take over the page when there is genuinely somewhere to hand off to —
+  // with no VITE_VEHICLE_APP_URL configured, or no vehicle linked to this
+  // account, we fall through to the normal detail view below.
+  const handingOffToVehicleApp =
+    isVehicleAccount && Boolean(vehicleAppUrl) && (vehiclesPending || Boolean(vehicleUrl))
+
   // `accounts` starts undefined while the list is still loading — render
   // nothing (not "Account not found") until it resolves, otherwise a fresh
   // page load briefly flashes the not-found state before real content ever
   // gets a chance to render.
   if (!accounts) {
     return <DetailPageSkeleton />
+  }
+
+  // Deliberately checked before the not-found branch, and only after `accounts`
+  // has resolved — so a partial load can never fire the redirect.
+  if (handingOffToVehicleApp) {
+    return (
+      <div className="min-h-dvh bg-token-paper flex flex-col items-center justify-center px-5 pb-24">
+        <p className="font-plex-mono text-[11px] uppercase tracking-wide text-token-ink-3">
+          Opening Transport…
+        </p>
+      </div>
+    )
   }
 
   if (!account) {
