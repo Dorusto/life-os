@@ -52,7 +52,11 @@ export default function Dashboard() {
   const [dashboardYear, setDashboardYear] = useState(now.getFullYear())
   const [periodSheetOpen, setPeriodSheetOpen] = useState(false)
 
-  const { data: periodBudget } = useQuery({
+  const {
+    data: periodBudget,
+    isLoading: periodBudgetLoading,
+    isError: periodBudgetError,
+  } = useQuery({
     queryKey: ['budget-period', dashboardMonth, dashboardYear],
     queryFn: () => getBudgetPeriod('month', dashboardMonth, dashboardYear),
     staleTime: 60_000,
@@ -134,6 +138,25 @@ export default function Dashboard() {
       case 'latest':
         return <LatestTransactionsWidget transactions={transactions} navigate={navigate} isLoading={transactionsLoading} />
       case 'expenses':
+        // `periodCategories` is undefined while budget-period is in flight, and
+        // stays undefined if it fails — which the pie would otherwise report as a
+        // real "No expenses this month". Separate "not loaded yet" / "load failed"
+        // from "genuinely nothing spent this month", so the empty state only ever
+        // means the latter.
+        if (periodBudgetLoading || periodBudgetError) {
+          return (
+            <div className="bg-token-surface border border-token-line rounded-2xl p-4">
+              <p className="text-xs text-token-ink-3 uppercase tracking-wide">Expenses Structure</p>
+              {periodBudgetLoading ? (
+                <WidgetLoading label="Loading expenses…" />
+              ) : (
+                <p className="text-token-ink-3 text-sm text-center py-2">
+                  Couldn't load this month's spending.
+                </p>
+              )}
+            </div>
+          )
+        }
         return (
           <div className="bg-token-surface border border-token-line rounded-2xl">
             <Chart
