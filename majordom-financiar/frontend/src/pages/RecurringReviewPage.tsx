@@ -43,7 +43,7 @@ export default function RecurringReviewPage() {
   const bothEmpty = newCandidates.length === 0 && stale.length === 0
 
   return (
-    <div className="h-dvh bg-background flex flex-col overflow-y-auto">
+    <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
       <PageHeader
         label="Review"
         title="Recurring"
@@ -57,19 +57,19 @@ export default function RecurringReviewPage() {
       />
       <div className="flex-1 px-5 pb-24 space-y-5">
         {isLoading ? (
-          <p className="text-muted text-sm">Loading…</p>
+          <p className="text-token-ink-3 text-sm">Loading…</p>
         ) : bothEmpty ? (
           <div className="text-center pt-16">
-            <Repeat size={28} className="mx-auto text-muted mb-3" />
-            <p className="text-muted text-sm">No recurring findings — all clear 🎉</p>
+            <Repeat size={28} className="mx-auto text-token-ink-3 mb-3" />
+            <p className="text-token-ink-3 text-sm">No recurring findings — all clear 🎉</p>
           </div>
         ) : (
           <>
             {newCandidates.length > 0 && (
               <div className="space-y-3">
                 <div>
-                  <p className="text-white text-sm font-medium">New recurring</p>
-                  <p className="text-xs text-muted px-1">
+                  <p className="text-token-ink text-sm font-medium">New recurring</p>
+                  <p className="text-xs text-token-ink-3 px-1">
                     Repeats but has no schedule yet. Review each and confirm one at a time —
                     nothing is touched until you tap Confirm.
                   </p>
@@ -87,8 +87,8 @@ export default function RecurringReviewPage() {
             {stale.length > 0 && (
               <div className="space-y-3">
                 <div>
-                  <p className="text-white text-sm font-medium">Stopped repeating</p>
-                  <p className="text-xs text-muted px-1">
+                  <p className="text-token-ink text-sm font-medium">Stopped repeating</p>
+                  <p className="text-xs text-token-ink-3 px-1">
                     An active schedule with no matching transaction in a while. It will be
                     turned off, not deleted.
                   </p>
