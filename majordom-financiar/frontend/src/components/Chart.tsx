@@ -116,7 +116,7 @@ type ChartProps =
   | { chart_type: 'pie'; title: string; data: PieData; refetch?: RefetchConfig; bare?: boolean }
   | { chart_type: 'progress_list'; title: string; data: ProgressListData; refetch?: RefetchConfig }
   | { chart_type: 'bar'; title: string; data: BarData; refetch?: RefetchConfig }
-  // `bare` drops the chart's own bg-surface/rounded/padding wrapper, for a
+  // `bare` drops the chart's own bg-token-surface/rounded/padding wrapper, for a
   // caller that already places it inside its own card (e.g. the Budget card's
   // 3M/6M/12M trend view, embedded alongside the period nav in one shared card
   // instead of two stacked cards).
