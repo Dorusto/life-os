@@ -102,6 +102,16 @@ class VehicleManagerConfig:
 
 
 @dataclass
+class InvestmentManagerConfig:
+    url: str = ""
+    service_token: str = ""
+
+    def __post_init__(self):
+        self.url = os.getenv("INVESTMENT_MANAGER_URL", "http://investment-manager:8020")
+        self.service_token = os.getenv("INVESTMENT_MANAGER_SERVICE_TOKEN", "")
+
+
+@dataclass
 class MemoryConfig:
     db_path: str = ""
     auto_threshold: float = 0.8
@@ -117,6 +127,9 @@ class MemoryConfig:
 class Settings:
     actual: ActualBudgetConfig = field(default_factory=ActualBudgetConfig)
     vehicle_manager: VehicleManagerConfig = field(default_factory=VehicleManagerConfig)
+    investment_manager: InvestmentManagerConfig = field(
+        default_factory=InvestmentManagerConfig
+    )
     ollama: LLMConfig = field(default_factory=LLMConfig)
     memory: MemoryConfig = field(default_factory=MemoryConfig)
     default_currency: str = "EUR"
