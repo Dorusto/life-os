@@ -22,7 +22,7 @@ export const WIDGETS: WidgetMeta[] = [
   { id: 'latest', name: 'Latest Transactions', desc: 'Recent activity across all accounts', defaultEnabled: true, column: 'right' },
   { id: 'expenses', name: 'Expenses Structure', desc: "This month's spend, broken down by category", defaultEnabled: true, column: 'right' },
   { id: 'cashflow', name: 'Cash Flow', desc: 'Income vs. expenses this month', defaultEnabled: false, column: 'right' },
-  { id: 'vehicle', name: 'Vehicle costs', desc: 'Fuel + maintenance from vehicle-manager, cost/km', defaultEnabled: false, column: 'left' },
+  { id: 'vehicle', name: 'Vehicle costs', desc: 'Fuel + maintenance from vehicle-manager, cost/km', defaultEnabled: true, column: 'left' },
   { id: 'networth', name: 'Net Worth', desc: 'Total balance, adjustable by account category', defaultEnabled: false, column: 'left' },
 ]
 

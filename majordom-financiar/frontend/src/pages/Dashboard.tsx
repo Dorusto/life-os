@@ -770,6 +770,14 @@ function VehicleCostsWidget({ dashboardMonth, dashboardYear }: {
     queryFn: () => getVehicleCostsSummary(period),
   })
 
+  // No vehicle linked to an AB account → no card at all. The widget's value is
+  // the real per-period cost summary, so an ever-present "No active vehicles
+  // yet." card is pure noise for the (common) unlinked case. A vehicle-manager
+  // outage is a different state — see the isError / available === false
+  // branches below, which must stay visible.
+  const noVehicleLinked = data && data.available === true && (data.vehicle_count ?? 0) === 0
+  if (noVehicleLinked) return null
+
   let content: ReactNode
 
   if (isLoading) {
@@ -778,8 +786,6 @@ function VehicleCostsWidget({ dashboardMonth, dashboardYear }: {
     content = <p className="text-token-ink-3 text-xs mt-2">Couldn't load vehicle cost data.</p>
   } else if (data && data.available === false) {
     content = <p className="text-token-ink-3 text-xs mt-2">{data.error || 'Vehicle data temporarily unavailable.'}</p>
-  } else if (data && data.available === true && (data.vehicle_count ?? 0) === 0) {
-    content = <p className="text-token-ink-3 text-xs mt-2">No active vehicles yet.</p>
   } else if (data && data.available === true) {
     const totalCost = data.total_cost ?? 0
     const vehicleCount = data.vehicle_count ?? 0
