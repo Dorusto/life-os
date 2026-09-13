@@ -164,11 +164,11 @@ export default function FuelReceiptCard({
   }
 
   const inputCls = `
-    w-full px-3 py-2 rounded-xl bg-background border border-border
-    text-white text-sm appearance-none
-    focus:outline-none focus:border-accent transition-colors
+    w-full px-3 py-2 rounded-xl bg-token-paper border border-token-line
+    text-token-ink text-sm appearance-none
+    focus:outline-none focus:border-token-brand transition-colors
   `
-  const labelCls = 'text-xs text-muted uppercase tracking-wide'
+  const labelCls = 'text-xs text-token-ink-3 uppercase tracking-wide'
 
   return (
     <div className="bg-surface border border-border rounded-2xl rounded-bl-sm max-w-[420px] w-full overflow-hidden">
@@ -185,13 +185,13 @@ export default function FuelReceiptCard({
 
       {/* Tab header — shown in photo mode only (text mode = always fuel) */}
       {onSwitchToGrocery && (
-        <div className="flex gap-2 px-4 pt-3 border-b border-border">
-          <button className="tab-active text-sm pb-2 px-1 text-accent font-medium border-b-2 border-accent">
+        <div className="flex gap-2 px-4 pt-3 border-b border-token-line">
+          <button className="tab-active text-sm pb-2 px-1 text-token-brand-ink font-medium border-b-2 border-token-brand">
             ⛽ Fuel Receipt
           </button>
           <button
             onClick={onSwitchToGrocery}
-            className="tab-inactive text-sm pb-2 px-1 text-muted hover:text-white transition-colors"
+            className="tab-inactive text-sm pb-2 px-1 text-token-ink-3 hover:text-token-ink transition-colors"
           >
             🛒 Grocery Receipt
           </button>
@@ -200,8 +200,8 @@ export default function FuelReceiptCard({
 
       {/* Text mode header — always show when no tabs */}
       {!onSwitchToGrocery && (
-        <div className="px-4 pt-3 pb-1 border-b border-border">
-          <p className="text-sm text-white font-medium">⛽ Refuel</p>
+        <div className="px-4 pt-3 pb-1 border-b border-token-line">
+          <p className="text-sm text-token-ink font-medium">⛽ Refuel</p>
         </div>
       )}
 
@@ -279,17 +279,17 @@ export default function FuelReceiptCard({
             placeholder="49453"
           />
           {odoBackwards && (
-            <span className="text-xs text-red-400">
+            <span className="text-xs text-token-loss">
               ⛔ ODO goes backwards ({formatNumber(odoRawDiff!)} km) — check value
             </span>
           )}
           {!odoBackwards && odoDiff != null && !odoWarning && (
-            <span className="text-xs text-green-400">
+            <span className="text-xs text-token-gain">
               +{formatNumber(odoDiff)} km ✓
             </span>
           )}
           {!odoBackwards && odoWarning && (
-            <span className="text-xs text-yellow-400">
+            <span className="text-xs text-token-warn">
               ⚠️ ODO difference is {formatNumber(odoDiff!)} km — check if correct
             </span>
           )}
@@ -297,21 +297,21 @@ export default function FuelReceiptCard({
 
         {/* Full tank + Missed fill */}
         <div className="flex gap-4">
-          <label className="flex items-center gap-2 text-sm text-white cursor-pointer">
+          <label className="flex items-center gap-2 text-sm text-token-ink cursor-pointer">
             <input
               type="checkbox"
               checked={fullTank}
               onChange={e => setFullTank(e.target.checked)}
-              className="rounded border-border bg-background text-accent focus:ring-accent"
+              className="rounded border-token-line bg-token-paper text-token-brand-ink focus:ring-accent"
             />
             Full tank
           </label>
-          <label className="flex items-center gap-2 text-sm text-white cursor-pointer">
+          <label className="flex items-center gap-2 text-sm text-token-ink cursor-pointer">
             <input
               type="checkbox"
               checked={missedFill}
               onChange={e => setMissedFill(e.target.checked)}
-              className="rounded border-border bg-background text-accent focus:ring-accent"
+              className="rounded border-token-line bg-token-paper text-token-brand-ink focus:ring-accent"
             />
             Missed fill
           </label>
@@ -397,23 +397,23 @@ export default function FuelReceiptCard({
 
         {/* Possible bank-sync match found — hold off, let the user decide (#121) */}
         {possibleMatch && (
-          <div className="px-3 py-2.5 rounded-xl bg-yellow-500/10 border border-yellow-500/30 space-y-2">
-            <p className="text-yellow-500 text-xs">
-              Found a similar bank transaction: <span className="text-white">{possibleMatch.payee || 'Unknown'}</span>{' '}
+          <div className="px-3 py-2.5 rounded-xl bg-token-warn-soft border border-token-warn space-y-2">
+            <p className="text-token-warn text-xs">
+              Found a similar bank transaction: <span className="text-token-ink">{possibleMatch.payee || 'Unknown'}</span>{' '}
               {formatCurrency(possibleMatch.amount)} on {possibleMatch.date}. Attach these details to it instead of creating a new transaction?
             </p>
             <div className="flex gap-2">
               <button
                 onClick={() => handleConfirm({ forceNew: true })}
                 disabled={saving}
-                className="flex-1 py-1.5 rounded-lg border border-border text-muted hover:text-white text-xs transition-colors disabled:opacity-40"
+                className="flex-1 py-1.5 rounded-lg border border-token-line text-token-ink-3 hover:text-token-ink text-xs transition-colors disabled:opacity-40"
               >
                 Create new anyway
               </button>
               <button
                 onClick={() => handleConfirm({ attachTo: possibleMatch.financial_id })}
                 disabled={saving}
-                className="flex-1 py-1.5 rounded-lg bg-accent hover:bg-accent-hover text-white text-xs font-medium transition-colors disabled:opacity-40"
+                className="flex-1 py-1.5 rounded-lg bg-token-brand hover:bg-token-brand-2 text-token-ink text-xs font-medium transition-colors disabled:opacity-40"
               >
                 Attach to this
               </button>
@@ -427,14 +427,14 @@ export default function FuelReceiptCard({
             <button
               onClick={onCancelled}
               disabled={saving}
-              className="flex-1 py-2 rounded-xl border border-border text-muted hover:text-white hover:bg-surface-hover text-sm transition-colors disabled:opacity-40"
+              className="flex-1 py-2 rounded-xl border border-token-line text-token-ink-3 hover:text-token-ink hover:bg-token-surface-2 text-sm transition-colors disabled:opacity-40"
             >
               Cancel
             </button>
             <button
               onClick={() => handleConfirm()}
               disabled={saving || !liters || !total || !vehicle}
-              className="flex-1 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+              className="flex-1 py-2 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-ink text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
             >
               {saving ? (
                 <><Loader2 size={14} className="animate-spin" /> Saving…</>

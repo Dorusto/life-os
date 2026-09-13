@@ -37,12 +37,12 @@ export default function CloseAccountCard({ data, onConfirmed, onCancelled }: Pro
   }
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[80%] space-y-3">
+    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[80%] space-y-3">
       <div>
-        <p className="text-white font-medium">{data.account_name}</p>
-        <p className="text-muted text-sm">Current balance: {formatCurrency(data.balance)}</p>
+        <p className="text-token-ink font-medium">{data.account_name}</p>
+        <p className="text-token-ink-3 text-sm">Current balance: {formatCurrency(data.balance)}</p>
         {hasBalance && (
-          <p className="text-sm font-medium mt-1 text-yellow-400">
+          <p className="text-sm font-medium mt-1 text-token-warn">
             This account still has a balance of {formatCurrency(data.balance)} — pick a destination account below to move it there before closing.
           </p>
         )}
@@ -50,16 +50,16 @@ export default function CloseAccountCard({ data, onConfirmed, onCancelled }: Pro
 
       {hasBalance && (
         <div className="space-y-1">
-          <p className="text-muted text-xs uppercase tracking-wide">Move balance to</p>
+          <p className="text-token-ink-3 text-xs uppercase tracking-wide">Move balance to</p>
           <select
             value={destinationId}
             onChange={e => setDestinationId(e.target.value)}
             disabled={loading}
-            className="w-full bg-surface-2 border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-accent disabled:opacity-50 appearance-none"
+            className="w-full bg-token-surface-2 border border-token-line rounded-lg px-3 py-2 text-token-ink text-sm focus:outline-none focus:border-token-brand disabled:opacity-50 appearance-none"
           >
             {accounts.length === 0 && <option value="">No other accounts available</option>}
             {accounts.map(a => (
-              <option key={a.id} value={a.id} style={{ background: '#1A1A1A' }}>
+              <option key={a.id} value={a.id} style={{ background: 'var(--surface)' }}>
                 {a.name} · {formatCurrency(a.balance)}
               </option>
             ))}

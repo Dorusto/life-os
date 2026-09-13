@@ -53,48 +53,48 @@ export default function IncomeSourceCard({ payee, amount, date, onConfirmed }: I
   }
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[520px] w-full space-y-3">
+    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[520px] w-full space-y-3">
       {/* Transaction context bar */}
       <div className="flex items-center gap-2 text-sm">
-        <span className="text-green-400 font-medium">{formatCurrency(amount, { signDisplay: 'always' })}</span>
-        <span className="text-muted">·</span>
-        <span className="text-muted">{date.slice(5).replace('-', '/')}</span>
+        <span className="text-token-gain font-medium">{formatCurrency(amount, { signDisplay: 'always' })}</span>
+        <span className="text-token-ink-3">·</span>
+        <span className="text-token-ink-3">{date.slice(5).replace('-', '/')}</span>
       </div>
 
       {/* Payee — editable; this exact text becomes the rule's match text (#99) */}
       <div className="flex flex-col gap-1">
-        <label className="text-xs text-muted uppercase tracking-wide">Payee (rule will match this text)</label>
+        <label className="text-xs text-token-ink-3 uppercase tracking-wide">Payee (rule will match this text)</label>
         <input
           type="text"
           value={editedPayee}
           onChange={e => setEditedPayee(e.target.value)}
-          className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-accent transition-colors"
+          className="w-full bg-token-paper border border-token-line rounded-lg px-3 py-2 text-token-ink text-sm focus:outline-none focus:border-token-brand transition-colors"
         />
       </div>
 
       {/* Mode toggle */}
-      <div className="flex rounded-xl overflow-hidden border border-border text-sm">
+      <div className="flex rounded-xl overflow-hidden border border-token-line text-sm">
         <button
           onClick={() => setMode('income')}
-          className={`flex-1 py-1.5 transition-colors ${mode === 'income' ? 'bg-accent text-white' : 'text-muted hover:text-white'}`}
+          className={`flex-1 py-1.5 transition-colors ${mode === 'income' ? 'bg-token-brand text-token-ink' : 'text-token-ink-3 hover:text-token-ink'}`}
         >Income</button>
         <button
           onClick={() => setMode('transfer')}
-          className={`flex-1 py-1.5 transition-colors ${mode === 'transfer' ? 'bg-accent text-white' : 'text-muted hover:text-white'}`}
+          className={`flex-1 py-1.5 transition-colors ${mode === 'transfer' ? 'bg-token-brand text-token-ink' : 'text-token-ink-3 hover:text-token-ink'}`}
         >Transfer from account</button>
       </div>
 
       {/* Income mode panel */}
       {mode === 'income' && (
         <div className="space-y-2">
-          <label className="text-xs text-muted">What type of income?</label>
+          <label className="text-xs text-token-ink-3">What type of income?</label>
           <input
             type="text"
             value={incomeName}
             onChange={e => setIncomeName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSave()}
             placeholder="e.g. Salary Doru, Freelance, Rent income…"
-            className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white text-sm placeholder:text-muted focus:outline-none focus:border-accent transition-colors"
+            className="w-full bg-token-paper border border-token-line rounded-lg px-3 py-2 text-token-ink text-sm placeholder:text-token-ink-3 focus:outline-none focus:border-token-brand transition-colors"
             autoFocus
           />
         </div>
@@ -103,16 +103,16 @@ export default function IncomeSourceCard({ payee, amount, date, onConfirmed }: I
       {/* Transfer mode panel */}
       {mode === 'transfer' && (
         <div className="space-y-2">
-          <label className="text-xs text-muted">Transfer from:</label>
+          <label className="text-xs text-token-ink-3">Transfer from:</label>
           {fetchingAccounts ? (
-            <div className="flex items-center gap-2 text-muted text-sm">
+            <div className="flex items-center gap-2 text-token-ink-3 text-sm">
               <Loader2 size={14} className="animate-spin" /> Loading accounts…
             </div>
           ) : (
             <select
               value={accountId}
               onChange={e => setAccountId(e.target.value)}
-              className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-accent transition-colors appearance-none"
+              className="w-full bg-token-paper border border-token-line rounded-lg px-3 py-2 text-token-ink text-sm focus:outline-none focus:border-token-brand transition-colors appearance-none"
             >
               <option value="" disabled>— select account —</option>
               <optgroup label="On budget">
@@ -131,13 +131,13 @@ export default function IncomeSourceCard({ payee, amount, date, onConfirmed }: I
       )}
 
       {/* Error */}
-      {error && <p className="text-red-400 text-xs">{error}</p>}
+      {error && <p className="text-token-loss text-xs">{error}</p>}
 
       {/* Save button */}
       <button
         onClick={handleSave}
         disabled={loading || !editedPayee.trim() || (mode === 'income' ? !incomeName.trim() : !accountId)}
-        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-ink text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {loading ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : <><Check size={14} /> Save</>}
       </button>
