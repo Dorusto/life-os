@@ -35,7 +35,7 @@ export default function Login() {
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
       {/* Statement panel — the one bold surface in the app. */}
-      <div className="relative hidden flex-col justify-between overflow-hidden bg-brand px-[3rem] py-12 text-white lg:flex">
+      <div className="relative hidden flex-col justify-between overflow-hidden bg-brand px-12 py-12 text-white lg:flex">
         <div className="flex items-center gap-3">
           <span className="flex h-9 w-9 items-center justify-center rounded bg-white/15">
             <TrendingUp className="h-5 w-5" />
@@ -43,7 +43,7 @@ export default function Login() {
           <span className="text-sm font-semibold tracking-wide">Majordom Invest</span>
         </div>
 
-        <div className="relative z-[10] max-w-md">
+        <div className="relative z-10 max-w-md">
           <p className="text-[13px] text-white/70">Portfolio tracker</p>
           <h1 className="mt-3 text-3xl font-semibold leading-tight">
             Every position, contribution and dividend in one ledger.

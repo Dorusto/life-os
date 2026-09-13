@@ -1,19 +1,23 @@
 import type { ButtonHTMLAttributes } from 'react'
 import { cn } from '../lib/ui'
 
-type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
-type Size = 'sm' | 'md'
+export type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
+export type Size = 'sm' | 'md'
 
-const VARIANTS: Record<Variant, string> = {
+/** Exported with the maps below so `ButtonLink` cannot drift from `Button`. */
+export const BUTTON_BASE =
+  'inline-flex items-center justify-center gap-2 rounded font-medium transition-colors'
+
+export const VARIANT_CLASSES: Record<Variant, string> = {
   primary: 'bg-brand text-white hover:bg-brand-2 border border-transparent',
   secondary: 'bg-surface text-ink border border-line-strong hover:bg-surface-2',
   ghost: 'bg-transparent text-ink-2 border border-transparent hover:bg-surface-2 hover:text-ink',
   danger: 'bg-surface text-loss border border-loss hover:bg-loss-soft',
 }
 
-const SIZES: Record<Size, string> = {
+export const SIZE_CLASSES: Record<Size, string> = {
   sm: 'h-8 px-3 text-[13px]',
-  md: 'h-[2.5rem] px-4 text-sm',
+  md: 'h-10 px-4 text-sm',
 }
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -26,10 +30,10 @@ export function Button({ variant = 'secondary', size = 'md', className, ...props
     <button
       {...props}
       className={cn(
-        'inline-flex items-center justify-center gap-2 rounded font-medium transition-colors',
+        BUTTON_BASE,
         'disabled:cursor-not-allowed disabled:opacity-50',
-        VARIANTS[variant],
-        SIZES[size],
+        VARIANT_CLASSES[variant],
+        SIZE_CLASSES[size],
         className,
       )}
     />
