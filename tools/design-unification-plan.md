@@ -105,7 +105,7 @@ classes, ordered/longest-match-first replacement only):
 | `bg-accent-hover` | `bg-token-brand-2` | |
 | `text-muted` | `text-token-ink-3` | secondary/caption text |
 | `text-muted-2` | `text-token-ink-2` | slightly higher contrast than `muted` |
-| `text-white` (as primary text/heading color, not literal white-on-accent) | `text-token-ink` | this app uses literal `text-white` for primary text throughout — the common case |
+| `text-white` (as primary text/heading color, not literal white-on-accent) | `text-token-ink` | this app uses literal `text-white` for primary text throughout — the common case. **Confirmed as a real, recurring edge case (2026-09-13 global sweep): `text-white`/`bg-white` used deliberately for contrast ON a colored fill (e.g. white text on a solid brand-colored button, `components/ui/Button.tsx`'s own `primary` variant) must stay bare, NOT migrate** — token-ink is a themed near-white meant for the app's own paper/surface background, not a contrast color for an arbitrary colored fill. Visual impact of getting this wrong is small (token-ink ≈ #E7EDF2, close to white) but tell every future dispatch explicitly to check which case it is, don't rely on this table note alone reaching the model. |
 | `bg-success` / `text-success` | `bg-token-gain` / `text-token-gain` | |
 | `bg-danger` / `text-danger` | `bg-token-loss` / `text-token-loss` | |
 | `bg-positive` / `text-positive` | `bg-token-gain` / `text-token-gain` | same semantic as success, just a second pre-existing name for it |
@@ -133,6 +133,29 @@ File groups to delegate (avoid one file-count-blowing task; ~5-6 files per dispa
       it renders — those are separate files already covered above)
 - [ ] Verify each group visually (live browser, not just `tsc`/`build` — wrong-but-valid Tailwind
       classes compile fine and just look wrong) before merging.
+
+**Groups 1-5 shipped and merged (2026-09-13).** A global sweep after Group 5 found the *real*
+scope was bigger than the original per-page inventory — files using old colors outside the
+"card"-shaped pattern (buttons, banners, form fields, shared chrome) were never counted. 24 files
+done; ~28 more found. Continuing as Groups 6+:
+- [ ] Group 6: `components/AbConnectionBanner.tsx`, `ActionCardButtons.tsx`, `AddButton.tsx`,
+      `BottomSheet.tsx`, `BudgetDashboard.tsx`, `CategoryFilterTree.tsx`
+- [ ] Group 7: `components/Chart.tsx` (core shared — every chart on every page renders through
+      this, extra care), `DetailPageSkeleton.tsx`, `IconButton.tsx`, `InfoIcon.tsx`,
+      `NewGoalSheet.tsx`, `NotificationBell.tsx`
+- [ ] Group 8: `components/TransactionListCard.tsx`, `WidgetLoading.tsx`,
+      `components/vehicles/EditVehicleModal.tsx`, `components/vehicles/LinkVehicleSheet.tsx`,
+      `components/Card.tsx` (the OLD one — still rendering live via `DuplicatesReviewPage.tsx`
+      until Phase 3b retires it; migrate its colors now like any other file, retirement is
+      separate), `components/PageHeader.tsx` (same — still rendering live on every page via
+      `App.tsx`, migrate colors now, retire the whole component in Phase 3b)
+- [ ] Group 9: `pages/AbSetupWizard.tsx`, `Analytics.tsx`, `BudgetRealismReviewPage.tsx`,
+      `DuplicatesReviewPage.tsx`, `Login.tsx`, `ReceiptFlow.tsx`
+- [ ] Group 10: `pages/RecurringReviewPage.tsx`, `Transactions.tsx`,
+      `UncategorizedReviewPage.tsx`, `UnreconciledReviewPage.tsx`
+- [ ] After Groups 6-10: re-run the global sweep (`grep -rlE` for old classes across all of
+      `frontend/src`, not just the originally-suspected files) to confirm nothing else was missed
+      — this is exactly how Groups 6-10 themselves were found, don't skip repeating it.
 
 **Phase 3b — actual de-duplication (route repeated card markup through `components/ui/Card`).**
 Only after 3a proves the color migration is safe across all 30 files. Per
