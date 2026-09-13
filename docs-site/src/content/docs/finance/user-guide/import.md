@@ -48,6 +48,15 @@ Each row shows:
 - A yellow **?** with an auto‑filled category means the category was *suggested* – you should verify it before importing.
 - Once you confirm a category (by selecting it yourself), the `?` disappears.
 
+#### Manual transfer and new category
+
+Besides picking an existing category you can also:
+
+- **↔ Transfer to… / Transfer from…** – mark the row as an internal transfer to or from another account. After selecting this option you will be asked to choose the destination (or source) account.
+- **+ Create new category** – add a brand‑new category on the fly. You will need to type its name and optionally choose a group.
+
+Whenever a category is selected a **Save as rule** checkbox appears. Checking it tells Majordom to remember the payee → category mapping for future imports.
+
 #### Duplicate rows
 
 If a transaction has the same date and amount as one already in Actual Budget, the entire row is dimmed and shows **already imported**. Duplicate rows are skipped during import and count toward the “duplicates skipped” summary.
