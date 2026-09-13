@@ -15,7 +15,7 @@ const TABS = [
  */
 export default function BottomNav() {
   return (
-    <nav className="fixed inset-x-0 bottom-0 z-[20] border-t border-line bg-surface">
+    <nav className="fixed inset-x-0 bottom-0 z-[20] border-t border-line bg-surface lg:hidden">
       <div className="flex items-stretch">
         {TABS.map(({ to, label, icon: Icon, end }) => (
           <NavLink
