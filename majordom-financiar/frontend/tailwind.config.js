@@ -60,6 +60,7 @@ export default {
           warn: 'var(--warn)',
           'warn-soft': 'var(--warn-soft)',
           info: 'var(--info)',
+          'info-soft': 'var(--info-soft)',
           c1: 'var(--c1)',
           c2: 'var(--c2)',
           c3: 'var(--c3)',

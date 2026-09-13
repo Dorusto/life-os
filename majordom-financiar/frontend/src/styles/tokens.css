@@ -46,6 +46,10 @@
   --warn: #8a6414;
   --warn-soft: #f4ecd8;
   --info: #2f5d8a;
+  /* Added 2026-09-13: the ported tokens.css had --info but no soft variant,
+     unlike gain/loss/warn -- needed for informational banners (e.g. a
+     possible-duplicate notice) that previously used an ad-hoc blue-500/10. */
+  --info-soft: #e1eaf3;
 
   /* --- Categorical data palette (charts, allocation) --- */
   --c1: #1f4166;
@@ -110,6 +114,7 @@
   --warn: #d9ae55;
   --warn-soft: #33290f;
   --info: #5d9ad0;
+  --info-soft: #1c2c47;
 
   /* --- Categorical data palette (charts, allocation) --- */
   --c1: #6fa8dc;
