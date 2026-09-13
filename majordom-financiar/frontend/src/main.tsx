@@ -7,6 +7,23 @@ import '@fontsource/syne/700.css'
 import '@fontsource/syne/800.css'
 import '@fontsource/dm-mono/400.css'
 import '@fontsource/dm-mono/500.css'
+// Shared token-system faces (ported from investment-manager, see
+// src/styles/tokens.css) — not yet used by any page until they migrate off
+// sans/display/mono above, but the @font-face rules must load regardless.
+import '@fontsource/ibm-plex-sans/latin-400.css'
+import '@fontsource/ibm-plex-sans/latin-ext-400.css'
+import '@fontsource/ibm-plex-sans/latin-500.css'
+import '@fontsource/ibm-plex-sans/latin-ext-500.css'
+import '@fontsource/ibm-plex-sans/latin-600.css'
+import '@fontsource/ibm-plex-sans/latin-ext-600.css'
+import '@fontsource/ibm-plex-sans/latin-700.css'
+import '@fontsource/ibm-plex-sans/latin-ext-700.css'
+import '@fontsource/ibm-plex-mono/latin-400.css'
+import '@fontsource/ibm-plex-mono/latin-ext-400.css'
+import '@fontsource/ibm-plex-mono/latin-500.css'
+import '@fontsource/ibm-plex-mono/latin-ext-500.css'
+import '@fontsource/ibm-plex-mono/latin-600.css'
+import '@fontsource/ibm-plex-mono/latin-ext-600.css'
 
 // QueryClient handles server state: caching, refetching, loading/error states.
 // We use it for all API calls so components don't need to manage fetch state manually.
