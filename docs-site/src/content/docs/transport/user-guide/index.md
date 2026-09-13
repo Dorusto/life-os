@@ -1,10 +1,4 @@
 ---
-title: user guide
-description: Placeholder — content pending generation.
----
-
-_Content for this section has not been written yet._
----
 title: Transport User Guide
 description: Overview of the Transport app's screens and navigation.
 ---
