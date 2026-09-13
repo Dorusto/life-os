@@ -39,22 +39,22 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-dvh bg-background flex flex-col items-center justify-center px-6">
+    <div className="min-h-dvh bg-token-paper flex flex-col items-center justify-center px-6">
       {/* Logo */}
       <div className="mb-10 flex flex-col items-center gap-3">
-        <div className="w-14 h-14 rounded-2xl bg-accent flex items-center justify-center">
+        <div className="w-14 h-14 rounded-2xl bg-token-brand flex items-center justify-center">
           <span className="text-white text-2xl font-bold">M</span>
         </div>
         <div className="text-center">
-          <h1 className="text-white text-xl font-semibold tracking-tight">Majordom</h1>
-          <p className="text-muted text-sm mt-0.5">Your personal finance assistant</p>
+          <h1 className="text-token-ink text-xl font-semibold tracking-tight">Majordom</h1>
+          <p className="text-token-ink-3 text-sm mt-0.5">Your personal finance assistant</p>
         </div>
       </div>
 
       {/* Form */}
       <form onSubmit={handleSubmit} className="w-full max-w-sm flex flex-col gap-3">
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="username" className="text-sm text-muted">Username</label>
+          <label htmlFor="username" className="text-sm text-token-ink-3">Username</label>
           <input
             id="username"
             type="text"
@@ -66,16 +66,16 @@ export default function Login() {
             placeholder="username"
             required
             className="
-              w-full px-4 py-3 rounded-xl bg-surface border border-border
-              text-white placeholder-muted-2 text-base
-              focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent
+              w-full px-4 py-3 rounded-xl bg-token-surface border border-token-line
+              text-token-ink placeholder-muted-2 text-base
+              focus:outline-none focus:border-token-brand focus:ring-1 focus:ring-accent
               transition-colors
             "
           />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="password" className="text-sm text-muted">Password</label>
+          <label htmlFor="password" className="text-sm text-token-ink-3">Password</label>
           <input
             id="password"
             type="password"
@@ -85,9 +85,9 @@ export default function Login() {
             placeholder="••••••••"
             required
             className="
-              w-full px-4 py-3 rounded-xl bg-surface border border-border
-              text-white placeholder-muted-2 text-base
-              focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent
+              w-full px-4 py-3 rounded-xl bg-token-surface border border-token-line
+              text-token-ink placeholder-muted-2 text-base
+              focus:outline-none focus:border-token-brand focus:ring-1 focus:ring-accent
               transition-colors
             "
           />
@@ -95,15 +95,15 @@ export default function Login() {
 
         {/* Error message */}
         {error && (
-          <p className="text-danger text-sm text-center">{error}</p>
+          <p className="text-token-loss text-sm text-center">{error}</p>
         )}
 
         <button
           type="submit"
           disabled={loading || !username || !password}
           className="
-            mt-2 w-full py-3.5 rounded-xl bg-accent text-white text-base font-medium
-            hover:bg-accent-hover active:scale-[0.98]
+            mt-2 w-full py-3.5 rounded-xl bg-token-brand text-white text-base font-medium
+            hover:bg-token-brand-2 active:scale-[0.98]
             disabled:opacity-40 disabled:cursor-not-allowed
             transition-all duration-150
           "
@@ -113,7 +113,7 @@ export default function Login() {
       </form>
 
       {/* Footer */}
-      <p className="mt-12 text-muted-2 text-xs">
+      <p className="mt-12 text-token-ink-2 text-xs">
         Self-hosted · Zero cloud · 100% yours
       </p>
     </div>

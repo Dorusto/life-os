@@ -35,7 +35,7 @@ export default function UnreconciledReviewPage() {
   }
 
   return (
-    <div className="h-dvh bg-background flex flex-col overflow-y-auto">
+    <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
       <PageHeader
         label="Review"
         title="Unreconciled"
@@ -48,16 +48,16 @@ export default function UnreconciledReviewPage() {
         }
       />
       <div className="flex-1 px-5 pb-24 space-y-3">
-        <p className="text-xs text-muted px-1">
+        <p className="text-xs text-token-ink-3 px-1">
           Transactions not yet marked cleared, grouped by account. Review each group and
           confirm one at a time — nothing is touched until you tap Confirm.
         </p>
         {isLoading ? (
-          <p className="text-muted text-sm">Loading…</p>
+          <p className="text-token-ink-3 text-sm">Loading…</p>
         ) : visibleItems.length === 0 ? (
           <div className="text-center pt-16">
-            <Landmark size={28} className="mx-auto text-muted mb-3" />
-            <p className="text-muted text-sm">No unreconciled transactions — all clear 🎉</p>
+            <Landmark size={28} className="mx-auto text-token-ink-3 mb-3" />
+            <p className="text-token-ink-3 text-sm">No unreconciled transactions — all clear 🎉</p>
           </div>
         ) : (
           visibleItems.map(item => (

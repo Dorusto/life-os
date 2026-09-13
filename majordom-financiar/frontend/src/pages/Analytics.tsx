@@ -51,7 +51,7 @@ export default function AnalyticsPage() {
     }
     if (query.isError || !query.data) {
       return (
-        <p className="text-muted text-xs">
+        <p className="text-token-ink-3 text-xs">
           Couldn't load {fallbackLabel}.
         </p>
       )
@@ -68,7 +68,7 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="h-dvh bg-background flex flex-col overflow-y-auto">
+    <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
       <PageHeader
         label="Spending, budget, and trends"
         title="Analytics"
