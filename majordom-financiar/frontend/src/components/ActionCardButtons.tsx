@@ -29,7 +29,7 @@ export default function ActionCardButtons({
       onClick={onConfirm}
       disabled={loading || confirmDisabled}
       className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-40 whitespace-nowrap ${
-        variant === 'danger' ? 'bg-red-600 hover:bg-red-700' : 'bg-accent hover:bg-accent-hover'
+        variant === 'danger' ? 'bg-token-loss hover:brightness-90' : 'bg-token-brand hover:bg-token-brand-2'
       }`}
     >
       <ConfirmIcon size={14} />
@@ -42,7 +42,7 @@ export default function ActionCardButtons({
       key="cancel"
       onClick={onCancel}
       disabled={loading}
-      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border text-muted hover:text-white hover:bg-surface-hover text-sm font-medium transition-colors active:scale-95 disabled:opacity-40 whitespace-nowrap"
+      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-token-line text-token-ink-3 hover:text-token-ink hover:bg-token-surface-2 text-sm font-medium transition-colors active:scale-95 disabled:opacity-40 whitespace-nowrap"
     >
       <X size={14} />
       {cancelLabel}

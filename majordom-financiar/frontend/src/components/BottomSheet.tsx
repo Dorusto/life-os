@@ -31,16 +31,16 @@ export default function BottomSheet({ open, onClose, title, children }: BottomSh
       onClick={onClose}
     >
       <div
-        className="w-full bg-surface border-t border-border rounded-t-2xl px-6 pt-5 pb-8 space-y-3 max-h-[80vh] overflow-y-auto overscroll-contain"
+        className="w-full bg-token-surface border-t border-token-line rounded-t-2xl px-6 pt-5 pb-8 space-y-3 max-h-[80vh] overflow-y-auto overscroll-contain"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-white font-semibold text-base">{title}</h2>
-          <button onClick={onClose} className="text-muted hover:text-white transition-colors flex-shrink-0 ml-3">
+          <h2 className="text-token-ink font-semibold text-base">{title}</h2>
+          <button onClick={onClose} className="text-token-ink-3 hover:text-token-ink transition-colors flex-shrink-0 ml-3">
             <X size={18} />
           </button>
         </div>
-        <div className="text-muted text-xs leading-relaxed">{children}</div>
+        <div className="text-token-ink-3 text-xs leading-relaxed">{children}</div>
       </div>
     </div>
   )

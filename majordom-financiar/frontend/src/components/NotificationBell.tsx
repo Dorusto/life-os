@@ -7,10 +7,10 @@ import IconButton from './IconButton'
 import BottomSheet from './BottomSheet'
 
 const PENDING_TAGS: Record<string, { label: string; className: string }> = {
-  over_budget: { label: 'finance', className: 'bg-info-dim text-info' },
-  vehicle_reminder: { label: 'vehicle', className: 'bg-attention-dim text-attention' },
+  over_budget: { label: 'finance', className: 'bg-token-info-soft text-token-info' },
+  vehicle_reminder: { label: 'vehicle', className: 'bg-token-warn-soft text-token-warn' },
 }
-const DEFAULT_PENDING_TAG = { label: 'finance', className: 'bg-info-dim text-info' }
+const DEFAULT_PENDING_TAG = { label: 'finance', className: 'bg-token-info-soft text-token-info' }
 
 /**
  * Consolidated notifications bell — uncategorized/needs-attention items and
@@ -66,14 +66,14 @@ export default function NotificationBell() {
         onClick={() => setOpen(true)}
         label="Notifications"
         badge={totalCount > 0 ? (
-          <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-attention text-background text-[10px] font-bold flex items-center justify-center">
+          <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-token-warn text-token-paper text-[10px] font-bold flex items-center justify-center">
             {totalCount}
           </span>
         ) : undefined}
       />
       <BottomSheet open={open} onClose={() => setOpen(false)} title="Notifications">
         {totalCount === 0 ? (
-          <p className="text-muted text-xs py-2">You're all caught up.</p>
+          <p className="text-token-ink-3 text-xs py-2">You're all caught up.</p>
         ) : (
           <div className="-mx-6 border-t border-border divide-y divide-border">
             {duplicateCount > 0 && (
@@ -81,11 +81,11 @@ export default function NotificationBell() {
                 onClick={() => { setOpen(false); navigate('/duplicates') }}
                 className="w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-white/5 transition-colors"
               >
-                <Copy size={16} className="text-info flex-shrink-0" />
-                <span className="flex-1 text-white text-sm">
+                <Copy size={16} className="text-token-info flex-shrink-0" />
+                <span className="flex-1 text-token-ink text-sm">
                   {duplicateCount} possible duplicate{duplicateCount !== 1 ? 's' : ''}
                 </span>
-                <ChevronRight size={14} className="text-muted flex-shrink-0" />
+                <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
               </button>
             )}
             {uncategorizedCount > 0 && (
@@ -93,11 +93,11 @@ export default function NotificationBell() {
                 onClick={() => { setOpen(false); navigate('/uncategorized-review') }}
                 className="w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-white/5 transition-colors"
               >
-                <Tags size={16} className="text-info flex-shrink-0" />
-                <span className="flex-1 text-white text-sm">
+                <Tags size={16} className="text-token-info flex-shrink-0" />
+                <span className="flex-1 text-token-ink text-sm">
                   {uncategorizedCount} payee{uncategorizedCount !== 1 ? 's' : ''} to categorize
                 </span>
-                <ChevronRight size={14} className="text-muted flex-shrink-0" />
+                <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
               </button>
             )}
             {unreconciledCount > 0 && (
@@ -105,11 +105,11 @@ export default function NotificationBell() {
                 onClick={() => { setOpen(false); navigate('/unreconciled-review') }}
                 className="w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-white/5 transition-colors"
               >
-                <Landmark size={16} className="text-info flex-shrink-0" />
-                <span className="flex-1 text-white text-sm">
+                <Landmark size={16} className="text-token-info flex-shrink-0" />
+                <span className="flex-1 text-token-ink text-sm">
                   {unreconciledCount} account{unreconciledCount !== 1 ? 's' : ''} to reconcile
                 </span>
-                <ChevronRight size={14} className="text-muted flex-shrink-0" />
+                <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
               </button>
             )}
             {budgetRealismCount > 0 && (
@@ -117,11 +117,11 @@ export default function NotificationBell() {
                 onClick={() => { setOpen(false); navigate('/budget-realism-review') }}
                 className="w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-white/5 transition-colors"
               >
-                <TrendingUp size={16} className="text-info flex-shrink-0" />
-                <span className="flex-1 text-white text-sm">
+                <TrendingUp size={16} className="text-token-info flex-shrink-0" />
+                <span className="flex-1 text-token-ink text-sm">
                   {budgetRealismCount} categor{budgetRealismCount !== 1 ? 'ies' : 'y'} may be distorted by a one-off
                 </span>
-                <ChevronRight size={14} className="text-muted flex-shrink-0" />
+                <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
               </button>
             )}
             {recurringCount > 0 && (
@@ -129,11 +129,11 @@ export default function NotificationBell() {
                 onClick={() => { setOpen(false); navigate('/recurring-review') }}
                 className="w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-white/5 transition-colors"
               >
-                <Repeat size={16} className="text-info flex-shrink-0" />
-                <span className="flex-1 text-white text-sm">
+                <Repeat size={16} className="text-token-info flex-shrink-0" />
+                <span className="flex-1 text-token-ink text-sm">
                   {recurringCount} recurring item{recurringCount !== 1 ? 's' : ''} to review
                 </span>
-                <ChevronRight size={14} className="text-muted flex-shrink-0" />
+                <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
               </button>
             )}
             {pendingItems?.map((item, i) => {
@@ -144,11 +144,11 @@ export default function NotificationBell() {
                   onClick={() => { setOpen(false); navigate('/chat', { state: { prefill: item.prompt } }) }}
                   className="w-full flex items-center justify-between gap-2 px-6 py-3 text-left hover:bg-white/5 transition-colors"
                 >
-                  <span className="text-white text-sm">
+                  <span className="text-token-ink text-sm">
                     {item.text}{' '}
                     <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${tag.className}`}>{tag.label}</span>
                   </span>
-                  <ChevronRight size={14} className="text-muted flex-shrink-0" />
+                  <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
                 </button>
               )
             })}

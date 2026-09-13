@@ -17,7 +17,7 @@ export default function AddButton() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-accent hover:bg-accent-hover transition-colors text-white font-semibold text-sm"
+        className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-token-brand hover:bg-token-brand-2 transition-colors text-white font-semibold text-sm"
       >
         <Plus size={16} />
         Add
@@ -26,9 +26,9 @@ export default function AddButton() {
         <div className="flex flex-col gap-2">
           <button
             onClick={() => { setOpen(false); navigate('/receipt') }}
-            className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-surface-2 hover:bg-white/5 transition-colors text-left"
+            className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-token-surface-2 hover:bg-white/5 transition-colors text-left"
           >
-            <Camera size={18} className="text-accent flex-shrink-0" />
+            <Camera size={18} className="text-token-brand-ink flex-shrink-0" />
             <div>
               <p className="text-white text-sm font-semibold">Photo</p>
               <p className="text-muted text-xs">Scan a receipt, AI proposes the details</p>
@@ -36,9 +36,9 @@ export default function AddButton() {
           </button>
           <button
             onClick={() => { setOpen(false); navigate('/import') }}
-            className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-surface-2 hover:bg-white/5 transition-colors text-left"
+            className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-token-surface-2 hover:bg-white/5 transition-colors text-left"
           >
-            <Upload size={18} className="text-accent flex-shrink-0" />
+            <Upload size={18} className="text-token-brand-ink flex-shrink-0" />
             <div>
               <p className="text-white text-sm font-semibold">CSV</p>
               <p className="text-muted text-xs">Import a bank export</p>
@@ -46,9 +46,9 @@ export default function AddButton() {
           </button>
           <button
             onClick={() => { setOpen(false); navigate('/receipt', { state: { manual: true } }) }}
-            className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-surface-2 hover:bg-white/5 transition-colors text-left"
+            className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-token-surface-2 hover:bg-white/5 transition-colors text-left"
           >
-            <PenLine size={18} className="text-accent flex-shrink-0" />
+            <PenLine size={18} className="text-token-brand-ink flex-shrink-0" />
             <div>
               <p className="text-white text-sm font-semibold">Manual entry</p>
               <p className="text-muted text-xs">No AI involved — you fill in every field</p>
