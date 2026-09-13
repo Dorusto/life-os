@@ -17,6 +17,8 @@ whether a missing value is fatal or just shows as "—" in the UI.
 """
 import logging
 import os
+import time
+from collections import deque
 from datetime import datetime, timezone
 
 import httpx
@@ -29,6 +31,19 @@ TWELVE_DATA_BASE = "https://api.twelvedata.com"
 
 # One refresh per day per ticker/pair (plan section 4).
 CACHE_TTL_SECONDS = 24 * 60 * 60
+
+# Rate limit — Twelve Data's free "Basic" plan allows 8 API credits per minute
+# (read off the account's own dashboard, 2026-09-13). Six is deliberate
+# headroom below that real 8: the exact enforcement window is not documented as
+# strictly rolling-60s rather than calendar-minute, and a first load across ~14
+# holdings fires ~28 calls, so being caught over the limit costs far more (429s
+# and blank prices) than being a quarter under it costs in latency.
+RATE_LIMIT_MAX_CALLS = 6
+RATE_LIMIT_WINDOW_SECONDS = 60.0
+
+# ``time.monotonic`` stamps of calls already started inside the current sliding
+# window. Bounded by RATE_LIMIT_MAX_CALLS, so it never grows.
+_call_timestamps: deque[float] = deque()
 
 
 class MarketDataError(Exception):
@@ -73,14 +88,56 @@ def _api_key() -> str:
     return key
 
 
+def _throttle() -> None:
+    """Block until one more call fits inside the per-minute window.
+
+    Sliding window over *attempted* calls: each call stamps itself before it
+    goes out, and once the window holds RATE_LIMIT_MAX_CALLS stamps the next
+    caller sleeps exactly long enough for the oldest stamp to age out, then
+    takes its slot. Stamping the attempt rather than the success is the safer
+    reading of "8 credits per minute" — Twelve Data spends a credit on a
+    request it then refuses (HTTP 200 with a ``status: "error"`` body), so a
+    burst of rejected calls must not be able to slip past and keep the client
+    permanently over quota.
+
+    A bare deque needs no lock here because this service runs a single uvicorn
+    worker and every caller reaches this function on the same event-loop
+    thread — see the blocking note in ``_get_json`` for why that is accepted.
+    """
+    while True:
+        now = time.monotonic()
+        while _call_timestamps and now - _call_timestamps[0] >= RATE_LIMIT_WINDOW_SECONDS:
+            _call_timestamps.popleft()
+        if len(_call_timestamps) < RATE_LIMIT_MAX_CALLS:
+            _call_timestamps.append(now)
+            return
+        wait = RATE_LIMIT_WINDOW_SECONDS - (now - _call_timestamps[0])
+        logger.info(
+            "Twelve Data rate limit reached (%d calls in the last %.0fs), waiting %.1fs",
+            len(_call_timestamps), RATE_LIMIT_WINDOW_SECONDS, wait,
+        )
+        time.sleep(max(wait, 0.0))
+
+
 def _get_json(path: str, params: dict) -> dict:
     """GET a Twelve Data endpoint and return parsed JSON, raising on failure.
 
     Twelve Data reports application errors with HTTP 200 and a ``status:
     "error"`` body (or an ``"error"`` field), so those are translated into a
     ``MarketDataError`` here instead of leaking a dict into callers.
+
+    Deliberately blocking, despite being reached from ``async def`` routes: the
+    throttle wait stops the event loop, not just the calling request. At
+    personal scale (one user, one uvicorn worker) that is the right trade — it
+    serialises the first-load burst instead of letting it race the rate limit,
+    which a non-blocking version would. It does mean ``GET /health`` cannot be
+    served while a burst is being throttled, so if the container's healthcheck
+    proves flaky on first boot, move the call sites onto a thread pool
+    (``asyncio.to_thread``) and give ``_throttle`` a ``threading.Lock``.
     """
     params = {**params, "apikey": _api_key()}
+    # Only after the key resolves, so a misconfigured key cannot burn a slot.
+    _throttle()
     try:
         resp = httpx.get(f"{TWELVE_DATA_BASE}{path}", params=params, timeout=10.0)
         resp.raise_for_status()
@@ -186,7 +243,15 @@ def get_price_history(ticker: str, start_date: str, end_date: str | None = None,
     cached = database.get_price_history(ticker)
     newest_fetch = database.get_price_history_fetched_at(ticker)
 
-    covered = bool(cached) and (cached[0]["date"] <= start_date)
+    # Reuse a fresh cache whenever it already reaches back as far as this
+    # request needs: the common case is serving a narrower period ("1y") from a
+    # cache fetched for a wider one ("5y"), or the same period again later in
+    # the same burst. ``min()`` rather than ``cached[0]`` so the coverage test
+    # cannot silently invert if the query's ordering ever changes — with
+    # newest-first rows, ``cached[0]`` would be the *newest* date, no cache
+    # would ever appear to cover its period, and every load would refetch.
+    earliest_cached = min((p["date"] for p in cached), default=None)
+    covered = earliest_cached is not None and earliest_cached <= start_date
     if cached and covered and not force and _is_fresh(newest_fetch):
         return [p for p in cached if p["date"] >= start_date]
 
