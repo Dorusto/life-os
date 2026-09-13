@@ -290,7 +290,7 @@ export default function ReceiptFlow() {
   }
 
   return (
-    <div className="min-h-dvh bg-background flex flex-col">
+    <div className="min-h-dvh bg-token-paper flex flex-col">
       {/* Back button */}
       <button
         onClick={() => navigate('/')}
