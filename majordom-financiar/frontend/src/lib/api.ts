@@ -304,8 +304,18 @@ interface ChartResponse {
   refetch?: any
 }
 
-export async function getSpendingChartData(): Promise<ChartResponse> {
-  return request<ChartResponse>('/finance/spending-chart')
+/**
+ * Spending breakdown for one calendar month (the endpoint defaults to the
+ * current month when neither is given). The Analytics Cash Flow section passes
+ * the month the spending-trend figures are for, so the breakdown and those
+ * figures can't end up covering different periods.
+ */
+export async function getSpendingChartData(month?: number, year?: number): Promise<ChartResponse> {
+  const qs = new URLSearchParams()
+  if (month !== undefined) qs.set('month', String(month))
+  if (year !== undefined) qs.set('year', String(year))
+  const query = qs.toString()
+  return request<ChartResponse>(`/finance/spending-chart${query ? `?${query}` : ''}`)
 }
 
 export async function getBudgetChartData(): Promise<ChartResponse> {

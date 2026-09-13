@@ -11,13 +11,17 @@ import PageHeader from '../components/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import WidgetLoading from '../components/WidgetLoading'
 import { colorForKey } from '../lib/chartColors'
+import { asTrendBarData, extractCashFlow, type CashFlowPoint } from '../lib/cashFlow'
+import { formatCurrency } from '../lib/formatCurrency'
 
 /**
  * Analytics — section tabs (Overview / Trends / Cash Flow / Net Worth) over the
  * chart endpoints the app already exposes. Overview is the original four charts,
  * unchanged. Trends re-slices the spending-trend response (no new endpoint, no
  * period change) into Expenses / Income / Savings bar + cumulative line views.
- * The remaining two sections are filled in by later passes of issue 15.
+ * Cash Flow pairs that response's own latest month with the month-scoped
+ * spending breakdown, both pinned to the same period. Net Worth is a later pass
+ * of issue 15.
  *
  * See docs/decisions.md#planned-folded-into-analytics.
  */
@@ -74,57 +78,14 @@ function PillTabs<T extends string>({
 // The spending-trend endpoint already returns a two-series per-month bar chart
 // (spending vs income) over its own default period; Trends only re-slices that
 // one response. It reuses the endpoint's series — it never derives a split the
-// backend didn't produce, and it never asks for a different period.
-
-interface TrendSeries {
-  label: string
-  color: string
-}
-
-interface TrendPoint {
-  x: string
-  values: number[]
-  month?: number
-  year?: number
-}
-
-interface TrendBarData {
-  series: TrendSeries[]
-  points: TrendPoint[]
-}
-
-/**
- * Narrow the (untyped) chart payload before slicing it — if the trend response
- * isn't a per-month bar chart, say so rather than rendering a chart built from
- * a split that isn't there.
- */
-function asTrendBarData(data: unknown): TrendBarData | null {
-  if (!data || typeof data !== 'object') return null
-  const candidate = data as { series?: unknown; points?: unknown }
-  if (!Array.isArray(candidate.series) || !Array.isArray(candidate.points)) return null
-  return {
-    series: candidate.series as TrendSeries[],
-    points: candidate.points as TrendPoint[],
-  }
-}
-
-/** Find a series by its own label rather than by position — the endpoint decides
- *  the order, and guessing it could silently swap Income for Expenses. */
-function findSeriesIndex(series: TrendSeries[], patterns: RegExp[]): number {
-  for (const pattern of patterns) {
-    const index = series.findIndex((s) => pattern.test(s.label))
-    if (index >= 0) return index
-  }
-  return -1
-}
-
-function valueAt(point: TrendPoint, index: number): number {
-  return point.values[index] ?? 0
-}
+// backend didn't produce, and it never asks for a different period. The
+// aggregation itself (income / expenses / saved per month) lives in
+// lib/cashFlow, shared with the Cash Flow section below and the Dashboard's
+// Cash Flow widget.
 
 /** The period the response actually covers, taken from its own x labels, so a
  *  subsection title can't disagree with the data underneath it. */
-function periodSuffix(points: TrendPoint[]): string {
+function periodSuffix(points: { x: string }[]): string {
   const first = points[0]
   const last = points[points.length - 1]
   if (!first || !last) return ''
@@ -157,6 +118,25 @@ export default function AnalyticsPage() {
     queryKey: ['analytics-savings-rate'],
     queryFn: () => getSavingsRateData(),
     staleTime: 120_000,
+  })
+
+  // --- Cash Flow ---
+  //
+  // Both halves of the section are pinned to one period: the trend's own latest
+  // month anchors it, and the month-scoped spending breakdown is then requested
+  // for that same month. The trend endpoint takes no `month` parameter, so it is
+  // what decides the period here — if its latest point doesn't name a month,
+  // renderCashFlow() reports that rather than pairing the figures with a
+  // different month's breakdown.
+  const cashFlowTrend = trendQuery.data ? extractCashFlow(trendQuery.data.data) : null
+  const cashFlowPoints = cashFlowTrend ? cashFlowTrend.points : []
+  const cashFlowLatest = cashFlowPoints.length > 0 ? cashFlowPoints[cashFlowPoints.length - 1] : null
+
+  const cashFlowBreakdownQuery = useQuery({
+    queryKey: ['analytics-cashflow-breakdown', cashFlowLatest?.year, cashFlowLatest?.month],
+    queryFn: () => getSpendingChartData(cashFlowLatest?.month, cashFlowLatest?.year),
+    staleTime: 120_000,
+    enabled: cashFlowLatest?.month != null && cashFlowLatest?.year != null,
   })
 
   function renderChart(
@@ -192,14 +172,13 @@ export default function AnalyticsPage() {
       return <p className="text-token-ink-3 text-xs">Couldn't load spending trend.</p>
     }
 
-    const trend = asTrendBarData(trendQuery.data.data)
-    const incomeIndex = trend ? findSeriesIndex(trend.series, [/income/i, /inflow/i]) : -1
-    const expenseIndex = trend ? findSeriesIndex(trend.series, [/spen/i, /expense/i]) : -1
+    const cashFlow = extractCashFlow(trendQuery.data.data)
 
     // Circuit breaker: the section is built from the endpoint's own income and
     // expense series. If they aren't both there, report what did come back
     // instead of inventing a split the backend never made.
-    if (!trend || incomeIndex < 0 || expenseIndex < 0 || incomeIndex === expenseIndex) {
+    if (!cashFlow) {
+      const trend = asTrendBarData(trendQuery.data.data)
       const found = trend ? trend.series.map((s) => s.label).join(', ') : 'no series'
       return (
         <p className="text-token-ink-3 text-xs">
@@ -209,21 +188,18 @@ export default function AnalyticsPage() {
       )
     }
 
-    const { points } = trend
-    const selectedIndex = trendTab === 'income' ? incomeIndex : expenseIndex
+    const { points, incomeSeries, expenseSeries } = cashFlow
+    const selectedSeries = trendTab === 'income' ? incomeSeries : expenseSeries
     const selectedLabel =
       trendTab === 'income' ? 'Income' : trendTab === 'savings' ? 'Savings' : 'Expenses'
     const color =
-      trendTab === 'savings'
-        ? colorForKey('Savings')
-        : trend.series[selectedIndex]?.color || colorForKey(selectedLabel)
+      trendTab === 'savings' ? colorForKey('Savings') : selectedSeries.color || colorForKey(selectedLabel)
 
-    // Savings is derived here, in the component: income − expenses per point.
-    // Everything else reads one of the endpoint's existing series directly.
-    const valueFor = (point: TrendPoint) =>
-      trendTab === 'savings'
-        ? valueAt(point, incomeIndex) - valueAt(point, expenseIndex)
-        : valueAt(point, selectedIndex)
+    // Each tab picks one of the shared aggregation's own figures (income /
+    // expenses / saved = income − expenses), so the three views can't disagree
+    // about a month.
+    const valueFor = (point: CashFlowPoint) =>
+      trendTab === 'income' ? point.income : trendTab === 'savings' ? point.saved : point.expenses
 
     // Exactly one series per point — the shared bar renderer draws each value in
     // a point independently (not stacked).
@@ -267,6 +243,102 @@ export default function AnalyticsPage() {
     )
   }
 
+  // --- Cash Flow section ---
+
+  function renderCashFlowBreakdown() {
+    if (cashFlowBreakdownQuery.isLoading) {
+      return <WidgetLoading label="Loading breakdown…" />
+    }
+    if (cashFlowBreakdownQuery.isError || !cashFlowBreakdownQuery.data) {
+      return <p className="text-token-ink-3 text-xs">Couldn't load the spending breakdown.</p>
+    }
+
+    const { chart_type, title, data } = cashFlowBreakdownQuery.data
+    if (chart_type !== 'pie') {
+      return (
+        <p className="text-token-ink-3 text-xs">
+          The spending breakdown came back as a "{chart_type}" chart, not the category pie this section
+          renders.
+        </p>
+      )
+    }
+
+    // Deliberately no `refetch`: the section is pinned to one month, so the
+    // pie's prev/next month nav would walk the breakdown off the figures above
+    // it (the same reason Trends omits it).
+    return <Chart chart_type="pie" title={title} data={data} />
+  }
+
+  function renderCashFlow() {
+    if (trendQuery.isLoading) {
+      return <WidgetLoading label="Loading cash flow…" />
+    }
+    if (trendQuery.isError || !trendQuery.data) {
+      return <p className="text-token-ink-3 text-xs">Couldn't load cash flow.</p>
+    }
+
+    // Circuit breakers — the section is one period or it's nothing:
+    // no separable income/expense series means there are no figures to show;
+    // no months means there is nothing to pin to; and a latest point that
+    // doesn't name its own month means the month-scoped breakdown can't be
+    // asked for that period, so pairing it with these figures would mix two.
+    if (!cashFlowTrend) {
+      return (
+        <p className="text-token-ink-3 text-xs">
+          The spending-trend response doesn't carry separate income and expense series, so the Cash Flow
+          figures can't be derived from it.
+        </p>
+      )
+    }
+    if (!cashFlowLatest) {
+      return <p className="text-token-ink-3 text-xs">The spending-trend response covers no months.</p>
+    }
+    if (cashFlowLatest.month == null || cashFlowLatest.year == null) {
+      return (
+        <p className="text-token-ink-3 text-xs">
+          The spending trend doesn't say which month its latest point ({cashFlowLatest.x}) covers, so the
+          month-scoped spending breakdown can't be pinned to the same period as these figures.
+        </p>
+      )
+    }
+
+    return (
+      <div className="space-y-6">
+        <div className="bg-token-surface rounded-2xl p-4">
+          <p className="text-xs text-token-ink-3 uppercase tracking-wide mb-3">
+            {cashFlowLatest.x} · income, expenses, saved
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <p className="text-[11px] text-token-ink-3 uppercase tracking-wide">Income</p>
+              <p className="font-plex-mono tabular-nums text-token-ink text-lg mt-0.5">
+                {formatCurrency(cashFlowLatest.income, { decimals: 0 })}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] text-token-ink-3 uppercase tracking-wide">Expenses</p>
+              <p className="font-plex-mono tabular-nums text-token-ink text-lg mt-0.5">
+                {formatCurrency(cashFlowLatest.expenses, { decimals: 0 })}
+              </p>
+            </div>
+            <div>
+              <p className="text-[11px] text-token-ink-3 uppercase tracking-wide">Saved</p>
+              <p
+                className={`font-plex-mono tabular-nums text-lg mt-0.5 ${
+                  cashFlowLatest.saved >= 0 ? 'text-token-gain' : 'text-token-loss'
+                }`}
+              >
+                {formatCurrency(cashFlowLatest.saved, { decimals: 0 })}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {renderCashFlowBreakdown()}
+      </div>
+    )
+  }
+
   return (
     <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
       <PageHeader
@@ -289,12 +361,9 @@ export default function AnalyticsPage() {
 
         {section === 'trends' && renderTrends()}
 
-        {/* Cash Flow / Net Worth are separate sub-specs of issue 15. */}
-        {section === 'cashflow' && (
-          <p className="text-token-ink-3 text-sm text-center py-8">
-            Cash Flow is coming in a later pass.
-          </p>
-        )}
+        {section === 'cashflow' && renderCashFlow()}
+
+        {/* Net Worth is a separate sub-spec of issue 15. */}
 
         {section === 'networth' && (
           <p className="text-token-ink-3 text-sm text-center py-8">
