@@ -49,7 +49,7 @@ export default function Holdings() {
           title="No positions yet"
           description="Once you record a buy, your open positions and their cost basis will appear here."
           action={
-            <Link to="/transactions" className="text-sm font-medium text-brand hover:underline">
+            <Link to="/transactions" className="text-sm font-medium text-brand-ink hover:underline">
               Go to Transactions
             </Link>
           }

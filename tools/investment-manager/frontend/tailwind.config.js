@@ -1,6 +1,11 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
+  // Theming is driven entirely by the tokens below, swapped on
+  // <html data-theme="dark">. This makes the `dark:` variant use the same
+  // switch, in case a component ever needs it. No `dark:` classes are used
+  // today — components reference tokens, not color literals.
+  darkMode: ['selector', '[data-theme="dark"]'],
   theme: {
     extend: {
       // Every color points at a CSS custom property in src/styles/tokens.css,
@@ -21,6 +26,7 @@ export default {
         brand: 'var(--brand)',
         'brand-2': 'var(--brand-2)',
         'brand-soft': 'var(--brand-soft)',
+        'brand-ink': 'var(--brand-ink)',
         gain: 'var(--gain)',
         'gain-soft': 'var(--gain-soft)',
         loss: 'var(--loss)',

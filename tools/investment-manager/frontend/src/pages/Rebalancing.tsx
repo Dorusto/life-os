@@ -228,7 +228,7 @@ export default function Rebalancing() {
                       <td
                         className={cn(
                           'px-5 py-3 text-right font-mono tnum font-medium',
-                          buy ? 'text-brand' : sell ? 'text-warn' : 'text-ink-3',
+                          buy ? 'text-brand-ink' : sell ? 'text-warn' : 'text-ink-3',
                         )}
                       >
                         {Math.abs(row.suggested_eur) < 1

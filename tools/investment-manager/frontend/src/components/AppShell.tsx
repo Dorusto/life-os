@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { clearAuth, getUsername } from '../lib/auth'
 import { cn } from '../lib/ui'
+import { ThemeToggle } from './ThemeToggle'
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -49,7 +50,7 @@ function NavItems({ onNavigate }: { onNavigate?: () => void }) {
           className={({ isActive }) =>
             cn(
               'flex items-center gap-3 rounded px-3 py-2 text-sm font-medium transition-colors',
-              isActive ? 'bg-brand-soft text-brand' : 'text-ink-2 hover:bg-surface-2 hover:text-ink',
+              isActive ? 'bg-brand-soft text-brand-ink' : 'text-ink-2 hover:bg-surface-2 hover:text-ink',
             )
           }
         >
@@ -65,6 +66,7 @@ function AccountFooter({ onLogout }: { onLogout: () => void }) {
   const username = getUsername()
   return (
     <div className="border-t border-line px-3 py-3">
+      <ThemeToggle className="mb-1" />
       <div className="flex items-center justify-between gap-2 rounded px-2 py-1.5">
         <div className="min-w-0">
           <p className="truncate text-[13px] font-medium text-ink">{username ?? 'Signed in'}</p>
@@ -101,7 +103,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <BrandMark />
           <div className="leading-tight">
             <p className="text-sm font-semibold text-ink">Majordom</p>
-            <p className="text-[11px] font-medium text-brand">Invest</p>
+            <p className="text-[11px] font-medium text-brand-ink">Invest</p>
           </div>
         </div>
         <NavItems />
@@ -113,7 +115,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <div className="flex items-center gap-2.5">
           <BrandMark />
           <span className="text-sm font-semibold text-ink">
-            Majordom <span className="text-brand">Invest</span>
+            Majordom <span className="text-brand-ink">Invest</span>
           </span>
         </div>
         <button
@@ -133,7 +135,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div className="absolute inset-y-0 left-0 flex w-[18rem] max-w-[82%] flex-col bg-surface shadow-lg">
             <div className="flex items-center justify-between px-4 py-4">
               <span className="text-sm font-semibold text-ink">
-                Majordom <span className="text-brand">Invest</span>
+                Majordom <span className="text-brand-ink">Invest</span>
               </span>
               <button
                 type="button"

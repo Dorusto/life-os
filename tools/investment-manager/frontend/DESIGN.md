@@ -51,6 +51,53 @@ Six categorical series colors (`--c1`…`--c6`, navy / teal / ochre / plum /
 steel / rose) are used in that fixed order for allocation slices — navy always
 first, so the largest slice reads as "the portfolio" rather than a random hue.
 
+### Dark mode
+
+The same token names are re-valued under `[data-theme='dark']`, so a component
+that reads a token needs no dark-specific code. Surfaces are a cool blue-black
+rather than pure `#000` — the same "annual report, not trading terminal"
+restraint, just after dark. Brand blue still means structure and green/red are
+still reserved for gain/loss.
+
+| token | value | role |
+| --- | --- | --- |
+| `--paper` | `#0E151C` | page background |
+| `--surface` | `#16202A` | cards, inputs, modals |
+| `--surface-2` | `#1E2B37` | hover / nested surfaces |
+| `--surface-sunken` | `#101922` | recessed tracks (donut/bar bases) |
+| `--ink` | `#E7EDF2` | primary text and figures |
+| `--ink-2` | `#A9B6C1` | secondary text |
+| `--ink-3` | `#7C8B99` | tertiary / captions |
+| `--line` | `#26333F` | default border |
+| `--line-strong` | `#3A4C5C` | emphasized border |
+| `--brand` | `#2A5688` | filled brand surfaces (buttons, login panel) |
+| `--brand-2` | `#3E76B0` | hover, focus outline |
+| `--brand-soft` | `#16304C` | active nav background, focus ring |
+| `--brand-ink` | `#8CB8E2` | brand-colored text, active nav |
+| `--gain` / `--gain-soft` | `#4FBF8B` / `#14352A` | positive changes |
+| `--loss` / `--loss-soft` | `#E5766D` / `#3A1E1C` | negative changes |
+| `--warn` / `--warn-soft` | `#D9AE55` / `#33290F` | drift, "behind target" |
+
+`--brand` stays a deep fill in both modes so white text on buttons and the
+login panel keeps its contrast; `--brand-ink` is the accent used for text and
+active nav, and is what lightens in dark mode (it equals `--brand` in light).
+
+Dark counterparts of the six series colors, in the same fixed order:
+`--c1` `#6FA8DC`, `--c2` `#4FB3A0`, `--c3` `#D6A94F`, `--c4` `#B49AD6`,
+`--c5` `#5E93C9`, `--c6` `#D98A98`.
+
+### Theming mechanism
+
+The toggle (`components/ThemeToggle.tsx`, in the nav rail footer) sets
+`data-theme="dark"` on `<html>` and stores the choice under the `localStorage`
+key `theme`. With no stored choice the app follows `prefers-color-scheme`; an
+inline script in `index.html` applies the same rule before first paint to
+avoid a flash of the wrong palette. `tailwind.config.js` sets
+`darkMode: ['selector', '[data-theme="dark"]']` so the `dark:` variant, if ever
+needed, keys off the same attribute — though today everything goes through
+tokens. Charts (`LineChart`, `DonutChart`, `BarList`) and every other component
+read these CSS variables, so they re-skin with no per-chart work.
+
 ## Typography
 
 Two faces, each with one job:

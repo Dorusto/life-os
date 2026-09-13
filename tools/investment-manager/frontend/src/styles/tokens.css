@@ -11,6 +11,8 @@
  */
 
 :root {
+  color-scheme: light;
+
   /* --- Surfaces & ink --- */
   --paper: #eef1f3;
   --surface: #ffffff;
@@ -31,6 +33,10 @@
   --brand: #1f4166;
   --brand-2: #2c5c8f;
   --brand-soft: #e1eaf3;
+  /* Readable brand accent for text/borders. Identical to --brand in light
+     mode; in dark mode brand stays a deep fill (so white button/panel text
+     keeps working) while this token lightens for legible accent text. */
+  --brand-ink: #1f4166;
 
   /* --- Semantic --- */
   --gain: #177d52;
@@ -63,4 +69,58 @@
   --shadow-sm: 0 1px 2px rgba(16, 27, 38, 0.05);
   --shadow: 0 2px 10px rgba(16, 27, 38, 0.06);
   --shadow-lg: 0 18px 40px -18px rgba(16, 27, 38, 0.22);
+}
+
+/*
+ * Dark mode — the same tokens, re-valued, keyed off the attribute the theme
+ * toggle sets on <html>. A cool blue-black paper (never pure #000) keeps the
+ * "annual report" character: the surfaces stay intimate, and the two
+ * meaningful colors keep their roles — brand blue for structure, green/red
+ * only for gain/loss. Light mode values above are untouched.
+ */
+[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* --- Surfaces & ink --- */
+  --paper: #0e151c;
+  --surface: #16202a;
+  --surface-2: #1e2b37;
+  --surface-sunken: #101922;
+  --ink: #e7edf2;
+  --ink-2: #a9b6c1;
+  --ink-3: #7c8b99;
+  --line: #26333f;
+  --line-strong: #3a4c5c;
+
+  --overlay: rgba(0, 0, 0, 0.62);
+
+  /* --- Brand: same role, tuned for dark surfaces ---
+     --brand stays a deep fill so white text on buttons/panels still passes;
+     --brand-ink is the lightened accent used for text and active nav. */
+  --brand: #2a5688;
+  --brand-2: #3e76b0;
+  --brand-soft: #16304c;
+  --brand-ink: #8cb8e2;
+
+  /* --- Semantic --- */
+  --gain: #4fbf8b;
+  --gain-soft: #14352a;
+  --loss: #e5766d;
+  --loss-soft: #3a1e1c;
+  --warn: #d9ae55;
+  --warn-soft: #33290f;
+  --info: #5d9ad0;
+
+  /* --- Categorical data palette (charts, allocation) --- */
+  --c1: #6fa8dc;
+  --c2: #4fb3a0;
+  --c3: #d6a94f;
+  --c4: #b49ad6;
+  --c5: #5e93c9;
+  --c6: #d98a98;
+
+  /* --- Elevation: darker, softer — depth on near-black reads differently --- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  --shadow-lg: 0 18px 40px -18px rgba(0, 0, 0, 0.7);
 }

@@ -22,6 +22,7 @@ import '@fontsource/ibm-plex-mono/latin-600.css'
 import '@fontsource/ibm-plex-mono/latin-ext-600.css'
 
 import App from './App'
+import { ThemeProvider } from './lib/theme'
 import './index.css'
 
 // Same server-state defaults as the other apps in this monorepo: back off on
@@ -49,7 +50,9 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <App />
+      <ThemeProvider>
+        <App />
+      </ThemeProvider>
     </QueryClientProvider>
   </StrictMode>,
 )
