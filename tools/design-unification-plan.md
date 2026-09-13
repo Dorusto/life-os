@@ -189,13 +189,22 @@ separate risk profile (structural JSX changes, not just class renames) from 3a's
 rename. `Card.tsx`/`PageHeader.tsx` (the old ones) get deleted only once grep confirms zero
 remaining importers of the *old* components — `DuplicatesReviewPage.tsx` is the one file to check.
 
-### Phase 4 — Font cleanup
-- [ ] Once Phase 3 fully lands (majordom-financiar) and 1a/1b confirm no app still references
-      Syne/DM Mono or any other pre-unification font: remove the unused `@fontsource/*` packages
-      and their import lines from `main.tsx` (or equivalent) in each app. Grep for the font-family
-      name itself (`font-display`, `font-mono` old keys, `Syne`, `DM Mono`) before removing
-      anything — a font key can outlive its font file reference if a Tailwind class still points
-      at it.
+### Phase 4 — Font cleanup (majordom-financiar) — done 2026-09-13
+- [x] Confirmed via full-codebase grep that `font-display`/`font-mono` (old keys) had zero
+      remaining usages after Phase 3a. Removed `@fontsource/syne`/`@fontsource/dm-mono` from
+      `package.json`, their import lines from `main.tsx`, and the `display`/`mono` keys from
+      `tailwind.config.js`. **Also changed the base `sans` key itself to IBM Plex Sans** (was a
+      system-font stack) — this is what makes IBM Plex Sans the real Tailwind base/preflight
+      default and applies it to any untagged text too, matching investment-manager/vehicle-
+      manager where IBM Plex Sans is the true default, not an opt-in utility.
+- [x] Found and fixed a real bug along the way: `components/ui/MetricTile.tsx` (a Phase 3a-era
+      ported file, never reviewed for its font class since nothing used it yet) had a bare
+      `font-mono`, which resolved to the just-retired DM Mono via this app's own config override —
+      changed to `font-plex-mono`.
+- [x] Live-verified: full rebuild, `getComputedStyle` on `<body>` and a page's `<h1>` both report
+      `"IBM Plex Sans"` as the real rendered font, no console errors, no missing-font 404s.
+- [ ] investment-manager and vehicle-manager weren't touched by this phase — they already use IBM
+      Plex Sans/Mono as their own real defaults from the start (nothing to retire there).
 
 ### Phase 5 — Cross-app consistency pass
 - [ ] Once 1-4 land: a live side-by-side check (browser) of the three apps' Dashboard-equivalent
