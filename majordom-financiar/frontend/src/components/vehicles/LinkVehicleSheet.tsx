@@ -26,8 +26,8 @@ interface NewProfileForm {
 }
 
 const inputClass =
-  'bg-background text-white border border-border rounded-lg px-3 py-2 text-sm outline-none focus:border-accent transition-colors w-full'
-const labelClass = 'text-[11px] font-semibold text-muted uppercase tracking-wide'
+  'bg-token-paper text-token-ink border border-token-line rounded-lg px-3 py-2 text-sm outline-none focus:border-token-brand transition-colors w-full'
+const labelClass = 'text-[11px] font-semibold text-token-ink-3 uppercase tracking-wide'
 
 function parseOptionalNumber(value: string): number | undefined {
   const trimmed = value.trim()
@@ -99,7 +99,7 @@ export default function LinkVehicleSheet({
 
   return (
     <BottomSheet open={open} onClose={onClose} title="Link vehicle">
-      <p className="text-muted text-xs">
+      <p className="text-token-ink-3 text-xs">
         This account ({account.name}) isn't linked to a vehicle profile yet.
       </p>
 
@@ -115,8 +115,8 @@ export default function LinkVehicleSheet({
                   type="button"
                   disabled={submitting}
                   onClick={() => selectExisting(v)}
-                  className={`w-full text-left bg-background border rounded-lg px-3 py-2 text-sm text-white transition-colors disabled:opacity-50 ${
-                    isSelected ? 'border-accent' : 'border-border hover:border-accent'
+                  className={`w-full text-left bg-token-paper border rounded-lg px-3 py-2 text-sm text-token-ink transition-colors disabled:opacity-50 ${
+                    isSelected ? 'border-token-brand' : 'border-token-line hover:border-token-brand'
                   }`}
                 >
                   {[v.make, v.model].filter(Boolean).join(' ') || v.name}
@@ -135,7 +135,7 @@ export default function LinkVehicleSheet({
             {selected ? 'Selected profile' : 'Or create a new profile'}
           </p>
           {selected && (
-            <button type="button" onClick={clearSelection} className="text-[11px] text-muted hover:text-white">
+            <button type="button" onClick={clearSelection} className="text-[11px] text-token-ink-3 hover:text-token-ink">
               Create new instead
             </button>
           )}
@@ -184,12 +184,12 @@ export default function LinkVehicleSheet({
           />
         </div>
 
-        {error && <p className="text-danger text-xs">{error}</p>}
+        {error && <p className="text-token-loss text-xs">{error}</p>}
 
         <button
           type="submit"
           disabled={submitting || (!selected && !newProfile.name.trim())}
-          className="w-full bg-accent hover:bg-accent-hover disabled:opacity-50 text-white rounded-full py-2.5 text-sm font-semibold transition-colors"
+          className="w-full bg-token-brand hover:bg-token-brand-2 disabled:opacity-50 text-white rounded-full py-2.5 text-sm font-semibold transition-colors"
         >
           {submitting ? (selected ? 'Linking…' : 'Creating…') : selected ? 'Link vehicle' : 'Create & link'}
         </button>
