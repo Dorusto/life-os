@@ -32,11 +32,11 @@ export default function VehicleLogActionCard({ data, onConfirmed, onCancelled }:
   }
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
+    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
       <div>
-        <p className="text-white font-medium">Delete log entry?</p>
-        <p className="text-muted text-sm mt-0.5">
-          <span className="text-white">{data.vehicle_name}</span>
+        <p className="text-token-ink font-medium">Delete log entry?</p>
+        <p className="text-token-ink-3 text-sm mt-0.5">
+          <span className="text-token-ink">{data.vehicle_name}</span>
           {' · '}
           {data.date}
           {data.odo_km != null && <span> · {formatNumber(data.odo_km)} km</span>}
@@ -44,9 +44,9 @@ export default function VehicleLogActionCard({ data, onConfirmed, onCancelled }:
           {data.cost_total != null && <span> · {formatCurrency(data.cost_total)}</span>}
           {data.location && <span> · {data.location}</span>}
         </p>
-        <p className="text-yellow-500 text-xs mt-1">ID #{data.entry_id} · This cannot be undone.</p>
+        <p className="text-token-warn text-xs mt-1">ID #{data.entry_id} · This cannot be undone.</p>
         {data.has_ab_transaction && (
-          <p className="text-yellow-500 text-xs mt-0.5">⚠ Will also remove the Actual Budget transaction</p>
+          <p className="text-token-warn text-xs mt-0.5">⚠ Will also remove the Actual Budget transaction</p>
         )}
       </div>
 

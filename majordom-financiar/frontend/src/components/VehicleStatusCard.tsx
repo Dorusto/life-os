@@ -30,13 +30,13 @@ export default function VehicleStatusCard({ data, onConfirmed, onCancelled }: Pr
   }
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
+    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
       <div>
-        <p className="text-white font-medium">
+        <p className="text-token-ink font-medium">
           {data.active ? 'Reactivate vehicle?' : 'Mark vehicle as sold/retired?'}
         </p>
-        <p className="text-muted text-sm mt-0.5">
-          <span className="text-white">{data.vehicle_name}</span>
+        <p className="text-token-ink-3 text-sm mt-0.5">
+          <span className="text-token-ink">{data.vehicle_name}</span>
           {' '}will {data.active ? 'reappear' : 'no longer appear'} in vehicle stats and tools.
         </p>
       </div>

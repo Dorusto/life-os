@@ -27,19 +27,19 @@ const FIRE_ASSUMPTIONS_PREFILL = 'I want to set my real retirement assumptions �
 const GOAL_CHIPS: { label: string; colorClass: string; prefill: string }[] = [
   {
     label: 'Expense Coverage',
-    colorClass: 'bg-positive-dim text-positive',
+    colorClass: 'bg-token-gain-soft text-token-gain',
     prefill: 'I want to set up an Expense Coverage goal — how does that work?',
   },
   {
     label: 'FIRE',
-    colorClass: 'bg-positive-dim text-positive',
+    colorClass: 'bg-token-gain-soft text-token-gain',
     prefill: 'I want to check my FIRE / Portfolio Independence assumptions.',
   },
 ]
 
 /**
  * Financial Goals — a single widget-card (matches the shell every other
- * Dashboard/Planned widget uses: bg-surface border rounded-2xl, title inside)
+ * Dashboard/Planned widget uses: bg-token-surface border rounded-2xl, title inside)
  * instead of the older label-above-separate-accent-cards layout. Rendered on
  * both Dashboard (as the existing 'goals' widget) and the new Planned page —
  * same component, not duplicated (decisions.md#nav-five-tabs supersession).
@@ -64,12 +64,12 @@ export default function GoalsSection({
   }
 
   return (
-    <div className="bg-surface border border-border rounded-2xl px-4 pt-4 pb-1.5">
+    <div className="bg-token-surface border border-token-line rounded-2xl px-4 pt-4 pb-1.5">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="font-display font-bold text-[15px]">Financial Goals</span>
+        <span className="font-plex-sans font-bold text-[15px]">Financial Goals</span>
         <button
           onClick={() => setSheetOpen(true)}
-          className="text-muted hover:text-white transition-colors p-2"
+          className="text-token-ink-3 hover:text-token-ink transition-colors p-2"
           aria-label="New goal"
         >
           <Plus size={16} />
@@ -80,11 +80,11 @@ export default function GoalsSection({
         <WidgetLoading label="Loading goals…" />
       ) : !hasContent ? (
         <div className="py-4 text-center">
-          <p className="text-white font-semibold text-[15px] mb-2.5">Create your first goal</p>
+          <p className="text-token-ink font-semibold text-[15px] mb-2.5">Create your first goal</p>
           <div className="flex items-center justify-center gap-2 flex-wrap">
             <button
               onClick={() => setSheetOpen(true)}
-              className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-attention-dim text-attention"
+              className="text-[11px] font-bold px-2.5 py-1 rounded-lg bg-token-warn-soft text-token-warn"
             >
               Custom goal
             </button>
@@ -115,13 +115,13 @@ export default function GoalsSection({
 }
 
 function PortfolioIndependenceRow({ data, navigate }: { data: FireData; navigate: NavigateFunction }) {
-  const color = '#4F8EF7' // info
+  const color = 'var(--info)' // info
   const trend = data.trend_months
 
   return (
-    <div className="py-3.5 border-b border-border last:border-b-0">
+    <div className="py-3.5 border-b border-token-line last:border-b-0">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-white font-semibold text-[15px]">
+        <p className="text-token-ink font-semibold text-[15px]">
           Portfolio Independence
           <InfoIcon title="Portfolio Independence">
             <p className="mb-2">
@@ -140,7 +140,7 @@ function PortfolioIndependenceRow({ data, navigate }: { data: FireData; navigate
               {formatPercent(data.decumulation_return * 100, { decimals: 0 })} return.
             </p>
             {data.is_default_assumptions && (
-              <div className="mt-2 text-yellow-400">
+              <div className="mt-2 text-token-warn">
                 <p>
                   "Placeholder" means these numbers aren't yours yet — they're generic defaults so the
                   card has something to show before you've told Majordom your real plans. Tap below to
@@ -156,29 +156,29 @@ function PortfolioIndependenceRow({ data, navigate }: { data: FireData; navigate
             )}
           </InfoIcon>
         </p>
-        <p className="font-display font-bold text-lg tabular-nums flex-shrink-0" style={{ color }}>
+        <p className="font-plex-sans font-bold text-lg tabular-nums flex-shrink-0" style={{ color }}>
           {formatPercent(data.fire_pct, { decimals: 0 })}
         </p>
       </div>
 
-      <div className="relative w-full h-1.5 bg-border rounded-full overflow-hidden mt-3 mb-2.5">
+      <div className="relative w-full h-1.5 bg-token-line rounded-full overflow-hidden mt-3 mb-2.5">
         <div
           className="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
           style={{ width: `${Math.min(data.fire_pct, 100)}%`, backgroundColor: color }}
         />
       </div>
 
-      <div className="flex items-center justify-between text-xs text-muted">
+      <div className="flex items-center justify-between text-xs text-token-ink-3">
         <span>{euro(data.fire_portfolio)} saved</span>
         <span>{euro(data.monthly_contribution)}/mo</span>
       </div>
 
-      <div className="flex items-center justify-between text-[11px] text-muted-2 mt-1.5">
+      <div className="flex items-center justify-between text-[11px] text-token-ink-2 mt-1.5">
         <span>target ~{euro(data.fire_target)}</span>
         <span>
           {data.estimated_year ? `est. ${data.estimated_year}` : '—'}
           {trend != null && trend !== 0 && (
-            <span className={`font-bold ml-1 ${trend > 0 ? 'text-positive' : 'text-danger'}`}>
+            <span className={`font-bold ml-1 ${trend > 0 ? 'text-token-gain' : 'text-token-loss'}`}>
               {trend > 0 ? '▲' : '▼'}{Math.abs(trend)}mo
             </span>
           )}
@@ -188,7 +188,7 @@ function PortfolioIndependenceRow({ data, navigate }: { data: FireData; navigate
       {data.is_default_assumptions && (
         <button
           onClick={() => navigate('/chat', { state: { prefill: FIRE_ASSUMPTIONS_PREFILL } })}
-          className="w-full text-[10px] text-yellow-500/70 hover:text-yellow-400 mt-2 text-center underline underline-offset-2"
+          className="w-full text-[10px] text-token-warn hover:text-token-warn mt-2 text-center underline underline-offset-2"
         >
           Placeholder assumptions — set your real numbers in Chat
         </button>
@@ -198,13 +198,13 @@ function PortfolioIndependenceRow({ data, navigate }: { data: FireData; navigate
 }
 
 function ExpenseCoverageRow({ data }: { data: ExpenseCoverageData }) {
-  const color = '#22C55E' // positive — same green used for income-side amounts elsewhere
+  const color = 'var(--gain)' // positive — same green used for income-side amounts elsewhere
   const pct = Math.min(data.coverage_pct, 100)
 
   return (
-    <div className="py-3.5 border-b border-border last:border-b-0">
+    <div className="py-3.5 border-b border-token-line last:border-b-0">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-white font-semibold text-[15px]">
+        <p className="text-token-ink font-semibold text-[15px]">
           Expense Coverage
           <InfoIcon title="Expense Coverage">
             <p className="mb-2">
@@ -220,22 +220,22 @@ function ExpenseCoverageRow({ data }: { data: ExpenseCoverageData }) {
             </p>
           </InfoIcon>
         </p>
-        <p className="font-display font-bold text-lg tabular-nums flex-shrink-0" style={{ color }}>
+        <p className="font-plex-sans font-bold text-lg tabular-nums flex-shrink-0" style={{ color }}>
           {formatPercent(data.coverage_pct, { decimals: 0 })}
         </p>
       </div>
 
-      <div className="relative w-full h-1.5 bg-border rounded-full overflow-hidden mt-3 mb-2.5">
+      <div className="relative w-full h-1.5 bg-token-line rounded-full overflow-hidden mt-3 mb-2.5">
         <div
           className="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
           style={{ width: `${pct}%`, backgroundColor: color }}
         />
         {/* Milestone ticks at 33% and 100% — meaning lives only in the info-icon popup above, never as visible text here */}
-        <div className="absolute top-0 h-full w-px bg-background/60" style={{ left: '33%' }} />
-        <div className="absolute top-0 h-full w-px bg-background/60 right-0" />
+        <div className="absolute top-0 h-full w-px bg-token-line-strong" style={{ left: '33%' }} />
+        <div className="absolute top-0 h-full w-px bg-token-line-strong right-0" />
       </div>
 
-      <div className="flex items-center justify-between text-xs text-muted">
+      <div className="flex items-center justify-between text-xs text-token-ink-3">
         <span>{euro(data.passive_semi_passive_income)}/mo passive+semi-passive</span>
         <span>{euro(data.filtered_monthly_expenses)}/mo expenses</span>
       </div>
@@ -251,9 +251,9 @@ interface GoalRowProps {
 
 function GoalRow({ goal, color, navigate }: GoalRowProps) {
   return (
-    <div className="py-3.5 border-b border-border last:border-b-0">
+    <div className="py-3.5 border-b border-token-line last:border-b-0">
       <div className="flex items-baseline justify-between gap-2">
-        <p className="text-white font-semibold text-[15px]">
+        <p className="text-token-ink font-semibold text-[15px]">
           {goal.name}
           <InfoIcon title={goal.name}>
             {goal.note ? (
@@ -265,7 +265,7 @@ function GoalRow({ goal, color, navigate }: GoalRowProps) {
                   onClick={() => navigate('/chat', {
                     state: { prefill: `Set the description for my ${goal.name} goal to: ` },
                   })}
-                  className="mt-1.5 underline underline-offset-2 font-medium text-white"
+                  className="mt-1.5 underline underline-offset-2 font-medium text-token-ink"
                 >
                   Set a description →
                 </button>
@@ -273,26 +273,26 @@ function GoalRow({ goal, color, navigate }: GoalRowProps) {
             )}
           </InfoIcon>
         </p>
-        <p className="font-display font-bold text-lg tabular-nums flex-shrink-0" style={{ color }}>
+        <p className="font-plex-sans font-bold text-lg tabular-nums flex-shrink-0" style={{ color }}>
           {euro(goal.target)}
         </p>
       </div>
 
-      <div className="relative w-full h-1.5 bg-border rounded-full overflow-hidden mt-3 mb-2.5">
+      <div className="relative w-full h-1.5 bg-token-line rounded-full overflow-hidden mt-3 mb-2.5">
         <div
           className="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
           style={{ width: `${Math.min(goal.percentage, 100)}%`, backgroundColor: color }}
         />
       </div>
 
-      <div className="flex items-center justify-between text-xs text-muted">
+      <div className="flex items-center justify-between text-xs text-token-ink-3">
         <span>{euro(goal.balance)} saved</span>
         {goal.monthly_needed != null && goal.monthly_needed > 0 && (
           <span>{euro(goal.monthly_needed)}/mo</span>
         )}
       </div>
 
-      <div className="text-right text-[11px] text-muted-2 mt-1.5">
+      <div className="text-right text-[11px] text-token-ink-2 mt-1.5">
         {goal.deadline ? `target: ${formatDeadline(goal.deadline)}` : formatPercent(goal.percentage, { decimals: 0 })}
       </div>
     </div>

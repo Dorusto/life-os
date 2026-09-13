@@ -63,17 +63,17 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
     : `${data.days_remaining} days remaining`
 
   return (
-    <div className="bg-surface border border-border rounded-2xl rounded-bl-sm px-4 py-3 w-[92%] max-w-sm space-y-3">
-      <p className="text-white font-medium">{isApkRequired || isVehicleType ? `Update ${data.label}` : `Set ${data.label} reminder`}</p>
+    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 w-[92%] max-w-sm space-y-3">
+      <p className="text-token-ink font-medium">{isApkRequired || isVehicleType ? `Update ${data.label}` : `Set ${data.label} reminder`}</p>
 
       <div className="space-y-2">
         {data.vehicles.length > 1 && (
           <div className="space-y-1">
-            <p className="text-muted text-xs">Vehicle</p>
+            <p className="text-token-ink-3 text-xs">Vehicle</p>
             <select
               value={vehicleId}
               onChange={e => setVehicleId(Number(e.target.value))}
-              className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
             >
               {data.vehicles.map(v => (
                 <option key={v.id} value={v.id}>{v.name}</option>
@@ -86,63 +86,63 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
           <>
             <div className="flex gap-2">
               <div className="flex-1 space-y-1">
-                <p className="text-muted text-xs">Every (km)</p>
+                <p className="text-token-ink-3 text-xs">Every (km)</p>
                 <input
                   type="number"
                   value={intervalKm}
                   onChange={e => setIntervalKm(e.target.value)}
                   placeholder="15000"
-                  className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+                  className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
                 />
               </div>
               <div className="flex-1 space-y-1">
-                <p className="text-muted text-xs">Every (months)</p>
+                <p className="text-token-ink-3 text-xs">Every (months)</p>
                 <input
                   type="number"
                   value={intervalMonths}
                   onChange={e => setIntervalMonths(e.target.value)}
                   placeholder="12"
-                  className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+                  className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
                 />
               </div>
             </div>
             <div className="flex gap-2">
               <div className="flex-1 space-y-1">
-                <p className="text-muted text-xs">Last service (km)</p>
+                <p className="text-token-ink-3 text-xs">Last service (km)</p>
                 <input
                   type="number"
                   value={lastServiceKm}
                   onChange={e => setLastServiceKm(e.target.value)}
                   placeholder="48535"
-                  className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+                  className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
                 />
               </div>
               <div className="flex-1 space-y-1">
-                <p className="text-muted text-xs">Last service date</p>
+                <p className="text-token-ink-3 text-xs">Last service date</p>
                 <input
                   type="date"
                   value={lastServiceDate}
                   onChange={e => setLastServiceDate(e.target.value)}
-                  className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+                  className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
                 />
               </div>
             </div>
           </>
         ) : isApkRequired ? (
           <div className="space-y-1">
-            <p className="text-muted text-xs">APK/ITP/MOT applies to this vehicle?</p>
+            <p className="text-token-ink-3 text-xs">APK/ITP/MOT applies to this vehicle?</p>
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => setRequired(true)}
-                className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${required ? 'bg-accent text-white' : 'bg-background border border-border text-muted'}`}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${required ? 'bg-token-brand text-token-ink' : 'bg-token-paper border border-token-line text-token-ink-3'}`}
               >
                 Required
               </button>
               <button
                 type="button"
                 onClick={() => setRequired(false)}
-                className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${!required ? 'bg-accent text-white' : 'bg-background border border-border text-muted'}`}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${!required ? 'bg-token-brand text-token-ink' : 'bg-token-paper border border-token-line text-token-ink-3'}`}
               >
                 Not required
               </button>
@@ -150,11 +150,11 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
           </div>
         ) : isVehicleType ? (
           <div className="space-y-1">
-            <p className="text-muted text-xs">Vehicle type</p>
+            <p className="text-token-ink-3 text-xs">Vehicle type</p>
             <select
               value={vehicleType}
               onChange={e => setVehicleType(e.target.value as 'car' | 'motorcycle' | 'other')}
-              className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
             >
               <option value="car">🚗 Car</option>
               <option value="motorcycle">🏍️ Motorcycle</option>
@@ -163,9 +163,9 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
           </div>
         ) : (
           <div className="space-y-1">
-            <p className="text-muted text-xs">Expiry date</p>
+            <p className="text-token-ink-3 text-xs">Expiry date</p>
             {daysLabel && (
-              <p className={`text-xs mb-1 ${data.days_remaining <= 0 ? 'text-red-400' : data.days_remaining <= 30 ? 'text-yellow-400' : 'text-muted'}`}>
+              <p className={`text-xs mb-1 ${data.days_remaining <= 0 ? 'text-token-loss' : data.days_remaining <= 30 ? 'text-token-warn' : 'text-token-ink-3'}`}>
                 {daysLabel}
               </p>
             )}
@@ -173,7 +173,7 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
               type="date"
               value={dueDate}
               onChange={e => setDueDate(e.target.value)}
-              className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+              className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
             />
           </div>
         )}
