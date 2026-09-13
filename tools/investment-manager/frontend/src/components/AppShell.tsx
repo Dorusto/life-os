@@ -8,13 +8,13 @@ import {
   Scale,
   Target,
   Settings as SettingsIcon,
-  Menu,
-  X,
   LogOut,
 } from 'lucide-react'
 import { clearAuth, getUsername } from '../lib/auth'
 import { cn } from '../lib/ui'
 import { ThemeToggle } from './ThemeToggle'
+import { MobileBottomNav } from './MobileBottomNav'
+import { MoreSheet } from './MoreSheet'
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
@@ -87,7 +87,7 @@ function AccountFooter({ onLogout }: { onLogout: () => void }) {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const [drawerOpen, setDrawerOpen] = useState(false)
+  const [moreOpen, setMoreOpen] = useState(false)
   const navigate = useNavigate()
 
   const logout = () => {
@@ -110,56 +110,12 @@ export function AppShell({ children }: { children: ReactNode }) {
         <AccountFooter onLogout={logout} />
       </aside>
 
-      {/* Mobile top bar */}
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-surface px-4 py-3 lg:hidden">
-        <div className="flex items-center gap-2.5">
-          <BrandMark />
-          <span className="text-sm font-semibold text-ink">
-            Majordom <span className="text-brand-ink">Invest</span>
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={() => setDrawerOpen(true)}
-          aria-label="Open navigation"
-          className="rounded p-2 text-ink-2 hover:bg-surface-2"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
-      </div>
-
-      {/* Mobile drawer */}
-      {drawerOpen && (
-        <div className="fixed inset-0 z-[40] lg:hidden">
-          <div className="absolute inset-0 bg-overlay" onClick={() => setDrawerOpen(false)} />
-          <div className="absolute inset-y-0 left-0 flex w-[18rem] max-w-[82%] flex-col bg-surface shadow-lg">
-            <div className="flex items-center justify-between px-4 py-4">
-              <span className="text-sm font-semibold text-ink">
-                Majordom <span className="text-brand-ink">Invest</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => setDrawerOpen(false)}
-                aria-label="Close navigation"
-                className="rounded p-1.5 text-ink-3 hover:bg-surface-2"
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <NavItems onNavigate={() => setDrawerOpen(false)} />
-            <AccountFooter
-              onLogout={() => {
-                setDrawerOpen(false)
-                logout()
-              }}
-            />
-          </div>
-        </div>
-      )}
-
-      <main className="min-w-0 px-4 py-6 sm:px-6 lg:px-[2.5rem] lg:py-9">
+      <main className="min-w-0 px-4 py-6 pb-20 sm:px-6 lg:px-[2.5rem] lg:py-9 lg:pb-9">
         <div className="mx-auto max-w-6xl">{children}</div>
       </main>
+
+      <MobileBottomNav onMoreClick={() => setMoreOpen(true)} moreOpen={moreOpen} />
+      <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} />
     </div>
   )
 }
