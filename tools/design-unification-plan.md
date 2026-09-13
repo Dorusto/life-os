@@ -188,6 +188,17 @@ not as a giant separate pass — but explicitly scoped as its own phase here sin
 separate risk profile (structural JSX changes, not just class renames) from 3a's mechanical
 rename. `Card.tsx`/`PageHeader.tsx` (the old ones) get deleted only once grep confirms zero
 remaining importers of the *old* components — `DuplicatesReviewPage.tsx` is the one file to check.
+- [x] **Old `components/Card.tsx` retired (2026-09-14).** `DuplicatesReviewPage.tsx` (the only
+      importer) was switched to `{ Card } from '../components/ui/Card'` during its Phase 3a touch;
+      zero importers of the old file remained, so it was deleted outright. Its dead
+      `accentColor`/`accentSide` props went with it — no call site ever passed either (the one
+      accent in use is `DuplicatesReviewPage`'s `border-l-[3px] border-l-token-warn`, a plain
+      class), so nothing needed porting to `components/ui/Card` first.
+- [ ] **Old `components/PageHeader.tsx` retirement — still open; the Group 8 note above was wrong
+      about it.** It is NOT rendered via `App.tsx` (no `PageHeader` import there); it is imported
+      per page (`Dashboard.tsx`, `DuplicatesReviewPage.tsx`, …). So it needs a
+      `components/ui/PageHeader` to migrate the pages onto, or a decision to keep it — this is a
+      multi-page pass, not a grep-gated file deletion.
 
 ### Phase 4 — Font cleanup (majordom-financiar) — done 2026-09-13
 - [x] Confirmed via full-codebase grep that `font-display`/`font-mono` (old keys) had zero
