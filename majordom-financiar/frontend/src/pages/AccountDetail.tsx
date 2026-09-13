@@ -140,7 +140,7 @@ export default function AccountDetail() {
               ) : (
                 <button
                   onClick={() => setEditingType(true)}
-                  className="text-[13.5px] font-semibold hover:text-accent transition-colors"
+                  className="text-[13.5px] font-semibold hover:text-token-brand-ink transition-colors"
                 >
                   {account.account_type ?? 'Not set'}
                 </button>
