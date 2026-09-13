@@ -821,6 +821,11 @@ function LineChart({
         const seriesMax = Math.max(...s.points.map((p) => p.y))
         const dec = axisDecimals(seriesMin, seriesMax)
 
+        // Short series keep a visible dot on every point — a bare 2-point line
+        // reads as a plain stroke. Longer series hide the dots so the line stays
+        // clean; the active point's dot reappears on interaction below.
+        const showMarkers = s.points.length <= 8
+
         return (
           <div key={s.label} className="mb-2">
             <div className="flex items-center justify-between text-xs text-token-ink-3 mb-1">
@@ -873,9 +878,12 @@ function LineChart({
                     style={{ cursor: 'pointer' }}
                   >
                     {/* Larger transparent hit target — the visible dot (r=2.5) is too
-                        small to reliably tap on a phone. */}
+                        small to reliably tap on a phone. Kept for every point so
+                        tapping still opens the tooltip. */}
                     <circle cx={scaleX(i)} cy={scaleY(p.y)} r={10} fill="transparent" />
-                    <circle cx={scaleX(i)} cy={scaleY(p.y)} r={2.5} fill={s.color} />
+                    {(showMarkers || (activePoint?.series === s.label && activePoint?.index === i)) && (
+                      <circle cx={scaleX(i)} cy={scaleY(p.y)} r={2.5} fill={s.color} />
+                    )}
                   </g>
                 ))}
               </svg>
