@@ -20,7 +20,7 @@
  * The tool (backend, deterministic code) decides which chart_type fits its data —
  * this component never guesses the type, it only renders what it's told.
  */
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { authFetch } from '../lib/auth'
 import { formatCurrency, formatPercent, formatNumber } from '../lib/formatCurrency'
 import { colorForKey } from '../lib/chartColors'
@@ -751,9 +751,21 @@ function LineChart({
     initialRefetch
   )
   const wrapperClass = bare ? 'p-4' : 'rounded-lg border border-line bg-surface p-5 shadow-sm'
-  // Which point's tooltip is open — keyed by series label since each series
-  // renders its own independent svg/point set.
-  const [activePoint, setActivePoint] = useState<{ series: string; index: number } | null>(null)
+  // Shared hover position, held as a 0-1 fraction across the plot width — one
+  // crosshair + one tooltip for the whole chart, rather than a permanent dot
+  // per point (see tools/investment-manager/frontend/src/components/LineChart.tsx).
+  const [hover, setHover] = useState<number | null>(null)
+  const [hoverWidth, setHoverWidth] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  function handleMove(clientX: number) {
+    const el = containerRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    if (rect.width === 0) return
+    setHoverWidth(rect.width)
+    setHover(Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1))
+  }
 
   function handlePeriodSelect(value: number) {
     if (refetch?.mode === 'period_buttons') refetchWith({ [refetch.period_param]: value })
@@ -793,6 +805,35 @@ function LineChart({
   // already get their own label overlay.
   const GRID_FRACTIONS = [0.25, 0.5, 0.75]
 
+  // Resolve the shared hover fraction to each series' own nearest point. Series
+  // can have different point counts (e.g. the projection's 2-point salvage
+  // floor beside its many-point estimated value), so this can't use one shared
+  // index — each series resolves independently from its own point count.
+  const hoverViewX = hover !== null ? hover * width : 0
+  const hoverPlotFraction = Math.min(Math.max((hoverViewX - padX) / (width - padX * 2), 0), 1)
+
+  function pointIndexAt(count: number): number {
+    if (count <= 1) return 0
+    return Math.round(hoverPlotFraction * (count - 1))
+  }
+
+  const hoverRows =
+    hover === null
+      ? []
+      : chartData.series.map((s) => {
+          const p = s.points[pointIndexAt(s.points.length)]
+          const seriesMin = Math.min(...s.points.map((q) => q.y))
+          const seriesMax = Math.max(...s.points.map((q) => q.y))
+          return {
+            label: s.label,
+            color: s.color,
+            value: p ? formatNumber(p.y, axisDecimals(seriesMin, seriesMax)) : '',
+            date: p ? p.x : '',
+          }
+        })
+
+  const hoverLabel = hoverRows.length > 0 && hoverRows[0].date ? formatDateFull(hoverRows[0].date) : ''
+
   return (
     <div className={wrapperClass}>
       <p className="mb-2 text-[13px] font-medium text-ink-2">{liveTitle}</p>
@@ -811,6 +852,7 @@ function LineChart({
       )}
       {error && <p className="mb-2 text-xs text-loss">{error}</p>}
 
+      <div ref={containerRef} className="relative">
       {chartData.series.map((s) => {
         const scaleX = (i: number) => padX + (i / (s.points.length - 1)) * (width - padX * 2)
         const path = s.points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${scaleX(i)} ${scaleY(p.y)}`).join(' ')
@@ -877,43 +919,7 @@ function LineChart({
               </span>
               <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} preserveAspectRatio="none">
                 <path d={path} fill="none" style={{ stroke: s.color }} strokeWidth={2} vectorEffect="non-scaling-stroke" />
-                {s.points.map((p, i) => (
-                  <g
-                    key={i}
-                    onClick={() =>
-                      setActivePoint(
-                        activePoint?.series === s.label && activePoint?.index === i
-                          ? null
-                          : { series: s.label, index: i }
-                      )
-                    }
-                    style={{ cursor: 'pointer' }}
-                  >
-                    {/* Larger transparent hit target — the visible dot (r=2.5) is too
-                        small to reliably tap on a phone. */}
-                    <circle cx={scaleX(i)} cy={scaleY(p.y)} r={10} fill="transparent" />
-                    <circle cx={scaleX(i)} cy={scaleY(p.y)} r={2.5} style={{ fill: s.color }} />
-                  </g>
-                ))}
               </svg>
-              {activePoint?.series === s.label && s.points[activePoint.index] && (
-                <div
-                  className={`absolute z-10 -mt-2 -translate-y-full whitespace-nowrap rounded border border-line bg-surface-2 px-2 py-1 font-mono text-[10px] text-ink shadow ${
-                    activePoint.index === 0
-                      ? ''
-                      : activePoint.index === lastIdx
-                      ? '-translate-x-full'
-                      : '-translate-x-1/2'
-                  }`}
-                  style={{
-                    left: `${(scaleX(activePoint.index) / width) * 100}%`,
-                    top: `${(scaleY(s.points[activePoint.index].y) / height) * 100}%`,
-                  }}
-                >
-                  <p className="text-ink-3">{formatDateFull(s.points[activePoint.index].x)}</p>
-                  <p style={{ color: s.color }}>{formatNumber(s.points[activePoint.index].y)}</p>
-                </div>
-              )}
             </div>
             <div className="relative mt-1 h-4 font-mono text-[10px] text-ink-3">
               {labelIndices.map((i) => {
@@ -935,6 +941,53 @@ function LineChart({
           </div>
         )
       })}
+
+      {hover !== null && (
+        <>
+          {/* One crosshair for the whole chart, aligned to the shared hovered x. */}
+          <div
+            className="pointer-events-none absolute bottom-0 top-0 z-10 w-px"
+            style={{ left: `${hover * 100}%`, backgroundColor: 'var(--line-strong)' }}
+          />
+          <div
+            className="pointer-events-none absolute top-0 z-20 -translate-x-1/2 whitespace-nowrap rounded border border-line bg-surface-2 px-2.5 py-1.5 text-[11px] shadow"
+            style={{ left: Math.min(Math.max(hover * hoverWidth, 72), hoverWidth - 72) }}
+          >
+            <p className="mb-1 text-ink-3">{hoverLabel}</p>
+            {hoverRows.map((row) => (
+              <p key={row.label} className="flex items-center justify-between gap-3 font-mono text-ink">
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="inline-block h-2 w-2 flex-shrink-0 rounded-full"
+                    style={{ backgroundColor: row.color }}
+                  />
+                  {row.label}
+                </span>
+                <span>{row.value}</span>
+              </p>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Transparent hover overlay — sits above the plots so the crosshair
+          follows the pointer continuously, but below the refetch controls
+          (which are outside this wrapper) so they stay tappable. */}
+      <div
+        className="absolute inset-0 z-30 cursor-crosshair"
+        onMouseMove={(e) => handleMove(e.clientX)}
+        onMouseLeave={() => setHover(null)}
+        onTouchStart={(e) => {
+          const t = e.touches[0]
+          if (t) handleMove(t.clientX)
+        }}
+        onTouchMove={(e) => {
+          const t = e.touches[0]
+          if (t) handleMove(t.clientX)
+        }}
+        onTouchEnd={() => setHover(null)}
+      />
+      </div>
     </div>
   )
 }
