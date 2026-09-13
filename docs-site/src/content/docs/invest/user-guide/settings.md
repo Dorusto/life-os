@@ -11,10 +11,10 @@ The Settings screen lets you configure the benchmark used for performance compar
 
 In the **Performance** card you can set:
 
-- **Benchmark ticker** – the symbol of a broad index or ETF you want to compare your portfolio against (for example, `SPY` or `VTI`). The hint suggests using a broad index or ETF.
-- **Assumed annual return** – a percentage you expect your investments to grow each year. This value is used in projections and long‑term planning.
+- **Benchmark ticker** – the symbol of a broad index or ETF you want to compare your portfolio against (for example, `VWCE.DE` or `SPY`). The hint suggests using a broad index or ETF.
+- **Assumed annual return** – a percentage you expect your investments to grow each year. This value is used in goal projections when there isn’t enough history for a reliable XIRR.
 
-After you change either field, click **Save settings**. The page will show a confirmation message when the save succeeds, or an error message if something goes wrong.
+After you change either field, click **Save settings**. The page shows a confirmation message when the save succeeds, or an error message if something goes wrong.
 
 ## Market data
 
@@ -24,13 +24,13 @@ The key is **write‑only**: when you save a new key, it replaces the stored one
 
 The card also shows a **configured / not‑configured** indicator:
 
-- **Configured** – a key is present. Prices and totals will be updated using live market data.
-- **Not configured** – no key is set. Prices and totals may be missing or stale until you add a key.
+- **Configured** – a key is present. Prices and totals will be updated using live market data (refreshed at most once per day per symbol). If the API is unavailable, stale cached values are served.
+- **Not configured** – no key is set. Prices and totals that depend on market data will be blank.
 
 ## Daily refresh and stale cache
 
-Market data is refreshed once per day. If the data is older than that, the app uses the cached values and shows a note that the data may be stale.
+Market data is refreshed at most once per day per symbol. If a live call fails (rate limit, network issue, unknown ticker), the app serves the cached value rather than failing the whole page. A stale price beats a broken dashboard.
 
 ## Environment variable
 
-You can also set the API key as a server‑side environment variable (for example, `TWELVE_DATA_API_KEY`). If the environment variable is present, it takes precedence over any key entered in the Settings screen.
+You can also set the API key as a server‑side environment variable (`TWELVE_DATA_API_KEY`). When both the saved setting and the environment variable are present, the saved setting takes precedence. The environment variable provides a fallback if no key has been saved in the Settings screen.
