@@ -194,6 +194,14 @@ export interface Settings {
   benchmark_ticker: string
   assumed_annual_return: string
   market_data_configured: boolean
+  /**
+   * Most recent failed price/FX refresh per symbol, empty when all healthy.
+   * Added at the REST boundary by main.py's `_public_settings` — it is not a
+   * `models.py` field — and it is the only signal separating "the key is
+   * rejected" from "no key configured yet", because `market_data_configured`
+   * is true in both cases.
+   */
+  market_data_errors: Record<string, string>
 }
 
 export interface CreateSecurityInput {
