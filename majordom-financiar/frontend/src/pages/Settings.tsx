@@ -507,7 +507,7 @@ function ConnectionsPage() {
         <ChevronRight size={14} className="text-muted flex-shrink-0" />
       </a>
       <a
-        href={`${origin}:8889`}
+        href={`${origin}:3010`}
         target="_blank"
         rel="noopener noreferrer"
         className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3.5 hover:border-border-hover transition-colors"
@@ -518,6 +518,20 @@ function ConnectionsPage() {
         <ChevronRight size={14} className="text-muted flex-shrink-0" />
       </a>
       <a
+        href={`${origin}:3020`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="w-full flex items-center gap-3 bg-surface border border-border rounded-2xl px-4 py-3.5 hover:border-border-hover transition-colors"
+      >
+        <LineChart size={16} className="text-muted flex-shrink-0" />
+        <span className="flex-1 text-sm font-semibold text-white">Investment Manager</span>
+        <span className="text-xs text-positive flex-shrink-0">Connected</span>
+        <ChevronRight size={14} className="text-muted flex-shrink-0" />
+      </a>
+      {/* Majordom's own SQLite debug viewer — loopback-only since the tailscale-serve
+          vs. 0.0.0.0 port conflict fix (2026-09-12/13), so no longer reachable from
+          another device via this link. Kept for localhost-direct use, not removed. */}
+      <a
         href={`${origin}:8888`}
         target="_blank"
         rel="noopener noreferrer"
@@ -525,10 +539,9 @@ function ConnectionsPage() {
       >
         <Database size={16} className="text-muted flex-shrink-0" />
         <span className="flex-1 text-sm font-semibold text-white">Majordom Memory</span>
-        <span className="text-xs text-positive flex-shrink-0">Connected</span>
+        <span className="text-xs text-muted flex-shrink-0">Localhost only</span>
         <ChevronRight size={14} className="text-muted flex-shrink-0" />
       </a>
-      <StatusRow title="Portfolio source" value="Not connected" muted icon={LineChart} />
     </>
   )
 }
