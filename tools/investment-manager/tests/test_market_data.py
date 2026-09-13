@@ -7,6 +7,10 @@ with the security's own currency *string*, so the cache-annotation line must
 not assume a dict. A regression there would only surface against a real
 Twelve Data key, which is exactly why it is covered here with a stubbed
 ``_get_json``.
+
+The rate-limiter tests drive ``_get_json`` for real with a stubbed HTTP
+transport and a fake ``time`` module, so a 60-second window is asserted in
+microseconds.
 """
 import pytest
 
