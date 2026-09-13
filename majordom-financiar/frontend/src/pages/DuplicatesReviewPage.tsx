@@ -102,7 +102,7 @@ export default function DuplicatesReviewPage() {
 
   if (selectedMonth) {
     return (
-      <div className="h-dvh bg-background flex flex-col overflow-y-auto">
+      <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
         <PageHeader
           label="Review"
           title={formatMonthTitle(selectedMonth)}
@@ -110,11 +110,11 @@ export default function DuplicatesReviewPage() {
         />
         <div className="flex-1 px-5 pb-24 space-y-3">
           {pairsLoading ? (
-            <p className="text-muted text-sm">Loading pairs…</p>
+            <p className="text-token-ink-3 text-sm">Loading pairs…</p>
           ) : visiblePairs.length === 0 ? (
             <div className="text-center pt-16">
-              <GitCompareArrows size={28} className="mx-auto text-muted mb-3" />
-              <p className="text-muted text-sm">
+              <GitCompareArrows size={28} className="mx-auto text-token-ink-3 mb-3" />
+              <p className="text-token-ink-3 text-sm">
                 No suspected duplicates here — all cleared for this month.
               </p>
             </div>
@@ -136,23 +136,23 @@ export default function DuplicatesReviewPage() {
   }
 
   return (
-    <div className="h-dvh bg-background flex flex-col overflow-y-auto">
+    <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
       <PageHeader
         label="Review"
         title="Duplicates"
         actions={backToMonths}
       />
       <div className="flex-1 px-5 pb-24 space-y-3">
-        <p className="text-xs text-muted px-1">
+        <p className="text-xs text-token-ink-3 px-1">
           Bank-sync vs. manual entries that look like the same payment. Review each
           pair side by side and merge one at a time — nothing is touched until you tap Confirm.
         </p>
         {monthsLoading ? (
-          <p className="text-muted text-sm">Loading…</p>
+          <p className="text-token-ink-3 text-sm">Loading…</p>
         ) : months.length === 0 ? (
           <div className="text-center pt-16">
-            <Copy size={28} className="mx-auto text-muted mb-3" />
-            <p className="text-muted text-sm">No suspected duplicates found. 🎉</p>
+            <Copy size={28} className="mx-auto text-token-ink-3 mb-3" />
+            <p className="text-token-ink-3 text-sm">No suspected duplicates found. 🎉</p>
           </div>
         ) : (
           months.map(m => (
@@ -161,15 +161,15 @@ export default function DuplicatesReviewPage() {
               onClick={() => setSelectedMonth(m.month)}
               className="w-full text-left"
             >
-              <Card variant="list-item" className="hover:bg-surface-hover transition-colors">
+              <Card variant="list-item" className="hover:bg-token-surface-2 transition-colors">
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-white text-sm font-medium capitalize">{formatMonthTitle(m.month)}</p>
-                    <p className="text-muted text-xs mt-0.5">
+                    <p className="text-token-ink text-sm font-medium capitalize">{formatMonthTitle(m.month)}</p>
+                    <p className="text-token-ink-3 text-xs mt-0.5">
                       {m.count} {m.count === 1 ? 'pair' : 'pairs'} to review
                     </p>
                   </div>
-                  <ChevronRight size={18} className="text-muted flex-shrink-0" />
+                  <ChevronRight size={18} className="text-token-ink-3 flex-shrink-0" />
                 </div>
               </Card>
             </button>
@@ -205,7 +205,7 @@ function DuplicatePairCard({
   }
 
   return (
-    <Card variant="list-item" accentColor="#F59E0B" accentSide="left">
+    <Card variant="list-item" accentColor="var(--warn)" accentSide="left">
       <div className="grid grid-cols-2 gap-3">
         <SideBlock title={isTransfer ? 'Transfer' : 'Manual entry'} side={pair.manual} keep={isTransfer} />
         <SideBlock title="Bank-synced" side={pair.synced} keep={!isTransfer} />
@@ -214,20 +214,20 @@ function DuplicatePairCard({
       {/* edit fields for the surviving side */}
       <div className="mt-3 space-y-2">
         <div className="space-y-1">
-          <label className="text-xs text-muted">Payee</label>
+          <label className="text-xs text-token-ink-3">Payee</label>
           <input
             type="text"
             value={payee}
             onChange={e => setPayee(e.target.value)}
-            className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+            className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
           />
         </div>
         <div className="space-y-1">
-          <label className="text-xs text-muted">Category</label>
+          <label className="text-xs text-token-ink-3">Category</label>
           <select
             value={category}
             onChange={e => setCategory(e.target.value)}
-            className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+            className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
           >
             {!category && <option value="" disabled>Select a category…</option>}
             {availableCategories.map(c => (
@@ -236,26 +236,26 @@ function DuplicatePairCard({
           </select>
         </div>
         <div className="space-y-1">
-          <label className="text-xs text-muted">Notes</label>
+          <label className="text-xs text-token-ink-3">Notes</label>
           <input
             type="text"
             value={notes}
             onChange={e => setNotes(e.target.value)}
-            className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+            className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
           />
         </div>
         <div className="space-y-1">
-          <label className="text-xs text-muted">Date</label>
+          <label className="text-xs text-token-ink-3">Date</label>
           <input
             type="date"
             value={date}
             onChange={e => setDate(e.target.value)}
-            className="w-full bg-background border border-border rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-accent"
+            className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
           />
         </div>
       </div>
 
-      <p className="text-xs text-attention mt-3 px-1">
+      <p className="text-xs text-token-warn mt-3 px-1">
         {isTransfer
           ? 'This is one side of a transfer — resolving keeps the transfer linked and removes the duplicate bank-sync entry instead. Your account balance is checked before and after.'
           : 'Double-check every detail before confirming — this deletes the manual entry. Its category/notes are copied onto the bank-synced transaction first, if missing.'}
@@ -276,7 +276,7 @@ function DuplicatePairCard({
 function SideBlock({ title, side, keep }: { title: string; side: DuplicateTransactionSide; keep?: boolean }) {
   return (
     <div>
-      <p className={`text-[11px] tracking-[0.15em] uppercase mb-2 ${keep ? 'text-success' : 'text-muted'}`}>{title}</p>
+      <p className={`text-[11px] tracking-[0.15em] uppercase mb-2 ${keep ? 'text-token-gain' : 'text-token-ink-3'}`}>{title}</p>
       <div className="space-y-1">
         <Row label="Date" value={formatDate(side.date)} />
         <Row label="Amount" value={formatCurrency(side.amount)} strong />
@@ -291,8 +291,8 @@ function SideBlock({ title, side, keep }: { title: string; side: DuplicateTransa
 function Row({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
     <div className="text-xs">
-      <span className="text-muted mr-1.5">{label}:</span>
-      <span className={strong ? 'text-white font-medium' : 'text-white'}>{value}</span>
+      <span className="text-token-ink-3 mr-1.5">{label}:</span>
+      <span className={strong ? 'text-token-ink font-medium' : 'text-token-ink'}>{value}</span>
     </div>
   )
 }
