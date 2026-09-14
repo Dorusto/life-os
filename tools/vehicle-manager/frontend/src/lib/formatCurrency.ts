@@ -1,8 +1,16 @@
+// GENERATED FILE — do not edit directly. Source: packages/frontend-shared/src/formatCurrency.ts.
+// Run scripts/sync-shared-frontend.sh after editing the source, then commit both.
+
 /**
  * Currency and number formatting — the single place amounts are turned into text.
  *
- * Copied verbatim from majordom-financiar/frontend/src/lib/formatCurrency.ts
- * (2026-09-12) so the shared Chart.tsx component renders identically here.
+ * Why this file exists:
+ * Before it, the app used four different conventions at once — `toLocaleString('nl-NL')`
+ * (1.234,56), bare `toFixed(2)` (1234.56), `toLocaleString('en')` (1,234.56), and
+ * `toLocaleString()` with no locale (whatever the browser picked). The same account balance
+ * rendered as `€12.345` on Accounts and `+€12345.67` on Transactions — one tap apart, and
+ * mutually unreadable: under one convention `€12.345` is twelve thousand, under the other it
+ * is twelve euros. See docs/audit-2026-08.md (F22) and issue #211.
  *
  * The convention is European: dot groups thousands, comma separates decimals — €1.234,56.
  * The sign always precedes the currency symbol and uses a true minus (−, U+2212), never a

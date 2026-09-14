@@ -53,4 +53,8 @@ if ! python3 "$ROOT/majordom-financiar/scripts/check_silent_exceptions.py"; then
     exit 1
 fi
 
+if ! python3 "$ROOT/scripts/check_shared_frontend_sync.py"; then
+    exit 1
+fi
+
 exec "$ROOT/scripts/check-private-data.sh"

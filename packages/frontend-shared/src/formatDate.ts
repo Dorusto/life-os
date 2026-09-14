@@ -1,6 +1,3 @@
-// GENERATED FILE — do not edit directly. Source: packages/frontend-shared/src/formatDate.ts.
-// Run scripts/sync-shared-frontend.sh after editing the source, then commit both.
-
 /**
  * Date formatting — the single place a date becomes display text on a page
  * (as opposed to a chart axis label, which has its own compact needs — see
