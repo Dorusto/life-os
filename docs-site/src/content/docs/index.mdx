@@ -1,40 +1,36 @@
 ---
-title: Welcome to Starlight
-description: Get started building your docs site with Starlight.
-template: splash # Remove or comment out this line to display the site sidebar on this page.
+title: Majordom Docs
+description: Documentation for Majordom Finance, Transport, and Invest.
+template: splash
 hero:
-  tagline: Congrats on setting up a new Starlight project!
-  image:
-    file: ../../assets/houston.webp
+  tagline: Self-hosted personal apps for finance, vehicles, and investments — documentation for all three.
   actions:
-    - text: Example Guide
-      link: /guides/example/
+    - text: Majordom Finance
+      link: /finance/getting-started/
       icon: right-arrow
-    - text: Read the Starlight docs
-      link: https://starlight.astro.build
-      icon: external
-      variant: minimal
+    - text: Majordom Transport
+      link: /transport/getting-started/
+      icon: right-arrow
+    - text: Majordom Invest
+      link: /invest/getting-started/
+      icon: right-arrow
 ---
 
 import { Card, CardGrid } from '@astrojs/starlight/components';
 
-## Next steps
+## Three apps, one platform
 
 <CardGrid stagger>
-	<Card title="Update content" icon="pencil">
-		Edit `src/content/docs/index.mdx` to see this page change.
+	<Card title="Majordom Finance" icon="seti:db">
+		Budgeting on top of Actual Budget, plus an AI chat assistant that proposes and confirms
+		transactions, transfers, and budget changes. See [Getting Started](/finance/getting-started/).
 	</Card>
-	<Card title="Change page layout" icon="document">
-		Delete `template: splash` in `src/content/docs/index.mdx` to display a
-		sidebar on this page.
+	<Card title="Majordom Transport" icon="seti:config">
+		Fuel and service tracking, reminders, and cost charts for your vehicles — standalone app,
+		linked from Finance. See [Getting Started](/transport/getting-started/).
 	</Card>
-	<Card title="Add new content" icon="add-document">
-		Add Markdown or MDX files to `src/content/docs` to create new pages.
-	</Card>
-	<Card title="Configure your site" icon="setting">
-		Edit your `sidebar` and other config in `astro.config.mjs`.
-	</Card>
-	<Card title="Read the docs" icon="open-book">
-		Learn more in [the Starlight Docs](https://starlight.astro.build/).
+	<Card title="Majordom Invest" icon="seti:folder">
+		Portfolio and investment tracking, separate from Finance's budgeting. See
+		[Getting Started](/invest/getting-started/).
 	</Card>
 </CardGrid>

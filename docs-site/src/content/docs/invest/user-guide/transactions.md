@@ -1,6 +1,6 @@
 ---
 title: Transactions
-description: Manage your investment ledger: add, import, filter, and delete transactions.
+description: "Manage your investment ledger: add, import, filter, and delete transactions."
 ---
 
 # Transactions

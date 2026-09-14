@@ -1,6 +1,6 @@
 ---
 title: Reminders
-description: View and edit maintenance reminders for your vehicle: inspections, insurance, and service intervals.
+description: "View and edit maintenance reminders for your vehicle: inspections, insurance, and service intervals."
 ---
 
 The **Reminders** tab shows you what is coming due for your vehicle – APK/inspection,
