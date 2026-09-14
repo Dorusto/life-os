@@ -880,6 +880,107 @@ class ActualBudgetClient:
 
         return await self._run(_get)
 
+    async def get_net_worth_history(
+        self, granularity: str = "month", include_types: list[str] | None = None
+    ) -> dict:
+        """
+        Assets vs liabilities snapshot at each month/week end, for the Analytics
+        Net Worth section (#294).
+
+        - Accounts summed: every open (non-closed) account; when `include_types`
+          is given, only accounts whose *current* TYPE: note tag matches — the
+          same tag convention as get_accounts(). The filter selects which
+          accounts are summed, never how a snapshot splits into assets vs
+          liabilities (that follows each balance's sign).
+        - Sign convention: an account counts as an asset while its balance is
+          positive and as a liability while it is negative.
+        - Balances accumulate in integer cents per account (all-time transaction
+          sum, mirroring get_accounts()'s balance calculation) and convert to
+          EUR once per snapshot — same drift-avoidance as get_balance_history().
+        - Buckets are the last 24 month-ends / 104 week-ends, oldest first.
+          A bucket whose end date is in the future (the current, still-open
+          period) simply snapshots today's accumulated balances.
+        """
+        def _get():
+            import calendar
+            import re
+            from datetime import date as _date, timedelta
+            from actual.queries import get_accounts, get_transactions
+
+            with self._get_cached_read_actual() as actual:
+                accounts = [acc for acc in get_accounts(actual.session) if not acc.closed]
+                if include_types:
+                    wanted = {t.lower() for t in include_types}
+                    typed = []
+                    for acc in accounts:
+                        match = re.search(
+                            r'TYPE:\s*(' + '|'.join(ACCOUNT_TYPES) + r')',
+                            acc.notes or "",
+                            re.IGNORECASE,
+                        )
+                        if match and match.group(1).lower() in wanted:
+                            typed.append(acc)
+                    accounts = typed
+                account_ids = {acc.id for acc in accounts}
+
+                # One pass over all transactions, walked forward through the
+                # period ends while keeping a per-account running sum in cents.
+                txs = get_transactions(actual.session)
+                dated = [
+                    (int(tx.date), tx.acct, int(tx.amount or 0))
+                    for tx in txs
+                    if not tx.tombstone and tx.date is not None and tx.acct in account_ids
+                ]
+                dated.sort(key=lambda t: t[0])
+
+                today = _date.today()
+                if granularity == "month":
+                    ends = []
+                    y, m = today.year, today.month
+                    for _ in range(24):
+                        ends.append(_date(y, m, calendar.monthrange(y, m)[1]))
+                        m, y = (12, y - 1) if m == 1 else (m - 1, y)
+                    ends.reverse()
+                else:  # week — buckets end on Sunday (ISO)
+                    sunday = today - timedelta(days=today.isoweekday()) + timedelta(days=7)
+                    ends = [sunday - timedelta(weeks=i) for i in range(104)]
+                    ends.reverse()
+
+                balances = {acc_id: 0 for acc_id in account_ids}
+                idx = 0
+                n = len(dated)
+                points = []
+                for end in ends:
+                    end_int = end.year * 10000 + end.month * 100 + end.day
+                    while idx < n and dated[idx][0] <= end_int:
+                        _, acc_id, amount = dated[idx]
+                        balances[acc_id] += amount
+                        idx += 1
+                    assets = sum(b for b in balances.values() if b > 0)
+                    liabilities = -sum(b for b in balances.values() if b < 0)
+                    point = {
+                        "end_date": end.isoformat(),
+                        "assets": round(assets / 100, 2),
+                        "liabilities": round(liabilities / 100, 2),
+                        "net": round((assets - liabilities) / 100, 2),
+                    }
+                    if granularity == "month":
+                        point["x"] = f"{calendar.month_abbr[end.month]} '{end.year % 100:02d}"
+                        point["month"] = end.month
+                        point["year"] = end.year
+                    else:
+                        iso = end.isocalendar()
+                        point["x"] = f"W{iso.week} '{iso.year % 100:02d}"
+                    points.append(point)
+
+                return {
+                    "granularity": granularity,
+                    "account_count": len(accounts),
+                    "points": points,
+                }
+
+        return await self._run(_get)
+
 
     async def get_fire_status(self) -> dict:
         """Fetch accounts fresh and compute FIRE status.
