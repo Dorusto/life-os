@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { X } from 'lucide-react'
 
 interface BottomSheetProps {
@@ -24,7 +25,10 @@ export default function BottomSheet({ open, onClose, title, children }: BottomSh
 
   if (!open) return null
 
-  return (
+  // Portal to body: a backdrop-filter/transform ancestor (e.g. PageHeader's
+  // backdrop-blur) becomes the containing block for position:fixed children,
+  // which would trap this overlay inside the header box instead of the viewport.
+  return createPortal(
     <div
       className="fixed inset-0 z-[60] flex items-end bg-black/60"
       style={{ touchAction: 'none' }}
@@ -47,6 +51,7 @@ export default function BottomSheet({ open, onClose, title, children }: BottomSh
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
