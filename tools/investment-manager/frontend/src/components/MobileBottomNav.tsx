@@ -1,21 +1,7 @@
 import { NavLink } from 'react-router-dom'
-import {
-  ArrowLeftRight,
-  Briefcase,
-  LayoutDashboard,
-  MoreHorizontal,
-  Settings as SettingsIcon,
-  Target,
-} from 'lucide-react'
+import { MoreHorizontal } from 'lucide-react'
+import { destinationsFor } from '../lib/navigation'
 import { cn } from '../lib/ui'
-
-const TABS = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/holdings', label: 'Holdings', icon: Briefcase, end: false },
-  { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight, end: false },
-  { to: '/goals', label: 'Goals', icon: Target, end: false },
-  { to: '/settings', label: 'Settings', icon: SettingsIcon, end: false },
-]
 
 function tabClass(active: boolean): string {
   return cn(
@@ -35,12 +21,13 @@ export function MobileBottomNav({ onMoreClick, moreOpen }: { onMoreClick: () => 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-[20] border-t border-line bg-surface lg:hidden">
       <div className="flex items-stretch">
-        {TABS.map(({ to, label, icon: Icon, end }) => (
+        {destinationsFor('tabs').map(({ to, label, icon: Icon, end }) => (
           <NavLink key={to} to={to} end={end} className={({ isActive }) => tabClass(isActive)}>
             <Icon size={18} aria-hidden />
             {label}
           </NavLink>
         ))}
+        {/* Not a route, so it lives outside the shared destination list. */}
         <button
           type="button"
           onClick={onMoreClick}

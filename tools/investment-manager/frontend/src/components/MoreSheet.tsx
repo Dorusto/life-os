@@ -1,11 +1,6 @@
 import { NavLink } from 'react-router-dom'
-import { HandCoins, Scale } from 'lucide-react'
+import { destinationsFor } from '../lib/navigation'
 import { Modal } from './Modal'
-
-const MORE_ITEMS = [
-  { to: '/income', label: 'Income', icon: HandCoins },
-  { to: '/rebalancing', label: 'Rebalancing', icon: Scale },
-]
 
 /**
  * Secondary destinations that don't fit in the mobile bottom tab bar.
@@ -17,7 +12,7 @@ export function MoreSheet({ open, onClose }: { open: boolean; onClose: () => voi
   return (
     <Modal open={open} onClose={onClose} title="More">
       <nav className="-mx-5 -my-5">
-        {MORE_ITEMS.map(({ to, label, icon: Icon }) => (
+        {destinationsFor('more').map(({ to, label, icon: Icon }) => (
           <NavLink
             key={to}
             to={to}

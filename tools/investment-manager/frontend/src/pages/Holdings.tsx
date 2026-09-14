@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { getHoldings } from '../lib/api'
+import { ButtonLink } from '../components/ButtonLink'
 import { Card } from '../components/Card'
 import { Delta } from '../components/Delta'
 import { EmptyState } from '../components/EmptyState'
@@ -35,12 +36,9 @@ export default function Holdings() {
         title="Holdings"
         description="Open positions with average cost, market value and unrealized gain."
         actions={
-          <Link
-            to="/transactions"
-            className="inline-flex h-10 items-center gap-2 rounded border border-transparent bg-brand px-4 text-sm font-medium text-white transition-colors hover:bg-brand-2"
-          >
+          <ButtonLink to="/transactions" variant="primary">
             Add transaction <ArrowRight className="h-4 w-4" />
-          </Link>
+          </ButtonLink>
         }
       />
 

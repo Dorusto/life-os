@@ -1,30 +1,14 @@
 import { useState, type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import {
-  LayoutDashboard,
-  Briefcase,
-  ArrowLeftRight,
-  HandCoins,
-  Scale,
-  Target,
-  Settings as SettingsIcon,
-  LogOut,
-} from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import { clearAuth, getUsername } from '../lib/auth'
+import { destinationsFor } from '../lib/navigation'
 import { cn } from '../lib/ui'
 import { ThemeToggle } from './ThemeToggle'
+import { TopBarActions } from './TopBarActions'
 import { MobileBottomNav } from './MobileBottomNav'
 import { MoreSheet } from './MoreSheet'
 
-const NAV = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
-  { to: '/holdings', label: 'Holdings', icon: Briefcase, end: false },
-  { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight, end: false },
-  { to: '/income', label: 'Income', icon: HandCoins, end: false },
-  { to: '/rebalancing', label: 'Rebalancing', icon: Scale, end: false },
-  { to: '/goals', label: 'Goals', icon: Target, end: false },
-  { to: '/settings', label: 'Settings', icon: SettingsIcon, end: false },
-]
 
 function BrandMark() {
   return (
@@ -41,7 +25,7 @@ function BrandMark() {
 function NavItems({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav className="flex-1 space-y-1 px-3">
-      {NAV.map(({ to, label, icon: Icon, end }) => (
+      {destinationsFor('rail').map(({ to, label, icon: Icon, end }) => (
         <NavLink
           key={to}
           to={to}
@@ -111,7 +95,12 @@ export function AppShell({ children }: { children: ReactNode }) {
       </aside>
 
       <main className="min-w-0 px-4 py-6 pb-20 sm:px-6 lg:px-[2.5rem] lg:py-9 lg:pb-9">
-        <div className="mx-auto max-w-6xl">{children}</div>
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-3 flex justify-end">
+            <TopBarActions />
+          </div>
+          {children}
+        </div>
       </main>
 
       <MobileBottomNav onMoreClick={() => setMoreOpen(true)} moreOpen={moreOpen} />

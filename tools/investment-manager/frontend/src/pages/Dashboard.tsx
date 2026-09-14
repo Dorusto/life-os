@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { getPortfolioAllocation, getPortfolioHistory, getPortfolioSummary } from '../lib/api'
 import { Delta } from '../components/Delta'
 import { BarList } from '../components/BarList'
+import { ButtonLink } from '../components/ButtonLink'
 import { Card } from '../components/Card'
 import { DonutChart } from '../components/DonutChart'
 import { EmptyState } from '../components/EmptyState'
@@ -67,12 +67,9 @@ export default function Dashboard() {
           title="No holdings yet"
           description="Add a security and a transaction, or import an XTB report, and your portfolio will appear here."
           action={
-            <Link
-              to="/transactions"
-              className="inline-flex h-10 items-center gap-2 rounded border border-transparent bg-brand px-4 text-sm font-medium text-white transition-colors hover:bg-brand-2"
-            >
+            <ButtonLink to="/transactions" variant="primary">
               Add transactions <ArrowRight className="h-4 w-4" />
-            </Link>
+            </ButtonLink>
           }
         />
       </>
