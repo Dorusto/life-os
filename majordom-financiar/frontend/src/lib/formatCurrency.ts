@@ -1,3 +1,6 @@
+// GENERATED FILE — do not edit directly. Source: packages/frontend-shared/src/formatCurrency.ts.
+// Run scripts/sync-shared-frontend.sh after editing the source, then commit both.
+
 /**
  * Currency and number formatting — the single place amounts are turned into text.
  *
