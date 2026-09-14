@@ -1,17 +1,17 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell } from 'lucide-react'
 import BottomNav from '../components/BottomNav'
 import LogoutButton from '../components/LogoutButton'
+import MajordomButton from '../components/MajordomButton'
+import NotificationBell from '../components/NotificationBell'
+import SettingsButton from '../components/SettingsButton'
 import VehicleSwitcher from '../components/VehicleSwitcher'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { Field, TextInput } from '../components/Form'
 import { Loading } from '../components/Feedback'
+import ReminderRow from '../components/ReminderRow'
 import { getVehicleSummary, patchVehicle } from '../lib/api'
-import { formatNumber } from '../lib/formatCurrency'
-import { formatDate } from '../lib/formatDate'
-import { reminderHorizon } from '../lib/reminders'
 import { useSelectedVehicle } from '../lib/useSelectedVehicle'
 
 export default function RemindersPage() {
@@ -81,7 +81,12 @@ export default function RemindersPage() {
     <div className="min-h-dvh bg-paper px-4 pb-24 pt-8">
       <header className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-ink">Reminders</h1>
-        <LogoutButton />
+        <div className="flex items-center gap-3">
+          <NotificationBell />
+          <SettingsButton />
+          <MajordomButton />
+          <LogoutButton />
+        </div>
       </header>
 
       {isLoading ? (
@@ -172,37 +177,9 @@ export default function RemindersPage() {
             <p className="mt-4 text-sm text-ink-2">No reminders configured.</p>
           ) : (
             <div className="mt-3 space-y-2">
-              {reminders.map((r) => {
-                const horizon = reminderHorizon(r)
-                return (
-                  <div key={r.kind} className="rounded-lg border border-line bg-surface px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <Bell size={16} className={r.overdue ? 'text-loss' : 'text-brand'} />
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-ink">{r.label}</p>
-                        <p className="text-xs text-ink-3">
-                          {r.due_date
-                            ? formatDate(r.due_date)
-                            : r.due_odo != null
-                              ? `${formatNumber(r.due_odo)} km`
-                              : ''}
-                        </p>
-                      </div>
-                      <span className={`text-xs font-medium ${horizon.overdue ? 'text-loss' : 'text-ink-2'}`}>
-                        {horizon.text}
-                      </span>
-                    </div>
-                    {r.progress != null && (
-                      <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-surface-2">
-                        <div
-                          className={`h-full rounded-full ${r.overdue ? 'bg-loss' : 'bg-brand'}`}
-                          style={{ width: `${Math.min(r.progress * 100, 100)}%` }}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+              {reminders.map((r) => (
+                <ReminderRow key={r.kind} reminder={r} />
+              ))}
             </div>
           )}
         </>

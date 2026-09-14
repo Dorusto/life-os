@@ -13,6 +13,15 @@ RUN npm install --silent
 
 # Copy source and build
 COPY . .
+# Public URL of Majordom Finance's web app — used by the shared Majordom
+# chat-entry button to hand off to Finance's /chat route. Leave empty and
+# the button falls back to http://localhost:3000.
+ARG VITE_MAJORDOM_FINANCE_URL
+ENV VITE_MAJORDOM_FINANCE_URL=$VITE_MAJORDOM_FINANCE_URL
+# Public URL of Majordom Invest's web app, linked from Settings. Leave empty
+# and the link falls back to http://localhost:3020.
+ARG VITE_INVESTMENT_MANAGER_URL
+ENV VITE_INVESTMENT_MANAGER_URL=$VITE_INVESTMENT_MANAGER_URL
 RUN npm run build
 # Output: /app/dist/ (Vite default)
 

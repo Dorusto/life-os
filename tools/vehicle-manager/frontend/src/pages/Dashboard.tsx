@@ -1,8 +1,11 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Bell, Car } from 'lucide-react'
+import { Car } from 'lucide-react'
 import BottomNav from '../components/BottomNav'
 import LogoutButton from '../components/LogoutButton'
+import MajordomButton from '../components/MajordomButton'
+import NotificationBell from '../components/NotificationBell'
+import SettingsButton from '../components/SettingsButton'
 import VehicleSwitcher from '../components/VehicleSwitcher'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
@@ -11,7 +14,6 @@ import { MetricTile } from '../components/MetricTile'
 import { getVehicleSummary } from '../lib/api'
 import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 import { formatDate } from '../lib/formatDate'
-import { reminderHorizon } from '../lib/reminders'
 import { useSelectedVehicle } from '../lib/useSelectedVehicle'
 
 export default function Dashboard() {
@@ -25,13 +27,17 @@ export default function Dashboard() {
     staleTime: 60_000,
   })
   const summary = summaryQuery.data
-  const reminders = summary?.reminders ?? []
 
   return (
     <div className="min-h-dvh bg-paper px-4 pb-24 pt-8">
       <header className="mb-4 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-ink">Majordom Transport</h1>
-        <LogoutButton />
+        <div className="flex items-center gap-3">
+          <NotificationBell />
+          <SettingsButton />
+          <MajordomButton />
+          <LogoutButton />
+        </div>
       </header>
 
       {isLoading ? (
@@ -114,42 +120,6 @@ export default function Dashboard() {
                   />
                 </div>
               </Card>
-
-              <div className="mt-5 mb-2 flex items-center justify-between">
-                <h2 className="text-xs uppercase tracking-wide text-ink-2">Reminders</h2>
-                {reminders.length > 0 && (
-                  <Link to="/reminders" className="text-xs text-brand hover:opacity-80">
-                    View all
-                  </Link>
-                )}
-              </div>
-              {reminders.length === 0 ? (
-                <p className="text-sm text-ink-2">Nothing due.</p>
-              ) : (
-                <div className="space-y-2">
-                  {reminders.slice(0, 2).map((r) => (
-                    <div
-                      key={r.kind}
-                      className="flex items-center gap-3 rounded-lg border border-line bg-surface px-4 py-3"
-                    >
-                      <Bell size={15} className={r.overdue ? 'text-loss' : 'text-ink-3'} />
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm text-ink">{r.label}</p>
-                        <p className="text-xs text-ink-3">
-                          {r.due_date
-                            ? formatDate(r.due_date)
-                            : r.due_odo != null
-                              ? `${formatNumber(r.due_odo)} km`
-                              : ''}
-                        </p>
-                      </div>
-                      <span className={`shrink-0 text-xs ${r.overdue ? 'text-loss' : 'text-ink-3'}`}>
-                        {reminderHorizon(r).text}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </>
           )}
         </>

@@ -6,9 +6,13 @@ import Chart from '../components/Chart'
 import ChartSection from '../components/ChartSection'
 import LogEntryForm from '../components/LogEntryForm'
 import LogoutButton from '../components/LogoutButton'
+import MajordomButton from '../components/MajordomButton'
+import NotificationBell from '../components/NotificationBell'
+import SettingsButton from '../components/SettingsButton'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { Delta } from '../components/Delta'
+import { Field, TextInput } from '../components/Form'
 import { Loading } from '../components/Feedback'
 import { MetricTile } from '../components/MetricTile'
 import { TypePill } from '../components/Pill'
@@ -24,6 +28,7 @@ import {
   getMileageChart,
   getVehicleLog,
   deleteLogEntry,
+  patchVehicle,
 } from '../lib/api'
 import { formatCurrency, formatPercent, formatNumber } from '../lib/formatCurrency'
 import { formatDate } from '../lib/formatDate'
@@ -123,6 +128,10 @@ export default function VehicleDetail() {
   })
 
   const [deletingId, setDeletingId] = useState<number | null>(null)
+  const [purchasePriceInput, setPurchasePriceInput] = useState('')
+  const [purchaseDateInput, setPurchaseDateInput] = useState('')
+  const [savingPurchase, setSavingPurchase] = useState(false)
+  const [purchaseError, setPurchaseError] = useState<string | null>(null)
 
   function invalidateAll() {
     void queryClient.invalidateQueries({ queryKey: ['vehicle', id] })
@@ -134,6 +143,26 @@ export default function VehicleDetail() {
     void queryClient.invalidateQueries({ queryKey: ['vehicle-summary', id] })
     void queryClient.invalidateQueries({ queryKey: ['vehicle-stats-detail', id] })
     void queryClient.invalidateQueries({ queryKey: ['vehicle-cost-categories', id] })
+  }
+
+  async function handleSavePurchasePrice() {
+    if (!vehicle) return
+    setSavingPurchase(true)
+    setPurchaseError(null)
+    try {
+      await patchVehicle(vehicle.id, {
+        purchase_price: purchasePriceInput ? Number(purchasePriceInput) : null,
+        purchase_date: purchaseDateInput || null,
+      })
+      // Invalidate rather than refetch: the projection query is `retry: false`
+      // because its 404 answer is permanent, so it won't pick this up on its own.
+      void queryClient.invalidateQueries({ queryKey: ['vehicle', id] })
+      void queryClient.invalidateQueries({ queryKey: ['vehicle-value-projection', id] })
+    } catch (err) {
+      setPurchaseError(err instanceof Error ? err.message : 'Failed to save')
+    } finally {
+      setSavingPurchase(false)
+    }
   }
 
   async function handleDelete(entryId: number) {
@@ -207,7 +236,12 @@ export default function VehicleDetail() {
           <Button variant="ghost" size="sm" onClick={() => navigate('/vehicles')} className="-ml-3">
             <ChevronLeft size={16} /> Vehicles
           </Button>
-          <LogoutButton />
+          <div className="flex items-center gap-3">
+            <NotificationBell vehicleId={vehicle.id} />
+            <SettingsButton />
+            <MajordomButton />
+            <LogoutButton />
+          </div>
         </div>
         <p className="font-mono text-[11px] uppercase tracking-wide text-ink-3">Vehicle</p>
         <h1 className="truncate text-2xl font-semibold text-ink">{vehicle.name}</h1>
@@ -219,6 +253,36 @@ export default function VehicleDetail() {
             <p className="text-sm text-ink-2">
               This vehicle has no purchase price set — value tracking is unavailable.
             </p>
+            <div className="mt-4 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <Field label="Purchase price" htmlFor="purchase_price">
+                  <TextInput
+                    id="purchase_price"
+                    type="number"
+                    value={purchasePriceInput}
+                    onChange={(e) => setPurchasePriceInput(e.target.value)}
+                  />
+                </Field>
+                <Field label="Purchase date" htmlFor="purchase_date">
+                  <TextInput
+                    id="purchase_date"
+                    type="date"
+                    value={purchaseDateInput}
+                    onChange={(e) => setPurchaseDateInput(e.target.value)}
+                  />
+                </Field>
+              </div>
+              {purchaseError && <p className="text-[12px] text-loss">{purchaseError}</p>}
+              <div className="flex justify-end">
+                <Button
+                  variant="primary"
+                  onClick={handleSavePurchasePrice}
+                  disabled={savingPurchase || !purchasePriceInput || !purchaseDateInput}
+                >
+                  {savingPurchase ? 'Saving…' : 'Save'}
+                </Button>
+              </div>
+            </div>
           </Card>
         ) : (
           projection && (

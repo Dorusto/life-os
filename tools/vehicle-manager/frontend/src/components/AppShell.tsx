@@ -1,15 +1,12 @@
 import { type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Home, History, BarChart3, Car, LogOut } from 'lucide-react'
+import { Car, LogOut } from 'lucide-react'
+import MajordomButton from './MajordomButton'
+import NotificationBell from './NotificationBell'
+import SettingsButton from './SettingsButton'
 import { clearAuth, getUsername } from '../lib/auth'
+import { NAV_TABS } from '../lib/navTabs'
 import { cn } from '../lib/ui'
-
-const NAV = [
-  { to: '/', label: 'Home', icon: Home, end: true },
-  { to: '/timeline', label: 'Timeline', icon: History, end: false },
-  { to: '/stats', label: 'Stats', icon: BarChart3, end: false },
-  { to: '/vehicles', label: 'Vehicles', icon: Car, end: false },
-]
 
 function BrandMark() {
   return (
@@ -48,7 +45,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
         <nav className="flex-1 space-y-1 px-3">
-          {NAV.map(({ to, label, icon: Icon, end }) => (
+          {NAV_TABS.map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
@@ -71,15 +68,23 @@ export function AppShell({ children }: { children: ReactNode }) {
               <p className="truncate text-[13px] font-medium text-ink">{getUsername() ?? 'Signed in'}</p>
               <p className="text-[11px] text-ink-3">Vehicle manager</p>
             </div>
-            <button
-              type="button"
-              onClick={logout}
-              title="Sign out"
-              className="rounded p-1.5 text-ink-3 transition-colors hover:bg-surface-2 hover:text-loss"
-            >
-              <LogOut className="h-4 w-4" />
-              <span className="sr-only">Sign out</span>
-            </button>
+            <div className="flex shrink-0 items-center">
+              <NotificationBell
+                className="rounded p-1.5 hover:bg-surface-2"
+                panelClassName="left-0 right-auto w-64"
+              />
+              <SettingsButton className="rounded p-1.5 hover:bg-surface-2" />
+              <MajordomButton className="rounded p-1.5 hover:bg-surface-2" />
+              <button
+                type="button"
+                onClick={logout}
+                title="Sign out"
+                className="rounded p-1.5 text-ink-3 transition-colors hover:bg-surface-2 hover:text-loss"
+              >
+                <LogOut className="h-4 w-4" />
+                <span className="sr-only">Sign out</span>
+              </button>
+            </div>
           </div>
         </div>
       </aside>
