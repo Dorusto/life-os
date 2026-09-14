@@ -38,7 +38,7 @@ Issue priority: GitHub Milestones + Labels, not a doc — see `majordom-financia
 
 When the user asks only to note a bug or idea → create a GitHub issue and stop. Do not implement.
 
-**Parallel track, started 2026-09-13 (experimental, not yet a replacement for the above):** development can also run directly from `opencode-61` (self-hosted DeepSeek agents via OpenRouter, own git push/PR, remote-supervised only — setup fully documented in the Second Brain vault's `opencode-agent-system/` guides, not duplicated here). Cost/speed/quality per batch tracked in `docs/opencode-experiment.md` — the open question it exists to answer is whether this ends up cheaper and better than Claude-delegates-via-Aider above, or gets reverted.
+**`opencode-61` as a coordination system — tried 2026-09-13, reverted 2026-09-14.** Self-hosted DeepSeek agents via OpenRouter (own git push/PR, remote-supervised only) were evaluated as a parallel track to Aider-based delegation above. Outcome: reverted — the GUI-driven setup turned out to be more friction than the already-working Aider flow, no clear net win. Full reasoning: `~/.claude/skills/delegate-by-complexity/references/decisions.md#opencode-61--openhands-detour-reverted-2026-09-13--2026-09-14`. The `opencode-61` LXC itself is still available for other uses (e.g. as an interactive agent Doru drives directly) — that's a separate question from this reverted coordination-system role.
 
 ---
 

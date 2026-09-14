@@ -38,3 +38,6 @@ Thumbs.db
 # than as sibling folders next to life-os/ (2026-09-13, Doru flagged sibling
 # worktree folders in Proiecte-AI/ as unwanted clutter).
 .worktrees/
+
+# Obsidian vault config, local-only if this directory is ever opened as a vault
+.obsidian/
