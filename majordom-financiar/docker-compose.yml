@@ -236,6 +236,10 @@ services:
         # Public Actual Budget URL linked from the Home menu. Leave empty to
         # fall back to the current host on AB's default port (5006).
         VITE_ACTUAL_BUDGET_URL: ${ACTUAL_BUDGET_PUBLIC_URL:-}
+        # Public Transport (vehicle-manager) web app URL, for the
+        # vehicle-linked-account handoff. Leave empty to keep the local
+        # (empty) account detail view instead of redirecting.
+        VITE_VEHICLE_APP_URL: ${VEHICLE_APP_PUBLIC_URL:-}
     container_name: majordom-web
     restart: unless-stopped
     ports:

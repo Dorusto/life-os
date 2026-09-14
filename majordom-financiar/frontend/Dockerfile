@@ -18,6 +18,11 @@ COPY . .
 # through as a build arg so it isn't hardcoded in the source.
 ARG VITE_ACTUAL_BUDGET_URL
 ENV VITE_ACTUAL_BUDGET_URL=$VITE_ACTUAL_BUDGET_URL
+# Public URL of the Transport (vehicle-manager) web app — used to hand off a
+# vehicle-linked account's detail page there instead of an always-empty local
+# transaction list. Leave empty to keep the local fallback view.
+ARG VITE_VEHICLE_APP_URL
+ENV VITE_VEHICLE_APP_URL=$VITE_VEHICLE_APP_URL
 RUN npm run build
 # Output: /app/dist/ (Vite default)
 
