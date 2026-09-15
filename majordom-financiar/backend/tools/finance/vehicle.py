@@ -79,6 +79,7 @@ async def log_refuel(
     account_id, account_name = "", ""
     accounts_list = []
     categories_list = []
+    ab_cats = []
     try:
         actual = get_provider()
         import asyncio
@@ -158,17 +159,17 @@ async def set_vehicle_reminder(
 
     matched = next((v for v in vehicles if vehicle_name.lower() in v["name"].lower()), None)
     if not matched:
-        return f"No vehicle found matching '{vehicle_name}'."
+        return json.dumps({"type": "error", "message": f"No vehicle found matching '{vehicle_name}'."})
 
     rtype = reminder_type.lower().strip()
     if rtype not in ("apk", "insurance"):
-        return f"Invalid reminder type '{reminder_type}'. Use 'apk' or 'insurance'."
+        return json.dumps({"type": "error", "message": f"Invalid reminder type '{reminder_type}'. Use 'apk' or 'insurance'."})
 
     try:
         due = _date.fromisoformat(due_date)
         days_remaining = (due - _date.today()).days
     except ValueError:
-        return f"Invalid date format '{due_date}'. Use YYYY-MM-DD."
+        return json.dumps({"type": "error", "message": f"Invalid date format '{due_date}'. Use YYYY-MM-DD."})
 
     action_id = uuid.uuid4().hex[:8]
     action_store.store(action_id, {
@@ -213,7 +214,7 @@ async def set_service_interval(
     matched = next((v for v in vehicles if vehicle_name.lower() in v["name"].lower()), None)
 
     if not matched:
-        return f"No vehicle found matching '{vehicle_name}'."
+        return json.dumps({"type": "error", "message": f"No vehicle found matching '{vehicle_name}'."})
 
     action_id = uuid.uuid4().hex[:8]
     action_store.store(action_id, {
@@ -255,7 +256,7 @@ async def set_vehicle_apk_required(vehicle_name: str, required: bool) -> str:
     vehicles = await client.list_vehicles(active_only=True)
     matched = next((v for v in vehicles if vehicle_name.lower() in v["name"].lower()), None)
     if not matched:
-        return f"No vehicle found matching '{vehicle_name}'."
+        return json.dumps({"type": "error", "message": f"No vehicle found matching '{vehicle_name}'."})
 
     action_id = uuid.uuid4().hex[:8]
     action_store.store(action_id, {
@@ -530,7 +531,7 @@ async def set_vehicle_type(vehicle_name: str, vehicle_type: str) -> str:
     vehicles = await client.list_vehicles(active_only=True)
     matched = next((v for v in vehicles if vehicle_name.lower() in v["name"].lower()), None)
     if not matched:
-        return f"Vehicle '{vehicle_name}' not found."
+        return json.dumps({"type": "error", "message": f"Vehicle '{vehicle_name}' not found."})
 
     action_id = uuid.uuid4().hex[:8]
     action_store.store(action_id, {

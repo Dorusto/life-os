@@ -228,7 +228,7 @@ TOOLS: list[dict] = [
                 "Change the time of the daily financial summary notification. "
                 "Use when the user asks to change, update, or set the notification time, "
                 "e.g. 'change notification to 21:30', 'set daily message at 8am'. "
-                "Executes immediately — no confirmation needed."
+                "Shows a confirmation card — the user confirms before the change is saved."
             ),
             "parameters": {
                 "type": "object",
@@ -448,7 +448,7 @@ TOOLS: list[dict] = [
             "description": (
                 "Permanently delete a budget category. "
                 "Use ONLY when the user explicitly says 'delete', 'remove', or 'get rid of' a category. "
-                "Executes immediately — no confirmation needed."
+                "Shows a confirmation card — the user confirms before the deletion is executed."
             ),
             "parameters": {
                 "type": "object",
@@ -769,7 +769,7 @@ TOOLS: list[dict] = [
             "description": (
                 "Rename an existing budget category. "
                 "Use when the user says 'rename category X to Y', 'change the name of X', 'call X something else'. "
-                "Executes immediately — no confirmation needed."
+                "Shows a confirmation card — the user confirms before the rename is executed."
             ),
             "parameters": {
                 "type": "object",
