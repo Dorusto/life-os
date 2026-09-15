@@ -32,7 +32,7 @@ Return ONLY valid JSON, no markdown, no extra text.
 Required format:
 {
   "receipt_type": "fuel",
-  "merchant": "Shell Alphen aan den Rijn",
+  "merchant": "Shell",
   "total": 71.24,
   "currency": "EUR",
   "date": "25.05.2026",
@@ -55,7 +55,7 @@ OR for non-fuel receipts:
 
 Rules:
 - "receipt_type": "fuel" for gas stations (brandstof/benzine/diesel/petrol), "grocery" for everything else
-- "merchant": full station name including city if visible (e.g. "Shell Alphen aan den Rijn", "Total Oostzaan")
+- "merchant": full station name including city if visible (e.g. "Shell Amsterdam", "Total Rotterdam")
 - "total": total amount paid (look for TOTAAL, TOTAL, BEDRAG)
 - "currency": "EUR" default
 - "date": read every date on the receipt; use the transaction date (often at the bottom like "30-04-2026 12:16:14"). Return in DD.MM.YYYY format, empty string if not found
