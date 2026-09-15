@@ -76,7 +76,6 @@ async def confirm_proposal(
 
     proposal_store.delete(proposal_id)
 
-    duplicate = "already exists" in result
     return ConfirmResult(success=True, message=result)
 
 

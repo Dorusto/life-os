@@ -30,6 +30,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
+from backend.api.upload_guards import UPLOAD_LIMITS, sniff_image_format
 from backend.core.config import settings
 from backend.core.finance.provider import get_provider
 from backend.core.vehicle_client import VehicleClient, VehicleClientError
@@ -45,7 +46,8 @@ ALLOWED_MIME_TYPES = {
     "image/jpeg", "image/jpg", "image/png",
     "image/webp", "image/heic", "image/heif",
 }
-MAX_IMAGE_SIZE_MB = 20
+# Shared with UploadSizeGuardMiddleware's pre-parse check (upload_guards.py)
+RECEIPT_MAX_BYTES, RECEIPT_SIZE_DETAIL = UPLOAD_LIMITS["/api/receipts"]
 
 
 # --- Response/request models ---
@@ -160,6 +162,10 @@ async def upload_receipt(
     """
     Upload a receipt image (from camera or gallery), run vision LLM OCR,
     and return the extracted data for the user to review.
+
+    Oversized requests are already rejected by UploadSizeGuardMiddleware
+    before the body is buffered; the byte count is re-checked here because
+    chunked uploads carry no trustworthy Content-Length header.
     """
 
     if file.content_type not in ALLOWED_MIME_TYPES:
@@ -170,10 +176,14 @@ async def upload_receipt(
 
     image_bytes = await file.read()
 
-    if len(image_bytes) > MAX_IMAGE_SIZE_MB * 1024 * 1024:
+    if len(image_bytes) > RECEIPT_MAX_BYTES:
+        raise HTTPException(status_code=413, detail=RECEIPT_SIZE_DETAIL)
+
+    # The client MIME type is not trusted — verify the magic bytes too.
+    if sniff_image_format(image_bytes) is None:
         raise HTTPException(
             status_code=400,
-            detail=f"Image too large. Maximum {MAX_IMAGE_SIZE_MB}MB.",
+            detail=f"Unsupported file type: {file.content_type}. Use JPEG, PNG, or WebP.",
         )
 
     # Generate a UUID that acts as both the filename and the session key
@@ -303,6 +313,13 @@ async def confirm_receipt(
             transaction_id=None,
             possible_match=NearDuplicateMatch(**result["possible_match"]),
         )
+
+    # Cleanup the image after successful processing (same as the fuel path —
+    # early returns above leave it in place so the user can retry the confirm)
+    try:
+        image_path.unlink(missing_ok=True)
+    except Exception as e:
+        logger.debug("failed to delete temp receipt image after processing: %s", e)
 
     return ConfirmResponse(
         success=True,

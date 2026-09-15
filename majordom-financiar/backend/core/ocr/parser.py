@@ -71,7 +71,7 @@ class ReceiptParser:
     # Patterns for the total amount
     TOTAL_PATTERNS = [
         # "TOTAL        123.45" or "TOTAL: 123,45"
-        r"TOTAL\s*(?:DE\s+PLATA|LEI)?[\s:]*(\\d+[.,]\\d{2})",
+        r"TOTAL\s*(?:DE\s+PLATA|LEI)?[\s:]*(\d+[.,]\d{2})",
         # "TOTAL        123.45 LEI"
         r"TOTAL\s+(\d+[.,]\d{2})\s*(?:LEI|RON)?",
         # Variants excluding SUBTOTAL

@@ -50,8 +50,11 @@ async def confirm_transfer_conversion(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error("Failed to confirm transfer conversion %s: %s", proposal_id, e)
-        raise HTTPException(status_code=500, detail=f"Failed to convert transaction to transfer: {e}")
+        logger.error("Failed to confirm transfer conversion %s: %s", proposal_id, e, exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to convert transaction to transfer. Please try again.",
+        )
 
     store.delete(proposal_id)
 

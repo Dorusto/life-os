@@ -8,9 +8,10 @@ returned object — it never imports ``ActualBudgetClient`` directly.
 
 from __future__ import annotations
 
-import os
 from datetime import date
 from typing import Protocol, runtime_checkable
+
+from backend.core.config import settings
 
 
 @runtime_checkable
@@ -285,8 +286,9 @@ class FinanceProvider(Protocol):
 
 
 def get_provider() -> FinanceProvider:
-    """Return a FinanceProvider instance based on the FINANCE_BACKEND env var."""
-    backend = os.getenv("FINANCE_BACKEND", "actual_budget")
+    """Return a FinanceProvider instance based on the configured backend
+    (FINANCE_BACKEND, read via the settings singleton — never os.environ)."""
+    backend = settings.finance_backend
     if backend == "actual_budget":
         from backend.core.finance.actual_budget_provider import (
             ActualBudgetProvider,

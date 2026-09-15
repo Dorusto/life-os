@@ -13,11 +13,15 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
+from backend.api.upload_guards import UPLOAD_LIMITS, looks_like_binary
 from backend.core.config import settings
 from backend.core.vehicle_client import VehicleClient, VehicleClientError
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# Shared with UploadSizeGuardMiddleware's pre-parse check (upload_guards.py)
+FUELIO_MAX_BYTES, FUELIO_SIZE_DETAIL = UPLOAD_LIMITS["/api/import/fuelio"]
 
 
 # ---------------------------------------------------------------------------
@@ -48,10 +52,18 @@ async def import_fuelio(
     which parses the Vehicle, Log, and Costs sections and returns the result.
 
     No AB transactions are created — historical data stays in vehicle_log.
+
+    Oversized requests are already rejected by UploadSizeGuardMiddleware
+    before the body is buffered; the byte count is re-checked here because
+    chunked uploads carry no trustworthy Content-Length header.
     """
     raw = await file.read()
-    if len(raw) > 2 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="File too large (max 2MB)")
+    if len(raw) > FUELIO_MAX_BYTES:
+        raise HTTPException(status_code=413, detail=FUELIO_SIZE_DETAIL)
+
+    # CSV is text and has no magic bytes of its own — reject misnamed binary uploads.
+    if looks_like_binary(raw):
+        raise HTTPException(status_code=400, detail="This does not look like a Fuelio CSV text file")
 
     client = VehicleClient(base_url=settings.vehicle_manager.url)
     try:

@@ -33,6 +33,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
+from backend.api.upload_guards import UPLOAD_LIMITS, looks_like_binary
 from backend.core.config import settings, build_llm_headers
 from backend.core.csv_importer import CsvNormalizer, CsvProfileDetector
 from backend.core.finance.provider import get_provider
@@ -41,6 +42,9 @@ from backend.core.memory import MemoryDB, SmartCategorizer
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+# Shared with UploadSizeGuardMiddleware's pre-parse check (upload_guards.py)
+CSV_MAX_BYTES, CSV_SIZE_DETAIL = UPLOAD_LIMITS["/api/import/csv"]
 
 
 # ---------------------------------------------------------------------------
@@ -250,14 +254,22 @@ async def preview_csv(
     Profile detection:
       - Known format (by header signature): instant, no LLM call needed.
       - Unknown format: sent to LLM for analysis, saved for future imports.
+
+    Oversized requests are already rejected by UploadSizeGuardMiddleware
+    before the body is buffered; the byte count is re-checked here because
+    chunked uploads carry no trustworthy Content-Length header.
     """
     filename = file.filename or ""
     if not filename.lower().endswith(".csv"):
         raise HTTPException(status_code=400, detail="Only .csv files are supported")
 
     raw = await file.read()
-    if len(raw) > 5 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="CSV file too large (max 5 MB)")
+    if len(raw) > CSV_MAX_BYTES:
+        raise HTTPException(status_code=413, detail=CSV_SIZE_DETAIL)
+
+    # CSV is text and has no magic bytes of its own — reject misnamed binary uploads.
+    if looks_like_binary(raw):
+        raise HTTPException(status_code=400, detail="This does not look like a CSV text file")
 
     normalizer = CsvNormalizer()
     try:

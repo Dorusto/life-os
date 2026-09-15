@@ -17,6 +17,7 @@ from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from backend.api import auth, receipts, transactions, chat, chat_history, csv_import, proposals, budget, accounts, setup, balance_adjustments, close_account, push, income_sources, category_actions, fuelio_import, vehicle_proposals, vehicle_log_actions, vehicle_reminder_actions, vehicle_status_actions, vehicle_charts, vehicle_value, finance_charts, home, transfer_conversion, vehicle_accounts_internal, notification_actions, budget_pacing
+from backend.api.upload_guards import UploadSizeGuardMiddleware
 
 from backend.core.actual_client.client import ActualBudgetUnavailableError
 from backend.core.config import settings
@@ -172,6 +173,13 @@ app = FastAPI(
     redoc_url=None,
     lifespan=lifespan,
 )
+
+# Oversized uploads must be rejected BEFORE the multipart body is parsed and
+# buffered (audit 2026-09-15, finding 30) — FastAPI buffers the whole body
+# before an endpoint handler runs, so a check inside the handler is too late.
+# Registered before CORSMiddleware so CORS stays outermost and still decorates
+# the 413 response with its headers in the dev cross-origin setup.
+app.add_middleware(UploadSizeGuardMiddleware)
 
 # CORS is only needed when the frontend dev server (Vite, port 5173) talks
 # directly to the API during local development. In production, Nginx proxies
