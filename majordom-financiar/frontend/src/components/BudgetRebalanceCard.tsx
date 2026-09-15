@@ -11,6 +11,7 @@ interface Props {
 
 export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: Props) {
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [selectedSource, setSelectedSource] = useState(data.source_category)
   const [selectedDest, setSelectedDest] = useState(data.destination_category)
   const [amount, setAmount] = useState(data.amount)
@@ -34,6 +35,7 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
 
   async function handleConfirm() {
     setLoading(true)
+    setError(null)
     try {
       const result = await confirmBudgetRebalance({
         ...data,
@@ -48,7 +50,7 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
       onConfirmed(result.message)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
-      onConfirmed(`Error: could not rebalance budget (${msg}). Try again via chat.`)
+      setError(`Could not rebalance budget (${msg}). Try again.`)
     } finally {
       setLoading(false)
     }
@@ -121,6 +123,8 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
           </p>
         </div>
       </div>
+
+      {error && <p className="text-token-loss text-xs">{error}</p>}
 
       <ActionCardButtons
         onConfirm={handleConfirm}

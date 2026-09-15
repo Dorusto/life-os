@@ -12,6 +12,7 @@ interface Props {
 
 export default function AccountTransferCard({ data, onConfirmed, onCancelled }: Props) {
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [fromId, setFromId] = useState(data.from_account_id)
   const [toId, setToId] = useState(data.to_account_id)
   const [amount, setAmount] = useState(data.amount)
@@ -29,6 +30,7 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
 
   async function handleConfirm() {
     setLoading(true)
+    setError(null)
     try {
       const result = creatingNew
         ? await confirmAccountTransfer(
@@ -46,7 +48,7 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
       onConfirmed(result.message)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
-      onConfirmed(`Error: could not complete transfer (${msg}). Try again via chat.`)
+      setError(`Could not complete transfer (${msg}). Try again.`)
     } finally {
       setLoading(false)
     }
@@ -167,6 +169,8 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
       {data.notes && (
         <p className="text-token-ink-3 text-xs">{data.notes}</p>
       )}
+
+      {error && <p className="text-token-loss text-xs">{error}</p>}
 
       <ActionCardButtons
         onConfirm={handleConfirm}

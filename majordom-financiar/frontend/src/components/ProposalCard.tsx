@@ -30,6 +30,7 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
   const [accounts, setAccounts] = useState<Account[]>([])
   const [createRule, setCreateRule] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     getCategories().then(allCats => {
@@ -52,6 +53,7 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
 
   async function handleConfirm() {
     setLoading(true)
+    setError(null)
     try {
       const result = await confirmProposal(proposal.id, selectedCategory, selectedAccountId, createRule)
       if (result.message.toLowerCase().includes('duplicate') || result.message.toLowerCase().includes('already exists')) {
@@ -61,7 +63,7 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
-      onConfirmed(`Error: could not add transaction (${msg}). Try again via chat.`)
+      setError(`Could not add transaction (${msg}). Try again.`)
     } finally {
       setLoading(false)
     }
@@ -147,6 +149,8 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
           ))}
         </select>
       )}
+
+      {error && <p className="text-token-loss text-xs">{error}</p>}
 
       <ActionCardButtons onConfirm={handleConfirm} onCancel={handleCancel} loading={loading} />
     </div>

@@ -19,6 +19,7 @@ export default function BudgetOverviewCard({ data, onConfirmed, onCancelled }: P
     Object.fromEntries(allCategories.map(c => [c.id, c.carryover]))
   )
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const originalAmounts = Object.fromEntries(allCategories.map(c => [c.id, c.budgeted]))
   const originalCarryover = Object.fromEntries(allCategories.map(c => [c.id, c.carryover]))
@@ -33,6 +34,7 @@ export default function BudgetOverviewCard({ data, onConfirmed, onCancelled }: P
 
   async function handleSave() {
     setLoading(true)
+    setError(null)
     try {
       const amountsPayload: Record<string, number> = {}
       const carryoverPayload: Record<string, boolean> = {}
@@ -48,7 +50,8 @@ export default function BudgetOverviewCard({ data, onConfirmed, onCancelled }: P
       const result = await applyBudgetOverview({ month: data.month, amounts: amountsPayload, carryover: carryoverPayload })
       onConfirmed(result.message)
     } catch (err) {
-      onConfirmed(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setError(`Could not save budget (${msg}). Try again.`)
     } finally {
       setLoading(false)
     }
@@ -107,6 +110,8 @@ export default function BudgetOverviewCard({ data, onConfirmed, onCancelled }: P
           </div>
         ))}
       </div>
+
+      {error && <p className="text-token-loss text-xs">{error}</p>}
 
       <ActionCardButtons
         onConfirm={handleSave}

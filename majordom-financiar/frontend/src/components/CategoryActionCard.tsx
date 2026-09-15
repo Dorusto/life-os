@@ -37,6 +37,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const [tag, setTag] = useState(data.tag ?? '')
   const [incomeType, setIncomeType] = useState(data.action === 'classify_income' ? (data.income_type ?? 'passive') : 'passive')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   // create_schedule editable fields
   const [scheduleName, setScheduleName] = useState(data.action === 'create_schedule' ? (data.payee_name ?? '') : '')
@@ -58,6 +59,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
 
   async function handleConfirm() {
     setLoading(true)
+    setError(null)
     try {
       let overrides: Record<string, unknown> | undefined
       if (data.action === 'create') {
@@ -104,7 +106,8 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
       const result = await confirmCategoryAction(data.id, overrides as any)
       onConfirmed(result.message)
     } catch (err) {
-      onConfirmed(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setError(`Could not complete action (${msg}). Try again.`)
     } finally {
       setLoading(false)
     }
@@ -582,6 +585,8 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
           </div>
         </div>
       )}
+
+      {error && <p className="text-token-loss text-xs">{error}</p>}
 
       <ActionCardButtons
         onConfirm={handleConfirm}

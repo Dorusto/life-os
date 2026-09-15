@@ -11,18 +11,20 @@ interface Props {
 
 export default function CloseAccountCard({ data, onConfirmed, onCancelled }: Props) {
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const accounts = data.accounts ?? []
   const hasBalance = Math.abs(data.balance) >= 0.01
   const [destinationId, setDestinationId] = useState(accounts[0]?.id ?? '')
 
   async function handleConfirm() {
     setLoading(true)
+    setError(null)
     try {
       const result = await confirmCloseAccount(data.id, hasBalance ? destinationId : undefined)
       onConfirmed(result.message)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
-      onConfirmed(`Error: could not close account (${msg}). Try again via chat.`)
+      setError(`Could not close account (${msg}). Try again.`)
     } finally {
       setLoading(false)
     }
@@ -66,6 +68,8 @@ export default function CloseAccountCard({ data, onConfirmed, onCancelled }: Pro
           </select>
         </div>
       )}
+
+      {error && <p className="text-token-loss text-xs">{error}</p>}
 
       <ActionCardButtons
         onConfirm={handleConfirm}
