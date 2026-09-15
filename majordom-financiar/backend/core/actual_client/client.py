@@ -1585,19 +1585,27 @@ class ActualBudgetClient:
         notes: str = "",
         is_expense: bool = True,
     ) -> str | None:
-        """Add a transaction. Returns the ID or None if duplicate."""
+        """Add a transaction.
+
+        Sets `imported_id` to the shared SHA-based financial_id(date, payee,
+        abs(amount)) — rule 7's dedup contract, so manual/receipt adds are
+        visible to exact-dedup on overlapping imports, same as every other
+        creation path. Returns the row's own id (`Transactions.id`, NOT
+        `financial_id` — rule 39).
+        """
         if tx_date is None:
             tx_date = date.today()
 
         def _add():
-            import uuid
             from actual.queries import (
                 create_transaction,
                 get_categories,
             )
             with self._get_actual() as actual:
 
-                imported_id = uuid.uuid4().hex[:16]
+                # Rule 7: same SHA inputs as the CSV/receipt paths (positive
+                # magnitude, matching financial_id()'s cross-transport contract).
+                imported_id = financial_id(tx_date.isoformat(), payee, abs(amount))
 
                 cat_obj = None
                 if category_name:
@@ -2021,7 +2029,6 @@ class ActualBudgetClient:
             from actual.queries import (
                 create_transaction,
                 get_categories,
-                get_or_create_payee,
                 get_transactions,
             )
 
@@ -2100,7 +2107,7 @@ class ActualBudgetClient:
                         skipped += 1
                         continue
 
-                    payee = get_or_create_payee(actual.session, row["merchant"])
+                    payee = _safe_get_or_create_payee(actual.session, row["merchant"])
                     cat_obj = all_cats.get(row["category_name"]) if row["category_name"] else None
 
                     actual_amount = -abs(row["amount"]) if row["is_expense"] else abs(row["amount"])
@@ -2188,7 +2195,7 @@ class ActualBudgetClient:
         def _close_with_transfer():
             from decimal import Decimal
             from datetime import date as _date
-            from actual.database import Accounts
+            from actual.database import Accounts, Transactions
             from actual.queries import create_transaction, get_account, get_transactions
 
             with self._get_actual() as actual:
@@ -2213,16 +2220,30 @@ class ActualBudgetClient:
                     # balance < 0 (debt): destination pays it off into the closing account.
                     from_acct, to_acct = (acc, dest_acct) if balance > 0 else (dest_acct, acc)
                     transfer_payee = self._get_or_create_transfer_payee(actual.session, to_acct)
-                    create_transaction(
+                    closure_date = _date.today()
+                    closure_notes = "[Transfer] Account closure"
+                    tx = create_transaction(
                         actual.session,
-                        date=_date.today(),
+                        date=closure_date,
                         account=from_acct,
                         payee=transfer_payee,
-                        notes="[Transfer] Account closure",
+                        notes=closure_notes,
                         amount=-abs(Decimal(str(balance))),
                         category=None,
                         cleared=True,
                     )
+                    # Rule 7: tag both legs with imported_id (financial_id), same
+                    # gap #102 closed for the CSV import path — otherwise this
+                    # transfer can duplicate on a future overlapping import.
+                    # Source leg gets the base id, mirrored leg the negated amount.
+                    tx.financial_id = financial_id(closure_date.isoformat(), closure_notes, abs(balance))
+                    mirror = actual.session.query(Transactions).filter(
+                        Transactions.id == tx.transferred_id
+                    ).first()
+                    if mirror:
+                        mirror.financial_id = financial_id(
+                            closure_date.isoformat(), closure_notes, -abs(balance)
+                        )
 
                 closing_acc = actual.session.query(Accounts).filter(
                     Accounts.id == account_id, Accounts.tombstone == 0
@@ -2741,6 +2762,7 @@ class ActualBudgetClient:
         def _transfer():
             from datetime import date as _date
             from decimal import Decimal
+            from actual.database import Transactions
             from actual.queries import (
                 create_transaction,
                 get_account,
@@ -2778,6 +2800,19 @@ class ActualBudgetClient:
                     category=None,
                     cleared=True,
                 )
+                # Rule 7: both legs need an imported_id (financial_id) or this
+                # transfer is invisible to dedup and duplicates on any future
+                # overlapping import — the same gap #102 closed for CSV imports
+                # (see execute_csv_import's transfer branch). Same base id on the
+                # source leg, negated amount on the mirrored destination leg.
+                tx.financial_id = financial_id(tx_date.isoformat(), transfer_notes, abs(float(amount)))
+                mirror = actual.session.query(Transactions).filter(
+                    Transactions.id == tx.transferred_id
+                ).first()
+                if mirror:
+                    mirror.financial_id = financial_id(
+                        tx_date.isoformat(), transfer_notes, -abs(float(amount))
+                    )
                 actual.commit()
                 logger.info(
                     f"Transfer created: {from_acct.name} → {to_acct.name} €{amount:.2f}"
@@ -3498,6 +3533,18 @@ class ActualBudgetClient:
                     logger.warning(
                         "Duplicate merge failed — one side missing: manual=%s synced=%s",
                         manual_id, synced_id,
+                    )
+                    return False
+                # Rule 31: never tombstone a transfer leg — the link to its
+                # counterpart would break (transferred_id pointing at a dead row)
+                # and the amount would silently start counting as real income/
+                # spend on both accounts. Transfer-linked pairs must be resolved
+                # via resolve_transfer_duplicate(), which keeps the transfer leg.
+                if manual.transferred_id:
+                    logger.warning(
+                        "Duplicate merge refused — manual side %s is one leg of a "
+                        "transfer (transferred_id set); use resolve_transfer_duplicate.",
+                        manual_id,
                     )
                     return False
                 # Copy category/notes from the manual side only when the synced side
