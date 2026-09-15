@@ -18,12 +18,19 @@ const BASE = '/api'
 
 /**
  * Base fetch wrapper — attaches JWT token and handles 401 (auto logout).
+ *
+ * `opts.abBacked` forwards to authFetch: a 2xx from an endpoint whose handler
+ * actually talks to Actual Budget proves AB is reachable and clears the #254
+ * AB-down flag; use plain request() for endpoints that don't (or whose 200
+ * doesn't prove AB health — e.g. handlers that swallow AB errors per-item and
+ * still return 200).
  */
 async function request<T>(
   path: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
+  opts?: { abBacked?: boolean }
 ): Promise<T> {
-  const res = await authFetch(`${BASE}${path}`, options)
+  const res = await authFetch(`${BASE}${path}`, options, opts)
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({ detail: res.statusText }))
@@ -31,6 +38,22 @@ async function request<T>(
   }
 
   return res.json() as Promise<T>
+}
+
+/**
+ * request() for Actual-Budget-backed endpoints. Every call site here was
+ * checked against its backend handler (audit finding 57): the happy path
+ * performs ≥1 ActualBudgetClient call, and an AB failure never yields a 200
+ * (it propagates as the AB-down 503 or surfaces as 4xx/5xx), so a success is
+ * genuine positive evidence that AB is reachable. Do NOT route endpoints
+ * through this when their 200 can happen with AB down — chat (/chat streams
+ * the LLM reply while its AB tools fail inside), chat history, setup/status
+ * (catches AB errors), the overview/apply batch endpoints (log per-item AB
+ * errors and still return 200), vehicle-manager proxies, notification/push
+ * actions, backup-status, fuelio import.
+ */
+async function abRequest<T>(path: string, options: RequestInit = {}): Promise<T> {
+  return request<T>(path, options, { abBacked: true })
 }
 
 // --- Types (mirror backend Pydantic models) ---
@@ -180,7 +203,7 @@ export async function login(username: string, password: string): Promise<TokenRe
 export async function uploadReceipt(file: File): Promise<ReceiptDraft> {
   const form = new FormData()
   form.append('file', file)
-  return request<ReceiptDraft>('/receipts', { method: 'POST', body: form })
+  return abRequest<ReceiptDraft>('/receipts', { method: 'POST', body: form })
 }
 
 export async function confirmReceipt(data: {
@@ -196,14 +219,14 @@ export async function confirmReceipt(data: {
   create_rule?: boolean
   new_category_group?: string
 }): Promise<ConfirmResponse> {
-  return request<ConfirmResponse>(`/receipts/${data.receipt_id}/confirm`, {
+  return abRequest<ConfirmResponse>(`/receipts/${data.receipt_id}/confirm`, {
     method: 'POST',
     body: JSON.stringify(data),
   })
 }
 
 export async function confirmFuelReceipt(data: FuelConfirmRequest): Promise<FuelConfirmResponse> {
-  return request<FuelConfirmResponse>(`/receipts/${data.receipt_id}/confirm-fuel`, {
+  return abRequest<FuelConfirmResponse>(`/receipts/${data.receipt_id}/confirm-fuel`, {
     method: 'POST',
     body: JSON.stringify(data),
   })
@@ -214,7 +237,7 @@ export async function confirmFuelReceipt(data: FuelConfirmRequest): Promise<Fuel
 export async function getTransactions(limit = 20, accountId?: string): Promise<Transaction[]> {
   const qs = new URLSearchParams({ limit: String(limit) })
   if (accountId) qs.set('account_id', accountId)
-  return request<Transaction[]>(`/transactions?${qs}`)
+  return abRequest<Transaction[]>(`/transactions?${qs}`)
 }
 
 export interface TransactionFilters {
@@ -246,18 +269,18 @@ export async function getTransactionsFiltered(filters: TransactionFilters): Prom
   if (filters.dateFrom) qs.set('start_date', filters.dateFrom)
   if (filters.dateTo) qs.set('end_date', filters.dateTo)
   if (filters.isExpense !== undefined) qs.set('is_expense', String(filters.isExpense))
-  return request<Transaction[]>(`/transactions?${qs}`)
+  return abRequest<Transaction[]>(`/transactions?${qs}`)
 }
 
 export async function bulkUpdateCategory(financialIds: string[], categoryId: string): Promise<{ updated: number }> {
-  return request<{ updated: number }>('/transactions/bulk-category', {
+  return abRequest<{ updated: number }>('/transactions/bulk-category', {
     method: 'POST',
     body: JSON.stringify({ financial_ids: financialIds, category_id: categoryId }),
   })
 }
 
 export async function getAccounts(): Promise<Account[]> {
-  return request<Account[]>('/accounts')
+  return abRequest<Account[]>('/accounts')
 }
 
 export interface BalanceHistoryPoint {
@@ -272,7 +295,7 @@ export async function getBalanceHistory(
 ): Promise<BalanceHistoryPoint[]> {
   const qs = new URLSearchParams({ scope, days: String(days) })
   if (endDate) qs.set('end_date', endDate)
-  return request<BalanceHistoryPoint[]>(`/accounts/balance-history?${qs}`)
+  return abRequest<BalanceHistoryPoint[]>(`/accounts/balance-history?${qs}`)
 }
 
 export interface VehicleCostsSummary {
@@ -296,7 +319,7 @@ export async function getVehicleCostsSummary(period?: string): Promise<VehicleCo
 export const ACCOUNT_TYPES = ['Cash', 'Investment', 'Vehicle', 'Loan', 'Rental'] as const
 
 export async function getAccountList(): Promise<AccountListItem[]> {
-  return request<AccountListItem[]>('/accounts')
+  return abRequest<AccountListItem[]>('/accounts')
 }
 
 // --- Analytics chart endpoints ---
@@ -319,19 +342,19 @@ export async function getSpendingChartData(month?: number, year?: number): Promi
   if (month !== undefined) qs.set('month', String(month))
   if (year !== undefined) qs.set('year', String(year))
   const query = qs.toString()
-  return request<ChartResponse>(`/finance/spending-chart${query ? `?${query}` : ''}`)
+  return abRequest<ChartResponse>(`/finance/spending-chart${query ? `?${query}` : ''}`)
 }
 
 export async function getBudgetChartData(): Promise<ChartResponse> {
-  return request<ChartResponse>('/finance/budget-chart')
+  return abRequest<ChartResponse>('/finance/budget-chart')
 }
 
 export async function getSpendingTrendData(): Promise<ChartResponse> {
-  return request<ChartResponse>('/finance/spending-trend')
+  return abRequest<ChartResponse>('/finance/spending-trend')
 }
 
 export async function getSavingsRateData(): Promise<ChartResponse> {
-  return request<ChartResponse>('/finance/savings-rate')
+  return abRequest<ChartResponse>('/finance/savings-rate')
 }
 
 // --- Net worth history (Analytics → Net Worth, issue 15 part 3) ---
@@ -376,18 +399,18 @@ export async function getNetWorthHistory(
 ): Promise<NetWorthHistory> {
   const qs = new URLSearchParams({ granularity })
   if (include.length > 0) qs.set('include', include.join(','))
-  return request<NetWorthHistory>(`/finance/net-worth-history?${qs}`)
+  return abRequest<NetWorthHistory>(`/finance/net-worth-history?${qs}`)
 }
 
 export async function setAccountType(accountId: string, accountType: string): Promise<AccountListItem> {
-  return request<AccountListItem>(`/accounts/${accountId}/type`, {
+  return abRequest<AccountListItem>(`/accounts/${accountId}/type`, {
     method: 'POST',
     body: JSON.stringify({ account_type: accountType }),
   })
 }
 
 export async function createAccount(name: string, offBudget = false): Promise<AccountListItem> {
-  return request<AccountListItem>('/accounts', {
+  return abRequest<AccountListItem>('/accounts', {
     method: 'POST',
     body: JSON.stringify({ name, off_budget: offBudget }),
   })
@@ -406,7 +429,7 @@ export async function createTransaction(data: {
   attach_to?: string
   new_category_group?: string
 }): Promise<ConfirmResponse> {
-  return request<ConfirmResponse>('/transactions', {
+  return abRequest<ConfirmResponse>('/transactions', {
     method: 'POST',
     body: JSON.stringify(data),
   })
@@ -424,7 +447,7 @@ export async function splitTransaction(
   transactionId: string,
   splits: SplitLine[]
 ): Promise<{ parent_transaction_id: string; child_count: number }> {
-  return request(`/transactions/${transactionId}/split`, {
+  return abRequest(`/transactions/${transactionId}/split`, {
     method: 'POST',
     body: JSON.stringify({ splits }),
   })
@@ -541,11 +564,11 @@ export interface ImportResult {
 export async function previewCsvImport(file: File): Promise<ImportPreview> {
   const form = new FormData()
   form.append('file', file)
-  return request<ImportPreview>('/import/csv', { method: 'POST', body: form })
+  return abRequest<ImportPreview>('/import/csv', { method: 'POST', body: form })
 }
 
 export async function confirmCsvImport(data: ImportConfirm): Promise<ImportResult> {
-  return request<ImportResult>('/import/csv/confirm', {
+  return abRequest<ImportResult>('/import/csv/confirm', {
     method: 'POST',
     body: JSON.stringify(data),
   })
@@ -767,7 +790,7 @@ export async function getHomeData(month?: number, year?: number): Promise<HomeDa
   if (month) params.set('month', String(month))
   if (year) params.set('year', String(year))
   const qs = params.toString()
-  return request<HomeData>(`/home${qs ? `?${qs}` : ''}`)
+  return abRequest<HomeData>(`/home${qs ? `?${qs}` : ''}`)
 }
 
 export interface PendingItem {
@@ -788,7 +811,7 @@ export interface SyncResult {
 }
 
 export async function syncAccounts(): Promise<SyncResult> {
-  return request<SyncResult>('/home/sync', { method: 'POST' })
+  return abRequest<SyncResult>('/home/sync', { method: 'POST' })
 }
 
 // --- Duplicate (manual-entry vs. bank-sync) review (#181) ---
@@ -816,12 +839,12 @@ export interface DuplicatePair {
 }
 
 export async function getDuplicateMonths(): Promise<DuplicateMonth[]> {
-  const res = await request<{ months: DuplicateMonth[] }>('/home/duplicates/months')
+  const res = await abRequest<{ months: DuplicateMonth[] }>('/home/duplicates/months')
   return res.months
 }
 
 export async function getDuplicatePairs(month: string): Promise<{ pairs: DuplicatePair[]; available_categories: string[] }> {
-  const res = await request<{ month: string; pairs: DuplicatePair[]; available_categories: string[] }>(
+  const res = await abRequest<{ month: string; pairs: DuplicatePair[]; available_categories: string[] }>(
     `/home/duplicates/months/${month}`
   )
   return { pairs: res.pairs, available_categories: res.available_categories }
@@ -830,28 +853,28 @@ export async function getDuplicatePairs(month: string): Promise<{ pairs: Duplica
 // --- Uncategorized-by-payee review (Inbox occupant #2, Phase B) ---
 
 export async function getUncategorizedGroups(): Promise<CategoryActionData[]> {
-  const res = await request<{ items: CategoryActionData[] }>('/home/uncategorized/groups')
+  const res = await abRequest<{ items: CategoryActionData[] }>('/home/uncategorized/groups')
   return res.items
 }
 
 // --- Unreconciled-by-account review (Inbox occupant #3, Phase C, #116) ---
 
 export async function getUnreconciledGroups(): Promise<CategoryActionData[]> {
-  const res = await request<{ items: CategoryActionData[] }>('/home/unreconciled/groups')
+  const res = await abRequest<{ items: CategoryActionData[] }>('/home/unreconciled/groups')
   return res.items
 }
 
 // --- Budget realism review (Inbox occupant #4, Phase C, #110) ---
 
 export async function getBudgetRealismFlags(): Promise<CategoryActionData[]> {
-  const res = await request<{ items: CategoryActionData[] }>('/home/budget-realism/flags')
+  const res = await abRequest<{ items: CategoryActionData[] }>('/home/budget-realism/flags')
   return res.items
 }
 
 // --- Recurring-transaction lifecycle review (Inbox occupant, Phase C, #41) ---
 
 export async function getRecurringFindings(): Promise<{ newCandidates: CategoryActionData[]; stale: CategoryActionData[] }> {
-  const res = await request<{ new_candidates: CategoryActionData[]; stale: CategoryActionData[] }>('/home/recurring')
+  const res = await abRequest<{ new_candidates: CategoryActionData[]; stale: CategoryActionData[] }>('/home/recurring')
   return { newCandidates: res.new_candidates, stale: res.stale }
 }
 
@@ -879,7 +902,7 @@ export async function getBudgetPeriod(
   year: number
 ): Promise<BudgetPeriodMonth | BudgetPeriodTrend> {
   const qs = new URLSearchParams({ period, month: String(month), year: String(year) })
-  return request(`/home/budget-period?${qs}`)
+  return abRequest(`/home/budget-period?${qs}`)
 }
 
 // --- Budget ---
@@ -903,11 +926,11 @@ export interface CategoryItem {
 }
 
 export async function getCategories(): Promise<CategoryItem[]> {
-  return request<CategoryItem[]>('/categories')
+  return abRequest<CategoryItem[]>('/categories')
 }
 
 export async function getCategoryGroups(): Promise<string[]> {
-  return request<string[]>('/category-groups')
+  return abRequest<string[]>('/category-groups')
 }
 
 // --- Budget pacing (#112) ---
@@ -931,7 +954,7 @@ export interface BudgetPacingStatus {
 }
 
 export async function getBudgetPacingConfig(): Promise<BudgetPacingConfig> {
-  return request<BudgetPacingConfig>('/budget-pacing/config')
+  return abRequest<BudgetPacingConfig>('/budget-pacing/config')
 }
 
 export async function saveBudgetPacingConfig(data: {
@@ -939,13 +962,16 @@ export async function saveBudgetPacingConfig(data: {
   fixed_category_ids: string[]
   sinking_fund_category_ids: string[]
 }): Promise<BudgetPacingConfig> {
-  return request<BudgetPacingConfig>('/budget-pacing/config', {
+  return abRequest<BudgetPacingConfig>('/budget-pacing/config', {
     method: 'POST',
     body: JSON.stringify(data),
   })
 }
 
 export async function getBudgetPacingStatus(): Promise<BudgetPacingStatus> {
+  // Not abRequest: when pacing is unconfigured the handler returns
+  // {configured: false} WITHOUT any AB call (compute_pacing_status early-
+  // returns) — a 200 here proves nothing about AB health (audit finding 57).
   return request<BudgetPacingStatus>('/budget-pacing/status')
 }
 
@@ -957,7 +983,7 @@ export interface ConfirmResult {
 }
 
 export async function confirmProposal(id: string, categoryName?: string, accountId?: string, createRule?: boolean): Promise<ConfirmResult> {
-  return request<ConfirmResult>(`/proposals/${id}/confirm`, {
+  return abRequest<ConfirmResult>(`/proposals/${id}/confirm`, {
     method: 'POST',
     body: JSON.stringify({ category_name: categoryName ?? null, account_id: accountId ?? null, create_rule: createRule ?? false }),
   })
@@ -983,7 +1009,7 @@ export interface BudgetRebalanceData {
 }
 
 export async function confirmBudgetRebalance(data: BudgetRebalanceData): Promise<{ message: string }> {
-  return request('/budget/rebalance', {
+  return abRequest('/budget/rebalance', {
     method: 'POST',
     body: JSON.stringify({
       source_category: data.source_category,
@@ -1023,7 +1049,7 @@ export async function confirmAccountTransfer(
   data: AccountTransferData,
   newAccount?: { name: string; offBudget: boolean }
 ): Promise<{ message: string }> {
-  return request('/accounts/transfer', {
+  return abRequest('/accounts/transfer', {
     method: 'POST',
     body: JSON.stringify({
       from_account_id: data.from_account_id,
@@ -1045,7 +1071,7 @@ export async function createIncomeSource(params: {
   income_name?: string
   account_id?: string
 }): Promise<{ category_name: string | null; updated_count: number }> {
-  return request('/income/sources', {
+  return abRequest('/income/sources', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -1069,7 +1095,7 @@ export interface BalanceAdjustmentData {
 }
 
 export async function confirmBalanceAdjustment(id: string): Promise<{ message: string }> {
-  return request(`/balance-adjustments/${id}/confirm`, { method: 'POST' })
+  return abRequest(`/balance-adjustments/${id}/confirm`, { method: 'POST' })
 }
 
 export async function cancelBalanceAdjustment(id: string): Promise<void> {
@@ -1090,7 +1116,7 @@ export interface TransferConversionData {
 }
 
 export async function confirmTransferConversion(id: string): Promise<{ message: string }> {
-  return request(`/transfer-conversion/${id}/confirm`, { method: 'POST' })
+  return abRequest(`/transfer-conversion/${id}/confirm`, { method: 'POST' })
 }
 
 export async function cancelTransferConversion(id: string): Promise<void> {
@@ -1108,7 +1134,7 @@ export interface CloseAccountData {
 }
 
 export async function confirmCloseAccount(id: string, destinationAccountId?: string): Promise<{ message: string }> {
-  return request(`/close-account/${id}/confirm`, {
+  return abRequest(`/close-account/${id}/confirm`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ destination_account_id: destinationAccountId ?? null }),
@@ -1225,7 +1251,7 @@ export async function confirmCategoryAction(
     income_type?: 'passive' | 'semi-passive' | 'active';
   }
 ): Promise<{ message: string; monthly_needed?: number | null }> {
-  return request(`/category-actions/${id}/confirm`, {
+  return abRequest(`/category-actions/${id}/confirm`, {
     method: 'POST',
     body: JSON.stringify(override ?? {}),
   })
@@ -1394,7 +1420,7 @@ export interface PayeeItem {
 }
 
 export async function getPayees(): Promise<PayeeItem[]> {
-  return request<PayeeItem[]>('/payees')
+  return abRequest<PayeeItem[]>('/payees')
 }
 
 export interface ScheduleItem {
@@ -1404,7 +1430,7 @@ export interface ScheduleItem {
 }
 
 export async function getSchedules(): Promise<ScheduleItem[]> {
-  return request<ScheduleItem[]>('/schedules')
+  return abRequest<ScheduleItem[]>('/schedules')
 }
 
 export interface BackupStatus {

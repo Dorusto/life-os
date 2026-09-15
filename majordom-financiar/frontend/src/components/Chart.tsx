@@ -160,7 +160,13 @@ function useChartRefetch<T>(initialTitle: string, initialData: T, initialRefetch
         allParams[k] = String(v)
       })
       const qs = new URLSearchParams(allParams)
-      const res = await authFetch(`/api${refetch.endpoint}?${qs}`)
+      // Refetch endpoints come from the backend chart envelope and span two
+      // backends: /finance/* chart endpoints (Actual Budget) and /vehicle/*
+      // per-vehicle charts (vehicle-manager's own DB — backend/tools/finance/
+      // vehicle.py). Only the finance ones prove AB health, so the clear is
+      // conditional (audit finding 57).
+      const abBacked = refetch.endpoint.startsWith('/finance/')
+      const res = await authFetch(`/api${refetch.endpoint}?${qs}`, undefined, { abBacked })
       const json = await res.json()
       if (json.type === 'error') {
         setError(json.message || 'Failed to load chart')

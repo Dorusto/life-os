@@ -115,6 +115,9 @@ export default function FuelReceiptCard({
       if (confirmEndpoint) {
         // Text mode — POST directly to custom endpoint. Same near-duplicate
         // check as photo mode (backend-side), so force_new/attach_to still apply.
+        // Both possible endpoints (receipt confirm-fuel, vehicle-proposal
+        // confirm) write through Actual Budget — abBacked lets a success
+        // clear the AB-down flag (audit finding 57).
         const res = await authFetch(`${BASE}${confirmEndpoint}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -123,7 +126,7 @@ export default function FuelReceiptCard({
             force_new: opts?.forceNew,
             attach_to: opts?.attachTo,
           }),
-        })
+        }, { abBacked: true })
         if (!res.ok) {
           const errBody = await res.json().catch(() => ({ detail: 'Request failed' }))
           throw new Error(errBody.detail || 'Request failed')
