@@ -1119,8 +1119,15 @@ export interface BalanceAdjustmentData {
   diff: number
 }
 
-export async function confirmBalanceAdjustment(id: string): Promise<{ message: string }> {
-  return abRequest(`/balance-adjustments/${id}/confirm`, { method: 'POST' })
+export async function confirmBalanceAdjustment(
+  id: string,
+  override?: { real_balance?: number }
+): Promise<{ message: string }> {
+  return abRequest(`/balance-adjustments/${id}/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(override ?? {}),
+  })
 }
 
 export async function cancelBalanceAdjustment(id: string): Promise<void> {
@@ -1137,11 +1144,20 @@ export interface TransferConversionData {
   amount: number
   payee: string
   account_name: string
+  target_account_id?: string
   target_account_name: string
+  accounts?: AccountOption[]
 }
 
-export async function confirmTransferConversion(id: string): Promise<{ message: string }> {
-  return abRequest(`/transfer-conversion/${id}/confirm`, { method: 'POST' })
+export async function confirmTransferConversion(
+  id: string,
+  override?: { target_account_id?: string }
+): Promise<{ message: string }> {
+  return abRequest(`/transfer-conversion/${id}/confirm`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(override ?? {}),
+  })
 }
 
 export async function cancelTransferConversion(id: string): Promise<void> {
@@ -1406,12 +1422,20 @@ export async function cancelVehicleReminder(id: string): Promise<void> {
 
 export interface VehicleStatusData {
   id: string
+  vehicle_id?: number
   vehicle_name: string
   active: boolean
+  vehicles?: { id: number; name: string }[]
 }
 
-export async function confirmVehicleStatus(id: string): Promise<{ message: string }> {
-  return request(`/vehicle-status-actions/${id}/confirm`, { method: 'POST' })
+export async function confirmVehicleStatus(
+  id: string,
+  override?: { vehicle_id?: number }
+): Promise<{ message: string }> {
+  return request(`/vehicle-status-actions/${id}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify(override ?? {}),
+  })
 }
 
 export async function cancelVehicleStatus(id: string): Promise<void> {

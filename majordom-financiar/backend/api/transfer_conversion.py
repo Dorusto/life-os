@@ -6,6 +6,7 @@ POST /api/transfer-conversion/{id}/cancel   → discard proposal
 """
 import logging
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
 from backend.tools import transfer_conversion as store
@@ -15,9 +16,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+class ConfirmTransferConversionRequest(BaseModel):
+    target_account_id: str | None = None
+
+
 @router.post("/transfer-conversion/{proposal_id}/confirm")
 async def confirm_transfer_conversion(
     proposal_id: str,
+    body: ConfirmTransferConversionRequest | None = None,
     current_user: str = Depends(get_current_user),
 ):
     proposal = store.get(proposal_id)
@@ -30,7 +36,19 @@ async def confirm_transfer_conversion(
 
     try:
         client = get_provider()
+        # Card fields are editable (rule 5) — the confirm body may carry a
+        # user-corrected target account; resolve its current name for the reply.
+        override_id = body.target_account_id if body else None
+        if override_id and override_id != target_account_id:
+            accounts = await client.get_accounts()
+            matched = next((a for a in accounts if a.id == override_id), None)
+            if not matched:
+                raise HTTPException(status_code=400, detail="Selected target account not found")
+            target_account_id = matched.id
+            target_account_name = matched.name
         result = await client.convert_transaction_to_transfer(transaction_id, target_account_id)
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error("Failed to confirm transfer conversion %s: %s", proposal_id, e)
         raise HTTPException(status_code=500, detail=f"Failed to convert transaction to transfer: {e}")

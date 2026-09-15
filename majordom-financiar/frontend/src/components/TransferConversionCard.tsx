@@ -11,11 +11,18 @@ interface Props {
 
 export default function TransferConversionCard({ data, onConfirmed, onCancelled }: Props) {
   const [loading, setLoading] = useState(false)
+  const accounts = data.accounts ?? []
+  const [targetId, setTargetId] = useState(
+    data.target_account_id ?? accounts.find(a => a.name === data.target_account_name)?.id ?? accounts[0]?.id ?? ''
+  )
 
   async function handleConfirm() {
     setLoading(true)
     try {
-      const result = await confirmTransferConversion(data.id)
+      const result = await confirmTransferConversion(
+        data.id,
+        targetId ? { target_account_id: targetId } : undefined
+      )
       onConfirmed(result.message)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
@@ -41,10 +48,29 @@ export default function TransferConversionCard({ data, onConfirmed, onCancelled 
           <span className="text-token-ink">{data.payee || 'Unnamed'}</span> · {data.date} · {formatCurrency(data.amount)}
         </p>
         <p className="text-token-ink-3 text-sm mt-0.5">
-          Move from {data.account_name} to{' '}
-          <span className="text-token-ink">{data.target_account_name}</span> — it will no longer
+          Move from <span className="text-token-ink">{data.account_name}</span> — it will no longer
           count as spending or income.
         </p>
+      </div>
+
+      <div className="space-y-1">
+        <p className="text-token-ink-3 text-xs uppercase tracking-wide">To account</p>
+        <select
+          value={targetId}
+          onChange={e => setTargetId(e.target.value)}
+          disabled={loading}
+          className="w-full bg-token-surface-2 border border-token-line rounded-lg px-3 py-2 text-token-ink text-sm focus:outline-none focus:border-token-brand disabled:opacity-50 appearance-none"
+        >
+          {accounts.length > 0 ? (
+            accounts.map(a => (
+              <option key={a.id} value={a.id} style={{ background: 'var(--surface)' }}>
+                {a.name}
+              </option>
+            ))
+          ) : (
+            <option value={targetId}>{data.target_account_name}</option>
+          )}
+        </select>
       </div>
 
       <ActionCardButtons onConfirm={handleConfirm} onCancel={handleCancel} loading={loading} />

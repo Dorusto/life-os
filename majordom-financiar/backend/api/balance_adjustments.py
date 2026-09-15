@@ -6,6 +6,7 @@ POST /api/balance-adjustments/{id}/cancel   → discard proposal
 """
 import logging
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
 from backend.tools import balance_adjustments as adj_store
@@ -15,9 +16,14 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+class ConfirmBalanceAdjustmentRequest(BaseModel):
+    real_balance: float | None = None
+
+
 @router.post("/balance-adjustments/{proposal_id}/confirm")
 async def confirm_balance_adjustment(
     proposal_id: str,
+    body: ConfirmBalanceAdjustmentRequest | None = None,
     current_user: str = Depends(get_current_user),
 ):
     proposal = adj_store.get(proposal_id)
@@ -26,7 +32,9 @@ async def confirm_balance_adjustment(
 
     account_id = proposal["account_id"]
     account_name = proposal["account_name"]
-    real_balance = proposal["real_balance"]
+    # Card fields are editable (rule 5) — the confirm body may carry a
+    # user-corrected real balance; fall back to the detected one.
+    real_balance = body.real_balance if body and body.real_balance is not None else proposal["real_balance"]
     current_balance = proposal["current_balance"]
 
     try:

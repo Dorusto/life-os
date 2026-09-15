@@ -591,7 +591,9 @@ async def propose_set_vehicle_active(vehicle_name: str, active: bool) -> str:
     vehicle_status_actions.store(action_id, {"vehicle_id": matched["id"], "vehicle_name": resolved_name, "active": active})
     return json.dumps({
         "type": "vehicle_status", "id": action_id,
+        "vehicle_id": matched["id"],
         "vehicle_name": resolved_name, "active": active,
+        "vehicles": vehicles,
     })
 
 

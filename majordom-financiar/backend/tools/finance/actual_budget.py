@@ -1037,7 +1037,13 @@ async def propose_transfer_conversion(
         "amount": tx["amount"],
         "payee": tx["merchant"],
         "account_name": tx["account_name"],
+        "target_account_id": matched.id,
         "target_account_name": matched.name,
+        # Editable select options for the card (rule 5) — the source account
+        # is excluded, converting into the same account is not a transfer.
+        "accounts": [
+            {"id": a.id, "name": a.name} for a in accounts if a.id != tx["account_id"]
+        ],
     })
 
 
