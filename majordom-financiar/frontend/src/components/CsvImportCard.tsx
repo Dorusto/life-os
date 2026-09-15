@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Loader2, AlertCircle, Check } from 'lucide-react'
 import {
   confirmCsvImport,
@@ -52,6 +52,35 @@ function merchantSimilarity(a: string, b: string): number {
   return union === 0 ? 0 : intersection / union
 }
 
+// Map an ImportPreview's rows to the local editable-row shape. Extracted so the
+// rows initializer and the preview-arrival effect below share one implementation.
+function previewToRows(preview: ImportPreview): LocalRow[] {
+  return preview.rows.map(r => ({
+    id: r.id,
+    date: r.date,
+    merchant: r.merchant,
+    amount: r.amount,
+    is_expense: r.is_expense,
+    currency: r.currency,
+    categoryName: r.category_name,
+    categoryConfirmed: r.category_confirmed,
+    duplicate: r.duplicate,
+    possibleDuplicate: r.possible_duplicate,
+    existingAmount: r.existing_amount,
+    isTransferCandidate: r.is_transfer_candidate ?? false,
+    excluded: r.is_transfer_candidate ?? false,
+    notes: '',
+    // An existing AB rule already resolved this to a known transfer target —
+    // treat it the same as a manually-confirmed transfer so it's actually
+    // imported, not silently dropped or re-asked about later (#99).
+    transferToAccountId: r.transfer_to_account_id ?? '',
+    isManualTransfer: !!r.transfer_to_account_id,
+    createRule: false,
+    isNewCategory: false,
+    newCategoryGroup: '',
+  }))
+}
+
 // --- Props ---
 
 export interface CsvImportData {
@@ -69,6 +98,25 @@ interface CsvImportCardProps {
 // --- Component ---
 
 export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImportCardProps) {
+  // Hooks run unconditionally on every render (Rules of Hooks): Chat mounts the
+  // card as 'loading' and later updates the same instance to 'ready'.
+  const [accountId, setAccountId] = useState('')
+  // No preview yet on the loading mount — the effect below seeds rows once it arrives.
+  const [rows, setRows] = useState<LocalRow[]>(() => (data.preview ? previewToRows(data.preview) : []))
+  const [importing, setImporting] = useState(false)
+  const [creatingAccount, setCreatingAccount] = useState(false)
+  const [newAccountName, setNewAccountName] = useState('')
+  const [newAccountOffBudget, setNewAccountOffBudget] = useState(false)
+  const [accountError, setAccountError] = useState<string | null>(null)
+
+  // Seed rows from the preview on the loading → ready transition (a lazy
+  // initializer never re-runs, so the guarded one above can't do it alone).
+  useEffect(() => {
+    if (data.status === 'ready' && data.preview) {
+      setRows(previewToRows(data.preview))
+    }
+  }, [data.status, data.preview])
+
   if (data.status === 'loading') {
     return (
       <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-5 max-w-[520px] w-full">
@@ -100,38 +148,6 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
   // --- Ready state ---
 
   const preview = data.preview!
-  const [accountId, setAccountId] = useState('')
-  const [rows, setRows] = useState<LocalRow[]>(() =>
-    preview.rows.map(r => ({
-      id: r.id,
-      date: r.date,
-      merchant: r.merchant,
-      amount: r.amount,
-      is_expense: r.is_expense,
-      currency: r.currency,
-      categoryName: r.category_name,
-      categoryConfirmed: r.category_confirmed,
-      duplicate: r.duplicate,
-      possibleDuplicate: r.possible_duplicate,
-      existingAmount: r.existing_amount,
-      isTransferCandidate: r.is_transfer_candidate ?? false,
-      excluded: r.is_transfer_candidate ?? false,
-      notes: '',
-      // An existing AB rule already resolved this to a known transfer target —
-      // treat it the same as a manually-confirmed transfer so it's actually
-      // imported, not silently dropped or re-asked about later (#99).
-      transferToAccountId: r.transfer_to_account_id ?? '',
-      isManualTransfer: !!r.transfer_to_account_id,
-      createRule: false,
-      isNewCategory: false,
-      newCategoryGroup: '',
-    }))
-  )
-  const [importing, setImporting] = useState(false)
-  const [creatingAccount, setCreatingAccount] = useState(false)
-  const [newAccountName, setNewAccountName] = useState('')
-  const [newAccountOffBudget, setNewAccountOffBudget] = useState(false)
-  const [accountError, setAccountError] = useState<string | null>(null)
 
   // Auto-select account if name matches source
   const matched = matchAccountBySource(preview.source_name, preview.accounts)
