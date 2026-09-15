@@ -680,40 +680,6 @@ export async function clearChatHistory(): Promise<void> {
 
 // --- Chat ---
 
-export async function sendChatMessage(
-  message: string,
-  history: { role: string; content: string }[],
-): Promise<{ reply: string }> {
-  const body = JSON.stringify({ message, history })
-
-  const res = await authFetch(`${BASE}/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body,
-  })
-
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({ detail: res.statusText }))
-    throw new ApiError(res.status, errorBody.detail || 'Request failed')
-  }
-
-  const reader = res.body?.getReader()
-  if (!reader) {
-    throw new ApiError(500, 'No response body')
-  }
-  
-  const decoder = new TextDecoder()
-  let accumulated = ''
-  
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    accumulated += decoder.decode(value, { stream: true })
-  }
-  
-  return { reply: accumulated }
-}
-
 export async function sendChatMessageStreaming(
   message: string,
   history: { role: string; content: string }[],
