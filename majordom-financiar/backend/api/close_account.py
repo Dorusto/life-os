@@ -46,8 +46,8 @@ async def confirm_close_account(
     except Exception as e:
         logger.error("Failed to confirm close account %s: %s", proposal_id, e)
         raise HTTPException(status_code=500, detail="Failed to close account")
-    finally:
-        close_store.delete(proposal_id)
+
+    close_store.delete(proposal_id)
 
     return {"message": f"{account_name} closed."}
 

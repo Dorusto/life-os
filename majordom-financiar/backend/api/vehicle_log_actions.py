@@ -46,8 +46,8 @@ async def confirm_vehicle_log_action(
     except Exception as e:
         logger.error("Failed to delete vehicle log entry %s: %s", entry_id, e)
         raise HTTPException(status_code=500, detail="Failed to delete vehicle log entry")
-    finally:
-        action_store.delete(action_id)
+
+    action_store.delete(action_id)
 
     # Fuelio historical imports have no financial_id — only refuels logged
     # from photo/text (today onward) are linked to an AB transaction (#83).

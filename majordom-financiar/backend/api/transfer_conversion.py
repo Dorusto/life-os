@@ -34,8 +34,8 @@ async def confirm_transfer_conversion(
     except Exception as e:
         logger.error("Failed to confirm transfer conversion %s: %s", proposal_id, e)
         raise HTTPException(status_code=500, detail=f"Failed to convert transaction to transfer: {e}")
-    finally:
-        store.delete(proposal_id)
+
+    store.delete(proposal_id)
 
     return {"message": f"Converted transaction into transfer → {target_account_name} (€{result['amount']:.2f})"}
 

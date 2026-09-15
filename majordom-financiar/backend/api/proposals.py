@@ -73,8 +73,8 @@ async def confirm_proposal(
     except Exception as e:
         logger.error("Failed to confirm proposal %s: %s", proposal_id, e)
         raise HTTPException(status_code=500, detail="Failed to add transaction")
-    finally:
-        proposal_store.delete(proposal_id)
+
+    proposal_store.delete(proposal_id)
 
     duplicate = "already exists" in result
     return ConfirmResult(success=True, message=result)

@@ -35,8 +35,8 @@ async def confirm_balance_adjustment(
     except Exception as e:
         logger.error("Failed to confirm balance adjustment %s: %s", proposal_id, e)
         raise HTTPException(status_code=500, detail="Failed to adjust account balance")
-    finally:
-        adj_store.delete(proposal_id)
+
+    adj_store.delete(proposal_id)
 
     if abs(diff) < 0.01:
         return {"message": f"{account_name} balance already correct, no adjustment needed."}

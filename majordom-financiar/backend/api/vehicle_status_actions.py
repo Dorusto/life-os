@@ -36,8 +36,8 @@ async def confirm_vehicle_status_action(
     except Exception as e:
         logger.error("Failed to update vehicle status %s: %s", action_id, e)
         raise HTTPException(status_code=500, detail="Failed to update vehicle status")
-    finally:
-        action_store.delete(action_id)
+
+    action_store.delete(action_id)
 
     status_label = "active" if action["active"] else "inactive"
     return {"message": f"{action['vehicle_name']} marked as {status_label}."}

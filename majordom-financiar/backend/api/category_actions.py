@@ -90,6 +90,7 @@ async def confirm_category_action(
             accounts = await client.get_accounts()
             balance = next((a.balance for a in accounts if a.name == action["account_name"]), 0.0)
             monthly_needed = calc_monthly_needed(target, balance, deadline)
+            action_store.delete(action_id)
             return {"message": message, "monthly_needed": monthly_needed}
         elif action["action"] == "set_budget":
             from datetime import date as _date
@@ -425,8 +426,8 @@ async def confirm_category_action(
     except Exception as e:
         logger.error("Failed to confirm category action %s: %s", action_id, e)
         raise HTTPException(status_code=500, detail="Failed to execute category action")
-    finally:
-        action_store.delete(action_id)
+
+    action_store.delete(action_id)
 
     return {"message": message}
 

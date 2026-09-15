@@ -59,8 +59,8 @@ async def confirm_notification_time(
     except Exception as e:
         logger.error("Failed to update notification time %s: %s", action_id, e)
         raise HTTPException(status_code=500, detail="Failed to update notification time")
-    finally:
-        action_store.delete(action_id)
+
+    action_store.delete(action_id)
 
     return {"message": f"Notification time updated to {time}. Daily digest rescheduled."}
 

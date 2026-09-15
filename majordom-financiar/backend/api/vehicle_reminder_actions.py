@@ -72,12 +72,14 @@ async def confirm_vehicle_reminder(
 
             if patch_fields:
                 await client.patch_vehicle(vehicle_id, **patch_fields)
+            action_store.delete(action_id)
             return {"message": f"{vehicle_name} service interval saved."}
 
         if action.get("action") == "set_apk_required":
             required = override.required if override.required is not None else action["required"]
             await client.patch_vehicle(vehicle_id, apk_required=required)
             state = "required" if required else "not required"
+            action_store.delete(action_id)
             return {"message": f"{vehicle_name} APK/ITP marked as {state}."}
 
         if action.get("action") == "set_vehicle_type":
@@ -85,6 +87,7 @@ async def confirm_vehicle_reminder(
             await client.patch_vehicle(vehicle_id, vehicle_type=vehicle_type)
             icons = {"car": "🚗", "motorcycle": "🏍️", "other": "🚙"}
             icon = icons.get(vehicle_type, "🚗")
+            action_store.delete(action_id)
             return {"message": f"{icon} {vehicle_name} is now set as a {vehicle_type}."}
 
         due_date = override.due_date or action["due_date"]
@@ -92,13 +95,12 @@ async def confirm_vehicle_reminder(
         patch_kwargs = {field: due_date}
         await client.patch_vehicle(vehicle_id, **patch_kwargs)
         label = "APK/ITP" if field == "apk_due" else "Insurance"
+        action_store.delete(action_id)
         return {"message": f"{vehicle_name} {label} reminder set to {due_date}."}
 
     except Exception as e:
         logger.error("Failed to set vehicle reminder %s: %s", action_id, e)
         raise HTTPException(status_code=500, detail="Failed to save reminder date")
-    finally:
-        action_store.delete(action_id)
 
 
 @router.post("/vehicle-reminder-actions/{action_id}/cancel")
