@@ -11,6 +11,7 @@ import {
 import { matchAccountBySource } from '../lib/csvImportUtils'
 import PageHeader from '../components/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
+import { formatDate } from '../lib/formatDate'
 import { formatCurrency } from '../lib/formatCurrency'
 
 // --- Types ---
@@ -177,7 +178,7 @@ export default function ImportPage({ initialFile, onDone }: ImportPageProps) {
   }
 
   return (
-    <div className="min-h-dvh bg-token-paper flex flex-col pb-16">
+    <div className="h-dvh bg-token-paper flex flex-col pb-16">
       {/* Header — bell + gear only: Add is meaningless on the import flow itself. */}
       <PageHeader
         label="Bank statements"
@@ -426,7 +427,7 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
               const dimmed = row.duplicate || (row.isTransferCandidate && row.excluded)
               return (
               <tr key={row.id} className={dimmed ? 'opacity-40' : ''}>
-                <td className="py-2 pr-2 text-token-ink-3 whitespace-nowrap">{row.date.slice(5)}</td>
+                <td className="py-2 pr-2 text-token-ink-3 whitespace-nowrap">{formatDate(row.date)}</td>
                 <td className="py-2 pr-2 text-token-ink max-w-[80px] truncate">
                   <div className="flex items-center gap-1">
                     {row.duplicate && (
