@@ -1,7 +1,12 @@
 # Implementation plan — fixes from the 2026-09-15 code audit
 
 Source: `docs/audit-2026-09-15.md` (86 findings: 13 HIGH, 33 MEDIUM, 39 LOW — 44 backend, 42 frontend).
-Status: **plan only — awaiting Doru's approval. Nothing dispatched or implemented yet.**
+Status: **Wave 1 (T1–T6, HIGH backend) implemented 2026-09-15** — 6 commits on 5 branches
+(`fix/audit-01…06`, T4 stacked on T3), each verified by check scripts + fresh-context review
+(all PASS) + orchestrator diff inspection. Merge to main pending Doru's confirmation.
+Waves 2–5 not dispatched. Doru's answers: Q3 deferred, Q4/Q5 approved (push blocked — no
+GitHub credentials on this machine), Q2 awaiting plain-language explanation, T8 rescoped by
+Doru into a standalone unified-receipt-popup feature (see open question Q1 in the report).
 
 ## Execution model
 
