@@ -112,7 +112,8 @@ class CsvProfileDetector:
             "model": self.llm_model,
             "messages": [{"role": "user", "content": prompt}],
             "stream": False,
-            "options": {"temperature": 0.0, "num_predict": 400},
+            "temperature": 0.0,
+            "max_tokens": 400,
         }
 
         if self.llm_model.lower().startswith("qwen3"):

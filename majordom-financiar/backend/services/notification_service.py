@@ -110,7 +110,8 @@ async def _check_financial_summary(db: MemoryDB) -> str | None:
                 {"role": "user", "content": json.dumps(summary, ensure_ascii=False)},
             ],
             "stream": False,
-            "options": {"temperature": 0.7, "num_predict": 150},
+            "temperature": 0.7,
+            "max_tokens": 150,
         }
 
         if settings.ollama.chat_model.lower().startswith("qwen3"):

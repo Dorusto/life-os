@@ -118,11 +118,8 @@ class VisionEngine:
                 }
             ],
             "stream": False,
-            "options": {
-                "temperature": 0.0,
-                "num_predict": 512,
-                "num_ctx": 8192,
-            },
+            "temperature": 0.0,
+            "max_tokens": 512,
         }
 
         if self.model.lower().startswith("qwen3"):

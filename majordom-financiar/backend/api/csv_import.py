@@ -177,7 +177,8 @@ async def _suggest_categories_llm(
         "model": model,
         "messages": [{"role": "user", "content": prompt}],
         "stream": False,
-        "options": {"temperature": 0.0, "num_predict": 400},
+        "temperature": 0.0,
+        "max_tokens": 400,
     }
     if model.lower().startswith("qwen3"):
         payload["think"] = False
