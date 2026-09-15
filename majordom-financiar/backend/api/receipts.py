@@ -263,7 +263,14 @@ async def confirm_receipt(
                 created = await provider.create_category(name=name, group_name=request.new_category_group)
                 category_id = created.id
             except Exception as e:
-                logger.warning("Failed to create category '%s': %s", name, e)
+                logger.error("Failed to create category '%s': %s", name, e)
+                raise HTTPException(
+                    status_code=500,
+                    detail=(
+                        f"Failed to create new category '{name}'. The transaction was not saved — "
+                        "try again or pick an existing category."
+                    ),
+                ) from e
 
     try:
         result = await service.resolve_transaction(

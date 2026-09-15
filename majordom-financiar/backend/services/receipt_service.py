@@ -302,8 +302,12 @@ class ReceiptService:
             date=tx_date,
         )
 
-    async def attach_to_existing(self, financial_id: str, category_id: str, notes: str) -> bool:
-        """Attach OCR details to an existing transaction instead of creating a new one."""
+    async def attach_to_existing(self, financial_id: str, category_id: str, notes: str) -> str | None:
+        """Attach OCR details to an existing transaction instead of creating a new one.
+
+        Returns the attached transaction's own primary key (what the split
+        endpoint expects), or None if the transaction was not found.
+        """
         category_name = await self._resolve_category_name(category_id)
         return await self._provider.attach_receipt_to_transaction(
             financial_id=financial_id,
@@ -341,10 +345,10 @@ class ReceiptService:
           {"duplicate": bool, "transaction_id": str | None}   # see confirm()
         """
         if attach_to:
-            ok = await self.attach_to_existing(financial_id=attach_to, category_id=category_id, notes=notes)
-            if not ok:
+            tx_id = await self.attach_to_existing(financial_id=attach_to, category_id=category_id, notes=notes)
+            if not tx_id:
                 return {"attach_not_found": True}
-            return {"duplicate": False, "transaction_id": attach_to}
+            return {"duplicate": False, "transaction_id": tx_id}
 
         if not force_new:
             match = await self.check_near_duplicate(account_id=account_id, amount=amount, date=date)

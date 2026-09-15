@@ -186,14 +186,14 @@ async def create_transaction(
     try:
         # User already decided to attach to a specific existing transaction.
         if request.attach_to:
-            ok = await service.attach_to_existing(
+            tx_id = await service.attach_to_existing(
                 financial_id=request.attach_to,
                 category_id=request.category_id,
                 notes=request.notes or "",
             )
-            if not ok:
+            if not tx_id:
                 raise HTTPException(status_code=404, detail="Transaction to attach to was not found")
-            return ConfirmResponse(success=True, duplicate=False, transaction_id=request.attach_to)
+            return ConfirmResponse(success=True, duplicate=False, transaction_id=tx_id)
 
         # First pass (not forcing a new transaction): check for a likely
         # bank-sync match before creating anything (#121).
@@ -225,7 +225,14 @@ async def create_transaction(
                     created = await provider.create_category(name=name, group_name=request.new_category_group)
                     category_id = created.id
                 except Exception as e:
-                    logger.warning("Failed to create category '%s': %s", name, e)
+                    logger.error("Failed to create category '%s': %s", name, e)
+                    raise HTTPException(
+                        status_code=500,
+                        detail=(
+                            f"Failed to create new category '{name}'. The transaction was not saved — "
+                            "try again or pick an existing category."
+                        ),
+                    ) from e
 
         result = await service.confirm(
             merchant=request.merchant,
@@ -315,7 +322,14 @@ async def split_transaction(
                     created = await provider.create_category(name=name, group_name=s.new_category_group)
                     cat_id = created.id
                 except Exception as e:
-                    logger.warning("Failed to create category '%s': %s", name, e)
+                    logger.error("Failed to create category '%s': %s", name, e)
+                    raise HTTPException(
+                        status_code=500,
+                        detail=(
+                            f"Failed to create new category '{name}'. The split was not applied — "
+                            "try again or pick an existing category."
+                        ),
+                    ) from e
         resolved_splits.append({"category_id": cat_id, "amount": s.amount})
 
     client = get_provider()

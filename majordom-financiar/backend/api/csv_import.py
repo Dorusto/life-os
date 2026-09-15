@@ -488,7 +488,14 @@ async def confirm_csv(
             try:
                 await provider.create_category(name=name, group_name=group)
             except Exception as e:
-                logger.warning("Failed to create category '%s' in group '%s': %s", name, group, e)
+                logger.error("Failed to create category '%s' in group '%s': %s", name, group, e)
+                raise HTTPException(
+                    status_code=500,
+                    detail=(
+                        f"Failed to create new category '{name}' in group '{group}'. No rows were imported — "
+                        "fix the category or pick an existing one and retry."
+                    ),
+                ) from e
 
     imported, skipped, merged, retroactively_updated = await provider.execute_csv_import(
         body.account_id, [row.model_dump() for row in body.rows]

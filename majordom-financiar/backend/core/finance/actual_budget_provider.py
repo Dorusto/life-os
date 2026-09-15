@@ -365,7 +365,7 @@ class ActualBudgetProvider:
 
     async def attach_receipt_to_transaction(
         self, financial_id: str, category_name: str, notes: str
-    ) -> bool:
+    ) -> str | None:
         return await self._client().attach_receipt_to_transaction(
             financial_id, category_name, notes
         )

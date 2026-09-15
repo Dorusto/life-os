@@ -1929,12 +1929,17 @@ class ActualBudgetClient:
 
     async def attach_receipt_to_transaction(
         self, financial_id: str, category_name: str, notes: str,
-    ) -> bool:
+    ) -> str | None:
         """
         Attach OCR receipt details (category + notes) to an existing
         transaction instead of creating a new one — used when #121's
         near-duplicate match is confirmed by the user. Appends to any
         existing notes rather than overwriting them.
+
+        Returns the attached transaction's own primary key (`Transactions.id`
+        — the same "transaction_id" value `add_transaction()` returns, which
+        is what the split endpoint expects), or None if the transaction was
+        not found.
         """
         def _update():
             from actual.queries import get_or_create_category
@@ -1945,13 +1950,13 @@ class ActualBudgetClient:
                     Transactions.tombstone == 0,
                 ).first()
                 if not tx:
-                    return False
+                    return None
                 cat = get_or_create_category(actual.session, category_name, group_name="Majordom")
                 tx.category_id = cat.id
                 existing_notes = (tx.notes or "").strip()
                 tx.notes = f"{existing_notes} {notes}".strip() if existing_notes else notes
                 actual.commit()
-                return True
+                return str(tx.id)
         return await self._run(_update)
 
     async def get_csv_import_context(

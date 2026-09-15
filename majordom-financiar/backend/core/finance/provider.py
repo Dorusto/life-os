@@ -209,7 +209,7 @@ class FinanceProvider(Protocol):
 
     async def attach_receipt_to_transaction(
         self, financial_id: str, category_name: str, notes: str
-    ) -> bool: ...
+    ) -> str | None: ...
 
     async def find_near_duplicate_transaction(
         self,
