@@ -1095,8 +1095,12 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
 
   async function handleClearHistory() {
     if (!window.confirm('Clear all chat history?')) return
-    await clearChatHistory()
-    setMessages(INITIAL_MESSAGES)
+    try {
+      await clearChatHistory()
+      setMessages(INITIAL_MESSAGES)
+    } catch (err) {
+      setMessages(prev => [...prev, { role: 'status' as const, content: err instanceof Error ? err.message : 'Failed to clear chat history.' }])
+    }
   }
 
   return (

@@ -126,6 +126,18 @@ export default function Dashboard() {
       case 'goals':
         return <GoalsSection fireData={fireData} expenseCoverage={expenseCoverage} goals={goals} isLoading={homeLoading} />
       case 'budget':
+        // Same explicit error branch as the 'expenses' widget below — without
+        // it a failed budget-period query makes the Watchlist vanish silently.
+        if (periodBudgetError) {
+          return (
+            <div className="bg-token-surface border border-token-line rounded-2xl p-4">
+              <p className="text-xs text-token-ink-3 uppercase tracking-wide">Categories Watchlist</p>
+              <p className="text-token-ink-3 text-sm text-center py-2">
+                Couldn't load this month's budget.
+              </p>
+            </div>
+          )
+        }
         return periodCategories && periodCategories.length > 0 ? (
           <BudgetPeriodCard
             categories={periodCategories}
@@ -167,10 +179,8 @@ export default function Dashboard() {
             />
           </div>
         )
-      case 'cashflow':
-        return <CashFlowWidget periodLabel={periodLabel} />
       case 'vehicle':
-        return <VehicleCostsWidget periodLabel={periodLabel} dashboardMonth={dashboardMonth} dashboardYear={dashboardYear} />
+        return <VehicleCostsWidget dashboardMonth={dashboardMonth} dashboardYear={dashboardYear} />
       case 'networth':
         return <NetWorthWidget accounts={accounts} dashboardMonth={dashboardMonth} dashboardYear={dashboardYear} />
     }
@@ -466,13 +476,13 @@ function TrendWidget({ accounts, dashboardMonth, dashboardYear }: {
         return `${dashboardYear}-${mm}-${dd}`
       })()
 
+  // Key carries the resolved kind ('total'/'on_budget'), not the raw scope, so
+  // the 'total' slice is the same cache entry NetWorthWidget reads — one shared
+  // request instead of two identical ones (audit finding 82).
+  const kind = scope === 'Total' ? 'total' : 'on_budget'
   const balanceHistoryQuery = useQuery({
-    queryKey: ['balance-history', scope, dashboardMonth, dashboardYear],
-    queryFn: () => getBalanceHistory(
-      scope === 'Total' ? 'total' : 'on_budget',
-      30,
-      endDate,
-    ),
+    queryKey: ['balance-history', kind, dashboardMonth, dashboardYear],
+    queryFn: () => getBalanceHistory(kind, 30, endDate),
     enabled: hasSnapshot,
   })
 
@@ -590,8 +600,9 @@ function NetWorthWidget({ accounts, dashboardMonth, dashboardYear }: {
         return `${dashboardYear}-${mm}-${dd}`
       })()
 
+  // Same key/args as TrendWidget's 'total' slice — one shared request, not two.
   const balanceHistoryQuery = useQuery({
-    queryKey: ['net-worth-history', dashboardMonth, dashboardYear],
+    queryKey: ['balance-history', 'total', dashboardMonth, dashboardYear],
     queryFn: () => getBalanceHistory('total', 30, endDate),
   })
 
@@ -750,17 +761,7 @@ function toExpensesPieData(categories: BudgetCategory[] | undefined) {
   }
 }
 
-function CashFlowWidget({ periodLabel }: { periodLabel: string }) {
-  return (
-    <div className="bg-token-surface border border-token-line rounded-2xl px-4 py-4">
-      <p className="font-plex-sans font-bold text-[15px]">Cash Flow</p>
-      <p className="text-token-ink-3 text-xs mt-2">Needs an income/expense aggregation endpoint — coming soon ({periodLabel}).</p>
-    </div>
-  )
-}
-
 function VehicleCostsWidget({ dashboardMonth, dashboardYear }: {
-  periodLabel: string
   dashboardMonth: number
   dashboardYear: number
 }) {

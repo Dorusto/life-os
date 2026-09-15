@@ -44,6 +44,17 @@ type FlowState = 'uploading' | 'reviewing' | 'confirming' | 'success' | 'error'
 
 const NEW_CATEGORY_VALUE = '__new_category__'
 
+// Today's date as YYYY-MM-DD in local time. toISOString() is UTC-based, so a
+// receipt confirmed between 00:00 and the local-UTC offset would default to
+// yesterday (audit finding 77) — same local-safe shape as the fixed parser in
+// lib/groupByMonth.
+function todayLocalIsoDate(): string {
+  const now = new Date()
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const dd = String(now.getDate()).padStart(2, '0')
+  return `${now.getFullYear()}-${mm}-${dd}`
+}
+
 interface Line {
   categoryId: string
   amount: string
@@ -106,7 +117,7 @@ export default function ReceiptFlow() {
         // Pre-fill form with OCR results
         setMerchant(result.merchant || '')
         setAmount(result.amount != null ? String(result.amount) : '')
-        setDate(result.date || new Date().toISOString().split('T')[0])
+        setDate(result.date || todayLocalIsoDate())
         setCategories(result.categories)
         setAccounts(result.accounts)
         setAccountId(result.accounts[0]?.id || '')
@@ -150,7 +161,7 @@ export default function ReceiptFlow() {
         setAccountId(accts[0]?.id || '')
         setMerchant('')
         setAmount('')
-        setDate(new Date().toISOString().split('T')[0])
+        setDate(todayLocalIsoDate())
         setLines([{ categoryId: '', amount: '', isNewCategory: false, newCategoryGroup: '' }])
         const groups = await getCategoryGroups()
         if (cancelled) return

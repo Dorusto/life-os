@@ -23,7 +23,11 @@ export default function Accounts() {
   const [addVehicleOpen, setAddVehicleOpen] = useState(false)
   const [linkAccount, setLinkAccount] = useState<AccountListItem | null>(null)
 
-  const { data: accounts } = useQuery({
+  const {
+    data: accounts,
+    isLoading: accountsLoading,
+    isError: accountsError,
+  } = useQuery({
     queryKey: ['account-list'],
     queryFn: () => getAccountList(),
     staleTime: 120_000,
@@ -60,9 +64,15 @@ export default function Accounts() {
       />
       <section className="px-5 pt-2 pb-24">
         <p className="font-plex-mono text-[11px] uppercase tracking-wide text-token-ink-3">Total</p>
-        <p className="font-plex-mono font-medium text-3xl mt-1 tabular-nums">
-          {formatCurrency(total, { decimals: 0 })}
-        </p>
+        {/* €0 while loading/error reads as a real (wrong) total — show a dash
+            until the accounts query succeeded, and the failure explicitly. */}
+        {accountsError ? (
+          <p className="text-token-ink-3 text-sm mt-1">Couldn't load accounts.</p>
+        ) : (
+          <p className="font-plex-mono font-medium text-3xl mt-1 tabular-nums">
+            {accountsLoading ? '—' : formatCurrency(total, { decimals: 0 })}
+          </p>
+        )}
 
         <div className="flex items-center justify-between mt-6 mb-2">
           <p className="font-plex-mono text-[11px] uppercase tracking-wide text-token-ink-3">Vehicles</p>

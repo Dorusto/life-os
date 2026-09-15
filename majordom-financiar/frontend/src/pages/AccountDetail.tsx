@@ -38,7 +38,7 @@ export default function AccountDetail() {
 
   const account = accounts?.find(a => a.id === id)
 
-  const { data: transactions } = useQuery({
+  const { data: transactions, isSuccess: transactionsLoaded } = useQuery({
     queryKey: ['transactions', 'account', id],
     queryFn: () => getTransactions(50, id!),
     enabled: !!account,
@@ -128,7 +128,7 @@ export default function AccountDetail() {
       await queryClient.invalidateQueries({ queryKey: ['account-list'] })
       setTypeError(null)
     } catch (err) {
-      setTypeError(err instanceof Error ? err.message : 'Failed to update category')
+      setTypeError(err instanceof Error ? err.message : 'Failed to update account type')
     }
     setEditingType(false)
   }
@@ -205,9 +205,7 @@ export default function AccountDetail() {
           </div>
         ) : (
           <div className="mt-2">
-            {!transactions || transactions.length === 0 ? (
-              <p className="text-token-ink-3 text-xs py-3">No transactions for this account yet.</p>
-            ) : (
+            {transactions && transactions.length > 0 ? (
               groupByMonth(
                 transactions,
                 tx => tx.date,
@@ -235,7 +233,9 @@ export default function AccountDetail() {
                   ))}
                 </div>
               ))
-            )}
+            ) : transactionsLoaded ? (
+              <p className="text-token-ink-3 text-xs py-3">No transactions for this account yet.</p>
+            ) : null}
           </div>
         )}
       </section>
