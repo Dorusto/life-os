@@ -11,9 +11,10 @@ import {
 import type { LucideIcon } from 'lucide-react'
 import {
   syncAccounts, getPayees, getSchedules, getBackupStatus, getCategories, getCategoryGroups,
-  getBudgetPacingConfig, saveBudgetPacingConfig,
+  getBudgetPacingConfig, saveBudgetPacingConfig, getSetupStatus, getVehicleCostsSummary,
   type PayeeItem, type ScheduleItem,
 } from '../lib/api'
+import { isAbDown, subscribeAbDown } from '../lib/abConnectionStatus'
 import { clearAuth } from '../lib/auth'
 import { requestAndSubscribe } from '../lib/push'
 import PageHeader from '../components/PageHeader'
@@ -509,6 +510,45 @@ function AiIntegrationsPage() {
 function ConnectionsPage() {
   const origin = `${window.location.protocol}//${window.location.hostname}`
   const actualBudgetUrl = import.meta.env.VITE_ACTUAL_BUDGET_URL || `${origin}:5006`
+  const vehicleAppUrl = import.meta.env.VITE_VEHICLE_APP_URL?.replace(/\/+$/, '') || `${origin}:3010`
+  const investmentUrl = `${origin}:3020`
+
+  // Honest status only (audit finding 79): Actual Budget has a real health
+  // chain (credentials configured via setup/status + the #254 reactive AB-down
+  // flag); Vehicle Manager via the costs-summary proxy's `available` field.
+  // Investment Manager has no reachable health endpoint, so it shows its URL
+  // instead of a state the app doesn't know.
+  const { data: setup, isLoading: setupLoading } = useQuery({
+    queryKey: ['setup-status', 'connections'],
+    queryFn: () => getSetupStatus(),
+    staleTime: 60_000,
+  })
+  const {
+    data: vehicleData, isLoading: vehicleLoading, isError: vehicleError,
+  } = useQuery({
+    queryKey: ['vehicle-costs-summary', 'connections'],
+    queryFn: () => getVehicleCostsSummary(),
+    staleTime: 60_000,
+  })
+  const [abDown, setAbDown] = useState(isAbDown())
+  useEffect(() => subscribeAbDown(setAbDown), [])
+
+  const abConnected = !abDown && setup?.ab_connected === true
+  const actualBudgetStatus = abDown
+    ? 'Connection lost'
+    : setupLoading
+      ? 'Checking…'
+      : abConnected
+        ? 'Connected'
+        : 'Not configured'
+  const vehicleConnected = !vehicleLoading && !vehicleError && vehicleData?.available === true
+  const vehicleStatus = vehicleLoading
+    ? 'Checking…'
+    : vehicleError
+      ? 'Status unknown'
+      : vehicleConnected
+        ? 'Connected'
+        : 'Unreachable'
 
   return (
     <>
@@ -520,29 +560,33 @@ function ConnectionsPage() {
       >
         <Wallet size={16} className="text-token-ink-3 flex-shrink-0" />
         <span className="flex-1 text-sm font-semibold text-token-ink">Actual Budget</span>
-        <span className="text-xs text-token-gain flex-shrink-0">Connected</span>
+        <span className={`text-xs flex-shrink-0 ${abDown ? 'text-token-loss' : abConnected ? 'text-token-gain' : 'text-token-ink-3'}`}>
+          {actualBudgetStatus}
+        </span>
         <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
       </a>
       <a
-        href={`${origin}:3010`}
+        href={vehicleAppUrl}
         target="_blank"
         rel="noopener noreferrer"
         className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5 hover:border-token-line-strong transition-colors"
       >
         <Car size={16} className="text-token-ink-3 flex-shrink-0" />
         <span className="flex-1 text-sm font-semibold text-token-ink">Vehicle Manager</span>
-        <span className="text-xs text-token-gain flex-shrink-0">Connected</span>
+        <span className={`text-xs flex-shrink-0 ${vehicleConnected ? 'text-token-gain' : vehicleStatus === 'Unreachable' ? 'text-token-loss' : 'text-token-ink-3'}`}>
+          {vehicleStatus}
+        </span>
         <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
       </a>
       <a
-        href={`${origin}:3020`}
+        href={investmentUrl}
         target="_blank"
         rel="noopener noreferrer"
         className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5 hover:border-token-line-strong transition-colors"
       >
         <LineChart size={16} className="text-token-ink-3 flex-shrink-0" />
         <span className="flex-1 text-sm font-semibold text-token-ink">Investment Manager</span>
-        <span className="text-xs text-token-gain flex-shrink-0">Connected</span>
+        <span className="text-xs text-token-ink-3 flex-shrink-0">{investmentUrl}</span>
         <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
       </a>
       {/* Majordom's own SQLite debug viewer — loopback-only since the tailscale-serve
@@ -569,7 +613,7 @@ function ConnectionsPage() {
 
 function BudgetPacingPage() {
   const queryClient = useQueryClient()
-  const { data: config, isLoading } = useQuery({
+  const { data: config, isLoading, isError, error } = useQuery({
     queryKey: ['budget-pacing-config'],
     queryFn: () => getBudgetPacingConfig(),
     staleTime: 60_000,
@@ -650,6 +694,13 @@ function BudgetPacingPage() {
   `
 
   if (isLoading) return <p className="text-sm text-token-ink-3 px-1">Loading…</p>
+  if (isError) {
+    return (
+      <p className="text-token-ink-3 text-xs px-1">
+        Couldn't load budget pacing config{error instanceof Error ? `: ${error.message}` : '.'}
+      </p>
+    )
+  }
 
   return (
     <>
@@ -757,7 +808,7 @@ function NotificationsPage() {
 function AboutPage() {
   return (
     <>
-      <StatusRow title="Version" value="2026.08.28" icon={Hash} />
+      <StatusRow title="Version" value={__APP_VERSION__} icon={Hash} />
       <InertRow title="Disconnect Actual Budget" icon={Unplug} />
     </>
   )

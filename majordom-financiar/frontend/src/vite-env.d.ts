@@ -1,5 +1,8 @@
 /// <reference types="vite/client" />
 
+/** Injected by vite.config.ts `define` from package.json's version. */
+declare const __APP_VERSION__: string
+
 interface ImportMetaEnv {
   /** Public URL of the Actual Budget instance, linked from the Home menu. */
   readonly VITE_ACTUAL_BUDGET_URL?: string

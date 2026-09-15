@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Upload, ChevronLeft, ChevronRight, Check, AlertCircle, Loader2 } from 'lucide-react'
@@ -52,12 +52,7 @@ function merchantSimilarity(a: string, b: string): number {
 
 type Step = 1 | 2 | 3 | 4
 
-interface ImportPageProps {
-  initialFile?: File
-  onDone?: (result: ImportResult) => void
-}
-
-export default function ImportPage({ initialFile, onDone }: ImportPageProps) {
+export default function ImportPage() {
   const navigate = useNavigate()
   const [step, setStep] = useState<Step>(1)
   const [file, setFile] = useState<File | null>(null)
@@ -103,16 +98,8 @@ export default function ImportPage({ initialFile, onDone }: ImportPageProps) {
     setRows(prev => prev.map(r => r.id === id ? { ...r, notes } : r))
   }
 
-  useEffect(() => {
-    if (initialFile) {
-      setFile(initialFile)
-      handlePreview(initialFile)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  async function handlePreview(fileArg?: File) {
-    const f = fileArg ?? file
+  async function handlePreview() {
+    const f = file
     if (!f) return
     setLoading(true)
     setError(null)
@@ -254,7 +241,7 @@ export default function ImportPage({ initialFile, onDone }: ImportPageProps) {
               skipped={importResult?.skipped ?? 0}
               merged={importResult?.merged}
               retroactivelyUpdated={importResult?.retroactively_updated}
-              onHome={() => onDone && importResult ? onDone(importResult) : navigate('/')}
+              onHome={() => navigate('/')}
             />
           )}
         </motion.div>
