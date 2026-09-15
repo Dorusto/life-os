@@ -4527,6 +4527,10 @@ class ActualBudgetClient:
         def _get_id():
             with self._get_actual() as actual:
                 payee = _safe_get_or_create_payee(actual.session, name)
+                # _safe_get_or_create_payee only flush()es — without an explicit
+                # commit the session context manager rolls the new payee back on
+                # exit, leaving callers with a dangling payee id.
+                actual.commit()
                 return str(payee.id)
         return await self._run(_get_id)
 
