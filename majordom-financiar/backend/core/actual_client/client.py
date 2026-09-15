@@ -373,6 +373,7 @@ def _compute_monthly_totals(session, txs) -> dict:
 
 def _compute_budget_vs_spent(
     session, txs, all_cats, target_year: int, target_month: int, include_zero: bool = False,
+    budget_history=None,
 ) -> list[dict]:
     """Merge budget allocations with actual spending per category for a month.
 
@@ -385,6 +386,11 @@ def _compute_budget_vs_spent(
     `include_zero=True` keeps categories with no budget and no spending yet this
     month (needed by get_budget_overview() — a full editable budget table must
     show every category, not just the ones already active).
+
+    `budget_history` lets a caller that already holds a get_budget_history()
+    result pass it in instead of paying the full-history rebuild again here
+    (rule 41 / audit finding 27). It must END at target_month — internally only
+    budget_history[-1] (the target month itself) is consulted.
     """
     from datetime import date as _date
     yyyymm = target_year * 100 + target_month
@@ -488,13 +494,15 @@ def _compute_budget_vs_spent(
     # 7.86s; one shared get_budget_history() + per-category .from_category()
     # slicing = 0.50s. Every caller of this function benefits, including
     # #112's get_budget_pacing_totals(), which loops this across up to 9
-    # months.
-    budget_history = None
-    try:
-        from actual.budgets import get_budget_history
-        budget_history = get_budget_history(session, _date(target_year, target_month, 1))
-    except Exception as e:
-        logger.debug("budget history lookup failed, rollover balances unchanged: %s", e)
+    # months — that caller additionally hoists ONE history for the whole
+    # Jan-to-now range and passes each month's prefix via `budget_history`
+    # (audit finding 27), so the rebuild runs once per request, not per month.
+    if budget_history is None:
+        try:
+            from actual.budgets import get_budget_history
+            budget_history = get_budget_history(session, _date(target_year, target_month, 1))
+        except Exception as e:
+            logger.debug("budget history lookup failed, rollover balances unchanged: %s", e)
 
     result = []
     for cat_id in all_category_ids:
@@ -1295,12 +1303,39 @@ class ActualBudgetClient:
                 sinking_budgeted_elapsed = 0.0
                 discretionary_spent_elapsed = 0.0
 
+                # ONE budget-history lookup for the whole Jan-to-now range, sliced
+                # per month below — without this, _compute_budget_vs_spent()
+                # rebuilds the full history internally once per month (~9x), the
+                # same per-call-compute pattern #227 fixed (rule 41; audit finding
+                # 27). Each month's rollover balances depend only on the months
+                # before it, so the prefix ending at that month is identical to
+                # what a fresh per-month get_budget_history() call would return.
+                budget_history = None
+                try:
+                    from actual.budgets import get_budget_history
+                    budget_history = get_budget_history(
+                        actual.session, date(today.year, months_elapsed, 1),
+                    )
+                except Exception as e:
+                    logger.debug("budget history lookup failed, rollover balances unchanged: %s", e)
+
                 for month in range(1, months_elapsed + 1):
                     start = date(today.year, month, 1)
                     last_day = calendar.monthrange(today.year, month)[1]
                     end = date(today.year, month, last_day)
                     txs = get_transactions(actual.session, start_date=start, end_date=end)
-                    rows = _compute_budget_vs_spent(actual.session, txs, all_cats, today.year, month)
+                    # Prefix up to `month`; empty (month before budgeting started)
+                    # falls back to the helper's own clamped per-month lookup,
+                    # preserving the previous behavior exactly.
+                    month_history = None
+                    if budget_history:
+                        month_history = [
+                            b for b in budget_history if b.month <= date(today.year, month, 1)
+                        ] or None
+                    rows = _compute_budget_vs_spent(
+                        actual.session, txs, all_cats, today.year, month,
+                        budget_history=month_history,
+                    )
                     for row in rows:
                         cat_id = row["category_id"]
                         if cat_id in income_ids:
@@ -2325,7 +2360,7 @@ class ActualBudgetClient:
             import calendar
             from datetime import date as _date
             from actual.queries import get_accounts, get_transactions, get_categories
-            from actual.database import Transactions, Accounts
+            from actual.database import Transactions, Accounts, Payees
 
             target_month = month or _date.today().month
             target_year = year or _date.today().year
@@ -2425,15 +2460,14 @@ class ActualBudgetClient:
                     )
                     .count()
                 )
+                # Same shared filter as list_unreconciled_groups()/the Inbox —
+                # an inline weaker filter here let the Home count exceed the
+                # actual Inbox list (audit finding 14, rules 20/34).
                 unreconciled_count = (
                     actual.session.query(Transactions)
                     .join(Accounts, Transactions.acct == Accounts.id)
-                    .filter(
-                        Transactions.cleared == False,
-                        Transactions.tombstone == 0,
-                        Transactions.is_parent == 0,
-                        (Accounts.account_sync_source == None) | (Accounts.account_sync_source == ""),
-                    )
+                    .outerjoin(Payees, Transactions.payee_id == Payees.id)
+                    .filter(*_unreconciled_filter_clauses())
                     .count()
                 )
 
