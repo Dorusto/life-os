@@ -97,8 +97,14 @@ class AdjustmentResult(BaseModel):
     adjustment: float  # positive = deposit added, negative = payment added
 
 
+class AdjustmentFailure(BaseModel):
+    account_name: str
+    error: str
+
+
 class SetupCompleteResponse(BaseModel):
     adjustments: list[AdjustmentResult] = []
+    failures: list[AdjustmentFailure] = []
 
 
 # ---------------------------------------------------------------------------
@@ -220,6 +226,7 @@ async def setup_complete(
 ):
     db = MemoryDB(db_path=settings.memory.db_path)
     adjustments: list[AdjustmentResult] = []
+    failures: list[AdjustmentFailure] = []
 
     client = get_provider()
 
@@ -238,6 +245,7 @@ async def setup_complete(
                     ))
             except Exception as e:
                 logger.warning("New account creation failed for %s: %s", new_acc.name, e)
+                failures.append(AdjustmentFailure(account_name=new_acc.name, error=str(e)))
 
         if body.balances:
             accounts = await client.get_accounts()
@@ -253,6 +261,10 @@ async def setup_complete(
                         ))
                 except Exception as e:
                     logger.warning("Balance adjustment failed for %s: %s", entry.account_id, e)
+                    failures.append(AdjustmentFailure(
+                        account_name=account_name_map.get(entry.account_id, entry.account_id),
+                        error=str(e),
+                    ))
 
     # Auto-create default category groups if AB has none
     try:
@@ -260,9 +272,15 @@ async def setup_complete(
     except Exception as e:
         logger.warning("Default category creation failed (non-fatal): %s", e)
 
-    db.set_preference(SETUP_KEY, "1")
-    logger.info("Setup completed by %s (path=%s, adjustments=%d)", current_user, body.path, len(adjustments))
-    return SetupCompleteResponse(adjustments=adjustments)
+    if failures:
+        logger.warning(
+            "Setup NOT marked complete for %s: %d balance adjustment(s) failed",
+            current_user, len(failures),
+        )
+    else:
+        db.set_preference(SETUP_KEY, "1")
+        logger.info("Setup completed by %s (path=%s, adjustments=%d)", current_user, body.path, len(adjustments))
+    return SetupCompleteResponse(adjustments=adjustments, failures=failures)
 
 
 # Groups and their subcategories from categories.json

@@ -33,11 +33,13 @@ async def apply_rebalance(
         raise HTTPException(status_code=400, detail="Amount must be positive")
 
     if req.month:
+        if len(req.month) != 7 or req.month[4] != "-":
+            raise HTTPException(status_code=400, detail=f"Invalid month: {req.month!r}")
         try:
             year, m = int(req.month[:4]), int(req.month[5:7])
             target_month = date(year, m, 1)
         except (ValueError, IndexError):
-            target_month = date.today().replace(day=1)
+            raise HTTPException(status_code=400, detail=f"Invalid month: {req.month!r}")
     else:
         target_month = date.today().replace(day=1)
 

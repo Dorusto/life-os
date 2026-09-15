@@ -62,6 +62,13 @@ export default function SetupBalancesCard({ accounts, onComplete }: Props) {
 
       const result = await completeSetup('today', entries, newAccounts)
 
+      if (result.failures.length > 0) {
+        const names = result.failures.map(f => f.account_name).join(', ')
+        setError(`Balance update failed for: ${names}. Try again.`)
+        setLoading(false)
+        return
+      }
+
       const adjusted = result.adjustments.filter(a => Math.abs(a.adjustment) >= 0.01)
       if (adjusted.length === 0) {
         onComplete('All balances are already up to date. Majordom is ready.')

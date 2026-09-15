@@ -594,8 +594,14 @@ export interface SetupAdjustment {
   adjustment: number
 }
 
+export interface SetupFailure {
+  account_name: string
+  error: string
+}
+
 export interface SetupCompleteResponse {
   adjustments: SetupAdjustment[]
+  failures: SetupFailure[]
 }
 
 export async function getSetupStatus(): Promise<SetupStatus> {

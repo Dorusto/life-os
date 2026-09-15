@@ -60,6 +60,7 @@ async def confirm_category_action(
         raise HTTPException(status_code=404, detail="Action not found or already completed")
 
     client = get_provider()
+    errors: list[str] = []
     try:
         if action["action"] == "rename":
             await client.rename_category(action["category_name"], action["new_name"])
@@ -154,13 +155,23 @@ async def confirm_category_action(
             updated = 0
             for cat in action["categories"]:
                 final_amount = overrides.get(cat["category_id"], cat["amount"])
-                await client.set_budget_amount(
-                    category_name=cat["category_name"],
-                    new_amount=final_amount,
-                    month=target_month,
+                try:
+                    await client.set_budget_amount(
+                        category_name=cat["category_name"],
+                        new_amount=final_amount,
+                        month=target_month,
+                    )
+                    updated += 1
+                except Exception as e:
+                    logger.warning("Failed to set budget for '%s': %s", cat["category_name"], e)
+                    errors.append(cat["category_name"])
+            if errors:
+                message = (
+                    f"Budget copied to {target_month_str} — {updated} categories set, "
+                    f"{len(errors)} failed: {', '.join(errors)}."
                 )
-                updated += 1
-            message = f"Budget copied to {target_month_str} — {updated} categories set."
+            else:
+                message = f"Budget copied to {target_month_str} — {updated} categories set."
         elif action["action"] == "set_budget_carryover":
             from datetime import date as _date
             cat_name = override.category_name or action["category_name"]
@@ -429,7 +440,7 @@ async def confirm_category_action(
 
     action_store.delete(action_id)
 
-    return {"message": message}
+    return {"message": message, "errors": errors}
 
 
 class SavingsBudgetProposal(BaseModel):
