@@ -339,7 +339,7 @@ export default function FuelReceiptCard({
             value={station}
             onChange={e => setStation(e.target.value)}
             className={inputCls}
-            placeholder="Shell Alphen aan den Rijn"
+            placeholder="e.g. Petrom or specific store"
           />
         </div>
 

@@ -146,7 +146,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
             #<span className="text-token-ink">{data.tag}</span>
             {' — '}expenses stay in their normal categories, just tag them (e.g. "tag this as #{data.tag}") to track against this goal.
             {data.current_tag_goal && (
-              <span> Currently €{data.current_tag_goal.total_amount.toFixed(2)} by {data.current_tag_goal.by_month}.</span>
+              <span> Currently {formatCurrency(data.current_tag_goal.total_amount)} by {data.current_tag_goal.by_month}.</span>
             )}
           </p>
         )}

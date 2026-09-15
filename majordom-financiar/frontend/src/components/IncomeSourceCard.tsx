@@ -93,7 +93,7 @@ export default function IncomeSourceCard({ payee, amount, date, onConfirmed }: I
             value={incomeName}
             onChange={e => setIncomeName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSave()}
-            placeholder="e.g. Salary Doru, Freelance, Rent income…"
+            placeholder="e.g. salary, freelance"
             className="w-full bg-token-paper border border-token-line rounded-lg px-3 py-2 text-token-ink text-sm placeholder:text-token-ink-3 focus:outline-none focus:border-token-brand transition-colors"
             autoFocus
           />

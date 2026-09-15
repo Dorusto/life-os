@@ -24,7 +24,11 @@ export function groupByMonth<T>(
   const groups = new Map<string, MonthGroup<T>>()
 
   for (const item of items) {
-    const d = new Date(getDate(item))
+    // Dates arrive as "YYYY-MM-DD"; new Date(string) parses that as UTC and
+    // reads it back in the local timezone, shifting the day west of UTC.
+    // Split the parts and construct in local time instead (audit finding 72).
+    const [y, m, day] = getDate(item).split('-').map(Number)
+    const d = new Date(y, m - 1, day)
     const key = `${d.getFullYear()}-${d.getMonth()}`
     let group = groups.get(key)
     if (!group) {

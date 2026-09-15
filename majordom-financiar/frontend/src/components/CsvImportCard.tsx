@@ -7,8 +7,8 @@ import {
   type ImportResult,
   type AccountOption,
 } from '../lib/api'
-import { matchAccountBySource } from '../lib/csvImportUtils'
-import { formatCurrency } from '../lib/formatCurrency'
+import { matchAccountBySource, tokenizeName } from '../lib/csvImportUtils'
+import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 
 // --- Local types (mirrors ImportRow from api.ts with local UI additions) ---
 
@@ -37,16 +37,13 @@ interface LocalRow {
   newCategoryGroup: string     // group to create the new category in
 }
 
-// Word-level Jaccard similarity for merchant name matching.
-// Strips non-letter characters, splits on whitespace, keeps tokens ≥ 3 chars.
-// Returns 0..1; used to propagate category edits to same-merchant rows even
-// when bank adds a store number or address suffix.
+// Word-level Jaccard similarity for merchant name matching (tokens from the
+// shared tokenizeName() in lib/csvImportUtils.ts). Returns 0..1; used to
+// propagate category edits to same-merchant rows even when bank adds a store
+// number or address suffix.
 function merchantSimilarity(a: string, b: string): number {
-  const tokens = (s: string) => new Set(
-    s.toLowerCase().replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(t => t.length >= 3)
-  )
-  const ta = tokens(a)
-  const tb = tokens(b)
+  const ta = new Set(tokenizeName(a))
+  const tb = new Set(tokenizeName(b))
   const intersection = [...ta].filter(t => tb.has(t)).length
   const union = new Set([...ta, ...tb]).size
   return union === 0 ? 0 : intersection / union
@@ -118,6 +115,15 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
     }
   }, [data.status, data.preview])
 
+  // Auto-select the account when the CSV source name matches one — in an
+  // effect, not a render-phase setTimeout (audit finding 71).
+  const matched = data.preview
+    ? matchAccountBySource(data.preview.source_name, data.preview.accounts)
+    : undefined
+  useEffect(() => {
+    if (!accountId && matched) setAccountId(matched.id)
+  }, [accountId, matched])
+
   if (data.status === 'loading') {
     return (
       <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-5 max-w-[520px] w-full">
@@ -149,13 +155,6 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
   // --- Ready state ---
 
   const preview = data.preview!
-
-  // Auto-select account if name matches source
-  const matched = matchAccountBySource(preview.source_name, preview.accounts)
-  if (!accountId && matched) {
-    // Use setTimeout to avoid setState during render
-    setTimeout(() => setAccountId(matched.id), 0)
-  }
 
   const activeRows = rows.filter(r => !r.duplicate && !r.excluded)
   const transferRows = rows.filter(r => !r.duplicate && r.isManualTransfer && r.transferToAccountId)
@@ -405,7 +404,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
                   <td className="py-1 pr-2 text-token-ink text-right whitespace-nowrap">
                     {row.currency === 'EUR'
                       ? formatCurrency(row.is_expense ? -Math.abs(row.amount) : Math.abs(row.amount), { signDisplay: 'always' })
-                      : `${row.is_expense ? '' : '+'}${row.currency}${row.amount.toFixed(2)}`}
+                      : `${row.is_expense ? '' : '+'}${row.currency}${formatNumber(row.amount, 2)}`}
                   </td>
                   <td className="py-1">
                     {row.duplicate ? (

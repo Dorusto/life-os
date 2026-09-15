@@ -75,6 +75,13 @@ export default function NewGoalSheet({ open, onClose, onCreated }: Props) {
       buildMessage(),
       [],
       (chunk) => {
+        // sendChatMessageStreaming already buffers the raw stream through
+        // extractStreamEvents (lib/chatStreamParser.ts, finding 49's fix) —
+        // each chunk here is one complete unit: a full top-level JSON object
+        // (a card payload) or LLM prose. A card split across TCP reads is
+        // held by the parser until complete, so the proposal is only handled
+        // on a complete parse; the catch below sees balanced prose or a card
+        // truncated by a dead connection. Same pattern as Chat.tsx.
         const trimmed = chunk.trim()
         if (!trimmed.startsWith('{')) return
         try {
@@ -88,7 +95,7 @@ export default function NewGoalSheet({ open, onClose, onCreated }: Props) {
             setLoading(false)
           }
         } catch {
-          // Non-JSON or partial chunk — ignore, matches Chat.tsx's own parsing.
+          // Not JSON — nothing actionable; onComplete reports the failure.
         }
       },
       () => {
