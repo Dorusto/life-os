@@ -1,15 +1,21 @@
 # Implementation plan — fixes from the 2026-09-15 code audit
 
 Source: `docs/audit-2026-09-15.md` (86 findings: 13 HIGH, 33 MEDIUM, 39 LOW — 44 backend, 42 frontend).
-Status update 2026-09-15 (afternoon): **Wave 1 (T1–T6) AND Wave 2 (T7, T9–T13) implemented and merged to local main.**
-16 commits ahead of origin/main; push pending GitHub credentials (Doru: "mai tarziu").
-T8 was rescoped by Doru into the unified receipt-popup feature → tracked as issue #296 (cross-app:
-majordom + vehicle-manager). All merges linear (rebase + ff), each task verified by check scripts /
-tsc / fresh-context review (PASS), orchestrator diff inspection on top. Wave 2 extras: stream parser
-shipped with a 6-case unit harness (all passing on main). Follow-ups filed: #297 (doc drift),
-#298 (pre-commit timestamp window). Q2 approved → T22 fire.py half unblocked for Wave 3.
-Pending: push + docker rebuild + visual browser pass on the 5 UI-touching fixes (no docker on this
-machine — needs the LXC/stack), then Waves 3–5.
+Status update 2026-09-15 (evening): **ALL WAVES COMPLETE — 30 fix commits merged to local main**
+(Waves 1-5; T8 superseded by issue #296; T32/finding 58 was already fixed by #214, skipped).
+Every task: isolated worktree + branch, check scripts / tsc / build, fresh-context review PASS,
+orchestrator diff inspection, linear rebase+ff merge. Visual verification done on a local
+no-docker stack (uvicorn + vite dev, fixture DB): login, Dashboard, Transactions (incl. bulk-bar
+above BottomNav on desktop AND mobile viewport), Accounts, Import, Settings, Chat — all render
+clean; deep interaction states (confirm cards mid-chat, error branches needing live AB/LLM)
+remain covered by code review only. Local stack left RUNNING (backend :8000 + vite :5173,
+login doru / doru-test-2026, serves current main).
+**Doru must do at deploy:** (1) push 33 commits (origin 3 ahead-pushed + 30 local); (2) set
+user_preferences key `fire.excluded_accounts` (JSON list of account-name substrings) on the
+real memory.db or FIRE numbers change; (3) add VAPID_CONTACT=mailto:... to .env.
+Open follow-ups filed/noted: #296 unified receipt popup, #297 doc drift, #298 timestamp window,
+plus noted-in-reports: sw.js nginx no-cache, apple-touch-icon, Duplicates month-key staleness,
+setup retry duplicate-account edge, real AB health probe.
 
 ## Execution model
 
