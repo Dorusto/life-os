@@ -25,7 +25,7 @@ export default function UncategorizedReviewPage() {
   // the list without waiting on a refetch, same pattern as DuplicatesReviewPage.
   const [handledIds, setHandledIds] = useState<Set<string>>(new Set())
 
-  const { data: items = [], isLoading } = useQuery<CategoryActionData[]>({
+  const { data: items = [], isLoading, isError, error } = useQuery<CategoryActionData[]>({
     queryKey: ['uncategorized-groups'],
     queryFn: () => getUncategorizedGroups(),
     staleTime: 60_000,
@@ -60,6 +60,10 @@ export default function UncategorizedReviewPage() {
         </p>
         {isLoading ? (
           <p className="text-token-ink-3 text-sm">Loading…</p>
+        ) : isError ? (
+          <p className="text-token-ink-3 text-xs">
+            Couldn't load uncategorized groups{error instanceof Error ? `: ${error.message}` : '.'}
+          </p>
         ) : visibleItems.length === 0 ? (
           <div className="text-center pt-16">
             <Tags size={28} className="mx-auto text-token-ink-3 mb-3" />

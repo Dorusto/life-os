@@ -37,6 +37,7 @@ export default function DuplicatesReviewPage() {
   // month detail without a backend "dismissed" state (#181 known limitation).
   const [handledIds, setHandledIds] = useState<Set<string>>(new Set())
   const [busyId, setBusyId] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   const { data: months = [], isLoading: monthsLoading } = useQuery<DuplicateMonth[]>({
     queryKey: ['duplicates', 'months'],
@@ -61,10 +62,13 @@ export default function DuplicatesReviewPage() {
     setBusyId(pair.action_id)
     try {
       await confirmCategoryAction(pair.action_id, override)
+      setActionError(null)
       setHandledIds(prev => new Set(prev).add(pair.action_id))
       invalidateCounts()
-    } catch {
-      // Leave it in place so the user can retry.
+    } catch (err) {
+      setActionError(
+        `Couldn't merge the pair${err instanceof Error ? `: ${err.message}` : ''} — it stays in place so you can retry.`
+      )
     } finally {
       setBusyId(null)
     }
@@ -74,8 +78,13 @@ export default function DuplicatesReviewPage() {
     setBusyId(pair.action_id)
     try {
       await cancelCategoryAction(pair.action_id)
+      setActionError(null)
       setHandledIds(prev => new Set(prev).add(pair.action_id))
       invalidateCounts()
+    } catch (err) {
+      setActionError(
+        `Couldn't cancel the pair${err instanceof Error ? `: ${err.message}` : ''} — it stays in place so you can retry.`
+      )
     } finally {
       setBusyId(null)
     }
@@ -88,7 +97,7 @@ export default function DuplicatesReviewPage() {
     ? (
       <IconButton
         icon={ArrowLeft}
-        onClick={() => { setSelectedMonth(null); setHandledIds(new Set()) }}
+        onClick={() => { setSelectedMonth(null); setHandledIds(new Set()); setActionError(null) }}
         label="Back to months"
       />
     )
@@ -115,6 +124,9 @@ export default function DuplicatesReviewPage() {
           }
         />
         <div className="flex-1 px-5 pb-24 space-y-3">
+          {actionError && (
+            <p className="text-token-ink-3 text-xs">{actionError}</p>
+          )}
           {pairsLoading ? (
             <p className="text-token-ink-3 text-sm">Loading pairs…</p>
           ) : visiblePairs.length === 0 ? (

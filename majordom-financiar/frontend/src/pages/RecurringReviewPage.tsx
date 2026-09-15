@@ -23,7 +23,7 @@ export default function RecurringReviewPage() {
   const queryClient = useQueryClient()
   const [handledIds, setHandledIds] = useState<Set<string>>(new Set())
 
-  const { data, isLoading } = useQuery<{ newCandidates: CategoryActionData[]; stale: CategoryActionData[] }>({
+  const { data, isLoading, isError, error } = useQuery<{ newCandidates: CategoryActionData[]; stale: CategoryActionData[] }>({
     queryKey: ['recurring-findings'],
     queryFn: () => getRecurringFindings(),
     staleTime: 60_000,
@@ -62,6 +62,10 @@ export default function RecurringReviewPage() {
       <div className="flex-1 px-5 pb-24 space-y-5">
         {isLoading ? (
           <p className="text-token-ink-3 text-sm">Loading…</p>
+        ) : isError ? (
+          <p className="text-token-ink-3 text-xs">
+            Couldn't load recurring findings{error instanceof Error ? `: ${error.message}` : '.'}
+          </p>
         ) : bothEmpty ? (
           <div className="text-center pt-16">
             <Repeat size={28} className="mx-auto text-token-ink-3 mb-3" />
