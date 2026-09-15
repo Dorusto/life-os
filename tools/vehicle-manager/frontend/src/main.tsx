@@ -28,8 +28,7 @@ import App from './App'
 import './index.css'
 
 // QueryClient handles server state: caching, refetching, loading/error states.
-// Same retry/backoff shape as majordom-financiar's own main.tsx, minus the
-// service-worker/push-notification registration (not relevant here).
+// Same retry/backoff shape as majordom-financiar's own main.tsx.
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -51,6 +50,15 @@ const queryClient = new QueryClient({
     },
   },
 })
+
+// Register Service Worker for PWA installability + offline support
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch((err) => {
+      console.warn('Service Worker registration failed:', err)
+    })
+  })
+}
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
