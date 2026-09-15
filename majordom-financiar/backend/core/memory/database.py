@@ -11,6 +11,7 @@ Merchant → category associations used to live here (merchant_mappings) but
 were removed in #99 — Actual Budget's own Rules engine is the single source
 of truth for that now (see ActualBudgetClient.create_payee_rule() et al.).
 """
+import os
 import sqlite3
 from pathlib import Path
 from datetime import datetime, date
@@ -20,6 +21,11 @@ import json
 
 logger = logging.getLogger(__name__)
 
+# db file paths whose schema was already initialized in this process. MemoryDB
+# is constructed on hot paths (per request/tool call), but the schema script +
+# migrations only need to run once per file per process (audit finding 38).
+_INITIALIZED_DB_PATHS: set[str] = set()
+
 
 class MemoryDB:
     """SQLite interface for the majordom's memory."""
@@ -27,7 +33,14 @@ class MemoryDB:
     def __init__(self, db_path: str):
         self.db_path = db_path
         Path(db_path).parent.mkdir(parents=True, exist_ok=True)
-        self._init_db()
+        if db_path == ":memory:":
+            # Fresh empty DB on every connect — always run the schema init.
+            self._init_db()
+            return
+        path_key = os.path.abspath(db_path)
+        if path_key not in _INITIALIZED_DB_PATHS:
+            self._init_db()
+            _INITIALIZED_DB_PATHS.add(path_key)
 
     def _get_conn(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self.db_path)

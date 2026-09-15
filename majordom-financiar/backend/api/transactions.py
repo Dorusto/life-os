@@ -287,7 +287,12 @@ class SplitTransactionRequest(BaseModel):
     splits: list[SplitLine]
 
 
-@router.post("/transactions/{transaction_id}/split")
+class SplitTransactionResult(BaseModel):
+    parent_transaction_id: str
+    child_count: int
+
+
+@router.post("/transactions/{transaction_id}/split", response_model=SplitTransactionResult)
 async def split_transaction(
     transaction_id: str,
     body: SplitTransactionRequest,

@@ -43,8 +43,18 @@ def _get_or_create_key(db_path: str) -> bytes:
         return path.read_bytes()
     path.parent.mkdir(parents=True, exist_ok=True)
     key = Fernet.generate_key()
-    path.write_bytes(key)
-    os.chmod(path, 0o600)
+    # Create with 0600 from the first open — a write-then-chmod sequence leaves
+    # a window where the key file is briefly world-readable.
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+    except FileExistsError:
+        # Another process created it between the exists() check and here —
+        # use that key instead of clobbering it.
+        return path.read_bytes()
+    try:
+        os.write(fd, key)
+    finally:
+        os.close(fd)
     return key
 
 

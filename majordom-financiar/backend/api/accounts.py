@@ -47,6 +47,11 @@ class SetAccountTypeRequest(BaseModel):
     account_type: str
 
 
+class BalanceHistoryPoint(BaseModel):
+    date: str
+    balance: float
+
+
 @router.get("/accounts", response_model=list[AccountListItem])
 async def list_accounts(current_user: str = Depends(get_current_user)):
     """Return all (non-closed) accounts with off_budget distinction."""
@@ -61,7 +66,7 @@ async def list_accounts(current_user: str = Depends(get_current_user)):
     ]
 
 
-@router.get("/accounts/balance-history")
+@router.get("/accounts/balance-history", response_model=list[BalanceHistoryPoint])
 async def get_balance_history(
     scope: str = Query(default="total"),
     days: int = Query(default=30, ge=1, le=365),

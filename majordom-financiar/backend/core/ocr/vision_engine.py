@@ -18,7 +18,7 @@ from datetime import date
 from pathlib import Path
 
 import aiohttp
-from PIL import Image
+from PIL import Image, ImageOps
 
 from backend.core.config import build_llm_headers
 from backend.core.ocr.parser import ReceiptData, ReceiptItem
@@ -92,6 +92,10 @@ class VisionEngine:
         acceptable speed (~60-90s on CPU). Previously 512px (faster but less accurate).
         """
         img = Image.open(io.BytesIO(image_bytes))
+        # Respect EXIF orientation BEFORE resizing — phone photos are often
+        # stored sensor-rotated with only an EXIF tag correcting them; without
+        # this the vision model receives a sideways image (audit finding 43).
+        img = ImageOps.exif_transpose(img)
         w, h = img.size
 
         if max(w, h) > max_size:

@@ -46,14 +46,20 @@ class ReceiptData:
         """A receipt is valid if it has at least a merchant and a total."""
         return bool(self.merchant) and self.total > 0
 
-    def summary(self) -> str:
-        """Human-readable summary."""
+    def summary(self, currency: str | None = None) -> str:
+        """Human-readable summary.
+
+        Currency token: explicit argument, else the parsed receipt's own
+        currency (what the parsers actually populate), else RON — the legacy
+        hardcoded fallback, preserved for receipts with no currency at all.
+        """
+        token = currency or self.currency or "RON"
         date_str = self.date.strftime("%d.%m.%Y") if self.date else "?"
         items_str = f", {len(self.items)} items" if self.items else ""
         return (
             f"🏪 {self.merchant}\n"
             f"📅 {date_str}\n"
-            f"💰 {self.total:.2f} RON{items_str}"
+            f"💰 {self.total:.2f} {token}{items_str}"
         )
 
 
@@ -150,7 +156,7 @@ class ReceiptParser:
         receipt.items = self._extract_items(lines)
 
         if receipt.is_valid:
-            logger.info(f"Receipt parsed successfully: {receipt.merchant}, {receipt.total} RON")
+            logger.info(f"Receipt parsed successfully: {receipt.merchant}, {receipt.total} {receipt.currency}")
         else:
             logger.warning(
                 f"Incomplete receipt: merchant='{receipt.merchant}', total={receipt.total}"

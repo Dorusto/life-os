@@ -1060,16 +1060,6 @@ class ActualBudgetClient:
                 return get_transactions(actual.session, start_date=today, end_date=today)
         return await self._run(_get)
 
-    async def get_default_account(self) -> Account | None:
-        accounts = await self.get_accounts()
-        if not accounts:
-            return None
-        for acc in accounts:
-            name_lower = acc.name.lower()
-            if any(k in name_lower for k in ["cheltuieli", "spending", "checking", "current"]):
-                return acc
-        return accounts[0]
-
     async def get_categories(self) -> list[Category]:
         def _get():
             from actual.queries import get_categories
@@ -1763,32 +1753,12 @@ class ActualBudgetClient:
                 return True
         return await self._run(_delete)
 
-    async def update_transaction_category(self, financial_id: str, category_name: str) -> bool:
-        """Update the category of an existing transaction by financial_id."""
-        def _update():
-            from actual.queries import get_or_create_category
-            from actual.database import Transactions
-            with self._get_actual() as actual:
-                tx = actual.session.query(Transactions).filter(
-                    Transactions.financial_id == financial_id,
-                    Transactions.tombstone == 0,
-                ).first()
-                if not tx:
-                    logger.warning(f"Transaction not found for category update: {financial_id}")
-                    return False
-                cat = get_or_create_category(actual.session, category_name, group_name="Majordom")
-                tx.category_id = cat.id
-                actual.commit()
-                logger.info(f"Category updated in Actual Budget: {financial_id} → {category_name}")
-                return True
-        return await self._run(_update)
-
     async def add_transaction_tag(self, transaction_id: str, tag: str) -> str:
         """
         Append a #tag to a transaction's notes (trip tags, #176) — looked up by
         row `id`, the identifier finance__get_transactions/get_untagged_transactions
-        already surface to the LLM, NOT `financial_id` (a different field used by
-        update_transaction_category's lookup elsewhere in this file).
+        already surface to the LLM, NOT `financial_id` (a different field, only
+        populated on bank-synced/imported rows).
 
         No-ops if the tag is already present (case-insensitive substring check),
         so re-confirming the same tag twice doesn't duplicate it in notes.
@@ -1819,9 +1789,9 @@ class ActualBudgetClient:
         Returns the number of transactions actually updated (skips ids not found).
 
         One ``download_budget()`` + one ``commit()`` for the whole batch (#184) —
-        deliberately NOT a loop over ``update_transaction_category()``, which opens
-        and commits its own session per call (one full round trip per row, far too
-        slow for a bulk operation on hundreds of rows).
+        deliberately NOT a per-row loop, which would open and commit its own
+        session per call (one full round trip per row, far too slow for a bulk
+        operation on hundreds of rows).
         """
         def _update():
             from actual.database import Transactions
@@ -2561,10 +2531,6 @@ class ActualBudgetClient:
 
         return await self._run(_set)
 
-    async def get_total_balance(self) -> float:
-        accounts = await self.get_accounts()
-        return sum(acc.balance for acc in accounts)
-
     async def create_account(self, name: str, initial_balance: float = 0.0, off_budget: bool = False) -> Account:
         """Create a new account in Actual Budget."""
         def _create():
@@ -2936,137 +2902,6 @@ class ActualBudgetClient:
                     "target_account_name": to_acct.name,
                 }
         return await self._run(_convert)
-
-    async def get_full_context(
-        self,
-        month: int | None = None,
-        year: int | None = None,
-        recent_limit: int = 20,
-    ) -> dict:
-        """
-        Fetch accounts, monthly stats, and recent transactions in a single session.
-        Avoids the 429 rate-limit that occurs when opening three separate sessions.
-
-        Returns a dict with three keys:
-          accounts: list[dict] with name and balance (already formatted for chat context)
-          stats: dict with month, year, total, count, categories
-          recent_transactions: list[dict] with id, date, merchant, amount_cents, etc.
-        """
-        import calendar
-        from datetime import date as _date
-
-        today = _date.today()
-        month = month or today.month
-        year = year or today.year
-
-        def _get():
-            from actual.queries import get_accounts, get_transactions, get_categories
-
-            with self._get_actual() as actual:
-
-                # 1. Accounts — same logic as get_accounts()
-                accounts_data = get_accounts(actual.session)
-                accounts_result = []
-                for acc in accounts_data:
-                    if acc.closed:
-                        continue
-                    txs = get_transactions(actual.session, account=acc)
-                    balance = sum(
-                        float(tx.amount or 0)
-                        for tx in txs
-                        if not tx.tombstone
-                    ) / 100
-                    accounts_result.append({
-                        "id": str(acc.id),
-                        "name": acc.name,
-                        "balance": balance,
-                    })
-
-                # 2. Monthly stats — same logic as get_monthly_stats()
-                start = _date(year, month, 1)
-                last_day = calendar.monthrange(year, month)[1]
-                end = _date(year, month, last_day)
-
-                txs = get_transactions(actual.session, start_date=start, end_date=end)
-
-                total = 0.0
-                count = 0
-                by_category = defaultdict(lambda: {"total": 0.0, "count": 0, "name": ""})
-
-                for tx in txs:
-                    if tx.tombstone or tx.starting_balance_flag:
-                        continue
-                    if tx.notes and '[Balance Adjustment]' in tx.notes:
-                        continue
-                    amount = float(tx.amount or 0) / 100
-                    if amount >= 0:
-                        continue  # skip income
-                    amount = abs(amount)
-                    total += amount
-                    count += 1
-
-                    cat_name = "Uncategorized"
-                    cat_key = "uncategorized"
-                    if tx.category_id and tx.category:
-                        cat_name = tx.category.name or "Uncategorized"
-                        cat_key = str(tx.category_id)
-
-                    by_category[cat_key]["total"] += amount
-                    by_category[cat_key]["count"] += 1
-                    by_category[cat_key]["name"] = cat_name
-
-                stats_result = {
-                    "month": month,
-                    "year": year,
-                    "total": round(total, 2),
-                    "count": count,
-                    "categories": dict(by_category),
-                }
-
-                # 3. Recent transactions — same logic as get_recent_transactions()
-                all_txs = get_transactions(actual.session)
-
-                txs_result = []
-                for tx in all_txs:
-                    if tx.tombstone or tx.starting_balance_flag:
-                        continue
-
-                    merchant = ""
-                    if tx.payee:
-                        merchant = tx.payee.name or ""
-                    if not merchant and hasattr(tx, "imported_payee"):
-                        merchant = tx.imported_payee or ""
-
-                    category_name = None
-                    if tx.category:
-                        category_name = tx.category.name
-
-                    txs_result.append({
-                        "date": tx.date,
-                        "merchant": merchant or "Unknown",
-                        "amount": abs(float(tx.amount or 0)) / 100,
-                        "category": category_name,
-                    })
-
-                txs_result.sort(key=lambda t: str(t["date"]), reverse=True)
-                txs_result = txs_result[:recent_limit]
-
-                # 4. Categories — for tool calling system prompt
-                cats = get_categories(actual.session)
-                categories_result = [
-                    {"id": str(cat.id), "name": cat.name}
-                    for cat in cats
-                    if not cat.hidden
-                ]
-
-                return {
-                    "accounts": accounts_result,
-                    "stats": stats_result,
-                    "recent_transactions": txs_result,
-                    "categories": categories_result,
-                }
-
-        return await self._run(_get)
 
     async def get_recent_transactions(
         self, limit: int = 20, start_date: date | None = None, end_date: date | None = None,
@@ -4630,26 +4465,38 @@ class ActualBudgetClient:
     async def get_payees(self) -> list[dict]:
         """Return all non-tombstoned payees with their transaction counts.
 
-        Counts transactions via get_transactions(session, payee=p), filtering out
-        tombstoned rows. Sorted by transaction_count descending, so the settings
-        screen shows the most-used payees first.
+        Counts transactions with ONE grouped query (GROUP BY payee_id over
+        non-tombstoned rows) instead of hydrating each payee's full transaction
+        list — the old per-payee loop was a textbook N+1 (audit finding 37).
+        Sorted by transaction_count descending, so the settings screen shows
+        the most-used payees first.
         """
         def _get():
-            from actual.queries import get_payees, get_transactions
+            from actual.queries import get_payees
+            from actual.database import Transactions
+            from sqlalchemy import func
             with self._get_actual() as actual:
+                counts = dict(
+                    actual.session
+                    .query(Transactions.payee_id, func.count(Transactions.id))
+                    .filter(
+                        Transactions.tombstone == 0,
+                        Transactions.payee_id.isnot(None),
+                    )
+                    .group_by(Transactions.payee_id)
+                    .all()
+                )
                 result = []
                 for p in get_payees(actual.session):
                     if p.tombstone:
                         continue
-                    txs = get_transactions(actual.session, payee=p)
-                    count = sum(1 for tx in txs if not tx.tombstone)
                     result.append({
                         "id": str(p.id),
                         # Some payees (e.g. the transfer/unset placeholder) have a
                         # null name — coerce to a string so the endpoint's
                         # PayeeItem.name: str doesn't reject the row.
                         "name": p.name or "Unnamed",
-                        "transaction_count": count,
+                        "transaction_count": int(counts.get(p.id, 0)),
                     })
                 result.sort(key=lambda x: x["transaction_count"], reverse=True)
                 return result

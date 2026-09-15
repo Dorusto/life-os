@@ -5,6 +5,7 @@ import logging
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
 from backend.core.config import settings
@@ -17,7 +18,82 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/home")
+# --- Response models for GET /home (shapes mirror get_home_data()'s dict) ---
+
+class HomeStatsCategory(BaseModel):
+    total: float
+    count: int
+    name: str
+
+
+class HomeStats(BaseModel):
+    month: int
+    year: int
+    total: float
+    income: float
+    count: int
+    categories: dict[str, HomeStatsCategory]
+    prev_cashflow: float
+
+
+class HomeBudgetCategory(BaseModel):
+    category_id: str
+    category_name: str
+    group_name: str
+    budgeted: float
+    spent: float
+    percentage: float
+    carryover: bool
+
+
+class HomeGoal(BaseModel):
+    id: str
+    name: str
+    balance: float
+    target: float
+    percentage: float
+    deadline: str | None = None
+    monthly_needed: float | None = None
+    months_remaining: int | None = None
+    note: str | None = None
+
+
+class HomeExpenseCoverage(BaseModel):
+    coverage_pct: float
+    passive_semi_passive_income: float
+    filtered_monthly_expenses: float
+    has_any_classified_income: bool
+
+
+class HomeFire(BaseModel):
+    fire_portfolio: float
+    fire_target: float
+    fire_pct: float
+    fire_pct_prev: float
+    monthly_contribution: float
+    estimated_year: int | None = None
+    trend_months: int | None = None
+    accumulation_return: float
+    decumulation_return: float
+    years_to_transition: float
+    years_in_retirement: float
+    desired_monthly_spend: float
+    is_default_assumptions: bool
+
+
+class HomeResponse(BaseModel):
+    stats: HomeStats
+    budget: list[HomeBudgetCategory]
+    goals: list[HomeGoal]
+    expense_coverage: HomeExpenseCoverage
+    on_budget_total: float
+    uncategorized_count: int
+    unreconciled_count: int
+    fire: HomeFire
+    account_count: int
+
+
+@router.get("/home", response_model=HomeResponse)
 async def get_home(
     month: int | None = None,
     year: int | None = None,

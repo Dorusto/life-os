@@ -10,6 +10,7 @@ Architecture:
   run_daily_digest()   → orchestrates everything, sends ONE push
 """
 
+import asyncio
 import json
 import logging
 import sqlite3
@@ -27,12 +28,15 @@ from backend.services.push_service import get_push_service
 logger = logging.getLogger(__name__)
 
 
-async def _save_to_chat_history(body: str, db: MemoryDB) -> None:
+def _save_to_chat_history_sync(body: str, db: MemoryDB) -> None:
     """Save notification text to chat history for all active users.
 
     Collects user_ids from both push_subscriptions and recently active
     chat_history rows (covers legacy 'default' subscriptions and users
     without push enabled). Skips 'default' placeholder IDs.
+
+    Sync on purpose — always called via asyncio.to_thread (rule 1: no
+    blocking calls on the event loop).
     """
     conn = sqlite3.connect(db.db_path)
     try:
@@ -57,6 +61,11 @@ async def _save_to_chat_history(body: str, db: MemoryDB) -> None:
         logger.warning("Could not save notification to chat history: %s", e)
     finally:
         conn.close()
+
+
+async def _save_to_chat_history(body: str, db: MemoryDB) -> None:
+    """Offload the sync SQLite work off the event loop (rule 1)."""
+    await asyncio.to_thread(_save_to_chat_history_sync, body, db)
 
 
 _FINANCIAL_SYSTEM_PROMPT = (
