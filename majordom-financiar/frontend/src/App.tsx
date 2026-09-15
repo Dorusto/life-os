@@ -110,9 +110,14 @@ function Layout() {
   // (covers the case where a push notification arrives while chat is open)
   function loadChatHistory() {
     if (!isAuthenticated()) return
-    // Skip if there are active cards — replacing state would discard them
+    // Skip if there are active cards — replacing state would discard them.
+    // chart/transaction_list don't count: they're read-only display data that
+    // is itself persisted server-side (architecture.md rule 17 corollary) and
+    // restored from history below, so treating them as active permanently
+    // blocked reload for the whole session (audit 2026-09-15 finding 60).
     const hasActiveCards = chatMessagesRef.current.some(
-      m => m.role !== 'user' && m.role !== 'assistant' && m.role !== 'status'
+      m => m.role !== 'user' && m.role !== 'assistant' && m.role !== 'status' &&
+        m.role !== 'chart' && m.role !== 'transaction_list'
     )
     if (hasActiveCards) return
     getChatHistory().then(msgs => {

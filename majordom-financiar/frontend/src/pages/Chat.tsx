@@ -91,6 +91,22 @@ const starterSuggestions = [
   'What are my biggest expenses?',
 ]
 
+/**
+ * Per-stream mirror of what the assistant produced, kept outside React state
+ * so persistence can read it without side effects inside setMessages updaters
+ * (updaters must be pure — StrictMode double-invokes them, which duplicated
+ * persisted history entries; audit 2026-09-15 finding 59). `reply` mirrors the
+ * content of the last assistant message created during this stream;
+ * `replyAppendsToLast` tracks whether the next text chunk appends to it (true)
+ * or starts a new assistant message (false). All updates happen in the stream
+ * callbacks — never in an updater — so they run exactly once per chunk.
+ */
+interface StreamTracker {
+  userText: string
+  reply: string
+  replyAppendsToLast: boolean
+}
+
 interface ChatProps {
   messages: Message[]
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>
@@ -845,27 +861,27 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
     const controller = new AbortController()
     chatAbortRef.current = controller
 
+    const stream: StreamTracker = { userText: text, reply: '', replyAppendsToLast: false }
+
     sendChatMessageStreaming(
       text,
       history,
       (chunk) => {
-        handleChatChunk(chunk)
+        handleChatChunk(chunk, stream)
       },
       () => {
         setLoading(false)
-        // Save complete exchange to server history — only if assistant replied with text after the user message
-        setMessages(prev => {
-          const msgs = prev.filter(m => m.role === 'user' || m.role === 'assistant')
-          const lastUserIdx = msgs.map(m => m.role).lastIndexOf('user')
-          const lastAssistantIdx = msgs.map(m => m.role).lastIndexOf('assistant')
-          if (lastUserIdx >= 0 && lastAssistantIdx > lastUserIdx && msgs[lastAssistantIdx].content.trim()) {
-            saveChatHistory([
-              { role: 'user', content: msgs[lastUserIdx].content },
-              { role: 'assistant', content: msgs[lastAssistantIdx].content },
-            ])
-          }
-          return prev
-        })
+        // Save complete exchange to server history — only if the assistant
+        // replied with text after the user message (i.e. the stream produced
+        // any assistant text, mirrored in `stream.reply`). Runs here, after
+        // the final state update, not inside a setMessages updater — see
+        // StreamTracker above.
+        if (stream.reply.trim()) {
+          saveChatHistory([
+            { role: 'user', content: stream.userText },
+            { role: 'assistant', content: stream.reply },
+          ]).catch(() => {})
+        }
       },
       (error) => {
         console.error('Chat error:', error)
@@ -880,14 +896,24 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
     )
   }
 
-  // Handle a chunk from the chat stream
-  function handleChatChunk(chunk: string) {
+  // Handle a chunk from the chat stream. `stream` mirrors what the stream
+  // produced (see StreamTracker) so the onComplete callback can persist the
+  // exchange without reading state inside a setMessages updater.
+  function handleChatChunk(chunk: string, stream: StreamTracker) {
     const trimmed = chunk.trim()
     if (trimmed.startsWith('{')) {
       try {
         const parsed = JSON.parse(trimmed)
-
+        // A structured event ends the current streamed text segment (the next
+        // text chunk starts a new assistant message) — unless the event itself
+        // is assistant text, which the info/error branches re-mark below. The
+        // previous value is restored for unknown payloads, which fall through
+        // to the text path and behave exactly like a text chunk.
+        const wasAppending = stream.replyAppendsToLast
+        stream.replyAppendsToLast = false
         if (parsed.type === 'error') {
+          stream.reply = parsed.message || 'Something went wrong.'
+          stream.replyAppendsToLast = true
           // Tool-level errors (e.g. "no uncategorized transactions found for
           // payee X") skip the LLM and land here as raw JSON — never show
           // that to the user, render the human-readable message instead.
@@ -899,6 +925,8 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
           return
         }
         if (parsed.type === 'info') {
+          stream.reply = parsed.message || ''
+          stream.replyAppendsToLast = true
           setMessages(prev => [...prev, {
             role: 'assistant',
             content: parsed.message || '',
@@ -971,51 +999,47 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
           return
         }
         if (parsed.type === 'chart') {
-          setMessages(prev => {
-            // Charts are read-only display data (unlike proposal cards), so it's safe
-            // to persist them verbatim — restores correctly after a refresh or
-            // navigating away and back, instead of vanishing like other unresolved
-            // cards (see the persistedStatusRef comment above for the same problem
-            // affecting status cards).
-            const lastUser = [...prev].reverse().find(m => m.role === 'user')
-            if (lastUser) {
-              saveChatHistory([
-                { role: 'user', content: lastUser.content },
-                { role: 'chart', content: JSON.stringify(parsed) },
-              ]).catch(() => {})
-            }
-            return [...prev, { role: 'chart' as const, content: '', chart: parsed }]
-          })
+          setMessages(prev => [...prev, { role: 'chart' as const, content: '', chart: parsed }])
+          // Charts are read-only display data (unlike proposal cards), so it's safe
+          // to persist them verbatim — restores correctly after a refresh or
+          // navigating away and back, instead of vanishing like other unresolved
+          // cards (see the persistedStatusRef comment above for the same problem
+          // affecting status cards). Persisted here, outside the updater — the
+          // user message of this exchange is known (`stream.userText`).
+          saveChatHistory([
+            { role: 'user', content: stream.userText },
+            { role: 'chart', content: JSON.stringify(parsed) },
+          ]).catch(() => {})
           return
         }
         if (parsed.type === 'transaction_list') {
-          setMessages(prev => {
-            // Read-only display data (same reasoning as charts above) — safe to
-            // persist verbatim so it survives a refresh instead of vanishing.
-            const lastUser = [...prev].reverse().find(m => m.role === 'user')
-            if (lastUser) {
-              saveChatHistory([
-                { role: 'user', content: lastUser.content },
-                { role: 'transaction_list', content: JSON.stringify(parsed) },
-              ]).catch(() => {})
-            }
-            return [...prev, { role: 'transaction_list' as const, content: '', transactionList: parsed }]
-          })
+          setMessages(prev => [...prev, { role: 'transaction_list' as const, content: '', transactionList: parsed }])
+          // Read-only display data (same reasoning as charts above) — safe to
+          // persist verbatim so it survives a refresh instead of vanishing.
+          saveChatHistory([
+            { role: 'user', content: stream.userText },
+            { role: 'transaction_list', content: JSON.stringify(parsed) },
+          ]).catch(() => {})
           return
         }
+        // Unknown structured payload — treated as plain text by the path below,
+        // so restore the append tracking that the reset above interrupted.
+        stream.replyAppendsToLast = wasAppending
 
       } catch {
 
         // Chunk may contain multiple JSON objects separated by newlines
         if (trimmed.includes('\n')) {
           for (const line of trimmed.split('\n')) {
-            if (line.trim()) handleChatChunk(line)
+            if (line.trim()) handleChatChunk(line, stream)
           }
           return
         }
       }
     }
     // Regular text chunk
+    stream.reply = stream.replyAppendsToLast ? stream.reply + chunk : chunk
+    stream.replyAppendsToLast = true
     setMessages(prev => {
       const newMessages = [...prev]
       const lastIndex = newMessages.length - 1
