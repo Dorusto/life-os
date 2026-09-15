@@ -11,15 +11,18 @@ interface Props {
 export default function NotificationTimeCard({ data, onConfirmed, onCancelled }: Props) {
   const [time, setTime] = useState(data.time)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleConfirm() {
     setLoading(true)
+    setError(null)
     try {
       const override = time !== data.time ? { time } : undefined
       const result = await confirmNotificationTime(data.id, override)
       onConfirmed(result.message)
     } catch (err) {
-      onConfirmed(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setError(`Could not save notification time (${msg}). Try again.`)
     } finally {
       setLoading(false)
     }
@@ -44,6 +47,8 @@ export default function NotificationTimeCard({ data, onConfirmed, onCancelled }:
           className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
         />
       </div>
+
+      {error && <p className="text-token-loss text-xs">{error}</p>}
 
       <ActionCardButtons onConfirm={handleConfirm} onCancel={handleCancel} loading={loading} confirmDisabled={!time} confirmLabel="Save" />
     </div>

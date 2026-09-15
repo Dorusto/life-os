@@ -15,6 +15,7 @@ export default function BudgetCopyCard({ data, onConfirmed, onCancelled }: Props
     Object.fromEntries(categories.map(c => [c.category_id, c.amount.toFixed(2)]))
   )
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const groups = categories.reduce((acc, c) => {
     if (!acc[c.group_name]) acc[c.group_name] = []
@@ -24,6 +25,7 @@ export default function BudgetCopyCard({ data, onConfirmed, onCancelled }: Props
 
   async function handleConfirm() {
     setLoading(true)
+    setError(null)
     try {
       const category_amounts: Record<string, number> = {}
       for (const c of categories) {
@@ -33,7 +35,8 @@ export default function BudgetCopyCard({ data, onConfirmed, onCancelled }: Props
       const result = await confirmCategoryAction(data.id, { category_amounts })
       onConfirmed(result.message)
     } catch (err) {
-      onConfirmed(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setError(`Could not copy budget (${msg}). Try again.`)
     } finally {
       setLoading(false)
     }
@@ -87,6 +90,8 @@ export default function BudgetCopyCard({ data, onConfirmed, onCancelled }: Props
           </div>
         ))}
       </div>
+
+      {error && <p className="text-token-loss text-xs">{error}</p>}
 
       <ActionCardButtons
         onConfirm={handleConfirm}

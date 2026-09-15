@@ -48,6 +48,7 @@ export default function CategoryOverviewCard({ data, onConfirmed, onCancelled }:
   const [addingGroup, setAddingGroup] = useState(false)
   const [newGroupValue, setNewGroupValue] = useState('')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const displayGroups: DisplayGroup[] = [
     ...data.groups.map(g => ({
@@ -144,6 +145,7 @@ export default function CategoryOverviewCard({ data, onConfirmed, onCancelled }:
 
   async function handleSave() {
     setLoading(true)
+    setError(null)
     try {
       const groupNameByKey = new Map(displayGroups.map(g => [g.key, g.displayName]))
       const result = await applyCategoryOverview({
@@ -157,7 +159,8 @@ export default function CategoryOverviewCard({ data, onConfirmed, onCancelled }:
       })
       onConfirmed(result.message)
     } catch (err) {
-      onConfirmed(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setError(`Could not apply category changes (${msg}). Try again.`)
     } finally {
       setLoading(false)
     }
@@ -278,6 +281,8 @@ export default function CategoryOverviewCard({ data, onConfirmed, onCancelled }:
           <Plus size={14} /> Add group
         </button>
       )}
+
+      {error && <p className="text-token-loss text-xs">{error}</p>}
 
       <ActionCardButtons
         onConfirm={handleSave}

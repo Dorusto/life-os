@@ -108,6 +108,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
   const [newAccountName, setNewAccountName] = useState('')
   const [newAccountOffBudget, setNewAccountOffBudget] = useState(false)
   const [accountError, setAccountError] = useState<string | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
 
   // Seed rows from the preview on the loading → ready transition (a lazy
   // initializer never re-runs, so the guarded one above can't do it alone).
@@ -220,6 +221,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
   async function handleImport() {
     setImporting(true)
     setAccountError(null)
+    setImportError(null)
     try {
       let targetAccountId = accountId
       if (creatingAccount) {
@@ -259,7 +261,8 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
       if (result.skipped) parts.push(`${result.skipped} duplicates skipped.`)
       onConfirmed(parts.join(' '), result)
     } catch (err) {
-      onConfirmed(`Import failed: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setImportError(`Could not import CSV (${msg}). Try again.`)
     } finally {
       setImporting(false)
     }
@@ -577,6 +580,8 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
           </p>
         </div>
       )}
+
+      {importError && <p className="text-token-loss text-xs">{importError}</p>}
 
       {/* Buttons */}
       <div className="flex gap-2 pt-1">

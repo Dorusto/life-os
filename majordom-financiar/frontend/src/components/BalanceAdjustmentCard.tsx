@@ -11,18 +11,20 @@ interface Props {
 
 export default function BalanceAdjustmentCard({ data, onConfirmed, onCancelled }: Props) {
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [realBalance, setRealBalance] = useState(String(data.real_balance))
   const parsed = parseFloat(realBalance)
   const valid = !isNaN(parsed)
 
   async function handleConfirm() {
     setLoading(true)
+    setError(null)
     try {
       const result = await confirmBalanceAdjustment(data.id, valid ? { real_balance: parsed } : undefined)
       onConfirmed(result.message)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
-      onConfirmed(`Error: could not adjust balance (${msg}). Try again via chat.`)
+      setError(`Could not adjust balance (${msg}). Try again.`)
     } finally {
       setLoading(false)
     }
@@ -60,6 +62,8 @@ export default function BalanceAdjustmentCard({ data, onConfirmed, onCancelled }
             : formatCurrency(diff, { signDisplay: 'always' })}
         </p>
       </div>
+
+      {error && <p className="text-token-loss text-xs">{error}</p>}
 
       <ActionCardButtons onConfirm={handleConfirm} onCancel={handleCancel} loading={loading} confirmDisabled={!valid} />
     </div>

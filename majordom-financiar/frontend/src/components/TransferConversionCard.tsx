@@ -11,6 +11,7 @@ interface Props {
 
 export default function TransferConversionCard({ data, onConfirmed, onCancelled }: Props) {
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const accounts = data.accounts ?? []
   const [targetId, setTargetId] = useState(
     data.target_account_id ?? accounts.find(a => a.name === data.target_account_name)?.id ?? accounts[0]?.id ?? ''
@@ -18,6 +19,7 @@ export default function TransferConversionCard({ data, onConfirmed, onCancelled 
 
   async function handleConfirm() {
     setLoading(true)
+    setError(null)
     try {
       const result = await confirmTransferConversion(
         data.id,
@@ -26,7 +28,7 @@ export default function TransferConversionCard({ data, onConfirmed, onCancelled 
       onConfirmed(result.message)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Unknown error'
-      onConfirmed(`Error: could not convert transaction to transfer (${msg}). Try again via chat.`)
+      setError(`Could not convert transaction to transfer (${msg}). Try again.`)
     } finally {
       setLoading(false)
     }
@@ -72,6 +74,8 @@ export default function TransferConversionCard({ data, onConfirmed, onCancelled 
           )}
         </select>
       </div>
+
+      {error && <p className="text-token-loss text-xs">{error}</p>}
 
       <ActionCardButtons onConfirm={handleConfirm} onCancel={handleCancel} loading={loading} />
     </div>

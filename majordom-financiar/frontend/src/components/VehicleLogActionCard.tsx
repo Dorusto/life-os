@@ -12,14 +12,17 @@ interface Props {
 
 export default function VehicleLogActionCard({ data, onConfirmed, onCancelled }: Props) {
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   async function handleConfirm() {
     setLoading(true)
+    setError(null)
     try {
       const result = await confirmVehicleLogAction(data.id)
       onConfirmed(result.message)
     } catch (err) {
-      onConfirmed(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setError(`Could not delete log entry (${msg}). Try again.`)
     } finally {
       setLoading(false)
     }
@@ -49,6 +52,8 @@ export default function VehicleLogActionCard({ data, onConfirmed, onCancelled }:
           <p className="text-token-warn text-xs mt-0.5">⚠ Will also remove the Actual Budget transaction</p>
         )}
       </div>
+
+      {error && <p className="text-token-loss text-xs">{error}</p>}
 
       <ActionCardButtons
         onConfirm={handleConfirm}

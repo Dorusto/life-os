@@ -30,6 +30,7 @@ export default function ReceiptCard({
   )
   const [accountId, setAccountId] = useState(draft?.accounts[0]?.id ?? '')
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [possibleMatch, setPossibleMatch] = useState<NearDuplicateMatch | null>(null)
   const [createRule, setCreateRule] = useState(false)
 
@@ -48,6 +49,7 @@ export default function ReceiptCard({
     const parsed = parseFloat(amount)
     if (isNaN(parsed) || parsed <= 0) return
     setSaving(true)
+    setSaveError(null)
     try {
       const result = await confirmReceipt({
         receipt_id: draft.receipt_id,
@@ -71,7 +73,8 @@ export default function ReceiptCard({
         : `Receipt saved — ${merchant} ${formatCurrency(parsed)}`
       onConfirmed(message)
     } catch (err) {
-      onConfirmed(`Failed to save receipt: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setSaveError(`Could not save receipt (${msg}). Try again.`)
     } finally {
       setSaving(false)
     }
@@ -257,6 +260,8 @@ export default function ReceiptCard({
               </div>
             </div>
           )}
+
+          {saveError && <p className="text-token-loss text-xs">{saveError}</p>}
 
           {/* Buttons */}
           {!possibleMatch && (

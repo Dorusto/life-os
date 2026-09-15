@@ -19,6 +19,7 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
   const [required, setRequired] = useState(data.required ?? true)
   const [vehicleType, setVehicleType] = useState(data.vehicle_type ?? 'car')
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const isService = data.reminder_type === 'service'
   const isApkRequired = data.reminder_type === 'apk_required'
@@ -26,6 +27,7 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
 
   async function handleConfirm() {
     setLoading(true)
+    setError(null)
     try {
       const override: Record<string, string | number | boolean> = {}
       if (vehicleId !== data.vehicle_id) override.vehicle_id = vehicleId
@@ -44,7 +46,8 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
       const result = await confirmVehicleReminder(data.id, Object.keys(override).length ? override : undefined)
       onConfirmed(result.message)
     } catch (err) {
-      onConfirmed(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setError(`Could not set reminder (${msg}). Try again.`)
     } finally {
       setLoading(false)
     }
@@ -178,6 +181,8 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
           </div>
         )}
       </div>
+
+      {error && <p className="text-token-loss text-xs">{error}</p>}
 
       <ActionCardButtons
         onConfirm={handleConfirm}

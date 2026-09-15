@@ -15,6 +15,7 @@ export default function ReachedGoalsCard({ data, onConfirmed, onCancelled }: Pro
     Object.fromEntries(reached.map(r => [r.category_name, true]))
   )
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   function toggle(name: string) {
     setChecked(prev => ({ ...prev, [name]: !prev[name] }))
@@ -22,6 +23,7 @@ export default function ReachedGoalsCard({ data, onConfirmed, onCancelled }: Pro
 
   async function handleConfirm() {
     setLoading(true)
+    setError(null)
     try {
       const selected_category_names = reached
         .map(r => r.category_name)
@@ -29,7 +31,8 @@ export default function ReachedGoalsCard({ data, onConfirmed, onCancelled }: Pro
       const result = await confirmCategoryAction(data.id, { selected_category_names })
       onConfirmed(result.message)
     } catch (err) {
-      onConfirmed(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setError(`Could not clean up reached goals (${msg}). Try again.`)
     } finally {
       setLoading(false)
     }
@@ -74,6 +77,8 @@ export default function ReachedGoalsCard({ data, onConfirmed, onCancelled }: Pro
           </label>
         ))}
       </div>
+
+      {error && <p className="text-token-loss text-xs">{error}</p>}
 
       <ActionCardButtons
         onConfirm={handleConfirm}

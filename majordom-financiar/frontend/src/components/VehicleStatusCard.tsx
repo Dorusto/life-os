@@ -10,6 +10,7 @@ interface Props {
 
 export default function VehicleStatusCard({ data, onConfirmed, onCancelled }: Props) {
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const vehicles = data.vehicles ?? []
   const [vehicleId, setVehicleId] = useState<number | ''>(data.vehicle_id ?? vehicles[0]?.id ?? '')
 
@@ -17,6 +18,7 @@ export default function VehicleStatusCard({ data, onConfirmed, onCancelled }: Pr
 
   async function handleConfirm() {
     setLoading(true)
+    setError(null)
     try {
       const result = await confirmVehicleStatus(
         data.id,
@@ -24,7 +26,8 @@ export default function VehicleStatusCard({ data, onConfirmed, onCancelled }: Pr
       )
       onConfirmed(result.message)
     } catch (err) {
-      onConfirmed(`Error: ${err instanceof Error ? err.message : 'Unknown error'}`)
+      const msg = err instanceof Error ? err.message : 'Unknown error'
+      setError(`Could not update vehicle status (${msg}). Try again.`)
     } finally {
       setLoading(false)
     }
@@ -64,6 +67,8 @@ export default function VehicleStatusCard({ data, onConfirmed, onCancelled }: Pr
           {' '}will {data.active ? 'reappear' : 'no longer appear'} in vehicle stats and tools.
         </p>
       </div>
+
+      {error && <p className="text-token-loss text-xs">{error}</p>}
 
       <ActionCardButtons onConfirm={handleConfirm} onCancel={handleCancel} loading={loading} />
     </div>
