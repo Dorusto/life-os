@@ -63,10 +63,10 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
       if (data.action === 'create') {
         overrides = { category_name: categoryName || data.category_name, group_name: groupName || data.group_name }
       } else if (data.action === 'set_budget') {
-        overrides = { amount: parseFloat(budgetAmount) || data.new_amount }
+        overrides = { amount: budgetAmount.trim() === '' ? data.new_amount : parseFloat(budgetAmount) }
       } else if (data.action === 'set_category_goal') {
         overrides = {
-          amount: parseFloat(goalAmount) || data.amount,
+          amount: goalAmount.trim() === '' ? data.amount : parseFloat(goalAmount),
           by_month: data.goal_type === 'by' ? (goalByMonth || data.by_month) : undefined,
           monthly_limit: data.goal_type === 'simple' && goalMonthlyLimit !== ''
             ? parseFloat(goalMonthlyLimit)
@@ -76,7 +76,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
       } else if (data.action === 'set_tag_goal') {
         overrides = {
           tag: data.tag,
-          amount: parseFloat(tagGoalAmount) || data.amount,
+          amount: tagGoalAmount.trim() === '' ? data.amount : parseFloat(tagGoalAmount),
           by_month: tagGoalByMonth || data.by_month,
         }
       } else if (data.action === 'categorize_with_rule') {
@@ -87,17 +87,17 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         overrides = { income_type: incomeType }
       } else if (data.action === 'set_fire_model') {
         overrides = {
-          years_to_transition: parseFloat(fireYearsToTransition),
-          years_in_retirement: parseFloat(fireYearsInRetirement),
-          monthly_contribution: parseFloat(fireMonthlyContribution),
-          accumulation_return: parseFloat(fireAccumulationReturn) / 100,
-          decumulation_return: parseFloat(fireDecumulationReturn) / 100,
-          desired_monthly_spend: parseFloat(fireDesiredMonthlySpend),
+          years_to_transition: fireYearsToTransition.trim() === '' ? null : parseFloat(fireYearsToTransition),
+          years_in_retirement: fireYearsInRetirement.trim() === '' ? null : parseFloat(fireYearsInRetirement),
+          monthly_contribution: fireMonthlyContribution.trim() === '' ? null : parseFloat(fireMonthlyContribution),
+          accumulation_return: fireAccumulationReturn.trim() === '' ? null : parseFloat(fireAccumulationReturn) / 100,
+          decumulation_return: fireDecumulationReturn.trim() === '' ? null : parseFloat(fireDecumulationReturn) / 100,
+          desired_monthly_spend: fireDesiredMonthlySpend.trim() === '' ? null : parseFloat(fireDesiredMonthlySpend),
         }
       } else if (data.action === 'create_schedule') {
         overrides = {
           schedule_name: scheduleName || data.payee_name,
-          amount: parseFloat(scheduleAmount) || Math.abs(data.avg_amount ?? 0),
+          amount: scheduleAmount.trim() === '' ? Math.abs(data.avg_amount ?? 0) : parseFloat(scheduleAmount),
           day_of_month: parseInt(scheduleDay, 10) || data.suggested_day_of_month,
         }
       }
@@ -588,7 +588,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         onCancel={handleCancel}
         loading={loading}
         variant={isDelete ? 'danger' : 'default'}
-        confirmDisabled={(isCreate && !categoryName) || (isSetBudget && !budgetAmount) || (isCategorizeWithRule && (!payee || !selectedCategory)) || (isTagTransaction && tag.trim() === '#') || (isCreateSchedule && (!scheduleName.trim() || !scheduleAmount)) || (isSetTagGoal && (!tagGoalAmount || !tagGoalByMonth.trim()))}
+        confirmDisabled={(isCreate && !categoryName) || (isSetBudget && !budgetAmount) || (isCategorizeWithRule && (!payee || !selectedCategory)) || (isTagTransaction && tag.trim() === '#') || (isCreateSchedule && (!scheduleName.trim() || !scheduleAmount)) || (isSetTagGoal && (!tagGoalAmount || !tagGoalByMonth.trim())) || (isSetCategoryGoal && !goalAmount)}
         confirmLabel={isDelete ? 'Delete' : isCreate ? 'Create' : isSetBudget ? 'Set budget' : isCategorizeWithRule ? 'Categorize' : isTagTransaction ? 'Tag' : isMarkReconciled ? 'Mark reconciled' : isMarkBudgetOutlier ? 'Tag as one-off' : isCreateSchedule ? 'Create schedule' : isDeactivateSchedule ? 'Deactivate' : isSetBudgetCarryover || isBankResync || isSetFireModel || isSetTagGoal || isSetCategoryGoal || isClassifyIncome ? 'Confirm' : 'Rename'}
       />
     </Card>
