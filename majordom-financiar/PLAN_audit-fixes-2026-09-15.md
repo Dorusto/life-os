@@ -1,12 +1,15 @@
 # Implementation plan — fixes from the 2026-09-15 code audit
 
 Source: `docs/audit-2026-09-15.md` (86 findings: 13 HIGH, 33 MEDIUM, 39 LOW — 44 backend, 42 frontend).
-Status: **Wave 1 (T1–T6, HIGH backend) implemented 2026-09-15** — 6 commits on 5 branches
-(`fix/audit-01…06`, T4 stacked on T3), each verified by check scripts + fresh-context review
-(all PASS) + orchestrator diff inspection. Merge to main pending Doru's confirmation.
-Waves 2–5 not dispatched. Doru's answers: Q3 deferred, Q4/Q5 approved (push blocked — no
-GitHub credentials on this machine), Q2 awaiting plain-language explanation, T8 rescoped by
-Doru into a standalone unified-receipt-popup feature (see open question Q1 in the report).
+Status update 2026-09-15 (afternoon): **Wave 1 (T1–T6) AND Wave 2 (T7, T9–T13) implemented and merged to local main.**
+16 commits ahead of origin/main; push pending GitHub credentials (Doru: "mai tarziu").
+T8 was rescoped by Doru into the unified receipt-popup feature → tracked as issue #296 (cross-app:
+majordom + vehicle-manager). All merges linear (rebase + ff), each task verified by check scripts /
+tsc / fresh-context review (PASS), orchestrator diff inspection on top. Wave 2 extras: stream parser
+shipped with a 6-case unit harness (all passing on main). Follow-ups filed: #297 (doc drift),
+#298 (pre-commit timestamp window). Q2 approved → T22 fire.py half unblocked for Wave 3.
+Pending: push + docker rebuild + visual browser pass on the 5 UI-touching fixes (no docker on this
+machine — needs the LXC/stack), then Waves 3–5.
 
 ## Execution model
 
