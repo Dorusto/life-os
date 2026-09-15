@@ -106,8 +106,9 @@ async def get_duplicate_pairs(month: str, current_user: str = Depends(get_curren
     # convention in category_actions' confirm dispatch (no Pydantic validation).
     if len(month) != 7 or month[4] != "-":
         raise HTTPException(status_code=400, detail=f"Invalid month: {month!r}")
+    client = get_provider()
     try:
-        by_month = await get_provider().get_duplicate_transactions_by_month()
+        by_month = await client.get_duplicate_transactions_by_month()
     except Exception as e:
         logger.error("Failed to fetch duplicate pairs for %s: %s", month, e, exc_info=True)
         raise HTTPException(status_code=500, detail="Could not fetch duplicates")
