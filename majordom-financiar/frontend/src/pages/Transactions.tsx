@@ -597,7 +597,7 @@ export default function TransactionsPage() {
       </BottomSheet>
 
       {bulkNotice && selected.size === 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-token-surface border-t border-token-line px-4 py-3 z-40 flex items-center justify-between gap-2">
+        <div className="fixed bottom-16 lg:bottom-0 left-0 right-0 bg-token-surface border-t border-token-line px-4 py-3 z-40 flex items-center justify-between gap-2">
           <p className="text-amber-400 text-xs">{bulkNotice}</p>
           <button
             onClick={() => setBulkNotice(null)}
@@ -610,7 +610,7 @@ export default function TransactionsPage() {
       )}
 
       {selected.size > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-token-surface border-t border-token-line px-4 py-3 z-40">
+        <div className="fixed bottom-16 lg:bottom-0 left-0 right-0 bg-token-surface border-t border-token-line px-4 py-3 z-40">
           <div className="flex items-center gap-2">
             <p className="text-token-ink text-sm font-semibold flex-shrink-0">{selected.size} selected</p>
             <select
