@@ -167,6 +167,10 @@ function useChartRefetch<T>(initialTitle: string, initialData: T, initialRefetch
       // conditional (audit finding 57).
       const abBacked = refetch.endpoint.startsWith('/finance/')
       const res = await authFetch(`/api${refetch.endpoint}?${qs}`, undefined, { abBacked })
+      if (!res.ok) {
+        setError(`Failed to load chart (HTTP ${res.status})`)
+        return
+      }
       const json = await res.json()
       if (json.type === 'error') {
         setError(json.message || 'Failed to load chart')
