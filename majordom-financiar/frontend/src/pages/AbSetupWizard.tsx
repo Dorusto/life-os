@@ -1,5 +1,6 @@
 import { useState, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
 import { testAbConnection, saveAbCredentials, type AbBudgetFile } from '../lib/api'
 
 /**
@@ -16,6 +17,7 @@ import { testAbConnection, saveAbCredentials, type AbBudgetFile } from '../lib/a
  */
 export default function AbSetupWizard() {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   const [baseUrl, setBaseUrl] = useState('')
   const [password, setPassword] = useState('')
@@ -74,6 +76,7 @@ export default function AbSetupWizard() {
     try {
       const result = await saveAbCredentials(baseUrl.trim(), password, file)
       if (result.success) {
+        await queryClient.invalidateQueries({ queryKey: ['setup-status', 'ab-connected-gate'] })
         setConnectedBudgetName(result.budget_name || file)
       } else {
         setSaveError(result.error || 'Could not save credentials.')
