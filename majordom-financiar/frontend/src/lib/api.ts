@@ -8,6 +8,7 @@
  */
 
 import { authFetch, ApiError } from './auth'
+import { extractStreamEvents } from './chatStreamParser'
 import type { LineData } from '../components/Chart'
 
 export { ApiError }
@@ -712,7 +713,8 @@ export async function sendChatMessageStreaming(
   history: { role: string; content: string }[],
   onChunk: (chunk: string) => void,
   onComplete: () => void,
-  onError: (error: string) => void
+  onError: (error: string) => void,
+  signal?: AbortSignal
 ): Promise<void> {
   const body = JSON.stringify({ message, history })
 
@@ -721,6 +723,7 @@ export async function sendChatMessageStreaming(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body,
+      signal,
     })
 
     if (!res.ok) {
@@ -737,15 +740,31 @@ export async function sendChatMessageStreaming(
     
     const decoder = new TextDecoder()
 
+    // Buffer the raw stream and split it per top-level JSON object before
+    // handing anything to the consumer — TCP can split a confirmation card
+    // across two reads, and parsing a half-object loses the card as visible
+    // raw JSON (audit 2026-09-15 finding 49). See chatStreamParser.ts.
+    let buffer = ''
     while (true) {
       const { done, value } = await reader.read()
       if (done) break
-      const chunk = decoder.decode(value, { stream: true })
-      onChunk(chunk)
+      buffer += decoder.decode(value, { stream: true })
+      const { events, rest } = extractStreamEvents(buffer)
+      buffer = rest
+      for (const ev of events) onChunk(ev.value)
     }
+    buffer += decoder.decode()
+
+    // Flush whatever the parser is still holding (trailing prose, or a card
+    // truncated by a dropped connection) — onChunk treats non-JSON as text,
+    // so nothing the backend actually sent is silently dropped.
+    if (buffer) onChunk(buffer)
 
     onComplete()
   } catch (err) {
+    // Aborted by the consumer (component unmount) — the pending read rejects
+    // with an AbortError that must never surface as a user-visible chat error.
+    if (signal?.aborted || (err instanceof Error && err.name === 'AbortError')) return
     onError(err instanceof Error ? err.message : 'Unknown error')
   }
 }

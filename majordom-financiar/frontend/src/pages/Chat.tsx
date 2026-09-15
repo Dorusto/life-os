@@ -109,6 +109,9 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
   const [showHelp, setShowHelp] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
+  // Active chat stream's AbortController — aborted on unmount so navigating
+  // away doesn't leave the fetch/reader running (audit 2026-09-15 finding 49).
+  const chatAbortRef = useRef<AbortController | null>(null)
   // BottomSheet already locks document.body on open — this only needs to
   // additionally freeze the nested scrollable message list, which has its
   // own overflow-y-auto and would otherwise keep scrolling under the sheet.
@@ -122,6 +125,13 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
       }
     }
   }, [showHelp, showMenu])
+  // Abort any in-flight chat stream when the page unmounts. The streaming
+  // consumer swallows the resulting AbortError, so nothing user-visible fires.
+  useEffect(() => {
+    return () => {
+      chatAbortRef.current?.abort()
+    }
+  }, [])
   // Pre-fill the input from a "prefill" prompt — either router state (e.g.
   // tapping a "Needs attention" item on Home) or a `?prefill=` query param
   // (#12), which is all a cross-app link into the app can carry. Router state
@@ -829,6 +839,12 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
       })
       .map(m => ({ role: m.role, content: m.content }))
 
+    // Belt-and-braces: abort any stale stream before starting a new one —
+    // the `loading` guard above already prevents concurrent sends.
+    chatAbortRef.current?.abort()
+    const controller = new AbortController()
+    chatAbortRef.current = controller
+
     sendChatMessageStreaming(
       text,
       history,
@@ -859,7 +875,8 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
           ts: Date.now(),
         }])
         setLoading(false)
-      }
+      },
+      controller.signal
     )
   }
 
