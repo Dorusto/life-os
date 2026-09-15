@@ -9,7 +9,7 @@ no-docker stack (uvicorn + vite dev, fixture DB): login, Dashboard, Transactions
 above BottomNav on desktop AND mobile viewport), Accounts, Import, Settings, Chat — all render
 clean; deep interaction states (confirm cards mid-chat, error branches needing live AB/LLM)
 remain covered by code review only. Local stack left RUNNING (backend :8000 + vite :5173,
-login doru / doru-test-2026, serves current main).
+login using the local dev fixture account, serves current main).
 **Doru must do at deploy:** (1) push 33 commits (origin 3 ahead-pushed + 30 local); (2) set
 user_preferences key `fire.excluded_accounts` (JSON list of account-name substrings) on the
 real memory.db or FIRE numbers change; (3) add VAPID_CONTACT=mailto:... to .env.
