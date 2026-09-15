@@ -8,7 +8,15 @@ the same calculation — see architecture.md rule 20.
 """
 from __future__ import annotations
 
-FIRE_EXCLUDE = ["house", "mortgage", "hypotheek", "hypotheken", "cory", "wabi sabi"]
+import logging
+
+logger = logging.getLogger(__name__)
+
+# Account-name substrings excluded from the FIRE portfolio live in
+# user_preferences (key below), not in code — real account names must never
+# be hardcoded in a tracked file, and a hardcoded list silently changed FIRE
+# numbers whenever an account was renamed (audit 2026-09-15 #18).
+FIRE_EXCLUDE_PREF_KEY = "fire.excluded_accounts"
 
 FIRE_MODEL_DEFAULTS = {
     "years_to_transition": 10.0,
@@ -39,11 +47,42 @@ def load_fire_model() -> dict:
     return model
 
 
-def _fire_portfolio(accounts: list, balance_attr: str = "balance") -> float:
+def _fire_exclude_terms() -> list[str]:
+    """Exclusion terms read from user_preferences (same mechanism as
+    fire_model and #112's budget_pacing_config).
+
+    Value format: JSON list of name substrings, matched against the lowercased
+    account name. Empty list when unset — nothing is excluded until the
+    preference is set. Malformed values are ignored (with a warning) rather
+    than breaking FIRE calculations.
+    """
+    import json
+    from backend.core.config import settings
+    from backend.core.memory.database import MemoryDB
+
+    db = MemoryDB(settings.memory.db_path)
+    raw = db.get_preference(FIRE_EXCLUDE_PREF_KEY)
+    if not raw:
+        return []
+    try:
+        terms = json.loads(raw)
+    except json.JSONDecodeError:
+        logger.warning("Preference %r is not valid JSON — ignoring FIRE exclusion list", FIRE_EXCLUDE_PREF_KEY)
+        return []
+    if not isinstance(terms, list):
+        logger.warning("Preference %r is not a JSON list — ignoring FIRE exclusion list", FIRE_EXCLUDE_PREF_KEY)
+        return []
+    return [t.lower() for t in terms if isinstance(t, str) and t.strip()]
+
+
+def _fire_portfolio(
+    accounts: list, balance_attr: str = "balance", exclude_terms: list[str] | None = None
+) -> float:
+    terms = _fire_exclude_terms() if exclude_terms is None else exclude_terms
     return sum(
         getattr(a, balance_attr) for a in accounts
         if a.off_budget
-        and not any(p in a.name.lower() for p in FIRE_EXCLUDE)
+        and not any(p in a.name.lower() for p in terms)
     )
 
 
@@ -88,8 +127,9 @@ def calc_fire(accounts: list) -> dict:
     model = load_fire_model()
     is_default = model.pop("is_default_assumptions", False)
 
-    portfolio = _fire_portfolio(accounts)
-    portfolio_prev = _fire_portfolio(accounts, "balance_prev_month_end")
+    exclude_terms = _fire_exclude_terms()
+    portfolio = _fire_portfolio(accounts, exclude_terms=exclude_terms)
+    portfolio_prev = _fire_portfolio(accounts, "balance_prev_month_end", exclude_terms)
 
     # ── Required principal at transition (PV of depleting annuity) ──────────
     months_decum = round(model["years_in_retirement"] * 12)

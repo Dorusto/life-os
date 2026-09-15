@@ -96,7 +96,7 @@ async def log_refuel(
         logger.debug("AB accounts/categories fetch failed for refuel proposal dropdowns, using empty fallback lists: %s", e)
 
     # Default category: pick transport-related from AB, or fallback by vehicle type
-    is_moto = matched and any(kw in matched["name"].lower() for kw in ["wabi", "honda", "suzuki", "yamaha", "moto"])
+    is_moto = bool(matched and matched.get("vehicle_type") == "motorcycle")
     preferred = "Motorbike Costs" if is_moto else "Car Costs"
     transport_keywords = ("motorbike", "car", "transport", "fuel") if is_moto else ("car", "transport", "fuel", "motorbike")
     category_name = next(

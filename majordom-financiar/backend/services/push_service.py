@@ -16,9 +16,30 @@ logger = logging.getLogger(__name__)
 
 PRIVATE_KEY_PATH = Path("/app/data/vapid_private.pem")
 PUBLIC_KEY_PATH = Path("/app/data/vapid_public.txt")
-VAPID_CONTACT = "mailto:dorusto@gmail.com"
 
 _instance: PushService | None = None
+_vapid_contact_warned = False
+
+
+def _vapid_contact() -> str:
+    """VAPID ``sub`` claim from the settings singleton (VAPID_CONTACT env).
+
+    Empty by default — a real address must never be hardcoded in a tracked
+    file (audit 2026-09-15 #41). Push providers expect a contact (typically
+    ``mailto:you@example.com``), so warn once per process if a send is
+    attempted while it's unset.
+    """
+    global _vapid_contact_warned
+    from backend.core.config import settings
+
+    contact = settings.vapid_contact
+    if not contact and not _vapid_contact_warned:
+        logger.warning(
+            "VAPID_CONTACT is not configured — push claims will carry an empty "
+            "contact. Set VAPID_CONTACT (e.g. 'mailto:you@example.com') in .env."
+        )
+        _vapid_contact_warned = True
+    return contact
 
 
 def get_push_service() -> PushService:
@@ -39,6 +60,10 @@ class PushService:
 
     def _load_or_generate_keys(self) -> tuple[str, str]:
         if PRIVATE_KEY_PATH.exists() and PUBLIC_KEY_PATH.exists():
+            # Private key material must never be group/other-readable — enforce
+            # 0600 on already-provisioned instances too (older installs wrote
+            # the PEM with the default umask).
+            PRIVATE_KEY_PATH.chmod(0o600)
             public_key = PUBLIC_KEY_PATH.read_text().strip()
             logger.info("VAPID keys loaded from %s", PRIVATE_KEY_PATH)
             return str(PRIVATE_KEY_PATH), public_key
@@ -52,6 +77,7 @@ class PushService:
 
         PRIVATE_KEY_PATH.parent.mkdir(parents=True, exist_ok=True)
         PRIVATE_KEY_PATH.write_bytes(v.private_pem())
+        PRIVATE_KEY_PATH.chmod(0o600)
 
         pub_bytes = v.public_key.public_bytes(Encoding.X962, PublicFormat.UncompressedPoint)
         public_key = base64.urlsafe_b64encode(pub_bytes).rstrip(b"=").decode()
@@ -97,7 +123,7 @@ class PushService:
                     },
                     data=payload,
                     vapid_private_key=self._private_key_path,
-                    vapid_claims={"sub": VAPID_CONTACT},
+                    vapid_claims={"sub": _vapid_contact()},
                 ),
             )
             logger.info("Push sent → %s…", endpoint_short)

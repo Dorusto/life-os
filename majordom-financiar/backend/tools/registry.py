@@ -898,7 +898,7 @@ TOOLS: list[dict] = [
                 "properties": {
                     "vehicle_name": {
                         "type": "string",
-                        "description": "Vehicle name or partial name, e.g. 'kia', 'suzuki'. Leave empty if user has one vehicle.",
+                        "description": "Vehicle name or partial name. Leave empty if the user has one vehicle.",
                     },
                     "period": {
                         "type": "string",
@@ -924,7 +924,7 @@ TOOLS: list[dict] = [
                 "properties": {
                     "vehicle_name": {
                         "type": "string",
-                        "description": "Vehicle name or partial name, e.g. 'kia', 'suzuki'. Leave empty if user has one vehicle.",
+                        "description": "Vehicle name or partial name. Leave empty if the user has one vehicle.",
                     },
                     "months": {
                         "type": "integer",
@@ -963,7 +963,7 @@ TOOLS: list[dict] = [
                 "properties": {
                     "vehicle_name": {
                         "type": "string",
-                        "description": "Vehicle name or partial name, e.g. 'kia', 'suzuki'. Leave empty if user has one vehicle.",
+                        "description": "Vehicle name or partial name. Leave empty if the user has one vehicle.",
                     },
                     "months": {
                         "type": "integer",
@@ -1001,7 +1001,7 @@ TOOLS: list[dict] = [
                 "properties": {
                     "liters": {"type": "number", "description": "Liters added, e.g. 40.5"},
                     "total_eur": {"type": "number", "description": "Total paid in EUR, e.g. 72.50"},
-                    "vehicle_name": {"type": "string", "description": "Vehicle name if mentioned, e.g. 'cora', 'wabi sabi'"},
+                    "vehicle_name": {"type": "string", "description": "Vehicle name if mentioned, partial match supported"},
                     "odo_km": {"type": "number", "description": "Odometer in km if mentioned"},
                     "location": {"type": "string", "description": "Station name or city if mentioned"},
                     "full_tank": {"type": "boolean", "description": "True if filled to full (default), False if partial"},
@@ -1062,7 +1062,7 @@ TOOLS: list[dict] = [
                 "properties": {
                     "vehicle_name": {
                         "type": "string",
-                        "description": "Vehicle name or partial name, e.g. 'cora', 'wabi sabi'.",
+                        "description": "Vehicle name or partial name.",
                     },
                     "reminder_type": {
                         "type": "string",
@@ -1093,7 +1093,7 @@ TOOLS: list[dict] = [
                 "properties": {
                     "vehicle_name": {
                         "type": "string",
-                        "description": "Vehicle name or partial name, e.g. 'wabi sabi'.",
+                        "description": "Vehicle name or partial name.",
                     },
                     "required": {
                         "type": "boolean",
@@ -1122,7 +1122,7 @@ TOOLS: list[dict] = [
                 "properties": {
                     "vehicle_name": {
                         "type": "string",
-                        "description": "Vehicle name or partial name, e.g. 'cora', 'wabi sabi'. Leave empty if user has one vehicle.",
+                        "description": "Vehicle name or partial name. Leave empty if the user has one vehicle.",
                     },
                     "limit": {
                         "type": "integer",
@@ -1168,7 +1168,7 @@ TOOLS: list[dict] = [
                 "properties": {
                     "vehicle_name": {
                         "type": "string",
-                        "description": "Exact vehicle name, e.g. 'Wabi Sabi'.",
+                        "description": "Exact vehicle name.",
                     },
                     "vehicle_type": {
                         "type": "string",
@@ -1205,7 +1205,7 @@ TOOLS: list[dict] = [
                 "properties": {
                     "vehicle_name": {
                         "type": "string",
-                        "description": "Vehicle name or partial name, e.g. 'kia'.",
+                        "description": "Vehicle name or partial name.",
                     },
                     "active": {
                         "type": "boolean",

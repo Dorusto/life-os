@@ -138,6 +138,11 @@ class Settings:
     # JWT signing secret (read by backend/api/auth.py). Deliberately no
     # insecure default here — empty means auth.py logs a loud fallback warning.
     jwt_secret: str = ""
+    # Web Push VAPID contact claim, e.g. "mailto:you@example.com" (env-backed,
+    # read by backend/services/push_service.py). Deliberately empty by default —
+    # a real address must never be hardcoded in a tracked file; push_service
+    # warns once if a push send is attempted while this is unset.
+    vapid_contact: str = ""
 
     def __post_init__(self):
         self.default_currency = os.getenv("DEFAULT_CURRENCY", "EUR")
@@ -146,6 +151,7 @@ class Settings:
         # not created here, just read if present, see get_backup_status.
         self.backup_dir = os.getenv("BACKUP_DIR", "/app/backups")
         self.jwt_secret = os.getenv("JWT_SECRET", "")
+        self.vapid_contact = os.getenv("VAPID_CONTACT", "")
         # Ensure the DB directory exists
         Path(self.memory.db_path).parent.mkdir(parents=True, exist_ok=True)
 
