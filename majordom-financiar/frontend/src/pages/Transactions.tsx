@@ -1,5 +1,5 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { CheckSquare, Filter, List, Loader2, Table2, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
@@ -75,6 +75,7 @@ function saveViewPref(view: View) {
 export default function TransactionsPage() {
   const location = useLocation()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [view, setView] = useState<View>(loadViewPref)
   const getInitialFilters = (): FiltersState => {
     const categoryIds = location.state?.categoryIds
@@ -135,7 +136,6 @@ export default function TransactionsPage() {
       } else {
         setLoading(true)
       }
-      setError(null)
       const offset = append ? offsetRef.current : 0
       const filters: TransactionFilters = {
         limit: LIMIT,
@@ -152,6 +152,9 @@ export default function TransactionsPage() {
       }
       try {
         const rows = await getTransactionsFiltered(filters)
+        // Clear only on success so a failed load-more/filter keeps its banner
+        // visible while the previously loaded rows stay on screen.
+        setError(null)
         setTransactions(prev => (append ? [...prev, ...rows] : rows))
         offsetRef.current = offset + rows.length
         setHasMore(rows.length >= LIMIT)
@@ -240,6 +243,13 @@ export default function TransactionsPage() {
     setBulkNotice(null)
     try {
       await bulkUpdateCategory(financialIds, bulkCategoryId)
+      // Recategorized rows change per-category spend and grouping everywhere —
+      // refresh the queries derived from them. Balances and duplicate pairing
+      // are untouched, so account-list and duplicates stay as they are.
+      queryClient.invalidateQueries({ queryKey: ['transactions'] })
+      queryClient.invalidateQueries({ queryKey: ['home'] })
+      queryClient.invalidateQueries({ queryKey: ['uncategorized-groups'] })
+      queryClient.invalidateQueries({ queryKey: ['home-pending'] })
       setSelected(new Set())
       setBulkCategoryId('')
       if (financialIds.length < selectedCount) {
@@ -321,6 +331,19 @@ export default function TransactionsPage() {
             {uncategorizedOnly && <X size={12} />}
           </button>
         </div>
+
+        {!loading && error && transactions.length > 0 && (
+          <div className="flex items-center justify-between gap-2 bg-token-loss-soft rounded-xl px-3 py-2 mb-2">
+            <p className="text-token-loss text-xs">{error}</p>
+            <button
+              onClick={() => setError(null)}
+              className="text-token-ink-3 hover:text-token-ink flex-shrink-0"
+              aria-label="Dismiss"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
 
         {loading && transactions.length === 0 && (
           <div className="flex items-center justify-center py-16 text-token-ink-3">

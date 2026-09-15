@@ -54,7 +54,19 @@ export default function DuplicatesReviewPage() {
   const pairs = duplicatesData?.pairs ?? []
   const availableCategories = duplicatesData?.available_categories ?? []
 
-  function invalidateCounts() {
+  // A merge deletes one transaction and recategorizes the survivor, so every
+  // query derived from transactions goes stale — not just the duplicate counts
+  // the bell and this page display. A cancel only dismisses the suggestion.
+  function invalidateAfterMerge() {
+    queryClient.invalidateQueries({ queryKey: ['duplicates', 'months'] })
+    queryClient.invalidateQueries({ queryKey: ['transactions'] })
+    queryClient.invalidateQueries({ queryKey: ['home'] })
+    queryClient.invalidateQueries({ queryKey: ['account-list'] })
+    queryClient.invalidateQueries({ queryKey: ['uncategorized-groups'] })
+    queryClient.invalidateQueries({ queryKey: ['home-pending'] })
+  }
+
+  function invalidateAfterCancel() {
     queryClient.invalidateQueries({ queryKey: ['duplicates', 'months'] })
   }
 
@@ -64,7 +76,7 @@ export default function DuplicatesReviewPage() {
       await confirmCategoryAction(pair.action_id, override)
       setActionError(null)
       setHandledIds(prev => new Set(prev).add(pair.action_id))
-      invalidateCounts()
+      invalidateAfterMerge()
     } catch (err) {
       setActionError(
         `Couldn't merge the pair${err instanceof Error ? `: ${err.message}` : ''} — it stays in place so you can retry.`
@@ -80,7 +92,7 @@ export default function DuplicatesReviewPage() {
       await cancelCategoryAction(pair.action_id)
       setActionError(null)
       setHandledIds(prev => new Set(prev).add(pair.action_id))
-      invalidateCounts()
+      invalidateAfterCancel()
     } catch (err) {
       setActionError(
         `Couldn't cancel the pair${err instanceof Error ? `: ${err.message}` : ''} — it stays in place so you can retry.`

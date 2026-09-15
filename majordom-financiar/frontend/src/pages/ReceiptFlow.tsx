@@ -273,9 +273,14 @@ export default function ReceiptFlow() {
       }
 
       setFlowState('success')
-      // Invalidate both queries so Home refreshes list and chart automatically
+      // Invalidate every query derived from transactions so Home, balances and
+      // the review counts refresh automatically (the old ['stats'] key had no
+      // matching query — those stats live under ['home']).
       queryClient.invalidateQueries({ queryKey: ['transactions'] })
-      queryClient.invalidateQueries({ queryKey: ['stats'] })
+      queryClient.invalidateQueries({ queryKey: ['home'] })
+      queryClient.invalidateQueries({ queryKey: ['account-list'] })
+      queryClient.invalidateQueries({ queryKey: ['duplicates', 'months'] })
+      queryClient.invalidateQueries({ queryKey: ['home-pending'] })
       setTimeout(() => navigate('/', { replace: true }), 2200)
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to save')
