@@ -135,6 +135,9 @@ class Settings:
     default_currency: str = "EUR"
     log_level: str = "INFO"
     backup_dir: str = ""
+    # JWT signing secret (read by backend/api/auth.py). Deliberately no
+    # insecure default here — empty means auth.py logs a loud fallback warning.
+    jwt_secret: str = ""
 
     def __post_init__(self):
         self.default_currency = os.getenv("DEFAULT_CURRENCY", "EUR")
@@ -142,6 +145,7 @@ class Settings:
         # Mounted read-only from the host's ./backups/ (scripts/backup.sh output) —
         # not created here, just read if present, see get_backup_status.
         self.backup_dir = os.getenv("BACKUP_DIR", "/app/backups")
+        self.jwt_secret = os.getenv("JWT_SECRET", "")
         # Ensure the DB directory exists
         Path(self.memory.db_path).parent.mkdir(parents=True, exist_ok=True)
 

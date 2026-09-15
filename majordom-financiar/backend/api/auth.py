@@ -17,6 +17,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
+from backend.core.config import settings
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
@@ -29,7 +30,33 @@ router = APIRouter()
 
 # --- Configuration ---
 
-JWT_SECRET = os.getenv("JWT_SECRET", "change-me-this-is-not-secure")
+# The old hardcoded default. Kept ONLY as a sentinel so deployments that never
+# set JWT_SECRET keep working (with a loud warning) instead of hard-failing —
+# this is a single-user, Tailscale-only deployment. Never a recommended value.
+_INSECURE_FALLBACK_SECRET = "change-me-this-is-not-secure"
+
+
+def _resolve_jwt_secret() -> str:
+    """
+    Read the JWT signing secret from the settings singleton (architecture rule 4).
+
+    Empty or legacy-fallback value → sign with the fallback anyway, but log ONE
+    loud warning: tokens signed with a known constant are forgeable by anyone
+    who has ever read this repo. The secret value itself is never logged.
+    """
+    secret = settings.jwt_secret
+    if not secret or secret == _INSECURE_FALLBACK_SECRET:
+        logger.warning(
+            "JWT_SECRET is not set (or is the built-in fallback): tokens are "
+            "being signed with the built-in fallback secret, which is unsafe — "
+            "anyone who knows it can forge valid login tokens. Set a real "
+            "JWT_SECRET in .env (e.g. `openssl rand -hex 32`)."
+        )
+        return _INSECURE_FALLBACK_SECRET
+    return secret
+
+
+JWT_SECRET: str = _resolve_jwt_secret()
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_DAYS = 7
 
