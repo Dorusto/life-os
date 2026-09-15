@@ -55,6 +55,14 @@ def _classify_ab_connection_error(exc: Exception) -> tuple[str, str]:
 # One process-wide lock serializes all actualpy access regardless of client instance.
 _actual_lock = asyncio.Lock()
 
+# One process-wide executor backing ActualBudgetClient._run() (audit 2026-09-15
+# finding 4): every client instance used to build its own
+# ThreadPoolExecutor(max_workers=1) and was never shut down — one leaked
+# non-daemon thread per finance call, unbounded. One shared single-worker
+# executor is safe because every submission already serializes behind
+# _actual_lock, so the worker never runs two funcs concurrently.
+_shared_executor = ThreadPoolExecutor(max_workers=1)
+
 # Shared short-lived READ-ONLY connection cache (#223) — see
 # ActualBudgetClient._get_cached_read_actual() for why and how this is safe.
 # Module-level like _actual_lock above: there is one Actual Budget instance
@@ -708,7 +716,6 @@ class ActualBudgetClient:
         self.url = url.rstrip("/")
         self.password = password
         self.sync_id = sync_id
-        self._executor = ThreadPoolExecutor(max_workers=1)
 
     def _get_actual(self):
         from actual import Actual
@@ -755,7 +762,7 @@ class ActualBudgetClient:
         loop = asyncio.get_event_loop()
         try:
             async with _actual_lock:
-                return await loop.run_in_executor(self._executor, func)
+                return await loop.run_in_executor(_shared_executor, func)
         except (httpx.HTTPError, AuthorizationError) as e:
             error_type, message = _classify_ab_connection_error(e)
             raise ActualBudgetUnavailableError(error_type, message) from e
