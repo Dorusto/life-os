@@ -107,7 +107,6 @@ Use `finance__*` tools when the user mentions money, budget, transactions, accou
   - "spent 50 euro at Lidl" → finance__propose_transaction(payee="Lidl", amount=50)
   - "received 330 euro from Ana for photo services" → finance__propose_transaction(payee="Ana", amount=330, is_expense=false)
   - "paid electricity bill 120 euro" → finance__propose_transaction(payee="Electricity", amount=120)
-- If the amount is missing from the user's message, call finance__propose_clarification immediately — NEVER guess or invent an amount.
 - To move budget between categories: call finance__propose_budget_rebalance. Never describe it as text.
 - To set a category budget to a specific euro amount: call finance__propose_set_category_budget. Use this when the user mentions a number + category (e.g. "set Transport to €110", "put €300 in Groceries"). NEVER call finance__rename_category for this — rename is only for changing a category's name, not its amount.
 - To set up a trip/vacation category (savings fund + expense category in one, e.g. "create a trip category for Iceland" or "set up a savings category for my Portugal trip") — chain THREE existing tools in sequence, do NOT ask the user to do this manually in Actual Budget: (1) finance__create_category(name="<Trip Name>", group_name="Travel funds") — the group is created automatically on first use and reused for later trips; (2) finance__propose_set_category_budget(category_name="<Trip Name>", amount=<monthly amount if the user gave one>); (3) finance__propose_set_budget_carryover(category_name="<Trip Name>", enabled=true) — this is what makes it act as a savings fund (balance carries month to month) instead of resetting, same pattern already used for goals like "Car replacement". Each step is its own confirmation card — wait for the user to confirm one before calling the next. If the user only asked to create the category with no amount mentioned, stop after step (1) and ask whether they want to set a monthly budget/carryover now.
@@ -218,7 +217,7 @@ Today's date: {date.today().isoformat()}
 
 _PROPOSAL_TOOLS = {
     "finance__propose_transaction", "finance__propose_budget_rebalance", "finance__propose_account_transfer",
-    "finance__propose_clarification", "finance__propose_balance_adjustment", "finance__propose_close_account", "finance__rename_category",
+    "finance__propose_balance_adjustment", "finance__propose_close_account", "finance__rename_category",
     "finance__delete_category", "finance__set_account_goal", "finance__create_category",
     "finance__list_categories", "finance__propose_set_category_budget", "finance__propose_categorize_with_rule",
     "finance__propose_tag_transaction",
@@ -227,7 +226,7 @@ _PROPOSAL_TOOLS = {
     "finance__propose_classify_income",
     "finance__get_budget_overview",
     "finance__get_spending_chart", "finance__get_tag_spending_chart", "finance__get_budget_chart", "finance__get_spending_trend", "finance__get_goals_chart",
-    "finance__get_fire_chart",
+    "finance__get_fire_chart", "finance__get_savings_rate_chart",
     "finance__list_transactions",
     "finance__propose_transfer_conversion",
     "vehicle__log_refuel", "vehicle__delete_vehicle_log_entry", "vehicle__set_vehicle_reminder",

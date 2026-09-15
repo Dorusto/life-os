@@ -1405,10 +1405,6 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
         from backend.tools.finance.actual_budget import propose_budget_rebalance
         return await propose_budget_rebalance(**arguments)
 
-    if name == "finance__propose_clarification":
-        from backend.tools.finance.actual_budget import propose_clarification
-        return await propose_clarification(**arguments)
-
     if name == "finance__propose_account_transfer":
         from backend.tools.finance.actual_budget import propose_account_transfer
         return await propose_account_transfer(**arguments)
