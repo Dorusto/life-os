@@ -1373,7 +1373,10 @@ function PendingFuelStatsDisplay({ msg, draft: propDraft, stats: propStats }: {
           {resolvedDraft?.merchant && <p className="text-xs text-token-ink-3">{resolvedDraft.merchant}</p>}
         </>
       ) : (
-        <p className="text-xs text-token-loss">❌ Failed to save fuel receipt.</p>
+        <p className="text-xs text-token-loss">
+          ❌ Failed to save fuel receipt.
+          {resolvedStats.error && <span className="text-token-ink-3"> — {resolvedStats.error}</span>}
+        </p>
       )}
     </div>
   )

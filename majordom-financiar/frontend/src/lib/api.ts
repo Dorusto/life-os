@@ -125,6 +125,10 @@ export interface FuelConfirmResponse {
   price_per_liter: number | null
   fuel_grade: string | null
   possible_match?: NearDuplicateMatch | null
+  // Frontend-only: FuelReceiptCard's catch fills this with a short
+  // status/text detail when the confirm request fails — the backend
+  // never sends this field.
+  error?: string | null
 }
 
 export interface Transaction {

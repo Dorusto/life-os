@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Loader2, Check } from 'lucide-react'
 import { confirmFuelReceipt, type ReceiptDraft, type FuelConfirmResponse, type VehicleOption, type AccountOption, type Category, type NearDuplicateMatch } from '../lib/api'
-import { authFetch } from '../lib/auth'
+import { authFetch, ApiError } from '../lib/auth'
 import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 
 // Helper: get base URL for API calls
@@ -90,12 +90,15 @@ export default function FuelReceiptCard({
   }
 
   async function handleConfirm(opts?: { forceNew?: boolean; attachTo?: string }) {
-    if (!litersNum || !totalNum || !vehicle) return
+    if (!litersNum || !totalNum || !vehicle || !accountId) return
+    // The confirm contract (FuelConfirmRequest.category_name) is the AB display
+    // NAME, not the category id — resolve the selected id to its name here.
+    const categoryName = categories.find(c => c.id === category)?.name ?? category
     setSaving(true)
     try {
       const body = {
-        account_id: accountId || 'dummy',
-        category_name: category,
+        account_id: accountId,
+        category_name: categoryName,
         date,
         station,
         total_eur: totalNum,
@@ -145,6 +148,13 @@ export default function FuelReceiptCard({
       }
       onConfirmed(response)
     } catch (err) {
+      // Keep the error and surface a short status/text detail instead of a
+      // bare failure — ApiError carries the HTTP status, Errors the fetch text.
+      const detail = err instanceof ApiError
+        ? `${err.status} ${err.message}`.trim()
+        : err instanceof Error
+          ? err.message
+          : 'Unknown error'
       onConfirmed({
         success: false,
         duplicate: false,
@@ -157,6 +167,7 @@ export default function FuelReceiptCard({
         liters: null,
         price_per_liter: null,
         fuel_grade: null,
+        error: detail,
       })
     } finally {
       setSaving(false)
@@ -352,7 +363,7 @@ export default function FuelReceiptCard({
                   <option key={acc.id} value={acc.id}>{acc.name}</option>
                 ))
               ) : (
-                <option value={accountId}>{accountId || 'Default'}</option>
+                <option value={accountId}>{accountId || 'No account available'}</option>
               )}
             </select>
           </div>
@@ -433,7 +444,7 @@ export default function FuelReceiptCard({
             </button>
             <button
               onClick={() => handleConfirm()}
-              disabled={saving || !liters || !total || !vehicle}
+              disabled={saving || !liters || !total || !vehicle || !accountId}
               className="flex-1 py-2 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-ink text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
             >
               {saving ? (
