@@ -143,9 +143,10 @@ def api_key_source() -> str | None:
 def _api_key() -> str:
     """Twelve Data key, from the stored setting first, then the env var.
 
-    Read fresh on every call (a single indexed SQLite lookup) rather than
-    cached at import time, so a key saved through the Settings UI takes effect
-    without a container restart.
+    Read fresh on every call (a couple of indexed SQLite lookups — one to
+    resolve the source, one to read the value) rather than cached at import
+    time, so a key saved through the Settings UI takes effect without a
+    container restart.
 
     The key value is never logged and never included in a raised message.
     """
@@ -188,6 +189,22 @@ def _throttle() -> None:
         time.sleep(max(wait, 0.0))
 
 
+def _redact_api_key(message: str, api_key: str) -> str:
+    """Strip the API key value out of a provider error message, if present.
+
+    httpx's ``raise_for_status()`` includes the full request URL — query
+    string and all — in its exception text, and the key travels as the
+    ``apikey`` query parameter. These wrapped strings are exactly what gets
+    logged and stored in ``_last_errors`` for the Settings UI, and the key
+    must never appear in a raised message, a log line, or a response body
+    (plan section 6), so it is stripped at the single point where provider
+    errors are wrapped.
+    """
+    if api_key and api_key in message:
+        return message.replace(api_key, "***")
+    return message
+
+
 def _get_json(path: str, params: dict) -> dict:
     """GET a Twelve Data endpoint and return parsed JSON, raising on failure.
 
@@ -204,7 +221,8 @@ def _get_json(path: str, params: dict) -> dict:
     proves flaky on first boot, move the call sites onto a thread pool
     (``asyncio.to_thread``) and give ``_throttle`` a ``threading.Lock``.
     """
-    params = {**params, "apikey": _api_key()}
+    api_key = _api_key()
+    params = {**params, "apikey": api_key}
     # Only after the key resolves, so a misconfigured key cannot burn a slot.
     if _in_cooldown():
         raise MarketDataError("Twelve Data rate limit cooldown active")
@@ -224,7 +242,9 @@ def _get_json(path: str, params: dict) -> dict:
         resp.raise_for_status()
         payload = resp.json()
     except (httpx.HTTPError, ValueError) as exc:
-        raise MarketDataError(f"Twelve Data request failed: {exc}") from exc
+        raise MarketDataError(
+            f"Twelve Data request failed: {_redact_api_key(str(exc), api_key)}"
+        ) from exc
 
     if isinstance(payload, dict) and payload.get("status") == "error":
         raise MarketDataError(payload.get("message", "Twelve Data error"))

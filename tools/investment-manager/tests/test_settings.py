@@ -83,3 +83,19 @@ def test_public_settings_expose_source_and_errors(monkeypatch, tmp_path):
     # The key itself still never leaves the backend.
     assert "twelve_data_api_key" not in settings
     assert "super-secret" not in str(settings)
+
+
+def test_error_messages_never_carry_the_api_key():
+    # httpx's raise_for_status() embeds the full request URL — apikey query
+    # parameter included — in its exception text, and that wrapped string is
+    # exactly what _record_error stores for the Settings UI and what the
+    # stale-cache log lines print. The key must never survive into either.
+    message = (
+        "Twelve Data request failed: Server error '500 Internal Server Error'"
+        " for url 'https://api.twelvedata.com/price?symbol=AAPL&apikey=super-secret'"
+    )
+    redacted = market_data._redact_api_key(message, "super-secret")
+    assert "super-secret" not in redacted
+    assert "symbol=AAPL" in redacted
+    # A message that never contained the key passes through unchanged.
+    assert market_data._redact_api_key("no key here", "super-secret") == "no key here"
