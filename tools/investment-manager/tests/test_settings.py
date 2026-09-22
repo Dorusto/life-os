@@ -90,12 +90,14 @@ def test_error_messages_never_carry_the_api_key():
     # parameter included — in its exception text, and that wrapped string is
     # exactly what _record_error stores for the Settings UI and what the
     # stale-cache log lines print. The key must never survive into either.
+    # The placeholder uses the change_this_to_ prefix the private-data scanner
+    # whitelists — a bare fake value inside a URL reads as a real credential.
     message = (
         "Twelve Data request failed: Server error '500 Internal Server Error'"
-        " for url 'https://api.twelvedata.com/price?symbol=AAPL&apikey=super-secret'"
+        " for url 'https://api.twelvedata.com/price?symbol=AAPL&apikey=change_this_to_a_real_key'"
     )
-    redacted = market_data._redact_api_key(message, "super-secret")
-    assert "super-secret" not in redacted
+    redacted = market_data._redact_api_key(message, "change_this_to_a_real_key")
+    assert "change_this_to_a_real_key" not in redacted
     assert "symbol=AAPL" in redacted
     # A message that never contained the key passes through unchanged.
-    assert market_data._redact_api_key("no key here", "super-secret") == "no key here"
+    assert market_data._redact_api_key("no key here", "change_this_to_a_real_key") == "no key here"
