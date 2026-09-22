@@ -967,13 +967,16 @@ export async function getBudgetPacingStatus(): Promise<BudgetPacingStatus> {
 }
 
 // --- FIRE excluded accounts (#299) ---
+// Not abRequest: both handlers only read/write a user preference in SQLite and
+// never call Actual Budget, so a 200 proves nothing about AB health (audit
+// finding 57) — same reasoning as getBudgetPacingStatus above.
 
 export async function getFireExcludedAccounts(): Promise<{ terms: string[] }> {
-  return abRequest<{ terms: string[] }>('/fire/excluded-accounts')
+  return request<{ terms: string[] }>('/fire/excluded-accounts')
 }
 
 export async function saveFireExcludedAccounts(terms: string[]): Promise<{ terms: string[] }> {
-  return abRequest<{ terms: string[] }>('/fire/excluded-accounts', {
+  return request<{ terms: string[] }>('/fire/excluded-accounts', {
     method: 'PUT',
     body: JSON.stringify({ terms }),
   })
