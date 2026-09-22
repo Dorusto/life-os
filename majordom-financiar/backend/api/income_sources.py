@@ -11,6 +11,9 @@ Flow:
      the income source or mark it as a transfer from another account.
   3. This endpoint creates the category in Actual Budget and a matching AB rule
      so future CSV imports auto-categorize transactions from this payee.
+  4. Transfer mode additionally retro-converts the payee's existing
+     uncategorized transactions into real AB transfers (#301), skipping any
+     whose counterpart already exists in the target account.
 """
 import logging
 from typing import Literal
@@ -40,6 +43,7 @@ class CreateIncomeSourceRequest(BaseModel):
 class CreateIncomeSourceResponse(BaseModel):
     category_name: str | None = None
     updated_count: int = 0
+    skipped_count: int = 0
 
 
 # ---------------------------------------------------------------------------
@@ -67,6 +71,10 @@ async def create_income_source(
       1. Creates an AB rule (payee → the target account's transfer payee) so future
          CSV imports auto-detect this payee as a transfer, using Actual Budget's own
          transfer mechanism — no separate Majordom-side storage needed (#99).
+      2. Retroactively converts the payee's existing uncategorized transactions into
+         real AB transfers to/from the target account (#301). A transaction whose
+         counterpart already exists in that account is left untouched and reported
+         in skipped_count, to be linked manually (#120).
     """
     client = get_provider()
 
@@ -108,4 +116,11 @@ async def create_income_source(
                 "Transfer rule created: %s → account %s [user=%s]",
                 body.payee, body.account_id, current_user,
             )
-        return CreateIncomeSourceResponse(category_name=None, updated_count=0)
+        result = await client.convert_uncategorized_by_payee_to_transfer(
+            body.payee, body.account_id,
+        )
+        return CreateIncomeSourceResponse(
+            category_name=None,
+            updated_count=result["converted"],
+            skipped_count=result["skipped"],
+        )

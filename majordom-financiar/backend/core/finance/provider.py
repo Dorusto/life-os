@@ -192,6 +192,10 @@ class FinanceProvider(Protocol):
         self, payee: str, category_id: str, notes_contains: str = ""
     ) -> int: ...
 
+    async def convert_uncategorized_by_payee_to_transfer(
+        self, payee: str, target_account_id: str
+    ) -> dict: ...
+
     async def create_payee_rule(
         self, payee_name_prefix: str, category_id: str
     ) -> None: ...

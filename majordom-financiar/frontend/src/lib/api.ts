@@ -1061,7 +1061,7 @@ export async function createIncomeSource(params: {
   type: 'income' | 'transfer'
   income_name?: string
   account_id?: string
-}): Promise<{ category_name: string | null; updated_count: number }> {
+}): Promise<{ category_name: string | null; updated_count: number; skipped_count: number }> {
   return abRequest('/income/sources', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
