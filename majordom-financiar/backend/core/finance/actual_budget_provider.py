@@ -285,6 +285,9 @@ class ActualBudgetProvider:
     async def get_uncategorized_groups(self) -> list[dict]:
         return await self._client().get_uncategorized_groups()
 
+    async def suggest_category_for_payee(self, payee: str, notes: str) -> str | None:
+        return await self._client().suggest_category_for_payee(payee, notes)
+
     async def get_transactions_by_tag(self, tag: str) -> dict:
         return await self._client().get_transactions_by_tag(tag)
 

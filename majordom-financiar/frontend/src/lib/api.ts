@@ -1101,6 +1101,23 @@ export async function createIncomeSource(params: {
   })
 }
 
+// --- On-demand LLM category suggestion (#309) ---
+// Replaces the old automatic bulk call: the Uncategorized review card's
+// "Suggest category" button hits this once per payee, so the user gets a real
+// loading state and a retryable error instead of a silent no-op. A 200 with
+// category_name === null means "the LLM found no match", not a failure.
+
+export async function suggestCategory(params: {
+  payee: string
+  notes: string
+}): Promise<{ category_name: string | null }> {
+  return abRequest<{ category_name: string | null }>('/home/uncategorized/suggest-category', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  })
+}
+
 // --- Balance Adjustment ---
 
 export interface BalanceAdjustmentData {

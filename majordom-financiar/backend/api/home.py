@@ -287,6 +287,42 @@ async def get_uncategorized_group_actions(current_user: str = Depends(get_curren
     return {"items": items}
 
 
+class SuggestCategoryRequest(BaseModel):
+    payee: str
+    notes: str = ""
+
+
+@router.post("/home/uncategorized/suggest-category")
+async def suggest_uncategorized_category(
+    body: SuggestCategoryRequest,
+    current_user: str = Depends(get_current_user),
+):
+    """
+    On-demand LLM category suggestion for one uncategorized payee (#309) — the
+    review card's "Suggest category" button. Replaces the previous automatic
+    bulk call, which fired one LLM request per group on every page load and, on
+    a transient empty LLM response, showed the user nothing at all (no error,
+    no retry, just an empty category select).
+
+    A 200 with {"category_name": None} is a valid answer ("the LLM found no
+    matching category"), not an error — only a real failure (timeout, bad
+    status, unparseable response, AB unreachable) becomes a 503 the user can
+    retry.
+    """
+    client = get_provider()
+    try:
+        category_name = await client.suggest_category_for_payee(body.payee, body.notes)
+    except Exception as e:
+        # Never silent — this project's dominant bug pattern is "failed
+        # silently" (architecture.md rules 12/14/15/17/21/22), and #309 was
+        # exactly that: an invisible LLM failure the user couldn't retry.
+        logger.error(
+            "Category suggestion failed for payee '%s': %s", body.payee, e, exc_info=True,
+        )
+        raise HTTPException(status_code=503, detail="Couldn't get a suggestion — try again.")
+    return {"category_name": category_name}
+
+
 @router.get("/home/unreconciled/groups")
 async def get_unreconciled_group_actions(current_user: str = Depends(get_current_user)):
     """

@@ -732,11 +732,9 @@ def _compute_expense_coverage(session, txs, all_cats) -> dict:
     }
 
 
-# Cap on LLM category-suggestion calls per get_uncategorized_groups() request
-# (#309) — an account with a long uncategorized backlog must not fire dozens of
-# text-LLM calls on one review-screen load. Same precedent as the [:10] cap on
-# duplicate_pairs in get_reconciliation_suspects().
-_LLM_SUGGEST_MAX_GROUPS = 20
+# Timeout for the on-demand LLM category-suggestion call (#309) — invoked from
+# the review card's explicit "Suggest category" button, one request per click,
+# so no per-request call cap is needed any more.
 _LLM_SUGGEST_TIMEOUT_SECONDS = 30
 
 _LLM_SUGGEST_CATEGORY_PROMPT = """\
@@ -784,17 +782,24 @@ async def _suggest_category_with_llm(
 ) -> str | None:
     """Ask the text LLM to pick one category from the user's real category list.
 
-    The third and last fallback for an uncategorized payee (#309), reached only
-    when payee history AND the notes-keyword match both came up empty. Same call
-    shape as CsvProfileDetector.detect_with_llm(): aiohttp POST to
+    The on-demand third fallback for an uncategorized payee (#309), reached only
+    from the review card's explicit "Suggest category" button — never
+    automatically on page load — and only for a payee whose history AND
+    notes-keyword match both came up empty. Same call shape as
+    CsvProfileDetector.detect_with_llm(): aiohttp POST to
     ``{base_url}/v1/chat/completions`` (the client appends the path, never the
     caller), build_llm_headers(), temperature 0.0, and ``think: False`` for
     qwen3 models.
 
-    Returns a name copied verbatim from ``category_names``, or None on any
-    failure, timeout, malformed response, or no-match — the caller must treat
-    this as purely provisional: the suggestion is only pre-filled into an
+    Returns a name copied verbatim from ``category_names``, or None when the
+    LLM gave a valid answer naming no category that fits — the caller must
+    treat the result as purely provisional: it is only pre-filled into an
     editable select, never applied without the user confirming.
+
+    A transport/HTTP/parse failure is NOT folded into that ``None``: an empty
+    LLM response used to be indistinguishable from "no category fits", so the
+    user saw an empty select with nothing explaining why. It is logged and
+    re-raised instead, for the caller to turn into a retryable error.
     """
     import aiohttp
     import json
@@ -831,17 +836,18 @@ async def _suggest_category_with_llm(
             ) as resp:
                 if resp.status != 200:
                     body = await resp.text()
-                    logger.warning(
-                        "LLM category suggestion failed (HTTP %s) for payee %r: %s",
-                        resp.status, payee, body[:200],
+                    # Deliberately not folded into the None below — a failure
+                    # must stay distinguishable from "no category fits" (#309).
+                    # Logged by the except clause, which re-raises.
+                    raise RuntimeError(
+                        f"LLM category suggestion failed (HTTP {resp.status}): {body[:200]}"
                     )
-                    return None
                 data = await resp.json()
         content = data["choices"][0]["message"]["content"].strip()
         parsed = json.loads(_extract_llm_json(content))
     except Exception as e:
         logger.warning("LLM category suggestion failed for payee %r: %s", payee, e)
-        return None
+        raise
 
     suggested = str(parsed.get("category_name") or "").strip()
     if not suggested:
@@ -3860,10 +3866,6 @@ class ActualBudgetClient:
                 ]
 
                 groups = []
-                # payee_id → one uncategorized transaction's note text, kept only
-                # for groups whose notes query already runs below. Feeds the LLM
-                # fallback (#309) without a second notes fetch.
-                notes_by_payee_id: dict[str, str] = {}
                 for row in rows:
                     rule_prefix = rule_match_prefix(row.payee_name or "")
                     history = (
@@ -3929,16 +3931,6 @@ class ActualBudgetClient:
                         if len(notes_matches) == 1:
                             suggested_category = next(iter(notes_matches))
                             suggested_category_source = "notes"
-                        # First usable note, read from the query above — the LLM
-                        # fallback (#309) prompts with it. Groups with a history
-                        # suggestion never get here, and never need one.
-                        sample_note = next(
-                            ((text or "").strip() for (text,) in notes_rows if (text or "").strip()),
-                            "",
-                        )
-                        if sample_note:
-                            notes_by_payee_id[str(row.payee_id)] = sample_note
-
                     payee_name = row.payee_name or "Unknown"
                     own_account = None
                     for acc_id, acc_name in account_names:
@@ -3969,8 +3961,8 @@ class ActualBudgetClient:
                         "own_account": own_account,
                         "interest_category": interest_category,
                     })
-                return groups, notes_by_payee_id
-        groups, notes_by_payee_id = await self._run(_fetch)
+                return groups
+        groups = await self._run(_fetch)
 
         # transfer_rule takes priority over the name/keyword heuristics above —
         # match_existing_rules() is async and batch-by-design, so it runs here,
@@ -3990,36 +3982,28 @@ class ActualBudgetClient:
                     "reason": "transfer_rule",
                 }
 
-        # Third fallback (#309): neither payee history nor the notes-keyword
-        # match suggested anything, so ask the LLM once per group — concurrently,
-        # and capped — and pre-fill its answer. Strictly provisional and last:
-        # it never overrides a "history"/"notes" suggestion, and nothing is
-        # written to AB until the user taps Confirm. Any failure just leaves
-        # suggested_category as None, exactly as before this step existed.
-        pending = [
-            g for g in groups if g["suggested_category"] is None
-        ][:_LLM_SUGGEST_MAX_GROUPS]
-        if pending:
-            try:
-                category_names = [c.name for c in await self.get_categories()]
-            except Exception as e:
-                logger.warning("LLM category suggestion skipped, category list unavailable: %s", e)
-                category_names = []
-            if category_names:
-                suggestions = await asyncio.gather(*[
-                    _suggest_category_with_llm(
-                        g["payee_name"],
-                        notes_by_payee_id.get(g["payee_id"], ""),
-                        category_names,
-                    )
-                    for g in pending
-                ])
-                for group, suggested in zip(pending, suggestions):
-                    if suggested:
-                        group["suggested_category"] = suggested
-                        group["suggested_category_source"] = "llm"
-
         return groups
+
+    async def suggest_category_for_payee(self, payee: str, notes: str) -> str | None:
+        """Ask the LLM for one category suggestion, for the review card's
+        on-demand "Suggest category" button (#309).
+
+        Deliberately no longer called from get_uncategorized_groups(): the
+        automatic bulk version ran one LLM request per uncategorized group on
+        every review-screen load and failed silently — a transient empty
+        response was indistinguishable from a legitimate "no category fits",
+        so the user saw an empty select with no error and no retry. One request
+        per explicit click instead.
+
+        Reads the user's real category names via get_categories() (the same
+        source the bulk version used) and delegates to
+        _suggest_category_with_llm(). Returns the suggested name, or None when
+        the LLM validly answered that nothing fits. Any transport/HTTP/parse
+        failure propagates to the caller — never swallowed here, so the
+        endpoint can surface a retryable error.
+        """
+        category_names = [c.name for c in await self.get_categories()]
+        return await _suggest_category_with_llm(payee, notes, category_names)
 
     async def _fetch_tagged(self, tag: str) -> tuple[str, list]:
         """Shared query for tag-filtered transactions. Returns (tag_pattern, rows)

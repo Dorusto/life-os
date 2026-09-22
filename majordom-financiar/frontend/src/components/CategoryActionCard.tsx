@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { confirmCategoryAction, cancelCategoryAction, type CategoryActionData } from '../lib/api'
+import { Loader2 } from 'lucide-react'
+import { confirmCategoryAction, cancelCategoryAction, suggestCategory, type CategoryActionData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
 import OwnAccountPanel from './OwnAccountPanel'
 import { formatCurrency } from '../lib/formatCurrency'
@@ -40,6 +41,13 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const [incomeType, setIncomeType] = useState(data.action === 'classify_income' ? (data.income_type ?? 'passive') : 'passive')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // On-demand LLM category suggestion (#309) for categorize_with_rule —
+  // replaces the automatic bulk call that fired once per uncategorized group
+  // on every page load and failed invisibly when the LLM returned nothing.
+  const [suggestingCategory, setSuggestingCategory] = useState(false)
+  const [suggestError, setSuggestError] = useState<string | null>(null)
+  const [suggestNotice, setSuggestNotice] = useState<string | null>(null)
 
   // create_schedule editable fields
   const [scheduleName, setScheduleName] = useState(data.action === 'create_schedule' ? (data.payee_name ?? '') : '')
@@ -124,6 +132,33 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
     setLoading(true)
     try { await cancelCategoryAction(data.id) } catch {}
     onCancelled()
+  }
+
+  async function handleSuggestCategory() {
+    setSuggestingCategory(true)
+    setSuggestError(null)
+    setSuggestNotice(null)
+    try {
+      const result = await suggestCategory({
+        payee: payee || data.payee || '',
+        // The group's own uncategorized transactions carry the notes text the
+        // LLM prompts with — same source the old backend bulk call used.
+        notes: data.transactions?.[0]?.notes ?? '',
+      })
+      if (result.category_name) {
+        setSelectedCategory(result.category_name)
+      } else {
+        // A valid "no category fits" answer, not a failure — the button stays
+        // available so the user can retry or just pick one by hand.
+        setSuggestNotice('No suggestion found — pick a category manually.')
+      }
+    } catch (err) {
+      setSuggestError(err instanceof Error ? err.message : 'Could not get a suggestion')
+    } finally {
+      // Always released: a failure must never leave the button stuck in a
+      // permanent loading or dead state.
+      setSuggestingCategory(false)
+    }
   }
 
   const isDelete = data.action === 'delete'
@@ -476,6 +511,28 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
                 onChange={e => setSelectedCategory(e.target.value)}
                 className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
               />
+            )}
+            {/* On-demand suggestion (#309). Offered only while nothing is
+                selected — the pre-filled history/notes suggestion already
+                seeds `selectedCategory`, so an existing suggestion is never
+                silently overwritten. Fills the field only; the card's own
+                Categorize button is still what applies it. */}
+            {!selectedCategory && (
+              <div className="space-y-1.5 pt-1">
+                <button
+                  type="button"
+                  aria-label="Suggest category"
+                  onClick={handleSuggestCategory}
+                  disabled={suggestingCategory}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-token-line text-token-ink text-xs hover:border-token-brand transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {suggestingCategory
+                    ? <><Loader2 size={12} className="animate-spin" /> Suggesting…</>
+                    : 'Suggest category'}
+                </button>
+                {suggestNotice && <p className="text-token-ink-3 text-xs">{suggestNotice}</p>}
+                {suggestError && <p className="text-token-loss text-xs">{suggestError}</p>}
+              </div>
             )}
           </div>
           <div className="space-y-1">
