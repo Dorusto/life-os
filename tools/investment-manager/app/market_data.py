@@ -74,6 +74,29 @@ class MarketDataError(Exception):
     """No live value and no cached fallback is available."""
 
 
+# Last refresh failure per symbol/pair, for the Settings UI's "symbols failing
+# to refresh" list. In-memory and reset on restart, like the cooldown state
+# above — diagnostic only, never a source of truth for pricing.
+_last_errors: dict[str, str] = {}
+
+# Transient provider-wide failures: recording these per symbol would hide the
+# real per-symbol cause (a bad ticker, a paid-plan-only exchange) behind a
+# message that says nothing about the symbol itself.
+_TRANSIENT_ERROR_MARKERS = ("rate limit cooldown active", "rate limit exceeded")
+
+
+def _record_error(symbol: str, exc: Exception) -> None:
+    message = str(exc)
+    if any(marker in message for marker in _TRANSIENT_ERROR_MARKERS):
+        return
+    _last_errors[symbol] = message
+
+
+def recent_errors() -> dict[str, str]:
+    """Copy of the last refresh failure per symbol/pair (diagnostic only)."""
+    return dict(_last_errors)
+
+
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -94,22 +117,44 @@ def _is_fresh(fetched_at: str | None) -> bool:
     return _age_seconds(fetched_at) < CACHE_TTL_SECONDS
 
 
+def _stored_key() -> str:
+    return (database.get_setting("twelve_data_api_key") or "").strip()
+
+
+def _env_key() -> str:
+    return os.getenv("TWELVE_DATA_API_KEY", "").strip()
+
+
+def api_key_source() -> str | None:
+    """Where the Twelve Data key comes from: ``"settings"``, ``"env"`` or None.
+
+    The stored setting wins over ``TWELVE_DATA_API_KEY`` when both are present
+    (user decision), so an existing .env-based setup keeps working unchanged
+    until a key is saved in the UI. This is the single place that precedence is
+    expressed; ``_api_key`` reads the value through it.
+    """
+    if _stored_key():
+        return "settings"
+    if _env_key():
+        return "env"
+    return None
+
+
 def _api_key() -> str:
     """Twelve Data key, from the stored setting first, then the env var.
 
     Read fresh on every call (a single indexed SQLite lookup) rather than
     cached at import time, so a key saved through the Settings UI takes effect
-    without a container restart. The stored setting wins over
-    ``TWELVE_DATA_API_KEY`` when both are present, so an existing .env-based
-    setup keeps working unchanged until a key is saved in the UI.
+    without a container restart.
 
     The key value is never logged and never included in a raised message.
     """
-    stored = database.get_setting("twelve_data_api_key")
-    key = (stored or os.getenv("TWELVE_DATA_API_KEY", "")).strip()
-    if not key:
-        raise MarketDataError("Twelve Data API key is not configured")
-    return key
+    source = api_key_source()
+    if source == "settings":
+        return _stored_key()
+    if source == "env":
+        return _env_key()
+    raise MarketDataError("Twelve Data API key is not configured")
 
 
 def _throttle() -> None:
@@ -221,8 +266,10 @@ def get_price(ticker: str, currency: str | None = None, force: bool = False) -> 
         # passes the security's own), so this must not assume a dict.
         annotation_currency = currency or (cached or {}).get("currency") or "USD"
         database.upsert_price(ticker, price, annotation_currency, _now_iso())
+        _last_errors.pop(ticker, None)
         return price
     except MarketDataError as exc:
+        _record_error(ticker, exc)
         if cached:
             logger.warning("Serving stale cached price for %s: %s", ticker, exc)
             return float(cached["price"])
@@ -255,8 +302,10 @@ def get_fx_rate(from_currency: str, to_currency: str, force: bool = False) -> fl
         if rate is None or rate <= 0:
             raise MarketDataError(f"No rate returned for {pair}")
         database.upsert_fx(pair, rate, _now_iso())
+        _last_errors.pop(pair, None)
         return rate
     except MarketDataError as exc:
+        _record_error(pair, exc)
         if cached:
             logger.warning("Serving stale cached FX rate for %s: %s", pair, exc)
             return float(cached["rate"])
@@ -312,8 +361,10 @@ def get_price_history(ticker: str, start_date: str, end_date: str | None = None,
         if points:
             database.upsert_price_history(ticker, points, _now_iso())
         merged = database.get_price_history(ticker)
+        _last_errors.pop(ticker, None)
         return [p for p in merged if p["date"] >= start_date]
     except MarketDataError as exc:
+        _record_error(ticker, exc)
         if cached:
             logger.warning("Serving cached price history for %s: %s", ticker, exc)
             return [p for p in cached if p["date"] >= start_date]
