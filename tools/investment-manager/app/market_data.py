@@ -221,8 +221,8 @@ def _get_json(path: str, params: dict) -> dict:
     proves flaky on first boot, move the call sites onto a thread pool
     (``asyncio.to_thread``) and give ``_throttle`` a ``threading.Lock``.
     """
-    api_key = _api_key()
-    params = {**params, "apikey": api_key}
+    key = _api_key()
+    params = {**params, "apikey": key}
     # Only after the key resolves, so a misconfigured key cannot burn a slot.
     if _in_cooldown():
         raise MarketDataError("Twelve Data rate limit cooldown active")
@@ -243,7 +243,7 @@ def _get_json(path: str, params: dict) -> dict:
         payload = resp.json()
     except (httpx.HTTPError, ValueError) as exc:
         raise MarketDataError(
-            f"Twelve Data request failed: {_redact_api_key(str(exc), api_key)}"
+            f"Twelve Data request failed: {_redact_api_key(str(exc), key)}"
         ) from exc
 
     if isinstance(payload, dict) and payload.get("status") == "error":
