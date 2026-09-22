@@ -1183,6 +1183,10 @@ export interface CategoryActionData {
   transactions?: { date: string; amount: number; notes: string }[]
   rule_prefix?: string
   is_consistent?: boolean
+  // own-account detection (#301) — set when the payee looks like one of the
+  // user's own accounts; reason is "transfer_rule" | "account_name" | "savings_keyword"
+  own_account?: { account_id: string | null; account_name: string | null; reason: string } | null
+  interest_category?: string | null
   // budget_copy fields:
   target_month?: string
   source_month?: string

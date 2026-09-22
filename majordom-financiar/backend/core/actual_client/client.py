@@ -18,6 +18,14 @@ logger = logging.getLogger(__name__)
 
 ACCOUNT_TYPES = ("Cash", "Investment", "Vehicle", "Loan", "Rental")
 
+# Generic own-savings keywords (#301) — a payee containing one of these is
+# likely a transfer to/from the user's own savings, even when no AB account
+# name matches. Deliberately generic across languages, no personal data.
+_OWN_SAVINGS_KEYWORDS = (
+    "savings", "saving account", "spaar", "economii", "sparkonto",
+    "tagesgeld", "epargne", "livret",
+)
+
 
 class ActualBudgetUnavailableError(Exception):
     """Raised by _run() when a call into actualpy fails because AB itself is
@@ -3628,9 +3636,19 @@ class ActualBudgetClient:
         - suggested_category: str | None  — from AB history, or from notes if no history exists
         - suggested_category_source: "history" | "notes" | None
         - is_consistent: bool  — False if same payee was categorized differently before
+        - own_account: None, or {"account_id": str | None, "account_name": str | None,
+          "reason": "transfer_rule" | "account_name" | "savings_keyword"} — set when the
+          payee looks like one of the user's own accounts (#301). "transfer_rule" means an
+          existing AB transfer rule already covers this payee; "account_name" means an open
+          account's name appears as a whole word in the payee name; "savings_keyword" means
+          the payee contains a generic own-savings keyword (account_id/account_name are
+          None — the user picks the account).
+        - interest_category: str | None — name of an existing category containing
+          "interest" (case-insensitive), else None. Same value for every group.
         """
         def _fetch():
-            from actual.database import Transactions, Payees, Categories
+            import re
+            from actual.database import Transactions, Payees, Categories, Accounts
             from sqlalchemy import func
             with self._get_actual() as actual:
                 rows = (
@@ -3660,6 +3678,22 @@ class ActualBudgetClient:
                     c.name for c in actual.session.query(Categories)
                     .filter(Categories.tombstone == 0, Categories.name != None)
                     .all()
+                ]
+
+                # Same value for every group — computed once (#301).
+                interest_category = next(
+                    (n for n in all_cat_names if "interest" in n.lower()), None
+                )
+
+                # Open accounts for own-account detection (#301) — queried once,
+                # not per group. Names shorter than 3 chars are skipped: too
+                # likely to match as a substring of an unrelated payee.
+                account_names = [
+                    (str(a.id), a.name)
+                    for a in actual.session.query(Accounts)
+                    .filter(Accounts.tombstone == 0)
+                    .all()
+                    if a.name and not a.closed and len(a.name) >= 3
                 ]
 
                 groups = []
@@ -3729,17 +3763,57 @@ class ActualBudgetClient:
                             suggested_category = next(iter(notes_matches))
                             suggested_category_source = "notes"
 
+                    payee_name = row.payee_name or "Unknown"
+                    own_account = None
+                    for acc_id, acc_name in account_names:
+                        if re.search(r"\b" + re.escape(acc_name) + r"\b", payee_name, re.I):
+                            own_account = {
+                                "account_id": acc_id,
+                                "account_name": acc_name,
+                                "reason": "account_name",
+                            }
+                            break
+                    if own_account is None:
+                        payee_lower = payee_name.lower()
+                        if any(kw in payee_lower for kw in _OWN_SAVINGS_KEYWORDS):
+                            own_account = {
+                                "account_id": None,
+                                "account_name": None,
+                                "reason": "savings_keyword",
+                            }
+
                     groups.append({
                         "payee_id": str(row.payee_id),
-                        "payee_name": row.payee_name or "Unknown",
+                        "payee_name": payee_name,
                         "count": row.count,
                         "rule_prefix": rule_prefix,
                         "suggested_category": suggested_category,
                         "suggested_category_source": suggested_category_source,
                         "is_consistent": is_consistent,
+                        "own_account": own_account,
+                        "interest_category": interest_category,
                     })
                 return groups
-        return await self._run(_fetch)
+        groups = await self._run(_fetch)
+
+        # transfer_rule takes priority over the name/keyword heuristics above —
+        # match_existing_rules() is async and batch-by-design, so it runs here,
+        # after the worker-thread fetch, never inside _fetch.
+        try:
+            matches = await self.match_existing_rules(
+                [{"payee": g["payee_name"], "notes": ""} for g in groups]
+            )
+        except Exception as e:
+            logger.debug("transfer-rule own-account check failed, keeping name/keyword result: %s", e)
+            matches = []
+        for g, match in zip(groups, matches):
+            if match and match.get("is_transfer"):
+                g["own_account"] = {
+                    "account_id": match.get("account_id"),
+                    "account_name": match.get("account_name"),
+                    "reason": "transfer_rule",
+                }
+        return groups
 
     async def _fetch_tagged(self, tag: str) -> tuple[str, list]:
         """Shared query for tag-filtered transactions. Returns (tag_pattern, rows)
