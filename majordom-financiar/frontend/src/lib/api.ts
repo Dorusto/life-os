@@ -966,6 +966,19 @@ export async function getBudgetPacingStatus(): Promise<BudgetPacingStatus> {
   return request<BudgetPacingStatus>('/budget-pacing/status')
 }
 
+// --- FIRE excluded accounts (#299) ---
+
+export async function getFireExcludedAccounts(): Promise<{ terms: string[] }> {
+  return abRequest<{ terms: string[] }>('/fire/excluded-accounts')
+}
+
+export async function saveFireExcludedAccounts(terms: string[]): Promise<{ terms: string[] }> {
+  return abRequest<{ terms: string[] }>('/fire/excluded-accounts', {
+    method: 'PUT',
+    body: JSON.stringify({ terms }),
+  })
+}
+
 // --- Proposals ---
 
 export interface ConfirmResult {

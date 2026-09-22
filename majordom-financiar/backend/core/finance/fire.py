@@ -47,7 +47,7 @@ def load_fire_model() -> dict:
     return model
 
 
-def _fire_exclude_terms() -> list[str]:
+def get_fire_exclude_terms() -> list[str]:
     """Exclusion terms read from user_preferences (same mechanism as
     fire_model and #112's budget_pacing_config).
 
@@ -75,10 +75,38 @@ def _fire_exclude_terms() -> list[str]:
     return [t.lower() for t in terms if isinstance(t, str) and t.strip()]
 
 
+def set_fire_exclude_terms(terms: list[str]) -> list[str]:
+    """Normalize and store the FIRE exclusion list (#299).
+
+    Strips, lowercases, drops empties and de-duplicates (keeping first-seen
+    order). Raises ValueError for more than 20 terms or any term longer than
+    60 characters. Returns the stored list.
+    """
+    import json
+    from backend.core.config import settings
+    from backend.core.memory.database import MemoryDB
+
+    cleaned: list[str] = []
+    for raw in terms:
+        term = raw.strip().lower()
+        if not term:
+            continue
+        if len(term) > 60:
+            raise ValueError("Each exclusion term must be 60 characters or fewer.")
+        if term not in cleaned:
+            cleaned.append(term)
+    if len(cleaned) > 20:
+        raise ValueError("At most 20 exclusion terms are allowed.")
+
+    db = MemoryDB(settings.memory.db_path)
+    db.set_preference(FIRE_EXCLUDE_PREF_KEY, json.dumps(cleaned))
+    return cleaned
+
+
 def _fire_portfolio(
     accounts: list, balance_attr: str = "balance", exclude_terms: list[str] | None = None
 ) -> float:
-    terms = _fire_exclude_terms() if exclude_terms is None else exclude_terms
+    terms = get_fire_exclude_terms() if exclude_terms is None else exclude_terms
     return sum(
         getattr(a, balance_attr) for a in accounts
         if a.off_budget
@@ -127,7 +155,7 @@ def calc_fire(accounts: list) -> dict:
     model = load_fire_model()
     is_default = model.pop("is_default_assumptions", False)
 
-    exclude_terms = _fire_exclude_terms()
+    exclude_terms = get_fire_exclude_terms()
     portfolio = _fire_portfolio(accounts, exclude_terms=exclude_terms)
     portfolio_prev = _fire_portfolio(accounts, "balance_prev_month_end", exclude_terms)
 
