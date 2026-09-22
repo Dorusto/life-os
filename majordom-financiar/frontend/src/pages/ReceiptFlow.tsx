@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, Check, Plus, X } from 'lucide-react'
@@ -27,13 +27,13 @@ import { formatCurrency } from '../lib/formatCurrency'
  *                mode is loading its account/category lists
  *   reviewing  → user sees extracted data and can edit before confirming
  *   confirming → confirm request in flight
- *   success    → checkmark animation, then auto-navigate home
+ *   success    → checkmark animation, then auto-close
  *   error      → something went wrong, with a retry option
  *
- * Two entry modes:
- *   - Photo: image comes from sessionStorage (set by Home.tsx before navigation).
- *     We upload it immediately on mount so OCR runs while the user looks at it.
- *   - Manual: `location.state?.manual` is true — blank fields, no image, no OCR.
+ * Two entry modes, both supplied as props by the caller (AddButton):
+ *   - Photo: the picked File is uploaded immediately on mount so OCR runs while
+ *     the user looks at the preview.
+ *   - Manual: blank fields, no image, no OCR.
  *
  * Split lines (#115): a transaction can be split across 2+ categories. The first
  * line's category is the transaction's primary category; each extra line carries
@@ -62,11 +62,21 @@ interface Line {
   newCategoryGroup: string
 }
 
-export default function ReceiptFlow() {
-  const navigate = useNavigate()
-  const location = useLocation()
+interface ReceiptFlowProps {
+  mode: 'photo' | 'manual'
+  /** The picked image — required in photo mode, ignored in manual mode. */
+  file?: File
+  onClose: () => void
+}
+
+export default function ReceiptFlow({ mode, file, onClose }: ReceiptFlowProps) {
   const queryClient = useQueryClient()
-  const isManual = (location.state as { manual?: boolean } | null)?.manual === true
+  const isManual = mode === 'manual'
+
+  // Latest onClose in a ref: the photo-upload effect must run once per picked
+  // file, not re-run every time the parent re-renders with a fresh closure.
+  const onCloseRef = useRef(onClose)
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
 
   const [flowState, setFlowState] = useState<FlowState>('uploading')
   const [imageUrl, setImageUrl] = useState<string | null>(null)
@@ -94,22 +104,14 @@ export default function ReceiptFlow() {
   useEffect(() => {
     if (isManual) return
 
-    const dataUrl = sessionStorage.getItem('pendingReceiptDataUrl')
-    const fileName = sessionStorage.getItem('pendingReceiptName') || 'receipt.jpg'
-    const fileType = sessionStorage.getItem('pendingReceiptType') || 'image/jpeg'
-
-    if (!dataUrl) {
-      navigate('/', { replace: true })
+    if (!file) {
+      onCloseRef.current()
       return
     }
 
     // Show the image immediately while OCR runs in the background
-    setImageUrl(dataUrl)
-
-    // Convert data URL back to File for the API call
-    const base64 = dataUrl.split(',')[1]
-    const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0))
-    const file = new File([bytes], fileName, { type: fileType })
+    const objectUrl = URL.createObjectURL(file)
+    setImageUrl(objectUrl)
 
     uploadReceipt(file)
       .then(async (result) => {
@@ -136,16 +138,14 @@ export default function ReceiptFlow() {
         } catch {
           // non-fatal – groups will be empty, user can still type a group name freely
         }
-        // Clean up sessionStorage
-        sessionStorage.removeItem('pendingReceiptDataUrl')
-        sessionStorage.removeItem('pendingReceiptName')
-        sessionStorage.removeItem('pendingReceiptType')
       })
       .catch(err => {
         setErrorMessage(err.message || 'Failed to process image')
         setFlowState('error')
       })
-  }, [isManual, navigate])
+
+    return () => URL.revokeObjectURL(objectUrl)
+  }, [isManual, file])
 
   // Manual mode — blank fields, fetch account/category lists directly (no OCR)
   useEffect(() => {
@@ -292,7 +292,7 @@ export default function ReceiptFlow() {
       queryClient.invalidateQueries({ queryKey: ['account-list'] })
       queryClient.invalidateQueries({ queryKey: ['duplicates', 'months'] })
       queryClient.invalidateQueries({ queryKey: ['home-pending'] })
-      setTimeout(() => navigate('/', { replace: true }), 2200)
+      setTimeout(() => onCloseRef.current(), 2200)
     } catch (err) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to save')
       setFlowState('error')
@@ -302,16 +302,24 @@ export default function ReceiptFlow() {
   // --- Render states ---
 
   if (flowState === 'success') {
-    return <SuccessScreen notice={successNotice ?? undefined} />
+    return createPortal(
+      <div className="fixed inset-0 z-[70] h-dvh overflow-y-auto bg-token-paper">
+        <SuccessScreen notice={successNotice ?? undefined} />
+      </div>,
+      document.body,
+    )
   }
 
-  return (
-    <div className="min-h-dvh bg-token-paper flex flex-col">
+  // Portal to body: a backdrop-filter/transform ancestor (e.g. PageHeader's
+  // backdrop-blur) becomes the containing block for position:fixed children,
+  // which would trap this overlay inside the header box instead of the viewport.
+  return createPortal(
+    <div className="fixed inset-0 z-[70] h-dvh overflow-y-auto bg-token-paper flex flex-col">
       {/* Back button */}
       <button
-        onClick={() => navigate('/')}
+        onClick={onClose}
         className="absolute top-12 left-4 z-10 p-2 rounded-xl text-token-ink hover:text-token-ink transition-colors"
-        aria-label="Go back"
+        aria-label="Close receipt entry"
       >
         <ChevronLeft size={24} />
       </button>
@@ -610,14 +618,15 @@ export default function ReceiptFlow() {
         <div className="flex-1 flex flex-col items-center justify-center px-5 gap-4">
           <p className="text-token-loss text-center">{errorMessage}</p>
           <button
-            onClick={() => navigate('/')}
+            onClick={onClose}
             className="px-6 py-3 rounded-xl border border-token-line text-token-ink hover:bg-token-surface transition-colors"
           >
             Go back
           </button>
         </div>
       )}
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -656,7 +665,7 @@ const labelClass = 'text-xs text-token-ink-3 uppercase tracking-wide'
  */
 function SuccessScreen({ notice }: { notice?: string }) {
   return (
-    <div className="min-h-dvh bg-token-paper flex flex-col items-center justify-center gap-5">
+    <div className="h-full bg-token-paper flex flex-col items-center justify-center gap-5">
       <motion.div
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
