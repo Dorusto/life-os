@@ -3,6 +3,7 @@ import { ArrowRight } from 'lucide-react'
 import { confirmAccountTransfer, type AccountTransferData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
 import { formatCurrency } from '../lib/formatCurrency'
+import { Card } from './ui/Card'
 
 interface Props {
   data: AccountTransferData
@@ -61,7 +62,7 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
   `
 
   return (
-    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
+    <Card variant="bubble">
       <div>
         <p className="text-token-ink font-medium text-sm">Account transfer</p>
         <div className="flex items-center gap-1.5 mt-0.5">
@@ -179,6 +180,6 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
         confirmDisabled={creatingNew ? !newAccountName.trim() : fromId === toId}
         confirmLabel={loading ? 'Processing…' : 'Confirm'}
       />
-    </div>
+    </Card>
   )
 }

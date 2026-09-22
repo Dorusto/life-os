@@ -3,6 +3,7 @@ import { confirmProposal, cancelProposal, getCategories, getAccounts, type Categ
 import ActionCardButtons from './ActionCardButtons'
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatDate } from '../lib/formatDate'
+import { Card } from './ui/Card'
 
 export interface ProposalData {
   id: string
@@ -80,7 +81,7 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
   const formattedDate = formatDate(proposal.date)
 
   return (
-    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[80%] space-y-3">
+    <Card variant="bubble" className="max-w-[80%]">
       <div>
         <p className="text-token-ink font-medium">{proposal.payee}</p>
         <p className="text-token-ink-3 text-sm">{formatCurrency(proposal.amount)} · {formattedDate}</p>
@@ -153,6 +154,6 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
       {error && <p className="text-token-loss text-xs">{error}</p>}
 
       <ActionCardButtons onConfirm={handleConfirm} onCancel={handleCancel} loading={loading} />
-    </div>
+    </Card>
   )
 }
