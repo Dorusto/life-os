@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { CheckSquare, Filter, List, Loader2, Table2, X } from 'lucide-react'
+import { CheckSquare, Filter, List, Loader2, MessageCircle, Table2, X } from 'lucide-react'
 import PageHeader from '../components/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import BottomSheet from '../components/BottomSheet'
@@ -268,6 +268,11 @@ export default function TransactionsPage() {
   const amountText = (tx: Transaction) =>
     formatCurrency(tx.is_expense ? -Math.abs(tx.amount) : Math.abs(tx.amount), { signDisplay: 'always' })
 
+  // Prefill text for the "Ask Majordom" action — navigates to chat with the
+  // question typed in but never sent (architecture.md rule 30).
+  const askMajordomPrefill = (tx: Transaction) =>
+    `About this transaction: ${formatDate(tx.date)} · ${tx.merchant || 'Unknown'} · ${amountText(tx)} · ${tx.category ?? 'uncategorized'} · account ${tx.account} — what is it and what should I do with it?`
+
   // Grouped by month for both views — replaces a flat list with a month
   // header + net total per group (audit §5 item #14).
   const monthGroups = groupByMonth(
@@ -416,6 +421,23 @@ export default function TransactionsPage() {
                           >
                             {amountText(tx)}
                           </span>
+                          {!selectionMode && (
+                            <button
+                              type="button"
+                              onClick={e => {
+                                // The row is a <label> — without preventDefault a click
+                                // inside it is forwarded to the label's control.
+                                e.preventDefault()
+                                e.stopPropagation()
+                                navigate('/chat', { state: { prefill: askMajordomPrefill(tx) } })
+                              }}
+                              aria-label="Ask Majordom about this transaction"
+                              title="Ask Majordom"
+                              className="ml-2 p-1.5 rounded-lg text-token-ink-3 hover:text-token-brand hover:bg-token-surface-2 flex-shrink-0"
+                            >
+                              <MessageCircle size={16} />
+                            </button>
+                          )}
                         </label>
                       )
                     })}
