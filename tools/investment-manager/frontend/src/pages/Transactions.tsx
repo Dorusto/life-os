@@ -3,9 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2, Upload } from 'lucide-react'
 import { deleteTransaction, getSecurities, getTransactions } from '../lib/api'
 import { Button } from '../components/Button'
-import { Card } from '../components/Card'
+import { Card } from '../components/kit/Card'
 import { ConfirmDialog } from '../components/ConfirmDialog'
-import { EmptyState } from '../components/EmptyState'
+import { EmptyState } from '../components/kit/Stats'
 import { ErrorState, Loading } from '../components/Feedback'
 import { PageHeader } from '../components/shell/PageHeader'
 import { Select } from '../components/Form'
@@ -68,7 +68,7 @@ export default function Transactions() {
 
       <Card
         padded={false}
-        title="Ledger"
+        label="Ledger"
         action={
           <div className="flex items-center gap-2">
             <Select

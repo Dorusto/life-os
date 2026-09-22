@@ -1,13 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { getIncome } from '../lib/api'
-import { BarList } from '../components/BarList'
-import { Card } from '../components/Card'
-import { EmptyState } from '../components/EmptyState'
+import { BarList, SERIES_COLORS } from '../components/kit/Charts'
+import { Card } from '../components/kit/Card'
+import { EmptyState, HeroValue, StatStrip } from '../components/kit/Stats'
 import { ErrorState, Loading } from '../components/Feedback'
-import { MetricTile } from '../components/MetricTile'
 import { PageHeader } from '../components/shell/PageHeader'
 import { formatDate, formatEur, formatMoney } from '../lib/format'
-import { seriesColor } from '../lib/ui'
 
 export default function Income() {
   const { data, isLoading, isError, refetch } = useQuery({ queryKey: ['income'], queryFn: getIncome })
@@ -28,7 +26,6 @@ export default function Income() {
     )
   }
 
-  const total = income.total_eur || 1
   const years = income.by_year.length
   const latestYear = income.by_year[income.by_year.length - 1]
 
@@ -37,43 +34,45 @@ export default function Income() {
       <PageHeader title="Income" description="Dividend payments received over time, converted to EUR." />
 
       <Card className="mb-6">
-        <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
-          <MetricTile label="Total received" value={formatEur(income.total_eur)} emphasis />
-          <MetricTile label="Payments" value={String(income.events.length)} />
-          <MetricTile label="Years covered" value={String(years)} />
-          <MetricTile
-            label={latestYear ? `Latest year (${latestYear.year})` : 'Latest year'}
-            value={latestYear ? formatEur(latestYear.amount_eur) : '—'}
-          />
-        </div>
+        <HeroValue label="Total received" value={formatEur(income.total_eur)} />
       </Card>
 
+      <StatStrip
+        className="mb-6"
+        stats={[
+          { label: 'Payments', value: String(income.events.length) },
+          { label: 'Years covered', value: String(years) },
+          {
+            label: latestYear ? `Latest year (${latestYear.year})` : 'Latest year',
+            value: latestYear ? formatEur(latestYear.amount_eur) : '—',
+          },
+        ]}
+      />
+
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card title="By year">
+        <Card label="By year">
           <BarList
             items={income.by_year.map((y, i) => ({
               label: y.year,
               value: y.amount_eur,
-              percentage: (y.amount_eur / total) * 100,
-              color: seriesColor(i),
+              color: SERIES_COLORS[i % SERIES_COLORS.length],
             }))}
             formatValue={formatEur}
           />
         </Card>
-        <Card title="By holding">
+        <Card label="By holding">
           <BarList
             items={income.by_security.map((s, i) => ({
               label: s.ticker,
               value: s.amount_eur,
-              percentage: (s.amount_eur / total) * 100,
-              color: seriesColor(i),
+              color: SERIES_COLORS[i % SERIES_COLORS.length],
             }))}
             formatValue={formatEur}
           />
         </Card>
       </div>
 
-      <Card padded={false} title="Dividend history" className="mt-6">
+      <Card padded={false} label="Dividend history" className="mt-6">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[640px] border-collapse text-sm">
             <thead>
