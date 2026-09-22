@@ -797,6 +797,7 @@ async def _suggest_category_with_llm(
     editable select, never applied without the user confirming.
     """
     import aiohttp
+    import json
     from backend.core.config import build_llm_headers, settings
 
     category_names = [n for n in category_names if n]
