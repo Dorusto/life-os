@@ -732,6 +732,126 @@ def _compute_expense_coverage(session, txs, all_cats) -> dict:
     }
 
 
+# Cap on LLM category-suggestion calls per get_uncategorized_groups() request
+# (#309) — an account with a long uncategorized backlog must not fire dozens of
+# text-LLM calls on one review-screen load. Same precedent as the [:10] cap on
+# duplicate_pairs in get_reconciliation_suspects().
+_LLM_SUGGEST_MAX_GROUPS = 20
+_LLM_SUGGEST_TIMEOUT_SECONDS = 30
+
+_LLM_SUGGEST_CATEGORY_PROMPT = """\
+You classify ONE uncategorized bank transaction for a personal finance app. \
+Pick the single best matching category from the user's OWN category list.
+
+Return ONLY a valid JSON object — no markdown, no extra text.
+
+{{
+  "category_name": "one name copied verbatim from CATEGORIES, or an empty string if none fits"
+}}
+
+Rules:
+- Copy the name EXACTLY as it appears in CATEGORIES. Never invent, translate,
+  shorten or rephrase a category name.
+- If no category clearly fits the payee/note, return an empty string. Do not
+  guess a plausible-sounding category.
+
+PAYEE: {payee}
+
+TRANSACTION NOTES: {notes}
+
+CATEGORIES: {categories}
+"""
+
+
+def _extract_llm_json(text: str) -> str:
+    """Strip markdown fences / surrounding prose from an LLM text response.
+
+    Same defensive parse as CsvProfileDetector._extract_json() — the model is
+    asked for bare JSON but routinely wraps it anyway.
+    """
+    import re
+    match = re.search(r"```(?:json)?\s*(\{.*?\})\s*```", text, re.DOTALL)
+    if match:
+        return match.group(1)
+    match = re.search(r"\{.*\}", text, re.DOTALL)
+    if match:
+        return match.group(0)
+    return text
+
+
+async def _suggest_category_with_llm(
+    payee: str, notes: str, category_names: list[str],
+) -> str | None:
+    """Ask the text LLM to pick one category from the user's real category list.
+
+    The third and last fallback for an uncategorized payee (#309), reached only
+    when payee history AND the notes-keyword match both came up empty. Same call
+    shape as CsvProfileDetector.detect_with_llm(): aiohttp POST to
+    ``{base_url}/v1/chat/completions`` (the client appends the path, never the
+    caller), build_llm_headers(), temperature 0.0, and ``think: False`` for
+    qwen3 models.
+
+    Returns a name copied verbatim from ``category_names``, or None on any
+    failure, timeout, malformed response, or no-match — the caller must treat
+    this as purely provisional: the suggestion is only pre-filled into an
+    editable select, never applied without the user confirming.
+    """
+    import aiohttp
+    from backend.core.config import build_llm_headers, settings
+
+    category_names = [n for n in category_names if n]
+    if not category_names:
+        return None
+
+    llm_url = settings.ollama.base_url.rstrip("/")
+    llm_model = settings.ollama.categorize_model
+    prompt = _LLM_SUGGEST_CATEGORY_PROMPT.format(
+        payee=payee,
+        notes=notes or "(none)",
+        categories=", ".join(category_names),
+    )
+    payload = {
+        "model": llm_model,
+        "messages": [{"role": "user", "content": prompt}],
+        "stream": False,
+        "temperature": 0.0,
+        "max_tokens": 100,
+    }
+    if llm_model.lower().startswith("qwen3"):
+        payload["think"] = False
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{llm_url}/v1/chat/completions",
+                json=payload,
+                headers=build_llm_headers(settings.ollama.api_key),
+                timeout=aiohttp.ClientTimeout(total=_LLM_SUGGEST_TIMEOUT_SECONDS),
+            ) as resp:
+                if resp.status != 200:
+                    body = await resp.text()
+                    logger.warning(
+                        "LLM category suggestion failed (HTTP %s) for payee %r: %s",
+                        resp.status, payee, body[:200],
+                    )
+                    return None
+                data = await resp.json()
+        content = data["choices"][0]["message"]["content"].strip()
+        parsed = json.loads(_extract_llm_json(content))
+    except Exception as e:
+        logger.warning("LLM category suggestion failed for payee %r: %s", payee, e)
+        return None
+
+    suggested = str(parsed.get("category_name") or "").strip()
+    if not suggested:
+        return None
+    # Validate against the user's real category names before accepting — a
+    # hallucinated name must never reach the select as if it were a real
+    # category, the same defensive posture detect_with_llm() takes.
+    canonical = {n.casefold(): n for n in category_names}
+    return canonical.get(suggested.casefold())
+
+
 @dataclass
 class Account:
     id: str
@@ -3739,6 +3859,10 @@ class ActualBudgetClient:
                 ]
 
                 groups = []
+                # payee_id → one uncategorized transaction's note text, kept only
+                # for groups whose notes query already runs below. Feeds the LLM
+                # fallback (#309) without a second notes fetch.
+                notes_by_payee_id: dict[str, str] = {}
                 for row in rows:
                     rule_prefix = rule_match_prefix(row.payee_name or "")
                     history = (
@@ -3804,6 +3928,15 @@ class ActualBudgetClient:
                         if len(notes_matches) == 1:
                             suggested_category = next(iter(notes_matches))
                             suggested_category_source = "notes"
+                        # First usable note, read from the query above — the LLM
+                        # fallback (#309) prompts with it. Groups with a history
+                        # suggestion never get here, and never need one.
+                        sample_note = next(
+                            ((text or "").strip() for (text,) in notes_rows if (text or "").strip()),
+                            "",
+                        )
+                        if sample_note:
+                            notes_by_payee_id[str(row.payee_id)] = sample_note
 
                     payee_name = row.payee_name or "Unknown"
                     own_account = None
@@ -3835,8 +3968,8 @@ class ActualBudgetClient:
                         "own_account": own_account,
                         "interest_category": interest_category,
                     })
-                return groups
-        groups = await self._run(_fetch)
+                return groups, notes_by_payee_id
+        groups, notes_by_payee_id = await self._run(_fetch)
 
         # transfer_rule takes priority over the name/keyword heuristics above —
         # match_existing_rules() is async and batch-by-design, so it runs here,
@@ -3855,6 +3988,36 @@ class ActualBudgetClient:
                     "account_name": match.get("account_name"),
                     "reason": "transfer_rule",
                 }
+
+        # Third fallback (#309): neither payee history nor the notes-keyword
+        # match suggested anything, so ask the LLM once per group — concurrently,
+        # and capped — and pre-fill its answer. Strictly provisional and last:
+        # it never overrides a "history"/"notes" suggestion, and nothing is
+        # written to AB until the user taps Confirm. Any failure just leaves
+        # suggested_category as None, exactly as before this step existed.
+        pending = [
+            g for g in groups if g["suggested_category"] is None
+        ][:_LLM_SUGGEST_MAX_GROUPS]
+        if pending:
+            try:
+                category_names = [c.name for c in await self.get_categories()]
+            except Exception as e:
+                logger.warning("LLM category suggestion skipped, category list unavailable: %s", e)
+                category_names = []
+            if category_names:
+                suggestions = await asyncio.gather(*[
+                    _suggest_category_with_llm(
+                        g["payee_name"],
+                        notes_by_payee_id.get(g["payee_id"], ""),
+                        category_names,
+                    )
+                    for g in pending
+                ])
+                for group, suggested in zip(pending, suggestions):
+                    if suggested:
+                        group["suggested_category"] = suggested
+                        group["suggested_category_source"] = "llm"
+
         return groups
 
     async def _fetch_tagged(self, tag: str) -> tuple[str, list]:

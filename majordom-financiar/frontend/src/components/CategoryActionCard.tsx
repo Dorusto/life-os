@@ -35,6 +35,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
   const [payee, setPayee] = useState(data.payee ?? '')
   const [selectedCategory, setSelectedCategory] = useState(data.category_name ?? '')
   const [createRule, setCreateRule] = useState(data.is_consistent ?? true)
+  const [rulePrefix, setRulePrefix] = useState(data.rule_prefix ?? '')
   const [tag, setTag] = useState(data.tag ?? '')
   const [incomeType, setIncomeType] = useState(data.action === 'classify_income' ? (data.income_type ?? 'passive') : 'passive')
   const [loading, setLoading] = useState(false)
@@ -83,7 +84,12 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
           by_month: tagGoalByMonth || data.by_month,
         }
       } else if (data.action === 'categorize_with_rule') {
-        overrides = { payee: payee || data.payee, category_name: selectedCategory || data.category_name, create_rule: createRule }
+        overrides = {
+          payee: payee || data.payee,
+          category_name: selectedCategory || data.category_name,
+          create_rule: createRule,
+          rule_prefix: rulePrefix || data.rule_prefix,
+        }
       } else if (data.action === 'tag_transaction') {
         overrides = { tag: tag || data.tag }
       } else if (data.action === 'classify_income') {
@@ -483,7 +489,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
               />
               <div>
                 <span className="text-token-ink text-sm">
-                  Create AB rule for future '{data.rule_prefix}' transactions
+                  Create AB rule for future transactions
                 </span>
                 {!data.is_consistent && (
                   <p className="text-token-ink-3 text-xs mt-0.5">
@@ -493,6 +499,17 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
               </div>
             </label>
           </div>
+          {createRule && (
+            <div className="space-y-1">
+              <p className="text-token-ink-3 text-xs">Rule matches text</p>
+              <input
+                type="text"
+                value={rulePrefix}
+                onChange={e => setRulePrefix(e.target.value)}
+                className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
+              />
+            </div>
+          )}
         </div>
       )}
 
