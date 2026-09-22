@@ -281,9 +281,13 @@ def insert_vehicle_log_entries(entries: list[dict], db_path: str | None = None) 
         conn.close()
 
 
-def get_vehicle_log(vehicle_id: int, limit: int = 10, entry_type: str | None = None,
+def get_vehicle_log(vehicle_id: int, limit: int | None = 10, entry_type: str | None = None,
                     db_path: str | None = None) -> list[dict]:
-    """Return log entries for a vehicle, ordered by date DESC, with vehicle_name joined."""
+    """Return log entries for a vehicle, ordered by date DESC, with vehicle_name joined.
+
+    Pass limit=None to return every entry (no LIMIT clause) — used by the CSV
+    export, which needs the full history rather than a page of it.
+    """
     conn = _get_conn(db_path)
     try:
         type_clause = ""
@@ -291,7 +295,10 @@ def get_vehicle_log(vehicle_id: int, limit: int = 10, entry_type: str | None = N
         if entry_type:
             type_clause = "AND vl.entry_type = ?"
             params.append(entry_type)
-        params.append(limit)
+        limit_clause = ""
+        if limit is not None:
+            limit_clause = "LIMIT ?"
+            params.append(limit)
         rows = conn.execute(f"""
             SELECT vl.*, v.name as vehicle_name
             FROM vehicle_log vl
@@ -299,7 +306,7 @@ def get_vehicle_log(vehicle_id: int, limit: int = 10, entry_type: str | None = N
             WHERE vl.vehicle_id = ?
             {type_clause}
             ORDER BY vl.date DESC
-            LIMIT ?
+            {limit_clause}
         """, params).fetchall()
         return [dict(r) for r in rows]
     finally:

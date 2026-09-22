@@ -1,9 +1,12 @@
+import { useState } from 'react'
 import { ArrowUpRight, LogOut } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BottomNav from '../components/BottomNav'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { clearAuth, getUsername } from '../lib/auth'
+import { exportVehicleCsv } from '../lib/api'
+import { useSelectedVehicle } from '../lib/useSelectedVehicle'
 
 /**
  * The three Majordom apps run as separate origins (different ports) on the same
@@ -53,10 +56,26 @@ function AppLink({ href, label, description }: { href: string; label: string; de
 /** App-local settings plus cross-app navigation, reachable from every screen's gear. */
 export default function Settings() {
   const navigate = useNavigate()
+  const { vehicles, selectedId, select } = useSelectedVehicle()
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
 
   function handleSignOut() {
     clearAuth()
     navigate('/login', { replace: true })
+  }
+
+  async function handleExport() {
+    if (selectedId == null) return
+    setExporting(true)
+    setExportError(null)
+    try {
+      await exportVehicleCsv(selectedId)
+    } catch {
+      setExportError('Export failed. Please try again.')
+    } finally {
+      setExporting(false)
+    }
   }
 
   return (
@@ -70,6 +89,49 @@ export default function Settings() {
           {APP_LINKS.map((link) => (
             <AppLink key={link.href} {...link} />
           ))}
+        </div>
+      </Card>
+
+      <Card title="Data" className="mt-4">
+        <div className="space-y-3">
+          {vehicles.length > 1 && (
+            <div className="space-y-1.5">
+              <label htmlFor="export-vehicle" className="block text-[13px] text-ink-2">
+                Vehicle
+              </label>
+              <select
+                id="export-vehicle"
+                value={selectedId ?? ''}
+                onChange={(e) => select(Number(e.target.value))}
+                className="h-[2.5rem] w-full rounded border border-line-strong bg-surface px-3 text-sm text-ink"
+              >
+                {vehicles.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            {vehicles.length > 0 && (
+              <Button
+                variant="secondary"
+                size="sm"
+                aria-label="Export CSV"
+                onClick={handleExport}
+                disabled={exporting || selectedId == null}
+              >
+                {exporting ? 'Exporting…' : 'Export CSV'}
+              </Button>
+            )}
+            <Button variant="secondary" size="sm" onClick={() => navigate('/import')}>
+              Import from Fuelio
+            </Button>
+          </div>
+
+          {exportError && <p className="text-[13px] text-loss">{exportError}</p>}
         </div>
       </Card>
 

@@ -7,11 +7,14 @@ Every route requires authentication (see app/auth.py) — either a user JWT
 (the standalone frontend's own login) or a service token (majordom-financiar's
 internal proxy calls) — except /health, left open for the Docker healthcheck.
 """
+import csv
+import io
 import logging
+import re
 from datetime import date
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from app import auth
 from app.database import (
@@ -70,6 +73,39 @@ async def login(request: auth.LoginRequest):
 async def costs_summary(period: str = "", caller: str = AUTH):
     """Aggregate cost across all vehicles."""
     return charts.build_costs_summary(period=period)
+
+
+@app.get("/vehicles/{vehicle_id}/export.csv")
+async def export_vehicle_csv(vehicle_id: int, caller: str = AUTH):
+    """Download every log entry for a vehicle as a CSV, oldest first."""
+    v = get_vehicle(vehicle_id)
+    if v is None:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    rows = get_vehicle_log(vehicle_id, limit=None)
+    rows.sort(key=lambda r: r.get("date") or "")
+
+    columns = [
+        "date", "entry_type", "odo_km", "fuel_liters", "fuel_price_per_liter",
+        "fuel_full_tank", "fuel_missed", "fuel_grade", "cost_total",
+        "cost_currency", "location", "notes",
+    ]
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(columns)
+    for row in rows:
+        writer.writerow(["" if row.get(col) is None else row.get(col) for col in columns])
+
+    slug = re.sub(r"[^a-z0-9]+", "-", (v.get("name") or "").lower()).strip("-")
+    if not slug:
+        slug = f"vehicle-{vehicle_id}"
+
+    return Response(
+        buffer.getvalue(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{slug}-log.csv"'},
+    )
 
 
 # ---------------------------------------------------------------------------
