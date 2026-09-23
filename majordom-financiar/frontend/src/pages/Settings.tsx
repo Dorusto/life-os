@@ -3,9 +3,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import {
-  ChevronLeft, ChevronRight, LogOut, RefreshCw, Wallet, Database, Car, LineChart,
+  ChevronRight, LogOut, RefreshCw, Wallet, Database, Car, LineChart,
   Palette, Languages, Settings2, ShieldCheck, Coins, Tags, Users, CalendarClock,
-  ArrowRightLeft, Sparkles, Plug, Link2, Bell, Info, Moon, Sun, Monitor, Check,
+  ArrowRightLeft, Sparkles, Plug, Link2, Bell, Info, Monitor, Check,
   Lock, Unplug, Hash, TrendingUp, EyeOff, X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -18,9 +18,8 @@ import {
 import { isAbDown, subscribeAbDown } from '../lib/abConnectionStatus'
 import { clearAuth } from '../lib/auth'
 import { requestAndSubscribe } from '../lib/push'
-import PageHeader from '../components/PageHeader'
-import IconButton from '../components/IconButton'
-import StandardHeaderActions from '../components/StandardHeaderActions'
+import { PageHeader } from '../components/shell/PageHeader'
+import { AppearanceSettings } from '../components/shell/AppearanceSettings'
 
 type PageKey =
   | 'menu'
@@ -140,19 +139,16 @@ function MenuScreen({ onNavigate }: { onNavigate: (page: SubPageKey) => void }) 
   }
 
   return (
-    <div className="min-h-full bg-token-paper flex flex-col">
-      <PageHeader
-        label="Majordom"
-        title="Settings"
-        actions={
-          <>
-            <IconButton icon={ChevronLeft} onClick={() => navigate('/')} label="Back to Dashboard" />
-            {/* Bell only — Settings must not carry a gear that links to itself. */}
-            <StandardHeaderActions variant="bell-only" />
-          </>
-        }
-      />
-      <section className="px-5 pt-2 pb-24 space-y-6">
+    <div className="flex flex-col">
+      {/* No actions: the shell's rail already carries the bell and the way back
+          to the Dashboard, and a page header must not duplicate global controls. */}
+      <PageHeader eyebrow="Majordom" title="Settings" />
+      <section className="pt-2 space-y-6">
+        <div>
+          <p className="text-xs tracking-[0.2em] uppercase text-token-ink-3 mb-2.5">Appearance</p>
+          <AppearanceSettings appDefault="sage" />
+        </div>
+
         <button
           onClick={handleSync}
           disabled={syncState === 'syncing'}
@@ -202,19 +198,11 @@ function SubPageShell({
   title, onBack, children,
 }: { title: string; onBack: () => void; children: ReactNode }) {
   return (
-    <div className="min-h-full bg-token-paper flex flex-col">
-      <PageHeader
-        label="Settings"
-        title={title}
-        actions={
-          <>
-            <IconButton icon={ChevronLeft} onClick={onBack} label="Back to Settings" />
-            {/* Bell only — same no-self-link rule as the menu screen above. */}
-            <StandardHeaderActions variant="bell-only" />
-          </>
-        }
-      />
-      <section className="px-5 pt-2 pb-24 space-y-2.5">{children}</section>
+    <div className="flex flex-col">
+      {/* The back control is a header `back`, not an action — AppShell owns the
+          global controls, and a sub-page without it would be a dead end. */}
+      <PageHeader eyebrow="Settings" title={title} back={{ onClick: onBack }} />
+      <section className="pt-2 space-y-2.5">{children}</section>
     </div>
   )
 }
@@ -332,13 +320,9 @@ function SectionLabel({ children }: { children: ReactNode }) {
 // ---------- Personal ----------
 
 function AppearancePage() {
-  return (
-    <>
-      <ActiveRow title="Dark" subtitle="The only theme currently available" icon={Moon} />
-      <InertRow title="Light" subtitle="Not built" icon={Sun} />
-      <InertRow title="System" subtitle="Not built" icon={Monitor} />
-    </>
-  )
+  // Same panel as the Settings menu's first section — the old Dark/Light/System
+  // rows claimed light mode wasn't built, which the shared panel makes false.
+  return <AppearanceSettings appDefault="sage" />
 }
 
 function LanguagePage() {

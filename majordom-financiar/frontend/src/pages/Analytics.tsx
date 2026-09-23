@@ -11,7 +11,7 @@ import {
 } from '../lib/api'
 import Chart from '../components/Chart'
 import InvestmentProjection from '../components/InvestmentProjection'
-import PageHeader from '../components/PageHeader'
+import { PageHeader } from '../components/shell/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import WidgetLoading from '../components/WidgetLoading'
 import { colorForKey } from '../lib/chartColors'
@@ -537,13 +537,13 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div className="min-h-full bg-token-paper flex flex-col">
+    <div className="flex flex-col">
       <PageHeader
-        label="Spending, budget, and trends"
+        eyebrow="Spending, budget, and trends"
         title="Analytics"
         actions={<StandardHeaderActions />}
       />
-      <section className="px-5 pt-2 pb-24 space-y-6">
+      <section className="pt-2 space-y-6">
         <PillTabs tabs={SECTIONS} value={section} onChange={setSection} />
 
         {/* Overview — the original four charts, untouched. */}
