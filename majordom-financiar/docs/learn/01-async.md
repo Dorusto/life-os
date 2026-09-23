@@ -39,11 +39,19 @@ async def add_transaction(self, ...):
 Python's asyncio event loop runs on a single thread. If you call a sync function directly from an async context, it blocks the entire event loop — no other request can be processed. `ThreadPoolExecutor` offloads the sync work to a separate OS thread, while the event loop continues handling other requests.
 
 ```python
-# backend/core/actual_client/client.py
+# backend/core/actual_client/client.py (simplified)
+_actual_lock = asyncio.Lock()
+_shared_executor = ThreadPoolExecutor(max_workers=1)
+
 async def _run(self, fn):
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(self._executor, fn)
+    async with _actual_lock:
+        return await loop.run_in_executor(_shared_executor, fn)
 ```
+
+Both are module-level, not per-instance: there is one Actual Budget file, and every
+`ActualBudgetClient` shares the same single worker thread behind the same lock, so two
+actualpy calls never run concurrently against it.
 
 ## Summary
 
