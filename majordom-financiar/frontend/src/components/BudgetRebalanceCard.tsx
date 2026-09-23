@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import { confirmBudgetRebalance, type BudgetRebalanceData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
 import { formatCurrency } from '../lib/formatCurrency'
-import { Card } from './ui/Card'
+import { Card, SectionLabel } from './kit/Card'
 
 interface Props {
   data: BudgetRebalanceData
@@ -64,10 +64,9 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
   `
 
   return (
-    <Card variant="bubble">
-      <div>
-        <p className="text-token-ink font-medium text-sm">Budget rebalance</p>
-        <div className="flex items-center gap-1.5 mt-0.5">
+    <Card label="Budget rebalance" className="max-w-[85%] rounded-bl-sm">
+      <div className="space-y-3">
+        <div className="flex items-center gap-1.5">
           <span className="text-token-ink-3 text-xs">{data.month} ·</span>
           <input
             type="number"
@@ -76,15 +75,13 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
             value={amount}
             onChange={e => setAmount(parseFloat(e.target.value) || 0)}
             disabled={loading}
-            className="w-24 bg-token-surface-2 border border-token-line rounded-lg px-2 py-1 text-token-ink text-sm focus:outline-none focus:border-token-brand disabled:opacity-50"
+            className="w-24 bg-token-surface-2 border border-token-line rounded-lg px-2 py-1 text-token-ink text-sm font-mono tabular-nums focus:outline-none focus:border-token-brand disabled:opacity-50"
           />
         </div>
-      </div>
 
-      <div className="space-y-3">
         {/* Source */}
         <div className="space-y-1">
-          <p className="text-token-ink-3 text-xs uppercase tracking-wide">From</p>
+          <SectionLabel>From</SectionLabel>
           <select
             value={selectedSource}
             onChange={e => setSelectedSource(e.target.value)}
@@ -97,16 +94,16 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
               </option>
             ))}
           </select>
-          <p className="text-xs text-token-ink-3 pl-1">
+          <p className="text-xs text-token-ink-3 pl-1 font-mono tabular-nums">
             {formatCurrency(sourceBudgeted)} → <span className="text-token-loss">{formatCurrency(newSource)}</span>
           </p>
         </div>
 
-        <p className="text-token-ink-3 text-xs pl-1">↓ {formatCurrency(amount)}</p>
+        <p className="text-token-ink-3 text-xs pl-1 font-mono tabular-nums">↓ {formatCurrency(amount)}</p>
 
         {/* Destination */}
         <div className="space-y-1">
-          <p className="text-token-ink-3 text-xs uppercase tracking-wide">To</p>
+          <SectionLabel>To</SectionLabel>
           <select
             value={selectedDest}
             onChange={e => setSelectedDest(e.target.value)}
@@ -119,21 +116,21 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
               </option>
             ))}
           </select>
-          <p className="text-xs text-token-ink-3 pl-1">
+          <p className="text-xs text-token-ink-3 pl-1 font-mono tabular-nums">
             {formatCurrency(destBudgeted)} → <span className="text-token-gain">{formatCurrency(newDest)}</span>
           </p>
         </div>
+
+        {error && <p className="text-token-loss text-xs">{error}</p>}
+
+        <ActionCardButtons
+          onConfirm={handleConfirm}
+          onCancel={onCancelled}
+          loading={loading}
+          confirmDisabled={selectedSource === selectedDest}
+          confirmLabel={loading ? 'Saving…' : 'Confirm'}
+        />
       </div>
-
-      {error && <p className="text-token-loss text-xs">{error}</p>}
-
-      <ActionCardButtons
-        onConfirm={handleConfirm}
-        onCancel={onCancelled}
-        loading={loading}
-        confirmDisabled={selectedSource === selectedDest}
-        confirmLabel={loading ? 'Saving…' : 'Confirm'}
-      />
     </Card>
   )
 }
