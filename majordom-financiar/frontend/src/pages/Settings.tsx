@@ -6,12 +6,13 @@ import {
   ChevronLeft, ChevronRight, LogOut, RefreshCw, Wallet, Database, Car, LineChart,
   Palette, Languages, Settings2, ShieldCheck, Coins, Tags, Users, CalendarClock,
   ArrowRightLeft, Sparkles, Plug, Link2, Bell, Info, Moon, Sun, Monitor, Check,
-  Lock, Unplug, Hash, TrendingUp,
+  Lock, Unplug, Hash, TrendingUp, EyeOff, X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import {
   syncAccounts, getPayees, getSchedules, getBackupStatus, getCategories, getCategoryGroups,
   getBudgetPacingConfig, saveBudgetPacingConfig, getSetupStatus, getVehicleCostsSummary,
+  getFireExcludedAccounts, saveFireExcludedAccounts, getAccountList,
   type PayeeItem, type ScheduleItem,
 } from '../lib/api'
 import { isAbDown, subscribeAbDown } from '../lib/abConnectionStatus'
@@ -37,6 +38,7 @@ type PageKey =
   | 'connections'
   | 'notifications'
   | 'budget-pacing'
+  | 'fire-exclusions'
   | 'about'
 
 type SubPageKey = Exclude<PageKey, 'menu'>
@@ -56,6 +58,7 @@ const SUBPAGE_TITLES: Record<SubPageKey, string> = {
   connections: 'Connections',
   notifications: 'Notifications',
   'budget-pacing': 'Annual budget pacing',
+  'fire-exclusions': 'FIRE excluded accounts',
   about: 'About',
 }
 
@@ -86,6 +89,7 @@ const MENU_GROUPS: { label: string; items: MenuItem[] }[] = [
       { key: 'ai', label: 'AI', icon: Sparkles },
       { key: 'ai-integrations', label: 'AI Integrations', icon: Plug },
       { key: 'budget-pacing', label: 'Annual budget pacing', icon: TrendingUp },
+      { key: 'fire-exclusions', label: 'FIRE excluded accounts', icon: EyeOff },
     ],
   },
   { label: 'Connections', items: [{ key: 'connections', label: 'Connections', icon: Link2 }] },
@@ -168,6 +172,7 @@ function MenuScreen({ onNavigate }: { onNavigate: (page: SubPageKey) => void }) 
                 <button
                   key={item.key}
                   onClick={() => onNavigate(item.key)}
+                  aria-label={item.label}
                   className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5 hover:border-token-line-strong transition-colors"
                 >
                   <item.icon size={16} className="text-token-ink-3 flex-shrink-0" />
@@ -230,6 +235,7 @@ function PageBody({ page }: { page: SubPageKey }) {
     case 'connections': return <ConnectionsPage />
     case 'notifications': return <NotificationsPage />
     case 'budget-pacing': return <BudgetPacingPage />
+    case 'fire-exclusions': return <FireExclusionsPage />
     case 'about': return <AboutPage />
   }
 }
@@ -237,10 +243,13 @@ function PageBody({ page }: { page: SubPageKey }) {
 // ---------- Reusable row primitives ----------
 
 /** Interactive row (navigates somewhere on tap). */
-function NavRow({ icon: Icon, title, onClick }: { icon: LucideIcon; title: string; onClick: () => void }) {
+function NavRow({
+  icon: Icon, title, onClick, ariaLabel,
+}: { icon: LucideIcon; title: string; onClick: () => void; ariaLabel?: string }) {
   return (
     <button
       onClick={onClick}
+      aria-label={ariaLabel}
       className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5 hover:border-token-line-strong transition-colors"
     >
       <Icon size={16} className="text-token-ink-3 flex-shrink-0" />
@@ -751,6 +760,163 @@ function BudgetPacingPage() {
       <button
         type="button"
         disabled={saving}
+        onClick={handleSave}
+        className="
+          mt-2 w-full py-3.5 rounded-xl bg-token-surface border border-token-line text-token-ink text-base font-medium
+          hover:bg-token-surface-2 active:scale-[0.98]
+          disabled:opacity-40 disabled:cursor-not-allowed
+          transition-all duration-150
+        "
+      >
+        {saving ? 'Saving…' : 'Save'}
+      </button>
+    </>
+  )
+}
+
+// ---------- FIRE excluded accounts (#299) ----------
+
+function FireExclusionsPage() {
+  const queryClient = useQueryClient()
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['fire-excluded-accounts'],
+    queryFn: () => getFireExcludedAccounts(),
+    staleTime: 60_000,
+  })
+  const { data: accounts } = useQuery({
+    queryKey: ['account-list'],
+    queryFn: () => getAccountList(),
+    staleTime: 120_000,
+  })
+
+  const [terms, setTerms] = useState<string[]>([])
+  const [seeded, setSeeded] = useState(false)
+  const [newTerm, setNewTerm] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [saved, setSaved] = useState(false)
+
+  // Seed the form from the saved list exactly once, when it first loads —
+  // not on every refetch, or an in-progress edit would get clobbered.
+  useEffect(() => {
+    if (data && !seeded) {
+      setTerms(data.terms)
+      setSeeded(true)
+    }
+  }, [data, seeded])
+
+  const offBudgetAccounts = (accounts ?? []).filter(a => a.off_budget)
+  const dirty = data ? JSON.stringify(terms) !== JSON.stringify(data.terms) : false
+
+  function addTerm(raw: string) {
+    const term = raw.trim().toLowerCase()
+    if (!term) return
+    setTerms(prev => (prev.includes(term) ? prev : [...prev, term]))
+    setNewTerm('')
+    setSaved(false)
+  }
+
+  function removeTerm(term: string) {
+    setTerms(prev => prev.filter(t => t !== term))
+    setSaved(false)
+  }
+
+  async function handleSave() {
+    setSaving(true)
+    setSaveError(null)
+    setSaved(false)
+    try {
+      const res = await saveFireExcludedAccounts(terms)
+      setTerms(res.terms)
+      queryClient.invalidateQueries({ queryKey: ['fire-excluded-accounts'] })
+      setSaved(true)
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Failed to save.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const inputClass = `
+    w-full px-4 py-3 rounded-xl bg-token-surface border border-token-line
+    text-token-ink placeholder-token-ink-2 text-base
+    focus:outline-none focus:border-token-brand focus:ring-1 focus:ring-token-brand
+    transition-colors
+  `
+
+  if (isLoading) return <p className="text-sm text-token-ink-3 px-1">Loading…</p>
+  if (isError) {
+    return (
+      <p className="text-token-ink-3 text-xs px-1">
+        Couldn't load FIRE exclusions{error instanceof Error ? `: ${error.message}` : '.'}
+      </p>
+    )
+  }
+
+  return (
+    <>
+      <p className="text-xs text-token-ink-3 px-1">
+        Off-budget accounts whose name contains one of these terms are left out of the FIRE portfolio.
+      </p>
+
+      <SectionLabel>Excluded terms</SectionLabel>
+      {terms.length === 0 ? (
+        <p className="text-sm text-token-ink-3 px-1">No exclusions — every off-budget account counts.</p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {terms.map(t => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => removeTerm(t)}
+              aria-label={`Remove ${t}`}
+              className="flex items-center gap-1.5 bg-token-surface border border-token-line rounded-full px-3 py-1.5 text-sm text-token-ink hover:border-token-line-strong transition-colors"
+            >
+              {t}
+              <X size={12} className="text-token-ink-3 flex-shrink-0" />
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-2 pt-2">
+        <input
+          aria-label="New exclusion"
+          value={newTerm}
+          onChange={e => setNewTerm(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') addTerm(newTerm) }}
+          placeholder="e.g. pension"
+          className={inputClass}
+        />
+        <button
+          type="button"
+          onClick={() => addTerm(newTerm)}
+          className="px-4 rounded-xl bg-token-surface border border-token-line text-token-ink text-sm font-medium hover:bg-token-surface-2 active:scale-[0.98] transition-all duration-150 flex-shrink-0"
+        >
+          Add
+        </button>
+      </div>
+
+      {offBudgetAccounts.length > 0 && (
+        <select
+          aria-label="Add off-budget account"
+          value=""
+          onChange={e => { if (e.target.value) addTerm(e.target.value) }}
+          className={inputClass}
+        >
+          <option value="">Add an off-budget account…</option>
+          {offBudgetAccounts.map(a => (
+            <option key={a.id} value={a.name}>{a.name}</option>
+          ))}
+        </select>
+      )}
+
+      {saveError && <p className="text-token-loss text-sm text-center pt-2">{saveError}</p>}
+      {saved && <p className="text-token-gain text-sm text-center pt-2">Saved.</p>}
+
+      <button
+        type="button"
+        disabled={saving || !dirty}
         onClick={handleSave}
         className="
           mt-2 w-full py-3.5 rounded-xl bg-token-surface border border-token-line text-token-ink text-base font-medium
