@@ -37,7 +37,7 @@ export default function FuelioImport() {
   }
 
   return (
-    <div className="min-h-dvh bg-paper px-5 pb-24 pt-[3.5rem]">
+    <div>
       <Button
         variant="ghost"
         size="sm"
