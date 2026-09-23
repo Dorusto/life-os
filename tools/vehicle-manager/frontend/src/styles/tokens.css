@@ -1,126 +1,150 @@
+/* GENERATED FILE — do not edit directly. Source: packages/frontend-shared/src/tokens.css.
+   Run python3 scripts/sync_shared_frontend.py after editing the source, then commit both. */
+
 /*
- * investment-manager design tokens — the single source of truth for the
- * visual system. See frontend/DESIGN.md for the reasoning behind these
- * choices; port this file (plus tailwind.config.js) to reuse the look
- * elsewhere. Nothing here is app-specific on purpose.
+ * Majordom design tokens — shared by every frontend in the monorepo
+ * (Finance, Transport, Invest). The single source of truth for the visual
+ * system: every color, font, radius and shadow a component uses comes from a
+ * variable here, mapped into each app's tailwind.config.js.
  *
- * Palette concept: a cool "financial almanac" paper, deep naval ink, and a
- * restrained categorical set for data. Cool paper instead of the warm cream
- * that generated dashboards default to; navy as the brand rather than
- * money-green, so green can stay reserved for gains.
+ * Look (agreed 2026-09-23 on a design mockup, Wealthfolio as reference):
+ * warm graphite surfaces, no brand hue on chrome — the primary button is a
+ * light pill on dark (a dark pill on light). Color is reserved for data: one
+ * accent per app (charts, progress, active highlights) plus green/red for
+ * gain/loss. Same shell, different accent = one product with sections.
+ *
+ * Themes: light is :root, dark is [data-theme='dark'] on <html>.
+ * Accents: [data-accent='sage'|'amber'|'olive'|'slate'] on <html>; each app
+ * sets its default in index.html, the user may override it in Settings.
+ * No attribute = sage.
  */
 
 :root {
   color-scheme: light;
 
   /* --- Surfaces & ink --- */
-  --paper: #eef1f3;
+  --paper: #f4f3ef;
   --surface: #ffffff;
-  --surface-2: #f4f7f8;
-  --surface-sunken: #e7ecef;
-  --ink: #101b26;
-  --ink-2: #4a5a66;
-  --ink-3: #64737d;
-  --line: #dce3e7;
-  --line-strong: #c3ced4;
+  --surface-2: #eeede8;
+  --surface-sunken: #e9e7e1;
+  --ink: #161614;
+  --ink-2: #55534c;
+  --ink-3: #6e6c65;
+  --line: #e3e1da;
+  --line-strong: #cfccc3;
 
-  /* Backdrop for modals/drawers. A dedicated token rather than Tailwind's
-     bg-ink/40: an alpha modifier can't be applied to a var() color, so that
-     class would silently emit no background at all. */
-  --overlay: rgba(16, 27, 38, 0.4);
+  /* Backdrop for modals/drawers. A dedicated token rather than bg-ink/40:
+     an alpha modifier can't be applied to a var() color. */
+  --overlay: rgba(22, 22, 20, 0.4);
 
-  /* --- Brand: deep naval blue --- */
-  --brand: #1f4166;
-  --brand-2: #2c5c8f;
-  --brand-soft: #e1eaf3;
-  /* Readable brand accent for text/borders. Identical to --brand in light
-     mode; in dark mode brand stays a deep fill (so white button/panel text
-     keeps working) while this token lightens for legible accent text. */
-  --brand-ink: #1f4166;
+  /* --- Brand: neutral. The primary action is an ink-colored pill. ---
+     --on-brand is the text/icon color on a --brand fill — never text-white. */
+  --brand: #161614;
+  --brand-2: #2e2e2b;
+  --on-brand: #f4f3ef;
+  --brand-soft: #e6e4dd;
+
+  /* --- Accent (per app, see [data-accent] below) ---
+     --brand-ink is kept as the name existing components use for accent text,
+     active nav items and links; it follows the accent. */
+  --accent: #5e7f4f;
+  --accent-soft: #e3ebdd;
+  --brand-ink: var(--accent);
 
   /* --- Semantic --- */
-  --gain: #177d52;
-  --gain-soft: #e0f0e8;
+  --gain: #2f7a3e;
+  --gain-soft: #e1efe3;
   --loss: #b23b34;
   --loss-soft: #f6e4e2;
   --warn: #8a6414;
   --warn-soft: #f4ecd8;
-  --info: #2f5d8a;
+  --info: #4d6b8f;
+  --info-soft: #e3e9f1;
 
-  /* --- Categorical data palette (charts, allocation) --- */
-  --c1: #1f4166;
-  --c2: #2e8272;
-  --c3: #b07a2a;
-  --c4: #7a5c9e;
-  --c5: #3e6fa3;
-  --c6: #a85462;
+  /* --- Categorical data palette (charts, allocation). c1 is the accent. --- */
+  --c1: var(--accent);
+  --c2: #a8741c;
+  --c3: #4d6b8f;
+  --c4: #a45a4a;
+  --c5: #4f8a7c;
+  --c6: #7d7563;
 
-  /* --- Type --- */
+  /* --- Type ---
+     Mono carries navigation, labels, figures and tables; Sans carries prose
+     and forms; the serif is only for the occasional headline statement
+     ("Portfolio independence is 90% funded") and the logo. */
   --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-serif: 'Instrument Serif', Georgia, 'Times New Roman', serif;
 
   /* --- Shape --- */
-  --r-sm: 5px;
-  --r: 9px;
-  --r-lg: 14px;
+  --r-sm: 6px;
+  --r: 10px;
+  --r-lg: 12px;
   --r-xl: 20px;
 
   /* --- Elevation --- */
-  --shadow-sm: 0 1px 2px rgba(16, 27, 38, 0.05);
-  --shadow: 0 2px 10px rgba(16, 27, 38, 0.06);
-  --shadow-lg: 0 18px 40px -18px rgba(16, 27, 38, 0.22);
+  --shadow-sm: 0 1px 2px rgba(22, 22, 20, 0.05);
+  --shadow: 0 2px 10px rgba(22, 22, 20, 0.06);
+  --shadow-lg: 0 18px 40px -18px rgba(22, 22, 20, 0.22);
 }
 
-/*
- * Dark mode — the same tokens, re-valued, keyed off the attribute the theme
- * toggle sets on <html>. A cool blue-black paper (never pure #000) keeps the
- * "annual report" character: the surfaces stay intimate, and the two
- * meaningful colors keep their roles — brand blue for structure, green/red
- * only for gain/loss. Light mode values above are untouched.
- */
+:root[data-accent='sage'] { --accent: #5e7f4f; --accent-soft: #e3ebdd; }
+:root[data-accent='amber'] { --accent: #9a6a12; --accent-soft: #f3e8d2; }
+:root[data-accent='olive'] { --accent: #6f7222; --accent-soft: #ebebd6; }
+:root[data-accent='slate'] { --accent: #4d6b8f; --accent-soft: #e3e9f1; }
+
 [data-theme='dark'] {
   color-scheme: dark;
 
-  /* --- Surfaces & ink --- */
-  --paper: #0e151c;
-  --surface: #16202a;
-  --surface-2: #1e2b37;
-  --surface-sunken: #101922;
-  --ink: #e7edf2;
-  --ink-2: #a9b6c1;
-  --ink-3: #7c8b99;
-  --line: #26333f;
-  --line-strong: #3a4c5c;
+  /* --- Surfaces & ink: warm graphite, never pure black --- */
+  --paper: #131312;
+  --surface: #1a1a19;
+  --surface-2: #222220;
+  --surface-sunken: #0f0f0e;
+  --ink: #ecebe6;
+  --ink-2: #b5b3aa;
+  --ink-3: #8a887f;
+  --line: #2a2a27;
+  --line-strong: #3a3a36;
 
   --overlay: rgba(0, 0, 0, 0.62);
 
-  /* --- Brand: same role, tuned for dark surfaces ---
-     --brand stays a deep fill so white text on buttons/panels still passes;
-     --brand-ink is the lightened accent used for text and active nav. */
-  --brand: #2a5688;
-  --brand-2: #3e76b0;
-  --brand-soft: #16304c;
-  --brand-ink: #8cb8e2;
+  /* --- Brand: a light pill on dark --- */
+  --brand: #ecebe6;
+  --brand-2: #ffffff;
+  --on-brand: #131312;
+  --brand-soft: #222220;
+
+  --accent: #9bb58a;
+  --accent-soft: #232a1f;
 
   /* --- Semantic --- */
-  --gain: #4fbf8b;
-  --gain-soft: #14352a;
-  --loss: #e5766d;
-  --loss-soft: #3a1e1c;
-  --warn: #d9ae55;
+  --gain: #7fb77e;
+  --gain-soft: #1c2a1c;
+  --loss: #e0685e;
+  --loss-soft: #351d1b;
+  --warn: #d9a441;
   --warn-soft: #33290f;
-  --info: #5d9ad0;
+  --info: #8fa8c8;
+  --info-soft: #1d2531;
 
-  /* --- Categorical data palette (charts, allocation) --- */
-  --c1: #6fa8dc;
-  --c2: #4fb3a0;
-  --c3: #d6a94f;
-  --c4: #b49ad6;
-  --c5: #5e93c9;
-  --c6: #d98a98;
+  /* --- Categorical data palette --- */
+  --c2: #d9a441;
+  --c3: #6f8fb8;
+  --c4: #c27a6a;
+  --c5: #8fb5a8;
+  --c6: #a89f8c;
 
-  /* --- Elevation: darker, softer — depth on near-black reads differently --- */
+  /* --- Elevation: depth on near-black reads through borders, not shadow --- */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
   --shadow-lg: 0 18px 40px -18px rgba(0, 0, 0, 0.7);
 }
+
+/* Declared after the dark block on purpose: same specificity as
+   :root[data-accent], so source order makes the dark values win. */
+[data-theme='dark'][data-accent='sage'] { --accent: #9bb58a; --accent-soft: #232a1f; }
+[data-theme='dark'][data-accent='amber'] { --accent: #d9a441; --accent-soft: #2e2615; }
+[data-theme='dark'][data-accent='olive'] { --accent: #b5b85a; --accent-soft: #2a2b17; }
+[data-theme='dark'][data-accent='slate'] { --accent: #8fa8c8; --accent-soft: #1d2531; }
