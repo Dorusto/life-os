@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { confirmVehicleStatus, cancelVehicleStatus, type VehicleStatusData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
+import { Card } from './ui/Card'
 
 interface Props {
   data: VehicleStatusData
@@ -40,7 +41,7 @@ export default function VehicleStatusCard({ data, onConfirmed, onCancelled }: Pr
   }
 
   return (
-    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[85%] space-y-3">
+    <Card variant="bubble">
       <div>
         <p className="text-token-ink font-medium">
           {data.active ? 'Reactivate vehicle?' : 'Mark vehicle as sold/retired?'}
@@ -71,6 +72,6 @@ export default function VehicleStatusCard({ data, onConfirmed, onCancelled }: Pr
       {error && <p className="text-token-loss text-xs">{error}</p>}
 
       <ActionCardButtons onConfirm={handleConfirm} onCancel={handleCancel} loading={loading} />
-    </div>
+    </Card>
   )
 }

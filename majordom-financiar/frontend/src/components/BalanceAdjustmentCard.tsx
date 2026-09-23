@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { confirmBalanceAdjustment, cancelBalanceAdjustment, type BalanceAdjustmentData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
 import { formatCurrency } from '../lib/formatCurrency'
+import { Card } from './ui/Card'
 
 interface Props {
   data: BalanceAdjustmentData
@@ -42,7 +43,7 @@ export default function BalanceAdjustmentCard({ data, onConfirmed, onCancelled }
   const diffColor = diff > 0 ? 'text-token-gain' : diff < 0 ? 'text-token-loss' : 'text-token-ink-3'
 
   return (
-    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[80%] space-y-3">
+    <Card variant="bubble" className="max-w-[80%]">
       <div>
         <p className="text-token-ink font-medium">{data.account_name}</p>
         <p className="text-token-ink-3 text-sm flex items-center gap-2">
@@ -66,6 +67,6 @@ export default function BalanceAdjustmentCard({ data, onConfirmed, onCancelled }
       {error && <p className="text-token-loss text-xs">{error}</p>}
 
       <ActionCardButtons onConfirm={handleConfirm} onCancel={handleCancel} loading={loading} confirmDisabled={!valid} />
-    </div>
+    </Card>
   )
 }

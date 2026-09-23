@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { confirmCloseAccount, cancelCloseAccount, type CloseAccountData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
 import { formatCurrency } from '../lib/formatCurrency'
+import { Card } from './ui/Card'
 
 interface Props {
   data: CloseAccountData
@@ -39,7 +40,7 @@ export default function CloseAccountCard({ data, onConfirmed, onCancelled }: Pro
   }
 
   return (
-    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[80%] space-y-3">
+    <Card variant="bubble" className="max-w-[80%]">
       <div>
         <p className="text-token-ink font-medium">{data.account_name}</p>
         <p className="text-token-ink-3 text-sm">Current balance: {formatCurrency(data.balance)}</p>
@@ -79,6 +80,6 @@ export default function CloseAccountCard({ data, onConfirmed, onCancelled }: Pro
         confirmLabel="Close Account"
         confirmDisabled={hasBalance && !destinationId}
       />
-    </div>
+    </Card>
   )
 }

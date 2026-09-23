@@ -1,3 +1,5 @@
+import { Card } from './ui/Card'
+
 interface Props {
   question: string
   options: string[]
@@ -6,7 +8,7 @@ interface Props {
 
 export default function ClarificationCard({ question, options, onSelected }: Props) {
   return (
-    <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm px-4 py-3 max-w-[80%] space-y-3">
+    <Card variant="bubble" className="max-w-[80%]">
       <p className="text-token-ink text-sm">{question}</p>
       <div className="flex flex-wrap gap-2">
         {options.map((option, idx) => (
@@ -19,6 +21,6 @@ export default function ClarificationCard({ question, options, onSelected }: Pro
           </button>
         ))}
       </div>
-    </div>
+    </Card>
   )
 }
