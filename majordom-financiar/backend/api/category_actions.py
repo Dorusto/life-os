@@ -27,6 +27,7 @@ class GoalOverride(BaseModel):
     amount: float | None = None
     payee: str | None = None
     create_rule: bool | None = None
+    rule_prefix: str | None = None  # categorize_with_rule: edited AB-rule match text (#309)
     day_of_month: int | None = None
     schedule_name: str | None = None
     category_amounts: dict[str, float] | None = None  # budget_copy: category_id -> edited amount
@@ -127,8 +128,11 @@ async def confirm_category_action(
                 # Default: create rule if consistent
                 should_create_rule = action.get("is_consistent", False)
             rule_created = False
+            # Override preferred over the stored proposal (#309) — same shape as
+            # the payee/category_name merges above: the user may have edited the
+            # AB rule's match text on the card before confirming.
+            rule_prefix = override.rule_prefix or action.get("rule_prefix", payee)
             if should_create_rule:
-                rule_prefix = action.get("rule_prefix", payee)
                 await client.create_payee_rule(
                     payee_name_prefix=rule_prefix,
                     category_id=cat_id,
@@ -141,7 +145,7 @@ async def confirm_category_action(
             message = (
                 f"Categorized {count} transaction(s) for '{payee}' → '{cat_name}'."
                 + (
-                    f" AB rule created: future '{action.get('rule_prefix', payee)}' transactions will auto-categorize."
+                    f" AB rule created: future '{rule_prefix}' transactions will auto-categorize."
                     if rule_created
                     else " No rule created — payee history is inconsistent (same payee was categorized differently before)."
                 )
