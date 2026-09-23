@@ -1,0 +1,61 @@
+name: AB compatibility check
+
+# Weekly round trip of the latest actualpy against actualbudget/actual-server:latest (#300).
+# docker-compose.yml runs actual-server:latest, so a failure here means the next image pull
+# would break Majordom's sync — it opens (or comments on) a tracking issue instead of
+# surprising the deploy.
+
+on:
+  schedule:
+    - cron: "0 18 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  compat:
+    runs-on: ubuntu-latest
+    services:
+      actual:
+        image: actualbudget/actual-server:latest
+        ports:
+          - 5006:5006
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install latest actualpy
+        run: pip install --quiet actualpy
+
+      - name: Wait for actual-server
+        run: |
+          for i in $(seq 1 60); do curl -sf http://localhost:5006/info >/dev/null && exit 0; sleep 2; done
+          echo "actual-server did not come up"; exit 1
+
+      - name: Round trip
+        id: check
+        env:
+          AB_URL: http://localhost:5006
+          AB_PASSWORD: example-scratch
+        run: |
+          set -o pipefail
+          python majordom-financiar/scripts/ab_compat_check.py | tee result.txt
+
+      - name: Report incompatibility
+        if: failure() && steps.check.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="AB compatibility check failing: actualpy vs actual-server:latest"
+          body="$(printf 'Weekly check failed — do not pull a newer actual-server image until this passes.\n\n```\n%s\n```\n\nRun: %s' "$(cat result.txt)" "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}")"
+          existing=$(gh issue list --state open --search "\"$title\" in:title" --json number -q '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi
