@@ -6,6 +6,7 @@ import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { ErrorState, Loading } from '../components/Feedback'
 import { Field, TextInput } from '../components/Form'
+import { AppearanceSettings } from '../components/shell/AppearanceSettings'
 import { PageHeader } from '../components/shell/PageHeader'
 
 export default function SettingsPage() {
@@ -68,6 +69,10 @@ export default function SettingsPage() {
   return (
     <>
       <PageHeader title="Settings" description="The small set of preferences this app keeps." />
+
+      <Card title="Appearance" className="mb-6">
+        <AppearanceSettings appDefault="olive" />
+      </Card>
 
       <form onSubmit={onSubmit} className="space-y-6">
         <Card title="Performance">
