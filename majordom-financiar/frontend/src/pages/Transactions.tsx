@@ -11,6 +11,7 @@ import {
   getAccountList,
   getCategories,
   getTransactionsFiltered,
+  suggestCategory,
   type Transaction,
   type TransactionFilters,
 } from '../lib/api'
@@ -108,6 +109,13 @@ export default function TransactionsPage() {
   const [bulkNotice, setBulkNotice] = useState<string | null>(null)
   const [selectionMode, setSelectionMode] = useState(false)
 
+  // On-demand LLM category suggestion for the single-row bulk case. Pre-fills
+  // the category select only — Apply still performs the save, exactly like
+  // picking a category by hand.
+  const [suggestingCategory, setSuggestingCategory] = useState(false)
+  const [suggestError, setSuggestError] = useState<string | null>(null)
+  const [suggestNotice, setSuggestNotice] = useState<string | null>(null)
+
   // If we arrived via a category click, clear the router state after reading it
   // so that back/forward navigation doesn't re-apply an old filter unexpectedly.
   useEffect(() => {
@@ -198,6 +206,8 @@ export default function TransactionsPage() {
 
   const toggleRow = (id: string) => {
     setBulkNotice(null)
+    setSuggestError(null)
+    setSuggestNotice(null)
     setSelected(prev => {
       const next = new Set(prev)
       if (next.has(id)) {
@@ -213,6 +223,8 @@ export default function TransactionsPage() {
 
   const toggleSelectAll = () => {
     setBulkNotice(null)
+    setSuggestError(null)
+    setSuggestNotice(null)
     if (allVisibleSelected) {
       setSelected(new Set())
     } else {
@@ -221,6 +233,8 @@ export default function TransactionsPage() {
   }
 
   const toggleSelectionMode = () => {
+    setSuggestError(null)
+    setSuggestNotice(null)
     if (selectionMode) {
       setSelected(new Set())
     }
@@ -262,6 +276,37 @@ export default function TransactionsPage() {
       setBulkError(e instanceof Error ? e.message : 'Bulk update failed')
     } finally {
       setBulkSaving(false)
+    }
+  }
+
+  const handleSuggestCategory = async () => {
+    // One row only: a suggestion names a single payee, so it would be
+    // misleading across a multi-merchant selection.
+    if (selected.size !== 1) return
+    const [id] = [...selected]
+    const tx = transactions.find(t => t.id === id)
+    if (!tx) return
+    setSuggestingCategory(true)
+    setSuggestError(null)
+    setSuggestNotice(null)
+    try {
+      const result = await suggestCategory({ payee: tx.merchant ?? '', notes: tx.notes ?? '' })
+      // The select is bound to a category *id*, but the suggestion comes back
+      // as a *name* — resolve it against the loaded categories first.
+      const wanted = result.category_name?.toLowerCase()
+      const match = wanted ? categories?.find(c => c.name.toLowerCase() === wanted) : undefined
+      if (match) {
+        setBulkCategoryId(match.id)
+      } else {
+        // A null (or unmatched) suggestion is a valid "nothing fits" answer,
+        // not a failure — the button stays available to retry.
+        setSuggestNotice('No suggestion found — pick a category manually.')
+      }
+    } catch (err) {
+      setSuggestError(err instanceof Error ? err.message : 'Could not get a suggestion')
+    } finally {
+      // Always released: a failure must never leave the button stuck.
+      setSuggestingCategory(false)
     }
   }
 
@@ -675,6 +720,16 @@ export default function TransactionsPage() {
                 </option>
               ))}
             </select>
+            {selected.size === 1 && (
+              <button
+                onClick={handleSuggestCategory}
+                disabled={suggestingCategory}
+                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl bg-token-surface-2 border border-token-line text-token-ink text-sm font-semibold hover:border-token-brand transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+              >
+                {suggestingCategory && <Loader2 size={14} className="animate-spin" />}
+                Suggest
+              </button>
+            )}
             <button
               onClick={applyBulk}
               disabled={!bulkCategoryId || bulkSaving}
@@ -685,6 +740,8 @@ export default function TransactionsPage() {
             </button>
           </div>
           {bulkError && <p className="text-token-loss text-xs mt-1.5">{bulkError}</p>}
+          {suggestNotice && <p className="text-token-ink-3 text-xs mt-1.5">{suggestNotice}</p>}
+          {suggestError && <p className="text-token-loss text-xs mt-1.5">{suggestError}</p>}
         </div>
       )}
     </div>
