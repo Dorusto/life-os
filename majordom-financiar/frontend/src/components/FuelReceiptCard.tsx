@@ -427,7 +427,7 @@ export default function FuelReceiptCard({
               <button
                 onClick={() => handleConfirm({ attachTo: possibleMatch.financial_id })}
                 disabled={saving}
-                className="flex-1 py-1.5 rounded-lg bg-token-brand hover:bg-token-brand-2 text-token-ink text-xs font-medium transition-colors disabled:opacity-40"
+                className="flex-1 py-1.5 rounded-lg bg-token-brand hover:bg-token-brand-2 text-token-on-brand text-xs font-medium transition-colors disabled:opacity-40"
               >
                 Attach to this
               </button>
@@ -448,7 +448,7 @@ export default function FuelReceiptCard({
             <button
               onClick={() => handleConfirm()}
               disabled={saving || !liters || !total || !vehicle || !accountId}
-              className="flex-1 py-2 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-ink text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+              className="flex-1 py-2 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-on-brand text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
             >
               {saving ? (
                 <><Loader2 size={14} className="animate-spin" /> Saving…</>

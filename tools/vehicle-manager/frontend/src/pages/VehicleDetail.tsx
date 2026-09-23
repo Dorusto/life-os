@@ -5,10 +5,7 @@ import { ChevronLeft, Trash2 } from 'lucide-react'
 import Chart from '../components/Chart'
 import ChartSection from '../components/ChartSection'
 import LogEntryForm from '../components/LogEntryForm'
-import LogoutButton from '../components/LogoutButton'
-import MajordomButton from '../components/MajordomButton'
 import NotificationBell from '../components/NotificationBell'
-import SettingsButton from '../components/SettingsButton'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { Delta } from '../components/Delta'
@@ -181,7 +178,7 @@ export default function VehicleDetail() {
 
   if (!vehicle) {
     return (
-      <div className="flex min-h-dvh flex-col bg-paper px-5 pt-14">
+      <div className="flex flex-col">
         <Button
           variant="ghost"
           size="sm"
@@ -190,7 +187,7 @@ export default function VehicleDetail() {
         >
           <ChevronLeft size={16} /> Vehicles
         </Button>
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 pb-24">
+        <div className="flex flex-col items-center gap-3">
           <p className="text-xl font-semibold text-ink">Vehicle not found</p>
           <Button variant="secondary" size="sm" onClick={() => navigate('/vehicles')}>
             Back to vehicles
@@ -230,24 +227,19 @@ export default function VehicleDetail() {
     : 'Class default'
 
   return (
-    <div className="flex h-dvh flex-col overflow-y-auto bg-paper">
-      <header className="flex-shrink-0 px-5 pb-3 pt-14">
+    <div className="flex flex-col">
+      <header className="pb-3">
         <div className="mb-3 flex items-center justify-between">
           <Button variant="ghost" size="sm" onClick={() => navigate('/vehicles')} className="-ml-3">
             <ChevronLeft size={16} /> Vehicles
           </Button>
-          <div className="flex items-center gap-3">
-            <NotificationBell vehicleId={vehicle.id} />
-            <SettingsButton />
-            <MajordomButton />
-            <LogoutButton />
-          </div>
+          <NotificationBell vehicleId={vehicle.id} />
         </div>
         <p className="font-mono text-[11px] uppercase tracking-wide text-ink-3">Vehicle</p>
         <h1 className="truncate text-2xl font-semibold text-ink">{vehicle.name}</h1>
       </header>
 
-      <section className="px-5 pt-2 pb-24">
+      <section className="pt-2">
         {projection404 ? (
           <Card className="mt-4">
             <p className="text-sm text-ink-2">

@@ -1,11 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Car } from 'lucide-react'
-import BottomNav from '../components/BottomNav'
-import LogoutButton from '../components/LogoutButton'
-import MajordomButton from '../components/MajordomButton'
-import NotificationBell from '../components/NotificationBell'
-import SettingsButton from '../components/SettingsButton'
 import VehicleSwitcher from '../components/VehicleSwitcher'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
@@ -29,15 +24,9 @@ export default function Dashboard() {
   const summary = summaryQuery.data
 
   return (
-    <div className="min-h-dvh bg-paper px-4 pb-24 pt-8">
-      <header className="mb-4 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-ink">Majordom Transport</h1>
-        <div className="flex items-center gap-3">
-          <NotificationBell />
-          <SettingsButton />
-          <MajordomButton />
-          <LogoutButton />
-        </div>
+    <div>
+      <header className="mb-4">
+        <h1 className="text-xl font-semibold text-ink">Home</h1>
       </header>
 
       {isLoading ? (
@@ -124,8 +113,6 @@ export default function Dashboard() {
           )}
         </>
       )}
-
-      <BottomNav />
     </div>
   )
 }

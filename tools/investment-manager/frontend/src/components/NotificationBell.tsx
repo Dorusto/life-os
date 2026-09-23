@@ -63,7 +63,7 @@ export function NotificationBell({ buttonClassName }: NotificationBellProps) {
         <div
           role="dialog"
           aria-label="Notifications"
-          className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] w-72 overflow-y-auto rounded-lg border border-line bg-surface shadow-lg"
+          className="absolute right-0 top-full z-50 mt-2 max-h-[70vh] lg:bottom-full lg:left-0 lg:right-auto lg:top-auto lg:mb-2 lg:mt-0 w-72 overflow-y-auto rounded-lg border border-line bg-surface shadow-lg"
         >
           {notifications.length > 0 ? (
             <ul>

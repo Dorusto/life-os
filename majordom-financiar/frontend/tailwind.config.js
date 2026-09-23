@@ -79,6 +79,8 @@ export default {
         // whole-app color/token migration confirmed nothing referenced them.
         sans: ['IBM Plex Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
         'plex-sans': ['IBM Plex Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        // Bare `mono` matches Transport/Invest so shared components can use font-mono.
+        mono: ['IBM Plex Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
         'plex-mono': ['IBM Plex Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
       borderRadius: {

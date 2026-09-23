@@ -15,7 +15,7 @@ export default function ClarificationCard({ question, options, onSelected }: Pro
           <button
             key={idx}
             onClick={() => onSelected(option)}
-            className="bg-token-brand hover:bg-token-brand-2 text-token-ink text-sm font-medium px-4 py-1.5 rounded-full transition-colors active:scale-95"
+            className="bg-token-brand hover:bg-token-brand-2 text-token-on-brand text-sm font-medium px-4 py-1.5 rounded-full transition-colors active:scale-95"
           >
             {option}
           </button>

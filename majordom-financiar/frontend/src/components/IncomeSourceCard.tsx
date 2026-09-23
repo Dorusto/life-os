@@ -84,11 +84,11 @@ export default function IncomeSourceCard({ payee, amount, date, onConfirmed }: I
       <div className="flex rounded-xl overflow-hidden border border-token-line text-sm">
         <button
           onClick={() => setMode('income')}
-          className={`flex-1 py-1.5 transition-colors ${mode === 'income' ? 'bg-token-brand text-token-ink' : 'text-token-ink-3 hover:text-token-ink'}`}
+          className={`flex-1 py-1.5 transition-colors ${mode === 'income' ? 'bg-token-brand text-token-on-brand' : 'text-token-ink-3 hover:text-token-ink'}`}
         >Income</button>
         <button
           onClick={() => setMode('transfer')}
-          className={`flex-1 py-1.5 transition-colors ${mode === 'transfer' ? 'bg-token-brand text-token-ink' : 'text-token-ink-3 hover:text-token-ink'}`}
+          className={`flex-1 py-1.5 transition-colors ${mode === 'transfer' ? 'bg-token-brand text-token-on-brand' : 'text-token-ink-3 hover:text-token-ink'}`}
         >Transfer from account</button>
       </div>
 
@@ -145,7 +145,7 @@ export default function IncomeSourceCard({ payee, amount, date, onConfirmed }: I
       <button
         onClick={handleSave}
         disabled={loading || !editedPayee.trim() || (mode === 'income' ? !incomeName.trim() : !accountId)}
-        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-ink text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-on-brand text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {loading ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : <><Check size={14} /> Save</>}
       </button>

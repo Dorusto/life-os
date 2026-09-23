@@ -594,7 +594,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
         <button
           onClick={handleImport}
           disabled={(creatingAccount ? !newAccountName.trim() : !accountId) || importing}
-          className="flex-1 py-2 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-ink text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+          className="flex-1 py-2 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-on-brand text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
         >
           {importing ? (
             <><Loader2 size={14} className="animate-spin" /> Importing...</>

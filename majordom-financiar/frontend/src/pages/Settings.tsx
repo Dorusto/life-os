@@ -140,7 +140,7 @@ function MenuScreen({ onNavigate }: { onNavigate: (page: SubPageKey) => void }) 
   }
 
   return (
-    <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
+    <div className="min-h-full bg-token-paper flex flex-col">
       <PageHeader
         label="Majordom"
         title="Settings"
@@ -202,7 +202,7 @@ function SubPageShell({
   title, onBack, children,
 }: { title: string; onBack: () => void; children: ReactNode }) {
   return (
-    <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
+    <div className="min-h-full bg-token-paper flex flex-col">
       <PageHeader
         label="Settings"
         title={title}

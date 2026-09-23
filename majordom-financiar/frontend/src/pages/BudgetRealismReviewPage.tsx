@@ -37,7 +37,7 @@ export default function BudgetRealismReviewPage() {
   }
 
   return (
-    <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
+    <div className="min-h-full bg-token-paper flex flex-col">
       <PageHeader
         label="Review"
         title="Budget Realism"

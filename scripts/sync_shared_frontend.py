@@ -35,6 +35,12 @@ MANIFEST = {
     "formatDate.ts": ((FINANCE, TRANSPORT), "src/lib/formatDate.ts"),
     "tokens.css": (ALL_APPS, "src/styles/tokens.css"),
     "BrandMark.tsx": (ALL_APPS, "src/components/BrandMark.tsx"),
+    "shell/AppShell.tsx": (ALL_APPS, "src/components/shell/AppShell.tsx"),
+    "shell/MobileTabBar.tsx": (ALL_APPS, "src/components/shell/MobileTabBar.tsx"),
+    "shell/MoreSheet.tsx": (ALL_APPS, "src/components/shell/MoreSheet.tsx"),
+    "shell/Page.tsx": (ALL_APPS, "src/components/shell/Page.tsx"),
+    "shell/appLinks.ts": (ALL_APPS, "src/components/shell/appLinks.ts"),
+    "shell/cx.ts": (ALL_APPS, "src/components/shell/cx.ts"),
 }
 
 # Dark tile (the apps default to dark) — the favicon can't follow the in-app theme.

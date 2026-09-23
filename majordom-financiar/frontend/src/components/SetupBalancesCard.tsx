@@ -166,7 +166,7 @@ export default function SetupBalancesCard({ accounts, onComplete }: Props) {
       <button
         onClick={handleSubmit}
         disabled={loading}
-        className="w-full py-2 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-ink text-sm font-medium transition-colors disabled:opacity-40 flex items-center justify-center gap-2 active:scale-95"
+        className="w-full py-2 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-on-brand text-sm font-medium transition-colors disabled:opacity-40 flex items-center justify-center gap-2 active:scale-95"
       >
         {loading ? <Loader2 className="animate-spin" size={14} /> : 'Confirm balances'}
       </button>

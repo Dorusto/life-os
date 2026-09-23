@@ -79,7 +79,9 @@ echo "🔍 Scanning staged changes for private data..."
 #     fraction spelled out next to its percentage, for instance) — matches
 #     the 3rd alternative below (digit-pair + 3-letter word + digit).
 #   - Tailwind classes where a short letter-only class sits next to a
-#     numeric-width class next to another letter-only class.
+#     numeric-width class next to another letter-only class. Mostly solved by
+#     the trailing (?![-:]) — a Tailwind utility's letters are always followed
+#     by '-' or a ':' variant (z-50 mt-1.5, pb-28 lg:pb-0), a plate's never are.
 #   - Romanian text with diacritics (î/ă/ș/ț) piped through `echo | grep -P`
 #     (not read from a file) can shift multi-byte UTF-8 boundaries and
 #     produce a match that doesn't reproduce when testing the same text
@@ -87,7 +89,7 @@ echo "🔍 Scanning staged changes for private data..."
 #     but real license plates never carry diacritics, so rephrasing the
 #     surrounding text (or dropping diacritics from illustrative examples)
 #     is a safe, low-cost workaround.
-check "License plate"              '\b(\d{2}[\s-][A-Z]{2}[\s-][A-Z]{2}|[A-Z]{2}[\s-]\d{3}[\s-][A-Z]|\d{2}[\s-][A-Z]{3}[\s-]\d|\d[\s-][A-Z]{3}[\s-]\d{2}|[A-Z][\s-]\d{3}[\s-][A-Z]{2}|[A-Z]{1,2}[\s-]\d{2,3}[\s-][A-Z]{2,3})\b'
+check "License plate"              '\b(\d{2}[\s-][A-Z]{2}[\s-][A-Z]{2}|[A-Z]{2}[\s-]\d{3}[\s-][A-Z]|\d{2}[\s-][A-Z]{3}[\s-]\d|\d[\s-][A-Z]{3}[\s-]\d{2}|[A-Z][\s-]\d{3}[\s-][A-Z]{2}|[A-Z]{1,2}[\s-]\d{2,3}[\s-][A-Z]{2,3})\b(?![-:])'
 
 # IBAN
 check "IBAN number"                '\b[A-Z]{2}\d{2}[A-Z0-9]{4}\d{7,}\b'

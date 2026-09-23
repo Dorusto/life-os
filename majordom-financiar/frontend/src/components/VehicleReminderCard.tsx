@@ -138,14 +138,14 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
               <button
                 type="button"
                 onClick={() => setRequired(true)}
-                className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${required ? 'bg-token-brand text-token-ink' : 'bg-token-paper border border-token-line text-token-ink-3'}`}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${required ? 'bg-token-brand text-token-on-brand' : 'bg-token-paper border border-token-line text-token-ink-3'}`}
               >
                 Required
               </button>
               <button
                 type="button"
                 onClick={() => setRequired(false)}
-                className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${!required ? 'bg-token-brand text-token-ink' : 'bg-token-paper border border-token-line text-token-ink-3'}`}
+                className={`flex-1 py-2 rounded-xl text-sm font-medium transition-colors ${!required ? 'bg-token-brand text-token-on-brand' : 'bg-token-paper border border-token-line text-token-ink-3'}`}
               >
                 Not required
               </button>
