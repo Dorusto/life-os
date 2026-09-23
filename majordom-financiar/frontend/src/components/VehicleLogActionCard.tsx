@@ -3,7 +3,7 @@ import { Trash2 } from 'lucide-react'
 import { confirmVehicleLogAction, cancelVehicleLogAction, type VehicleLogActionData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
 import { formatCurrency, formatNumber } from '../lib/formatCurrency'
-import { Card } from './ui/Card'
+import { Card } from './kit/Card'
 
 interface Props {
   data: VehicleLogActionData
@@ -36,7 +36,8 @@ export default function VehicleLogActionCard({ data, onConfirmed, onCancelled }:
   }
 
   return (
-    <Card variant="bubble">
+    <Card className="max-w-[85%] rounded-bl-sm">
+      <div className="space-y-3">
       <div>
         <p className="text-token-ink font-medium">Delete log entry?</p>
         <p className="text-token-ink-3 text-sm mt-0.5">
@@ -64,6 +65,7 @@ export default function VehicleLogActionCard({ data, onConfirmed, onCancelled }:
         confirmIcon={Trash2}
         confirmLabel="Delete"
       />
+      </div>
     </Card>
   )
 }
