@@ -1,0 +1,85 @@
+name: Deploy runner watchdog
+
+# Alerts when the self-hosted deploy runner stops picking up work (#304).
+# Runs on a GitHub-hosted runner on purpose: a check running on the deploy LXC
+# cannot report that the LXC itself is down.
+#
+# Signals:
+# 1. Always: a "Deploy Majordom" run has been queued for more than 15 minutes
+#    (needs only the default GITHUB_TOKEN).
+# 2. Optional: the runner reports "offline" even when nothing is queued. Listing
+#    self-hosted runners needs a token with the repo's Administration: read
+#    permission — add it as the RUNNER_STATUS_TOKEN secret to enable this check.
+#
+# Alert = one open issue labelled "runner-down" (created once, commented on while the
+# problem lasts, closed automatically on recovery). GitHub emails the repo owner.
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  issues: write
+
+concurrency:
+  group: runner-watchdog
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check deploy runner
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUNNER_TOKEN: ${{ secrets.RUNNER_STATUS_TOKEN }}
+          REPO: ${{ github.repository }}
+          QUEUE_LIMIT_MINUTES: "15"
+        run: |
+          set -euo pipefail
+          problems=""
+
+          now=$(date -u +%s)
+          stuck=$(gh run list -R "$REPO" --workflow deploy.yml --status queued \
+            --json databaseId,createdAt --jq '.[] | "\(.databaseId) \(.createdAt)"' || true)
+          while read -r id created; do
+            [ -z "${id:-}" ] && continue
+            age=$(( (now - $(date -u -d "$created" +%s)) / 60 ))
+            if [ "$age" -ge "$QUEUE_LIMIT_MINUTES" ]; then
+              problems="${problems}- Deploy run ${id} has been queued for ${age} minutes.\n"
+            fi
+          done <<< "$stuck"
+
+          if [ -n "${RUNNER_TOKEN:-}" ]; then
+            offline=$(GH_TOKEN="$RUNNER_TOKEN" gh api "repos/$REPO/actions/runners" \
+              --jq '.runners[] | select(.status != "online") | .name' || echo "__api_error__")
+            if [ "$offline" = "__api_error__" ]; then
+              echo "::warning::Could not list runners with RUNNER_STATUS_TOKEN"
+            elif [ -n "$offline" ]; then
+              while read -r name; do
+                problems="${problems}- Self-hosted runner \"${name}\" is offline.\n"
+              done <<< "$offline"
+            fi
+          fi
+
+          gh label create runner-down -R "$REPO" --color B60205 \
+            --description "Deploy runner watchdog alert" 2>/dev/null || true
+          open_issue=$(gh issue list -R "$REPO" --label runner-down --state open \
+            --json number --jq '.[0].number // empty')
+
+          if [ -n "$problems" ]; then
+            body=$(printf "Deploy runner watchdog found a problem:\n\n${problems}\nCheck the runner service on the deploy LXC (\`systemctl status 'actions.runner.*'\`). This issue closes itself once deploys flow again.")
+            if [ -n "$open_issue" ]; then
+              gh issue comment "$open_issue" -R "$REPO" --body "$body"
+            else
+              gh issue create -R "$REPO" --label runner-down \
+                --title "ops: deploy runner is not picking up work" --body "$body"
+            fi
+            echo "::error::Deploy runner problem detected"
+          elif [ -n "$open_issue" ]; then
+            gh issue close "$open_issue" -R "$REPO" --comment "Watchdog: deploys are flowing again, closing."
+          else
+            echo "Deploy runner healthy."
+          fi
