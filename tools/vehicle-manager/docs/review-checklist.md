@@ -1,6 +1,6 @@
 # Vehicle-manager standalone app — manual review checklist
 
-Written 2026-09-12 for Doru's own first-pass test of the standalone app (Phases 1-5, see
+Written 2026-09-12 for the user's own first-pass test of the standalone app (Phases 1-5, see
 `standalone-app-plan.md`), before deciding what goes into the next implementation round. Two
 issues already confirmed via an earlier automated pass are tracked separately —
 [#265](https://github.com/Dorusto/life-os/issues/265) (chart Y-axis rounds to 0 under 1) and

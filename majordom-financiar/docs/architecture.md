@@ -331,7 +331,7 @@ Account-name matching for `propose_close_account` and `propose_balance_adjustmen
 
 ### 25. Shared `PageHeader`/`IconButton` — every page header, not a per-page reinvention
 
-Home, Chat, and ImportPage each hand-rolled their own `<header>` (different icon sizes — 18/20/22 —, different hover styles — rounded background vs. plain color change —, different alignment, different title typography) until Doru noticed the drift by comparing screenshots side by side. `frontend/src/components/PageHeader.tsx` (label + title + a right-aligned actions slot, optional `bordered`) and `frontend/src/components/IconButton.tsx` (one icon-button style — size, padding, rounded hover background, optional danger variant, optional badge overlay) are now the only way to build a page header. **Any new page header, or new icon-only button anywhere in the header, uses these two components — never a bespoke `<button>` with its own ad-hoc classes.** If a real need doesn't fit (e.g. a genuinely different size class), extend the shared component with a prop rather than opting out of it.
+Home, Chat, and ImportPage each hand-rolled their own `<header>` (different icon sizes — 18/20/22 —, different hover styles — rounded background vs. plain color change —, different alignment, different title typography) until the user noticed the drift by comparing screenshots side by side. `frontend/src/components/PageHeader.tsx` (label + title + a right-aligned actions slot, optional `bordered`) and `frontend/src/components/IconButton.tsx` (one icon-button style — size, padding, rounded hover background, optional danger variant, optional badge overlay) are now the only way to build a page header. **Any new page header, or new icon-only button anywhere in the header, uses these two components — never a bespoke `<button>` with its own ad-hoc classes.** If a real need doesn't fit (e.g. a genuinely different size class), extend the shared component with a prop rather than opting out of it.
 
 ### 26. Shared `BottomSheet` — every bottom-sheet overlay, same reasoning as rule 25
 
@@ -424,6 +424,19 @@ All 13 pages that render a `<PageHeader>` share the wrapper `<div className="h-d
 ### 44. A `position: fixed` overlay inside an ancestor with `backdrop-filter` (or `transform`/`filter`) resolves against that ancestor, not the viewport — portal fixed overlays to `document.body`
 
 `PageHeader.tsx`'s sticky header uses `backdrop-blur`. Per the CSS spec, `backdrop-filter` (like `transform`/`filter`) makes that element the **containing block for `position: fixed` descendants**, so any fixed overlay rendered inside the header's subtree is positioned and clipped against the header's own box, not the screen. Found live as #295: `NotificationBell` (via `StandardHeaderActions`) renders `BottomSheet`'s `fixed inset-0` overlay inside the header — the sheet resolved against the ~90px header box, producing a panel clipped at the top of the screen and no visible backdrop. Fixed by rendering `BottomSheet` through `createPortal(..., document.body)` (`frontend/src/components/BottomSheet.tsx`) — the portal escapes any transformed/filtered ancestor, fixing every BottomSheet consumer at once without touching the header's blur design. Any future modal/sheet/full-screen overlay must either live outside filtered/transformed ancestors or go through a portal to `document.body`; anchored `absolute` dropdowns (vehicle-manager / investment-manager bells) are unaffected — the gotcha is specific to `fixed` positioning.
+
+### 45. `run_bank_resync_all()` reporting no top-level error does NOT mean it imported anything — check its `failed` list, or better, the account's own transaction dates
+
+`ActualBudgetClient.run_bank_resync_all()` (`backend/core/actual_client/client.py`) wraps each
+account's `actual.run_bank_sync()` call in a per-account `try/except`, so one account's exception
+never surfaces to the caller — it's logged as a warning and the account name is appended to the
+response's `failed` list, while the endpoint/tool still returns success. Confirmed live in #303: a
+real account's sync had been throwing `pydantic.ValidationError` on every call for weeks (Enable
+Banking sends an ISO 20022 balance-type code `actualpy`'s model doesn't recognize — upstream,
+unfixed, see `docs/decisions.md#303-actualpy-enable-banking-incompatible`) with zero visible
+symptom beyond the account quietly falling behind. When a "did the sync actually work" question
+comes up, don't trust the lack of an error — check the response's `failed` array, or more
+reliably, whether the account's most recent transaction date actually advanced.
 
 ---
 

@@ -1,7 +1,7 @@
 # investment-manager — standalone app plan
 
 Written 2026-09-12 for a from-scratch build, dispatched directly to DeepSeek Flash v4.1 via
-opencode (not through Claude Code's own Aider delegation) — Doru runs this himself, start to
+opencode (not through Claude Code's own Aider delegation) — the user runs this himself, start to
 finish, in one go. Read this whole file before writing any code. See
 `majordom-financiar/docs/decisions.md#portfolio-becomes-separate-service` for why this is a
 separate app at all, and `tools/standalone-app-playbook.md` for the reusable process this plan
@@ -25,7 +25,7 @@ vehicle-manager's. See section 6.
 ## 1. Scope — read this before writing a single line
 
 **Goal for this build: the essential Wealthfolio-shaped toolset for portfolio tracking, built
-completely, end to end, in one pass — not a bare-bones skeleton.** Doru's own framing: build the
+completely, end to end, in one pass — not a bare-bones skeleton.** the user's own framing: build the
 whole thing autonomously, he reviews after, not a back-and-forth per feature. That means this list
 is the actual target, not a "nice to have later":
 
@@ -245,7 +245,7 @@ store as-is in `transactions.currency`, convert only at display/aggregation time
 
 ## 6. Frontend — design direction
 
-**Full creative freedom on visuals and layout — this is deliberate, not an oversight.** Doru's own
+**Full creative freedom on visuals and layout — this is deliberate, not an oversight.** the user's own
 words: he dislikes the current look of every majordom-financiar-family app and wants this one to
 look genuinely good, with Wealthfolio's own screenshots (https://wealthfolio.app/) as the
 aesthetic bar. Do NOT copy vehicle-manager's visual style (dark, dense, utilitarian) — that was
@@ -334,7 +334,7 @@ look — that only works if the design isn't hard-wired into this app's own comp
 
 ## 8. Suggested phases
 
-Not a rigid checklist to report progress against one by one (Doru is running this in one
+Not a rigid checklist to report progress against one by one (the user is running this in one
 opencode session, not a phase-by-phase Claude Code loop like vehicle-manager's original build) —
 build through all of them in one pass, then stop for review (per
 `tools/standalone-app-playbook.md` section 9 — stop at the checkpoint actually asked for, which
@@ -423,7 +423,7 @@ the shape expected — small, single-purpose modules, not one giant `main.py`):
   docstring (what this file is responsible for, like `auth.py`'s own docstring), and a docstring
   on any function whose logic isn't obvious from its name and signature alone (the XIRR/TWR
   functions in particular need one explaining the cash-flow sign convention — see section 7).
-  Don't add a comment above every line; do add one wherever a future reader (including Doru,
+  Don't add a comment above every line; do add one wherever a future reader (including the user,
   reading this months from now) would otherwise have to re-derive a non-obvious decision.
 - Keep it easy to follow top-to-bottom: a route handler in `main.py` should read as "validate →
   call into database.py/stats.py/market_data.py → return," not have business logic inlined in the
@@ -457,7 +457,7 @@ NOT port over; only the `.claude/skills/*/SKILL.md` format does, like `frontend-
   attempt if this doc's own phase list (section 8) is enough to track progress by eye.
 
 None of these are required for DeepSeek to follow this plan — they reduce specific risks
-(hallucinated APIs, losing progress across sessions) if Doru wants to install them before
+(hallucinated APIs, losing progress across sessions) if the user wants to install them before
 starting. Context7 is the one with no real downside.
 
 ## 13. Circuit breaker
@@ -515,7 +515,7 @@ and documented in `frontend/DESIGN.md` for the later platform-wide polish phase.
   while `/api/health` → 200, `/api/holdings` → 401 JSON and `/api/securities` → data. Prefix
   stripping and SPA fallback both confirmed.
 
-**Not verified here — needs Doru's environment:** `docker compose --profile investment-manager
+**Not verified here — needs the user's environment:** `docker compose --profile investment-manager
 up -d --build` was not run (no Docker in this sandbox). The Dockerfiles/compose blocks were not
 touched, but the image build itself is unconfirmed. A real Twelve Data key was also unavailable,
 so live pricing/FX was exercised only through mocks and the graceful-degradation path

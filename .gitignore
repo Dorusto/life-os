@@ -35,7 +35,7 @@ Thumbs.db
 .aider*
 
 # delegate-by-complexity dispatch worktrees — nested inside the repo rather
-# than as sibling folders next to life-os/ (2026-09-13, Doru flagged sibling
+# than as sibling folders next to life-os/ (2026-09-13, the user flagged sibling
 # worktree folders in Proiecte-AI/ as unwanted clutter).
 .worktrees/
 

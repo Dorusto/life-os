@@ -123,6 +123,9 @@ check "Personal domain"            '\bdorulian\.eu\b'
 
 # Internal homelab IPs (10.10.x.x — the owner's private LAN topology). Generic
 # doc examples use 192.168.x.x, which is intentionally not matched here.
+# Owner's real first name (2026-09-23): tracked docs had accumulated ~430 mentions,
+# replaced with "the user". The public GitHub handle is a separate, accepted identifier.
+check "Owner's real name"          '\bDoru\b'
 check "Internal homelab IP"        '\b10\.10\.\d{1,3}\.\d{1,3}\b'
 
 # Romanian-language text in this repo (life-os) — code, comments, commit

@@ -3,7 +3,7 @@
 ## Context
 
 After CSV import completes, income transactions from unknown payees appear in chat as
-`IncomeSourceCard` cards. The user names each income source (e.g. "Salary Doru"), and
+`IncomeSourceCard` cards. The user names each income source (e.g. "Salary the user"), and
 Majordom creates the AB category + saves the mapping so future imports auto-categorize it.
 
 Stack: FastAPI backend (Python 3.11, async), React PWA (TypeScript + Tailwind).

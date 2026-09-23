@@ -13,7 +13,7 @@ explicit confirmation).
 
 Usage (local machine, outside Docker — override the Tailscale IP for your LXC):
     ACTUAL_BUDGET_URL=http://100.117.109.97:5006 ACTUAL_BUDGET_TOKEN=... python3 scripts/ab_audit.py
-    ... python3 scripts/ab_audit.py detail "BUNQ Car" "Revolut Doru"
+    ... python3 scripts/ab_audit.py detail "BUNQ Car" "Revolut Personal"
     ... python3 scripts/ab_audit.py dupes
     ... python3 scripts/ab_audit.py broken_transfers
 

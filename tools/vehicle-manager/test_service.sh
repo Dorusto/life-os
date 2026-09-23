@@ -3,7 +3,7 @@
 set -e
 
 BASE="http://localhost:8010"
-EXEC="docker compose -f /home/doru/Proiecte-AI/life-os/majordom-financiar/docker-compose.yml exec -T vehicle-manager"
+EXEC="docker compose -f "$(dirname "$0")/../../majordom-financiar/docker-compose.yml" exec -T vehicle-manager"
 
 echo "=== Test 1: Health check ==="
 $EXEC curl -sf $BASE/health

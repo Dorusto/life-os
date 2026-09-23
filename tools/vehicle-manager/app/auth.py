@@ -7,7 +7,7 @@ Two ways to authenticate a request — either is sufficient:
 1. A user JWT (``Authorization: Bearer <token>``) — issued by ``/auth/login``,
    same shape as majordom-financiar's own ``backend/api/auth.py``, but with
    its own separate secret and its own user registry (``VEHICLE_MANAGER_``-
-   prefixed env vars) — not shared with majordom-financiar, even if Doru
+   prefixed env vars) — not shared with majordom-financiar, even if the user
    sets the same username/password in both ``.env`` files so there's only
    one password to remember. The two apps' tokens are never interchangeable.
 2. A service token (``X-Service-Token`` header) — a single shared secret

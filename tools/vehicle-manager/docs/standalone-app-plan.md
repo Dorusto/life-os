@@ -150,10 +150,10 @@ existing proxy calls still work unchanged — both confirmed above.
 
 ### ✅ Phase 3 — New frontend scaffold — done 2026-09-12
 
-Implemented via a Claude fork (Doru's explicit choice over DeepSeek Pro, per
+Implemented via a Claude fork (the user's explicit choice over DeepSeek Pro, per
 `delegate-by-complexity`'s standing rule to always ask before a Senior-tier dispatch — this
 task was foundational/convention-setting: routing, auth pattern, API client shape, Docker/Nginx,
-all precedent for Phases 4-5). User-facing branding: "Majordom Transport" (Doru's own naming),
+all precedent for Phases 4-5). User-facing branding: "Majordom Transport" (the user's own naming),
 kept separate from the technical `vehicle-manager` naming used everywhere in code/infra — #150's
 service-naming question stays open and unrelated to this UI-layer choice.
 
@@ -206,7 +206,7 @@ a login screen, and after login shows the vehicle list fetched from vehicle-mana
 
 ### ✅ Phase 4 — Frontend pages — done 2026-09-12
 
-Implemented via a Claude fork (Doru's explicit choice again for this Senior-tier dispatch — many
+Implemented via a Claude fork (the user's explicit choice again for this Senior-tier dispatch — many
 files, defines the detail-page pattern), with explicit repeated "do not commit, do not start any
 further phase" instructions after Phase 3's fork violated exactly that. This time it held: no
 commit, no stray worktree/branch, `git diff --stat` confirmed only the intended
@@ -277,11 +277,11 @@ not just their own paths), no broken links from Accounts/Dashboard into the remo
 ## Vehicle-manager standalone app: feature-complete per this plan (2026-09-12)
 
 Phases 1-5 are all done and live-verified standalone. Per the original request that started this
-plan, the next checkpoint is Doru's own review/testing of the whole thing — standalone app
+plan, the next checkpoint is the user's own review/testing of the whole thing — standalone app
 functionality *and* its integration with majordom-financiar — not a further autonomous phase.
 Open items from along the way (not blocking, not forgotten): #263's MCP-hub layer (deliberately
 deferred), [#264](https://github.com/Dorusto/life-os/issues/264) (dead backend-route cleanup),
-and whatever Doru's own review surfaces. The investment-tracking app (#262) is the next major
+and whatever the user's own review surfaces. The investment-tracking app (#262) is the next major
 thread once this one is confirmed working for him, per the same two-phase process (build +
 live-verify autonomously, then his review) — see `../standalone-app-playbook.md` (sibling doc,
 written the same day) for what's reusable from this run before starting that one, including two

@@ -77,7 +77,7 @@ Three failure modes this is written against, all observed in this repo:
 - **Adding a screen because a screen felt missing.** A new view is not progress unless something
   new is being noticed. Most of what looks like a missing screen is a missing *insight*.
 
-  *Worked example, in Doru's own words (2026-08-30):* "I wanted to rename transactions in chat,
+  *Worked example, in the user's own words (2026-08-30):* "I wanted to rename transactions in chat,
   got an error saying there were too many uncategorised ones, so I decided I needed to be able to
   reach the transactions — and I built a Transactions tab." The missing thing was never a tab. It
   was **Majordom handling the uncategorised ones** — bringing them over grouped, with a proposal
@@ -125,7 +125,7 @@ rewriting the intelligence twice.
 **Objective:** build the one mechanism the entire product rests on — a standing place where
 Majordom puts things it noticed, each with a proposed action and a one-tap confirm.
 
-This is the phase Doru described directly: *"it should solve duplicates itself — after the user
+This is the phase the user described directly: *"it should solve duplicates itself — after the user
 confirms — but it should be something Majordom has in view. The intelligence point."*
 
 **Belongs here if:** it makes Majordom notice something without being asked, and offer an action
@@ -144,7 +144,7 @@ not a dashboard you have to interpret.
 
 ### Why this phase is the whole product, in one quote
 
-Doru, 2026-08-30, at the end of the audit session:
+The user, 2026-08-30, at the end of the audit session:
 
 > *"The intelligence I'm talking about doesn't work without me, and I don't trust that what I did
 > is right — I have to go into Actual Budget to check."*
@@ -173,14 +173,14 @@ an action". Build the channel once, and every later capability is small.
 
 **Re-scoped 2026-08-30**, in a dedicated scope/realism session triggered by the gate note in
 `CLAUDE.local.md`. The original framing ("pick three from `intelligence-cluster`") picked tasks by
-*cluster membership*, not by what Doru actually needed next — #110 and #116 shipped, real and
+*cluster membership*, not by what the user actually needed next — #110 and #116 shipped, real and
 useful, but administration still fell on him because the criterion never asked "does this remove
-a reason to open Actual Budget." Doru's own words, verbatim, on what he wants first: *"nu mai vreau
+a reason to open Actual Budget." the user's own words, verbatim, on what he wants first: *"nu mai vreau
 sa administrez [...] daca majordom nu o face, sunt nevoit sa intru in ab sa o fac manual, nu vreau
 sa ma mai ating de ab."* Coaching/goal-budgeting (the Scandinavia-trip example) is real and wanted,
 but explicitly second, in his own priority order.
 
-**Objective:** Doru never opens Actual Budget directly. Categorising, reconciling, and tracking
+**Objective:** the user never opens Actual Budget directly. Categorising, reconciling, and tracking
 recurring transactions all happen through Majordom, as a proposal with a one-tap confirm.
 
 **Confirmed, not negotiable:** *"orice automatizare vreau sa fie confirmata de mine, nu vreau sa
@@ -188,7 +188,7 @@ faca el pe la spatele meu, vreau sa fiu constient de orice se intampla."* Zero-t
 *manual AB work*, not zero visibility — every item here still lands as an Inbox finding with a
 confirm, same mechanism Phase B already built. Nothing here is fire-and-forget.
 
-**Belongs here if:** it removes a reason Doru would otherwise have to open Actual Budget himself.
+**Belongs here if:** it removes a reason the user would otherwise have to open Actual Budget himself.
 
 Ordered — this is a sequence, not a menu:
 1. **#172 — trust prerequisite. Shipped 2026-09-01** (`docs/decisions.md#172-fabrication-root-cause-missing-temperature`).
@@ -199,7 +199,7 @@ Ordered — this is a sequence, not a menu:
    uncategorised-by-payee, #3 unreconciled, #4 budget realism) into the chat tab's own header, not
    just the standalone bell — `NotificationBell` + `Settings` now visible directly, `Chat.tsx`'s
    pre-existing Clear/Help moved into a new `⋮` overflow sheet to make room, matching the other
-   tabs' icon count. The mechanism exists; it wasn't reaching Doru from where he actually spends
+   tabs' icon count. The mechanism exists; it wasn't reaching the user from where he actually spends
    his time.
 3. **#117 — shipped 2026-09-01.** Assisted reconciliation: `finance__get_reconciliation_suspects`
    (uncleared transactions, recent transactions, duplicate-pair candidates) now runs before
@@ -213,16 +213,16 @@ Ordered — this is a sequence, not a menu:
    `create_schedule()` left new schedules inactive by default (architecture.md rule 36).
 
 **All four items in this phase's ordered sequence are now shipped.** The phase's own "Done when"
-below is a real-world usage outcome, not something a commit can assert — revisit it after Doru has
+below is a real-world usage outcome, not something a commit can assert — revisit it after the user has
 actually gone through a normal month using these flows, not immediately after shipping them.
 
 **Explicitly not in this phase — Phase C2 instead:** the rest of the coaching-shaped
 `intelligence-cluster` (#111, #42, #112, #167/#177). All real, already scoped, already wanted —
-just not first. Pick these up once administration is at zero, not interleaved with it. Doru's own
+just not first. Pick these up once administration is at zero, not interleaved with it. The user's own
 sequencing: this phase → Phase C2 (coaching/intelligence) → UI/chart polish (the
 `deferred-opportunistic` backlog, #231-240) → revisit Phase D (portfolio) placement then.
 
-**#113 shipped 2026-09-02, ahead of this sequencing** — Doru asked for it directly mid-session,
+**#113 shipped 2026-09-02, ahead of this sequencing** — the user asked for it directly mid-session,
 not as part of a planned C2 pickup. Redesigned significantly from its original text along the way
 (tag-based tracking against existing categories, not new per-goal categories — see
 `docs/decisions.md#113-tag-based-goal-redesign`). #124 stays open (only its goal-reached-cleanup
@@ -235,14 +235,14 @@ judgement shape with each other.
 Governed throughout by `decisions.md#coach-not-consultant`: projection inputs stay user-editable,
 nothing is presented as advice about specific investments.
 
-**Done when:** Doru can go a full month without opening Actual Budget directly — only
+**Done when:** the user can go a full month without opening Actual Budget directly — only
 confirming or correcting what Majordom already brought to him.
 
 ---
 
 ### Phase D — The whole picture
 
-**Objective:** investments stop living in a spreadsheet. Doru's own words: *this is actually the
+**Objective:** investments stop living in a spreadsheet. The user's own words: *this is actually the
 point of it.*
 
 **Belongs here if:** it puts investments into the same picture as spending, so coaching can reason
@@ -253,7 +253,7 @@ separate standalone app, not to majordom-financiar's own codebase.** Reversal of
 original framing below (kept for history, not followed anymore): "charts in Majordom's own UI, not
 a second app's" is exactly backwards now. See root `CLAUDE.md`'s "Open fork" entry
 (2026-09-12) and `docs/decisions.md#portfolio-becomes-separate-service` for the full reasoning —
-short version: Doru wants majordom-financiar's own scope to stay about budgeting/spending, with
+short version: the user wants majordom-financiar's own scope to stay about budgeting/spending, with
 investment tracking (and vehicle tracking, already underway as its own service) living in their
 own independently-runnable apps that Majordom only *consumes* for coaching/notifications, the same
 relationship majordom-financiar already has with `vehicle-manager`'s backend today.
@@ -291,7 +291,7 @@ non-expert gets through it.
 - Real HTTPS in front, so no SSH tunnel or manual DNS (#157)
 - The capability catalogue (#224) written as the actual pitch — *here is what Majordom notices for
   you*. This is the answer to "why install this", and it can be written before it's all built
-- Install path tested cold, by someone who isn't Doru
+- Install path tested cold, by someone who isn't the user
 
 **Done when:** someone who is not you installs it without asking you a question.
 
@@ -339,7 +339,7 @@ status stays on GitHub.
 - **No new engine.** Staying on Actual Budget is not a commitment — Phase A makes leaving cheap,
   which is what makes it safe to stay. Revisit only with a verified reason (#189).
 - **No coach framework before Phase C's third capability.**
-- **No second backend implementation** until someone other than Doru actually needs one.
+- **No second backend implementation** until someone other than the user actually needs one.
 
 ---
 

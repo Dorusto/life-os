@@ -10,7 +10,7 @@ above BottomNav on desktop AND mobile viewport), Accounts, Import, Settings, Cha
 clean; deep interaction states (confirm cards mid-chat, error branches needing live AB/LLM)
 remain covered by code review only. Local stack left RUNNING (backend :8000 + vite :5173,
 login using the local dev fixture account, serves current main).
-**Doru must do at deploy:** (1) push 33 commits (origin 3 ahead-pushed + 30 local); (2) set
+**The user must do at deploy:** (1) push 33 commits (origin 3 ahead-pushed + 30 local); (2) set
 user_preferences key `fire.excluded_accounts` (JSON list of account-name substrings) on the
 real memory.db or FIRE numbers change; (3) add VAPID_CONTACT=mailto:... to .env.
 Open follow-ups filed/noted: #296 unified receipt popup, #297 doc drift, #298 timestamp window,
@@ -30,7 +30,7 @@ setup retry duplicate-account edge, real AB health probe.
   verified with `python3 /root/scripts/screenshot.py <url> <file.png>` and the screenshot
   actually read/inspected.
 - Before "done": `/root/scripts/review-diff.sh <workdir>` must pass (fresh senior reviewer).
-  Commit message: subject + 2-5 line body, English only. **Merge to `main` only after Doru
+  Commit message: subject + 2-5 line body, English only. **Merge to `main` only after the user
   confirms.** After merging backend/frontend fixes, rebuild the affected local docker service.
 - Private-data rule applies to every task: no real names/values into tracked files; the
   pre-commit private-data scanner must pass.
@@ -39,7 +39,7 @@ setup retry duplicate-account edge, real AB health probe.
 
 ## Wave 0 — prep (orchestrator, no subagent)
 
-0.1. Commit the audit doc itself (currently untracked) — needs Doru's OK.
+0.1. Commit the audit doc itself (currently untracked) — needs the user's OK.
 0.2. Repo is 3 commits ahead of `origin/main` — reconcile (push or investigate) before branching.
 0.3. Baseline: run both check scripts + `tsc --noEmit`; record results so regressions are attributable.
 
@@ -61,7 +61,7 @@ Constraint: T3 and T4 both touch `client.py` → strictly sequential (T3 → T4)
 | # | Finding(s) | Task | Verify |
 |---|-----------|------|--------|
 | T7 | 45 | `CsvImportCard.tsx`: move the 7 `useState` calls above the early returns (hooks order) | tsc; chat mounts card as loading→ready without crash (screenshot) |
-| T8 | 46 | dead photo-receipt flow — **needs Doru's decision** (see open questions). Recommended: repoint at the working chat upload path | scanning a receipt from the Add sheet lands on a working flow |
+| T8 | 46 | dead photo-receipt flow — **needs the user's decision** (see open questions). Recommended: repoint at the working chat upload path | scanning a receipt from the Add sheet lands on a working flow |
 | T9 | 47, 68, 69 | `FuelReceiptCard.tsx`: send category display NAME (not UUID) on confirm; remove the `'dummy'` account_id fallback; stop discarding the error object in the confirm catch | picking any category from the dropdown does not create a bogus AB category |
 | T10 | 48 | `App.tsx` + `AbSetupWizard.tsx`: invalidate `['setup-status','ab-connected-gate']` after a successful save | completing the wizard within 60s does not bounce back (screenshot) |
 | T11 | 49 | `lib/api.ts` + `pages/Chat.tsx`: buffer the stream per top-level JSON object before parse; add AbortController for unmount | a card JSON artificially split across chunks still renders |
@@ -82,7 +82,7 @@ Constraint: T11 and later task T24 both touch `Chat.tsx` → sequential.
 | T19 | 20, 21, 24 | tool hygiene: `ab_cats` initialized before its try (vehicle.py:82); stale "executes immediately" descriptions fixed (registry.py:451/772/231); vehicle proposal tools return `{"type":"error"}` on not-found instead of plain text | AB-down refuel proposal falls back to empty instead of NameError; LLM sees structured errors |
 | T20 | 23 | `_build_system_prompt()`: add the 7 missing tool-guide bullets; stop negative-only mentions of `get_budget_status`/`rename_category` | missing-amount and budget-copy requests reliably pick the right tool (live chat probe) |
 | T21 | 22 (+66 backend half) | cross-stack, one agent: pass account/vehicle lists in TransferConversion/VehicleStatus/BalanceAdjustment payloads; render editable selects on the cards (rule 5) | each card allows correcting the target before confirm (screenshot) |
-| T22 | 18, 19, 41 | private data in tracked backend files: genericize tool-schema descriptions (registry.py + tools/finance/vehicle.py), remove hardcoded FIRE account names from `core/finance/fire.py` (destination per Doru's answer), remove personal email from `push_service.py` + chmod 0600 on VAPID PEM | private-data scanner passes; FIRE numbers unchanged after the move |
+| T22 | 18, 19, 41 | private data in tracked backend files: genericize tool-schema descriptions (registry.py + tools/finance/vehicle.py), remove hardcoded FIRE account names from `core/finance/fire.py` (destination per the user's answer), remove personal email from `push_service.py` + chmod 0600 on VAPID PEM | private-data scanner passes; FIRE numbers unchanged after the move |
 
 Constraints: T17 → T18 strictly sequential (same file). T22's fire.py half waits on open question Q2.
 
@@ -94,7 +94,7 @@ Constraints: T17 → T18 strictly sequential (same file). T22's fire.py half wai
 | T24 | 59, 60 | `pages/Chat.tsx` + `App.tsx`: move `saveChatHistory()` out of `setMessages()` updaters; fix the permanent skip of `loadChatHistory()` once a chart/list message exists | no duplicate history entries under StrictMode; push-triggered reload works |
 | T25 | 53 | confirm-card error pattern: adopt the inline-error pattern (`SetupBalancesCard.tsx:74`) across the 15+ listed cards — mechanical, split into 2 sequential batches if too large for one agent | a failing confirm keeps the card + user edits, shows inline error, offers retry |
 | T26 | 54, 67, 70, 71, 72, 73 | batch: genericize the real location/name placeholders; inline `€…toFixed(2)` → `formatCurrency`; NewGoalSheet per-chunk `JSON.parse` fix; CsvImportCard `setTimeout` → `useEffect`; `groupByMonth` UTC-safe parse; extract the duplicate merchant tokenizer | private-data scanner passes; tsc; no visual regressions on affected cards |
-| T27 | 55 | dead frontend code deletion: `ui/Modal.tsx`, `ui/Button.tsx`, `ui/Delta.tsx`, `ui/Feedback.tsx`, `ui/Form.tsx`, `ui/MetricTile.tsx`, `ui/Pill.tsx`, `ui/Segmented.tsx`, root `components/Card.tsx`, `lib/ui.ts seriesColor`, non-streaming `sendChatMessage`, `refetch?: any` — grep-verified zero importers; needs Doru's OK (open question Q4) | tsc clean after deletion; grep zero references |
+| T27 | 55 | dead frontend code deletion: `ui/Modal.tsx`, `ui/Button.tsx`, `ui/Delta.tsx`, `ui/Feedback.tsx`, `ui/Form.tsx`, `ui/MetricTile.tsx`, `ui/Pill.tsx`, `ui/Segmented.tsx`, root `components/Card.tsx`, `lib/ui.ts seriesColor`, non-streaming `sendChatMessage`, `refetch?: any` — grep-verified zero importers; needs the user's OK (open question Q4) | tsc clean after deletion; grep zero references |
 | T28 | 56 | `CategoryActionCard.tsx`: fix `parseFloat(x) || fallback` so 0 is accepted; cleared FIRE fields no longer send NaN→null | entering 0 in a budget field proposes 0, not the fallback |
 | T29 | 61, 62 | 4 review pages: add `isError` branches (pattern from Analytics); `DuplicatesReviewPage` confirm failure surfaced, cancel gets a catch | a failing query shows an error state, not "all clear 🎉" |
 | T30 | 63, 83 | `ImportPage.tsx`: `min-h-dvh` → `h-dvh` wrapper (rule 42); preview date via `formatDate` | sticky thead/scroll engage (screenshot); dates formatted |
@@ -109,9 +109,9 @@ Two batch tasks for the mechanical items, one per agent:
 - **T33 (backend)**: 28 (raw exception text), 30 (size checks before read + magic-byte sniff), 31 (grocery image cleanup), 32 (dead variable), 34 (response_model), 35 (`FINANCE_BACKEND` → settings), 37 (get_payees N+1), 38 (key file perms / MemoryDB init), 40 (`\\d` regex), 42 (sync sqlite3 off the loop), 43 (EXIF orientation, "RON" hardcode).
 - **T34 (frontend)**: 66 (BalanceAdjustment editable field — may fold into T21), 74 (Watchlist error branch), 75 (Accounts "Total €0" on error), 76 (AccountDetail flash), 77 (ReceiptFlow local date), 78 (clear-history feedback), 79/80 (Settings hardcoded status/version), 81 (pacing error state), 82 (dedup Trend/NetWorth queries), 85 (wrong error message).
 
-Parked pending Doru's decisions (see open questions): 29, 33, 36, 39, 44 (backend); 84, 86 (frontend).
+Parked pending the user's decisions (see open questions): 29, 33, 36, 39, 44 (backend); 84, 86 (frontend).
 
-## Open questions for Doru (block only their own tasks)
+## Open questions for the user (block only their own tasks)
 
 1. **Q1 — finding 46 (T8):** photo-receipt flow: restore the old sessionStorage handoff, or repoint the Add sheet's Photo button at the chat upload path (recommended — the handoff's setter page no longer exists)?
 2. **Q2 — finding 18 (T22):** move FIRE account exclusions from `core/finance/fire.py` into `user_preferences` (recommended; makes renames safe) — confirm, since it touches how FIRE numbers compute.

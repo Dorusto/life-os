@@ -1,6 +1,6 @@
 # Design unification across life-os apps — plan
 
-Commissioned 2026-09-13 (overnight session, continued after Doru woke up mid-loop). Doru's own
+Commissioned 2026-09-13 (overnight session, continued after the user woke up mid-loop). The user's own
 framing: majordom-financiar's Dashboard is visibly messy (uneven widget widths, a forced
 two-column layout that doesn't fit), and he wants **all three apps** (majordom-financiar,
 investment-manager, vehicle-manager) to share one identical visual system — same cards, same
@@ -41,7 +41,7 @@ already tonight, don't reintroduce it here).
    question during a later pass whether it belongs in a shared package — not something to solve in
    this pass (these are three independent deployable services per
    `decisions.md#portfolio-becomes-separate-service`; a shared npm package is a real architecture
-   decision of its own, flag to Doru if it comes up rather than introducing one silently).
+   decision of its own, flag to the user if it comes up rather than introducing one silently).
 
 ## Phases
 
@@ -77,7 +77,7 @@ already tonight, don't reintroduce it here).
       matching the new rail breakpoint. Live-verified: the two columns (Balance trend / Latest
       Transactions) now read evenly balanced inside the new `max-w-5xl` column — kept the
       `1.15fr_1fr` ratio, it reads fine at this width, no need to flatten to an even split.
-      **Re-verified 2026-09-14** after Doru reported Financial Goals/Categories Watchlist not
+      **Re-verified 2026-09-14** after the user reported Financial Goals/Categories Watchlist not
       spanning full width in a fresh screenshot: `frontend/src/lib/dashboardWidgets.ts` already
       declares both `goals` and `budget` as `column: 'full'`, which renders them through
       `Dashboard.tsx`'s separate `space-y-6` full-width stack (line ~217), not through this

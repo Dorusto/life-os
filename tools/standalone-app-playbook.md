@@ -22,7 +22,7 @@ phases from the real starting point of the new app, not by copying vehicle-manag
 Run `/plan-feature`'s checklist against the new app's own docs once they exist, and write a
 `docs/standalone-app-plan.md`-equivalent for it (current state → target shape → phases → critical
 rules → circuit breaker), same as vehicle-manager's. Genuinely open questions (data model, which
-external price API, auth shape) get resolved with Doru as design/architecture questions per
+external price API, auth shape) get resolved with the user as design/architecture questions per
 `majordom-financiar/CLAUDE.md`'s "decide pure-technical calls yourself, surface real forks" rule
 — not invented mid-implementation.
 
@@ -50,7 +50,7 @@ Follow `~/.claude/skills/delegate-by-complexity/SKILL.md`'s rubric as normal. Tw
 matter most for a multi-phase app build specifically:
 
 - **Before any Senior-tier dispatch (DeepSeek Pro OR a Claude fork for a big/foundational task),
-  stop and ask Doru which vehicle he wants — every single time, not just the first time in a
+  stop and ask the user which vehicle he wants — every single time, not just the first time in a
   session.** Don't infer from the previous answer. This session asked twice (Phase 3 scaffold,
   Phase 4 real pages) and got "Claude fork" both times, but the question was asked fresh each
   time per the standing rule.
@@ -142,7 +142,7 @@ GitHub, not buried in a session log) rather than leaving a vague "todo" note.
 ## 9. When to stop the loop
 
 Stop at the checkpoint the user actually asked for — for vehicle-manager, that was explicitly
-"the whole app done and tested, standalone and integrated" (Doru's own framing when this plan was
+"the whole app done and tested, standalone and integrated" (the user's own framing when this plan was
 proposed), not a phase-by-phase check-in. Don't invent an extra phase past that boundary (the
 stray Phase-4a worktree this session was exactly that mistake, though contained early with no
 real damage) — when the plan doc's last phase is done and live-verified, stop the loop

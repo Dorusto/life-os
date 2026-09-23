@@ -2,7 +2,7 @@
 
 ## Context
 
-Issue #166. `_calc_fire()` (`backend/core/actual_client/client.py`, lines 390-467) is currently a single-phase calculation with hardcoded constants (`FIRE_TARGET=190_000`, `MONTHLY_CONTRIBUTION=820`, `ANNUAL_RETURN=0.07`, `FIRE_YEAR=2035`). Doru asked (2026-07-07 session) to be able to change these assumptions from Chat, with the Home screen's "Portfolio Independence" card (`frontend/src/pages/Home.tsx`, `PortfolioIndependenceCard`) updating automatically. There is no single "set your target to €X" tool — a flat target is exactly the hardcoded-guess problem this removes. Instead, **target becomes a derived output**: the principal needed today to fund the user's real retirement plan (horizon, desired monthly spend, return assumptions), not a number the user sets directly. See `docs/decisions.md#coach-not-consultant--principle-for-the-intelligence-module` and `docs/decisions.md#fire--portfolio-independence--yield-source` for the guiding principles — every assumption stays a visible, user-editable input, never a silent default presented as fact.
+Issue #166. `_calc_fire()` (`backend/core/actual_client/client.py`, lines 390-467) is currently a single-phase calculation with hardcoded constants (`FIRE_TARGET=190_000`, `MONTHLY_CONTRIBUTION=820`, `ANNUAL_RETURN=0.07`, `FIRE_YEAR=2035`). The user asked (2026-07-07 session) to be able to change these assumptions from Chat, with the Home screen's "Portfolio Independence" card (`frontend/src/pages/Home.tsx`, `PortfolioIndependenceCard`) updating automatically. There is no single "set your target to €X" tool — a flat target is exactly the hardcoded-guess problem this removes. Instead, **target becomes a derived output**: the principal needed today to fund the user's real retirement plan (horizon, desired monthly spend, return assumptions), not a number the user sets directly. See `docs/decisions.md#coach-not-consultant--principle-for-the-intelligence-module` and `docs/decisions.md#fire--portfolio-independence--yield-source` for the guiding principles — every assumption stays a visible, user-editable input, never a silent default presented as fact.
 
 ## Goal
 
@@ -12,7 +12,7 @@ The user can say things like "set my retirement return to 6%" or "I want to reti
 
 One JSON blob under the existing generic `user_preferences` table, via `MemoryDB.get_preference("fire_model")` / `set_preference("fire_model", json.dumps(...))` (`backend/core/memory/database.py:276-293`). No new table, no migration. `MemoryDB` is instantiated fresh per call site: `MemoryDB(settings.memory.db_path)` (see `backend/tools/finance/actual_budget.py:128` for the exact pattern — `from backend.core.config import settings`).
 
-**Default dict** (used whenever `get_preference("fire_model")` returns `None` — i.e. the user has never set anything yet):
+**Default dict** (used whenever `get_preference("fire_model")` returns `None` — i.e. The user has never set anything yet):
 ```python
 FIRE_MODEL_DEFAULTS = {
     "years_to_transition": 10.0,

@@ -10,7 +10,7 @@ literal line `===TASK-BREAK===` between specs.
 
 We're building a Starlight (Astro) documentation site, modeled on wealthfolio.app/docs — an
 end-user-facing guide (not a developer/API reference; `docs/architecture.md` etc. already cover
-that internally, this is different and additive). Audience: Doru himself, using his own apps,
+that internally, this is different and additive). Audience: the user themselves, using his own apps,
 wants a navigable "how does this work / how do I use this" reference, in English.
 
 There are 3 independent apps in this monorepo, each with its OWN source of truth for its own data
@@ -43,7 +43,7 @@ you're specifying)
 
 ## What goes in each of the 5 sections (per app)
 
-- **Getting Started** — what the app is for, in one paragraph; how Doru actually opens/uses it
+- **Getting Started** — what the app is for, in one paragraph; how the user actually opens/uses it
   today (real URL/port if discoverable from code/docker-compose, not invented); first-run basics.
 - **Concepts** — the core mental model: what data it tracks, where that data actually lives (see
   source-of-truth note above), and any non-obvious terms/flows a user needs to understand before

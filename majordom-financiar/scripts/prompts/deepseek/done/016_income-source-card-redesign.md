@@ -361,7 +361,7 @@ On mount (useEffect, runs once): call `getAccounts()` and set `accounts`. Set
     value={incomeName}
     onChange={e => setIncomeName(e.target.value)}
     onKeyDown={e => e.key === 'Enter' && handleSave()}
-    placeholder="e.g. Salary Doru, Freelance, Rent income…"
+    placeholder="e.g. Salary the user, Freelance, Rent income…"
     className="w-full bg-background border border-border rounded-lg px-3 py-2 text-white text-sm placeholder:text-muted focus:outline-none focus:border-accent transition-colors"
     autoFocus
   />

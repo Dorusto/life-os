@@ -38,8 +38,8 @@ elif [[ "$COMMIT_DOW" -eq 7 && "$COMMIT_HOUR" -lt 23 ]]; then
     WEEKEND_EXEMPT=1
 fi
 
-if [[ "$WEEKEND_EXEMPT" -eq 0 && ( "$COMMIT_HOUR" -lt 18 || "$COMMIT_HOUR" -ge 23 ) ]]; then
-    echo -e "${YELLOW}⚠️  Timestamp outside preferred window (18:00–23:00) — commit hour: ${COMMIT_HOUR}:xx${NC}"
+if [[ "$WEEKEND_EXEMPT" -eq 0 && ( "$COMMIT_HOUR" -lt 17 || "$COMMIT_HOUR" -ge 23 ) ]]; then
+    echo -e "${YELLOW}⚠️  Timestamp outside preferred window (17:00–23:00) — commit hour: ${COMMIT_HOUR}:xx${NC}"
     echo "   To set a custom timestamp:"
     echo "   GIT_AUTHOR_DATE=\"YYYY-MM-DD HH:MM:SS +0200\" GIT_COMMITTER_DATE=\"...\" git commit -m \"...\""
 fi

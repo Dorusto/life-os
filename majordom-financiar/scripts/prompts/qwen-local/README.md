@@ -10,7 +10,7 @@ receipts, answer questions, be the financial coach). That's a separate, later ta
 majordom wake the local model server on demand and let it go to standby after ~5 min idle.
 Do not conflate the two — this folder is only about the coding-assistant experiment.
 
-## Setup (Doru does this, not Claude)
+## Setup (the user does this, not Claude)
 
 1. Confirm the exact Ollama tag for the ~27B coding-focused Qwen model before pulling —
    "Qwen 3.8" isn't a real released version as far as this session could confirm; check
