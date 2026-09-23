@@ -2,6 +2,7 @@ import { useState, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { testAbConnection, saveAbCredentials, type AbBudgetFile } from '../lib/api'
+import { BrandMark } from '../components/BrandMark'
 
 /**
  * AB setup wizard (#190) — the one-time technical connection to Actual Budget,
@@ -103,7 +104,7 @@ export default function AbSetupWizard() {
         <button
           onClick={() => navigate('/', { replace: true })}
           className="
-            mt-8 px-6 py-3 rounded-xl bg-token-brand text-white text-base font-medium
+            mt-8 px-6 py-3 rounded-xl bg-token-brand text-token-on-brand text-base font-medium
             hover:bg-token-brand-2 active:scale-[0.98] transition-all duration-150
           "
         >
@@ -123,9 +124,7 @@ export default function AbSetupWizard() {
   return (
     <div className="min-h-dvh bg-token-paper flex flex-col items-center justify-center px-6 py-10">
       <div className="mb-8 flex flex-col items-center gap-3 text-center">
-        <div className="w-14 h-14 rounded-2xl bg-token-brand flex items-center justify-center">
-          <span className="text-white text-2xl font-bold">M</span>
-        </div>
+        <BrandMark size={56} />
         <div>
           <h1 className="text-token-ink text-xl font-semibold tracking-tight">Connect Actual Budget</h1>
           <p className="text-token-ink-3 text-sm mt-0.5 max-w-xs">
@@ -223,7 +222,7 @@ export default function AbSetupWizard() {
           onClick={handleSave}
           disabled={!tested || !file || saving}
           className="
-            w-full py-3.5 rounded-xl bg-token-brand text-white text-base font-medium
+            w-full py-3.5 rounded-xl bg-token-brand text-token-on-brand text-base font-medium
             hover:bg-token-brand-2 active:scale-[0.98]
             disabled:opacity-40 disabled:cursor-not-allowed
             transition-all duration-150

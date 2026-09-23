@@ -4,8 +4,8 @@
   "description": "Personal finance assistant — add receipts, track spending",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0F0F0F",
-  "theme_color": "#0F0F0F",
+  "background_color": "#131312",
+  "theme_color": "#131312",
   "icons": [
     {
       "src": "/icon-192.png",

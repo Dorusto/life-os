@@ -2,6 +2,7 @@ import { useState, FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { login } from '../lib/api'
 import { saveAuth } from '../lib/auth'
+import { BrandMark } from '../components/BrandMark'
 
 /**
  * Only ever follow an in-app path as the post-login destination — a `next`
@@ -56,9 +57,7 @@ export default function Login() {
     <div className="min-h-dvh bg-token-paper flex flex-col items-center justify-center px-6">
       {/* Logo */}
       <div className="mb-10 flex flex-col items-center gap-3">
-        <div className="w-14 h-14 rounded-2xl bg-token-brand flex items-center justify-center">
-          <span className="text-white text-2xl font-bold">M</span>
-        </div>
+        <BrandMark size={56} />
         <div className="text-center">
           <h1 className="text-token-ink text-xl font-semibold tracking-tight">Majordom</h1>
           <p className="text-token-ink-3 text-sm mt-0.5">Your personal finance assistant</p>
@@ -116,7 +115,7 @@ export default function Login() {
           type="submit"
           disabled={loading || !username || !password}
           className="
-            mt-2 w-full py-3.5 rounded-xl bg-token-brand text-white text-base font-medium
+            mt-2 w-full py-3.5 rounded-xl bg-token-brand text-token-on-brand text-base font-medium
             hover:bg-token-brand-2 active:scale-[0.98]
             disabled:opacity-40 disabled:cursor-not-allowed
             transition-all duration-150

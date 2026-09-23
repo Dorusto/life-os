@@ -2,6 +2,7 @@ import { type ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
 import { LayoutGrid, Layers, Table2, MessageCircle, BarChart3 } from 'lucide-react'
 import { cn } from '../lib/ui'
+import { BrandMark } from './BrandMark'
 
 const NAV = [
   { to: '/', label: 'Dashboard', icon: LayoutGrid, end: true },
@@ -11,13 +12,6 @@ const NAV = [
   { to: '/analytics', label: 'Analytics', icon: BarChart3, end: false },
 ]
 
-function BrandMark() {
-  return (
-    <span className="flex h-8 w-8 items-center justify-center rounded bg-token-brand text-white">
-      <MessageCircle size={17} aria-hidden />
-    </span>
-  )
-}
 
 /**
  * Desktop-only left rail (`lg:` and up), matching investment-manager's and
@@ -36,7 +30,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="lg:grid lg:grid-cols-[248px_1fr]">
       <aside className="hidden border-r border-token-line bg-token-surface lg:flex lg:flex-col">
         <div className="flex items-center gap-2.5 px-5 py-5">
-          <BrandMark />
+          <BrandMark size={32} />
           <p className="text-sm font-semibold text-token-ink">Majordom</p>
         </div>
         <nav className="flex-1 space-y-1 px-3">
