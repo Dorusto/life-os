@@ -483,7 +483,7 @@ function MonthRangePicker({
         type="button"
         disabled={loading}
         onClick={apply}
-        className="rounded-full bg-brand px-3 py-1 text-[10px] text-white transition-colors hover:bg-brand-2 disabled:opacity-50"
+        className="rounded-full bg-brand px-3 py-1 text-[10px] text-on-brand transition-colors hover:bg-brand-2 disabled:opacity-50"
       >
         Apply
       </button>
@@ -674,7 +674,7 @@ function PeriodSwitcher({
           onClick={() => onSelect(p.value)}
           className={`rounded-full px-2 py-0.5 text-[10px] transition-colors disabled:opacity-50 ${
             p.value === refetch.current
-              ? 'bg-brand text-white'
+              ? 'bg-brand text-on-brand'
               : 'bg-surface-sunken text-ink-2 hover:text-ink'
           }`}
         >
@@ -726,7 +726,7 @@ function DateRangePicker({
         type="button"
         disabled={loading}
         onClick={apply}
-        className="rounded-full bg-brand px-3 py-1 text-[10px] text-white transition-colors hover:bg-brand-2 disabled:opacity-50"
+        className="rounded-full bg-brand px-3 py-1 text-[10px] text-on-brand transition-colors hover:bg-brand-2 disabled:opacity-50"
       >
         Apply
       </button>

@@ -1,5 +1,6 @@
 import { useState, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { BrandMark } from '../components/BrandMark'
 import { Button } from '../components/Button'
 import { Field, TextInput } from '../components/Form'
 import { login } from '../lib/api'
@@ -43,9 +44,7 @@ export default function Login() {
     <div className="flex min-h-dvh flex-col items-center justify-center bg-paper px-6">
       {/* Logo */}
       <div className="mb-10 flex flex-col items-center gap-3">
-        <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand">
-          <span className="text-2xl font-bold text-white">MT</span>
-        </div>
+        <BrandMark size={56} />
         <div className="text-center">
           <h1 className="text-xl font-semibold tracking-tight text-ink">Majordom Transport</h1>
           <p className="mt-0.5 text-sm text-ink-2">Your vehicles, tracked</p>
