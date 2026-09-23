@@ -615,7 +615,7 @@ function SummaryRow({ label, value, muted, bold }: { label: string; value: strin
 
 function Step4Done({ imported, skipped, merged, retroactivelyUpdated, onHome }: { imported: number; skipped: number; merged?: number; retroactivelyUpdated?: number; onHome: () => void }) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-6 px-5">
+    <div className="flex-1 flex flex-col items-center justify-center gap-6">
       <motion.div
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
