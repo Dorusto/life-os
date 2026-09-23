@@ -3,7 +3,7 @@ import { confirmProposal, cancelProposal, getCategories, getAccounts, type Categ
 import ActionCardButtons from './ActionCardButtons'
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatDate } from '../lib/formatDate'
-import { Card } from './ui/Card'
+import { Card } from './kit/Card'
 
 export interface ProposalData {
   id: string
@@ -81,79 +81,83 @@ export default function ProposalCard({ proposal, onConfirmed, onCancelled }: Pro
   const formattedDate = formatDate(proposal.date)
 
   return (
-    <Card variant="bubble" className="max-w-[80%]">
-      <div>
-        <p className="text-token-ink font-medium">{proposal.payee}</p>
-        <p className="text-token-ink-3 text-sm">{formatCurrency(proposal.amount)} · {formattedDate}</p>
-      </div>
+    <Card label="Add transaction" className="max-w-[85%] rounded-bl-sm">
+      <div className="space-y-3">
+        <div>
+          <p className="text-token-ink font-medium">{proposal.payee}</p>
+          <p className="text-token-ink-3 text-sm">
+            <span className="font-mono tabular-nums">{formatCurrency(proposal.amount)}</span> · {formattedDate}
+          </p>
+        </div>
 
-      {/* Category selector */}
-      <select
-        value={selectedCategory}
-        onChange={e => setSelectedCategory(e.target.value)}
-        className="w-full bg-token-paper border border-token-line rounded-lg px-3 py-2 text-token-ink text-sm focus:outline-none focus:border-token-brand"
-      >
-        {categories.length === 0 ? (
-          <option value={proposal.category_name}>{proposal.category_name}</option>
-        ) : (
-          Object.entries(
-            categories.reduce((groups, cat) => {
-              const g = cat.group_name || 'Other'
-              if (!groups[g]) groups[g] = []
-              groups[g].push(cat)
-              return groups
-            }, {} as Record<string, typeof categories>)
-          ).map(([group, cats]) => (
-            <optgroup key={group} label={group}>
-              {cats.map(cat => (
-                <option key={cat.id} value={cat.name}>{cat.name}</option>
-              ))}
-            </optgroup>
-          ))
-        )}
-      </select>
-
-      {/* Category auto-fill source label — informational only, never a warning */}
-      {proposal.category_source && (
-        <span className="inline-block bg-token-surface-2 text-token-ink-3 text-[10px] font-bold px-1.5 py-0.5 rounded">
-          {proposal.category_source === 'rule' ? 'Rule'
-            : proposal.category_source === 'notes_match' ? 'Notes match'
-            : proposal.category_source === 'guess' ? 'Guess'
-            : proposal.category_source}
-        </span>
-      )}
-
-      {/* Notes-based category match — offer an AB rule, unchecked by default */}
-      {proposal.notes_category_match && (
-        <label className="flex items-start gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={createRule}
-            onChange={e => setCreateRule(e.target.checked)}
-            className="mt-1 accent-token-brand"
-          />
-          <span className="text-token-ink text-xs">
-            Create AB rule: if payee is "{proposal.payee}" and notes contain "{selectedCategory}", always set category to "{selectedCategory}"
-          </span>
-        </label>
-      )}
-
-      {/* Account selector — only shown if there are multiple accounts */}
-      {accounts.length > 1 && (
+        {/* Category selector */}
         <select
-          value={selectedAccountId}
-          onChange={e => setSelectedAccountId(e.target.value)}
+          value={selectedCategory}
+          onChange={e => setSelectedCategory(e.target.value)}
           className="w-full bg-token-paper border border-token-line rounded-lg px-3 py-2 text-token-ink text-sm focus:outline-none focus:border-token-brand"
         >
-          {accounts.map(acc => (
-            <option key={acc.id} value={acc.id}>{acc.name}</option>
-          ))}
+          {categories.length === 0 ? (
+            <option value={proposal.category_name}>{proposal.category_name}</option>
+          ) : (
+            Object.entries(
+              categories.reduce((groups, cat) => {
+                const g = cat.group_name || 'Other'
+                if (!groups[g]) groups[g] = []
+                groups[g].push(cat)
+                return groups
+              }, {} as Record<string, typeof categories>)
+            ).map(([group, cats]) => (
+              <optgroup key={group} label={group}>
+                {cats.map(cat => (
+                  <option key={cat.id} value={cat.name}>{cat.name}</option>
+                ))}
+              </optgroup>
+            ))
+          )}
         </select>
-      )}
 
-      {error && <p className="text-token-loss text-xs">{error}</p>}
+        {/* Category auto-fill source label — informational only, never a warning */}
+        {proposal.category_source && (
+          <span className="inline-block bg-token-surface-2 text-token-ink-3 text-[10px] font-bold px-1.5 py-0.5 rounded">
+            {proposal.category_source === 'rule' ? 'Rule'
+              : proposal.category_source === 'notes_match' ? 'Notes match'
+              : proposal.category_source === 'guess' ? 'Guess'
+              : proposal.category_source}
+          </span>
+        )}
 
-      <ActionCardButtons onConfirm={handleConfirm} onCancel={handleCancel} loading={loading} />
+        {/* Notes-based category match — offer an AB rule, unchecked by default */}
+        {proposal.notes_category_match && (
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={createRule}
+              onChange={e => setCreateRule(e.target.checked)}
+              className="mt-1 accent-token-brand"
+            />
+            <span className="text-token-ink text-xs">
+              Create AB rule: if payee is "{proposal.payee}" and notes contain "{selectedCategory}", always set category to "{selectedCategory}"
+            </span>
+          </label>
+        )}
+
+        {/* Account selector — only shown if there are multiple accounts */}
+        {accounts.length > 1 && (
+          <select
+            value={selectedAccountId}
+            onChange={e => setSelectedAccountId(e.target.value)}
+            className="w-full bg-token-paper border border-token-line rounded-lg px-3 py-2 text-token-ink text-sm focus:outline-none focus:border-token-brand"
+          >
+            {accounts.map(acc => (
+              <option key={acc.id} value={acc.id}>{acc.name}</option>
+            ))}
+          </select>
+        )}
+
+        {error && <p className="text-token-loss text-xs">{error}</p>}
+
+        <ActionCardButtons onConfirm={handleConfirm} onCancel={handleCancel} loading={loading} />
+      </div>
     </Card>
   )
 }
