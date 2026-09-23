@@ -3819,7 +3819,7 @@ class ActualBudgetClient:
                 [{"payee": g["payee_name"], "notes": ""} for g in groups]
             )
         except Exception as e:
-            logger.debug("transfer-rule own-account check failed, keeping name/keyword result: %s", e)
+            logger.warning("transfer-rule own-account check failed, keeping name/keyword result: %s", e)
             matches = []
         for g, match in zip(groups, matches):
             if match and match.get("is_transfer"):

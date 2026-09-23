@@ -41,7 +41,7 @@ export default function OwnAccountPanel({
     setFetchingAccounts(true)
     getAccountList()
       .then(setAccounts)
-      .catch(() => {})
+      .catch(err => setError(`Couldn't load accounts${err instanceof Error ? `: ${err.message}` : ''}`))
       .finally(() => setFetchingAccounts(false))
   }, [showConvert, accounts.length])
 
@@ -50,9 +50,14 @@ export default function OwnAccountPanel({
     setError(null)
     try {
       const result = await createIncomeSource({ payee, type: 'transfer', account_id: accountId })
-      const msg = result.updated_count > 0
+      let msg = result.updated_count > 0
         ? `Marked as transfer. ${result.updated_count} transaction(s) converted.`
         : 'Marked as transfer. Future imports will auto-detect this payee.'
+      // Skipped = a matching leg already exists in the target account (#301
+      // duplicate guard) — those need linking by hand, so say so.
+      if (result.skipped_count > 0) {
+        msg += ` ${result.skipped_count} skipped — already have a matching transaction in that account, link them manually.`
+      }
       onConverted(msg)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to convert')
