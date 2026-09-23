@@ -165,7 +165,7 @@ export default function ImportPage() {
   }
 
   return (
-    <div className="h-dvh bg-token-paper flex flex-col pb-16">
+    <div className="min-h-full bg-token-paper flex flex-col">
       {/* Header — bell + gear only: Add is meaningless on the import flow itself. */}
       <PageHeader
         label="Bank statements"
