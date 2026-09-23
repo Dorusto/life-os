@@ -1018,7 +1018,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
   }
 
   return (
-    <div className="h-dvh pb-16 bg-token-paper flex flex-col">
+    <div className="h-full bg-token-paper flex flex-col">
       {/* Header */}
       <PageHeader
         label="Your financial advisor"
