@@ -341,6 +341,27 @@ export async function deleteLogEntry(entryId: number): Promise<void> {
   }
 }
 
+export async function exportVehicleCsv(id: number): Promise<void> {
+  const res = await authFetch(`${BASE}/vehicles/${id}/export.csv`)
+  if (!res.ok) {
+    throw new ApiError(res.status, 'Failed to export CSV')
+  }
+
+  const disposition = res.headers.get('Content-Disposition') ?? ''
+  const match = /filename="?([^";]+)"?/.exec(disposition)
+  const filename = match?.[1] || 'vehicle-log.csv'
+
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
 export async function importFuelio(file: File): Promise<FuelioImportResult> {
   const formData = new FormData()
   formData.append('file', file)
