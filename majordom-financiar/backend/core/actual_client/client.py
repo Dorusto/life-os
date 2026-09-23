@@ -2742,6 +2742,25 @@ class ActualBudgetClient:
             transfer_payee.transfer_acct = to_acct.id
         return transfer_payee
 
+    @staticmethod
+    def _resolve_transfer_target_account(session, target_account_id: str):
+        """
+        Look up and validate a transfer's destination account.
+
+        Shared by convert_transaction_to_transfer() and
+        convert_uncategorized_by_payee_to_transfer() so both reject a missing,
+        closed or tombstoned target account identically. Returns the account
+        object; raises ValueError otherwise.
+        """
+        from actual.queries import get_account
+
+        to_acct = get_account(session, target_account_id)
+        if not to_acct:
+            raise ValueError(f"Destination account not found: {target_account_id}")
+        if to_acct.tombstone or to_acct.closed:
+            raise ValueError(f"Destination account is closed: {to_acct.name}")
+        return to_acct
+
     async def create_transfer(
         self,
         from_account_id: str,
@@ -2870,7 +2889,7 @@ class ActualBudgetClient:
         """
         def _convert():
             from actual.database import Transactions
-            from actual.queries import get_account, set_transaction_payee
+            from actual.queries import set_transaction_payee
 
             with self._get_actual() as actual:
                 tx = actual.session.query(Transactions).filter(
@@ -2879,11 +2898,7 @@ class ActualBudgetClient:
                 ).first()
                 if not tx:
                     raise ValueError(f"Transaction not found: {transaction_id}")
-                to_acct = get_account(actual.session, target_account_id)
-                if not to_acct:
-                    raise ValueError(f"Destination account not found: {target_account_id}")
-                if to_acct.tombstone or to_acct.closed:
-                    raise ValueError(f"Destination account is closed: {to_acct.name}")
+                to_acct = self._resolve_transfer_target_account(actual.session, target_account_id)
                 if tx.acct and str(tx.acct) == str(to_acct.id):
                     raise ValueError(
                         "Cannot convert a transaction into a transfer to its own account"
@@ -4046,6 +4061,94 @@ class ActualBudgetClient:
                 )
                 return count
         return await self._run(_update)
+
+    async def convert_uncategorized_by_payee_to_transfer(
+        self, payee: str, target_account_id: str,
+    ) -> dict:
+        """
+        Retroactively convert every uncategorized transaction from `payee` into
+        a real AB transfer to/from `target_account_id` (#301).
+
+        Same payee-matching query as update_uncategorized_by_payee(), plus
+        `transferred_id == None` (a row that is already one leg of a transfer
+        must not be re-converted) and excluding rows already living in the
+        target account (a transfer to itself is meaningless).
+
+        Duplicate guard (#120): setting a transaction's payee to a transfer
+        payee makes AB CREATE a mirrored transaction in the target account. If
+        that account already holds the other leg — e.g. both sides were
+        bank-imported — converting would duplicate the money. So each candidate
+        is first checked against the target account for a likely counterpart
+        (negated amount, date within ±3 days, not tombstoned, not itself a
+        transfer leg); when one exists the candidate is left untouched and
+        counted as skipped, to be linked manually.
+
+        Returns {"converted": int, "skipped": int}.
+        """
+        def _convert():
+            from actual.database import Transactions, Payees
+            from actual.queries import set_transaction_payee
+
+            with self._get_actual() as actual:
+                to_acct = self._resolve_transfer_target_account(actual.session, target_account_id)
+
+                # Collected with .all() BEFORE any conversion — set_transaction_payee()
+                # rewrites the payee, so iterating a live query while mutating is unsafe.
+                candidates = (
+                    actual.session.query(Transactions)
+                    .join(Payees, Transactions.payee_id == Payees.id, isouter=True)
+                    .filter(
+                        Payees.name.ilike(f"%{payee}%"),
+                        Transactions.category_id == None,
+                        Transactions.tombstone == 0,
+                        Transactions.is_parent == 0,
+                        Transactions.transferred_id == None,
+                        Transactions.acct != to_acct.id,
+                    )
+                    .all()
+                )
+
+                # Counterpart pool for the duplicate guard, fetched once for the
+                # whole target account and matched in Python — the candidate list
+                # is small, so this avoids one query per candidate.
+                target_rows = (
+                    actual.session.query(Transactions)
+                    .filter(
+                        Transactions.acct == to_acct.id,
+                        Transactions.tombstone == 0,
+                        Transactions.transferred_id == None,
+                    )
+                    .all()
+                )
+
+                transfer_payee = None
+                converted = 0
+                skipped = 0
+                for tx in candidates:
+                    tx_date = tx.get_date()
+                    tx_amount = int(tx.amount or 0)
+                    has_counterpart = any(
+                        int(other.amount or 0) == -tx_amount
+                        and abs((other.get_date() - tx_date).days) <= 3
+                        for other in target_rows
+                    )
+                    if has_counterpart:
+                        skipped += 1
+                        continue
+                    if transfer_payee is None:
+                        transfer_payee = self._get_or_create_transfer_payee(actual.session, to_acct)
+                    set_transaction_payee(actual.session, tx, transfer_payee)
+                    converted += 1
+
+                if converted:
+                    actual.commit()
+                logger.info(
+                    "Retroactive transfer conversion for payee '%s' → %s: %d converted, %d skipped",
+                    payee, to_acct.name, converted, skipped,
+                )
+                return {"converted": converted, "skipped": skipped}
+
+        return await self._run(_convert)
 
     async def get_budget_copy_source(self, month: int, year: int) -> dict:
         """

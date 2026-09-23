@@ -298,6 +298,13 @@ class ActualBudgetProvider:
             payee, category_id, notes_contains
         )
 
+    async def convert_uncategorized_by_payee_to_transfer(
+        self, payee: str, target_account_id: str
+    ) -> dict:
+        return await self._client().convert_uncategorized_by_payee_to_transfer(
+            payee, target_account_id
+        )
+
     async def get_goals(self) -> list[dict]:
         return await self._client().get_goals()
 

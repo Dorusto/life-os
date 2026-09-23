@@ -43,7 +43,15 @@ export default function IncomeSourceCard({ payee, amount, date, onConfirmed }: I
           : `Income source saved: ${incomeName}.`
         onConfirmed(msg)
       } else {
-        onConfirmed('Marked as transfer. Future imports will auto-detect this payee.')
+        let msg = 'Marked as transfer.'
+        if (result.updated_count > 0) {
+          msg += ` ${result.updated_count} existing transaction(s) converted.`
+        }
+        if (result.skipped_count > 0) {
+          msg += ` ${result.skipped_count} skipped — already have a matching transaction in that account, link them manually.`
+        }
+        msg += ' Future imports will auto-detect this payee.'
+        onConfirmed(msg)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save')
