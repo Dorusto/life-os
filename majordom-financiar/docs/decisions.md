@@ -346,7 +346,7 @@ Confirmed AB also has a native transfer mechanism usable the same way: every acc
 
 ### UI — 2 tabs only (Home + Majordom)
 
-**Partially superseded by:** [Universal transaction UI — sheet vs. full-screen split](#universal-transaction-ui) (2026-08-28) — the bulk transaction table (#184) is a full-screen page, reached by button rather than persistent nav, not a strict reading of "last resort." Also by [Navigation — 5 tabs, not 2](#nav-five-tabs) (2026-08-28) — nav is no longer 2 tabs at all. And the "Settings are conversational" line specifically: a dedicated Settings screen was added the same day (gear icon, present in the header throughout), once the header itself needed a real target for it — Doru asked for it directly, judged necessary now rather than deferred.
+**Partially superseded by:** [Universal transaction UI — sheet vs. full-screen split](#universal-transaction-ui) (2026-08-28) — the bulk transaction table (#184) is a full-screen page, reached by button rather than persistent nav, not a strict reading of "last resort." Also by [Navigation — 5 tabs, not 2](#nav-five-tabs) (2026-08-28) — nav is no longer 2 tabs at all. And the "Settings are conversational" line specifically: a dedicated Settings screen was added the same day (gear icon, present in the header throughout), once the header itself needed a real target for it — the user asked for it directly, judged necessary now rather than deferred.
 
 **Date:** 2026-05-29
 
@@ -431,13 +431,13 @@ Both exist for categories today (structure via `CategoryOverviewCard`, amounts v
 <a id="nav-five-tabs"></a>
 ### Navigation — 5 tabs, not 2
 
-**Superseded by:** [Planned tab added — 6 tabs, not 5](#planned-tab-added) (2026-08-29) — Doru asked for a persistent Planned tab after all, once Financial Goals needed its own dedicated page.
+**Superseded by:** [Planned tab added — 6 tabs, not 5](#planned-tab-added) (2026-08-29) — the user asked for a persistent Planned tab after all, once Financial Goals needed its own dedicated page.
 
 **Date:** 2026-08-28 (same session as the universal transaction UI mockup, later in the same day)
 
 **Decision:** Bottom nav is Dashboard / Accounts / Transactions / Majordom / Analytics — 5 persistent tabs, mirroring MoneyMatter's own bar (Dashboard/Accounts/Transactions/Planned/Analytics, with Majordom taking the "Planned" slot since chat stays the app's core differentiator). Home is renamed Dashboard and becomes widget-based with a MoneyMatter-style Customize mode (add/remove/resize widgets).
 
-**Why the reversal:** while mocking #184 as a button-launched full-screen page (the compromise from the entry above), it became clear a dense filterable transaction table and a real account-detail drill-down both want to be reached directly, not routed through Home every time — the "2 tabs, last resort" framing was optimizing for a much simpler app than what Majordom's own feature set (bulk transaction cleanup, multi-account tracking, analytics) actually needs. Explicit request from Doru: could the app replicate MoneyMatter fully — full navigational parity, not just the two original card patterns.
+**Why the reversal:** while mocking #184 as a button-launched full-screen page (the compromise from the entry above), it became clear a dense filterable transaction table and a real account-detail drill-down both want to be reached directly, not routed through Home every time — the "2 tabs, last resort" framing was optimizing for a much simpler app than what Majordom's own feature set (bulk transaction cleanup, multi-account tracking, analytics) actually needs. Explicit request from the user: could the app replicate MoneyMatter fully — full navigational parity, not just the two original card patterns.
 
 **Accounts and Analytics tabs are UI shells only** — built to make the 5-tab bar feel real during design review, not yet scoped features. Accounts ties into real data already (AB accounts + vehicle-manager). Analytics is deliberately more built out than a stub (see below) but several of its reports have no confirmed data source yet — see `#ghostfolio-dropped`.
 
@@ -452,13 +452,13 @@ Both exist for categories today (structure via `CategoryOverviewCard`, amounts v
 
 **Decision:** Ghostfolio is off the plan. No client code, no deployment, no dependency — there was never any to remove. `#ab-stays-not-moneymatter-not-firefly` and AB itself are unaffected; this only concerns the portfolio/investment side that Ghostfolio was meant to cover.
 
-**Why now:** raised by Doru mid-UI-session, initially as general frustration with "AB gets in the way," corrected after review into two separate, much sharper points:
+**Why now:** raised by the user mid-UI-session, initially as general frustration with "AB gets in the way," corrected after review into two separate, much sharper points:
 1. **AB's real pain is setup friction, not the engine.** Already spec'd and unbuilt: `docs/specs/ab-setup-wizard.md` (live "Test connection," budget-file listing, encrypted storage, reconnect banner). AB itself stays — its rollover/carryover budgeting model is genuinely hard to replace (confirmed by the M5 Sure evaluation rejecting Sure specifically for lacking it, `#budget-calibration`).
-2. **Ghostfolio has no case left.** Confirmed already in `docs/sessions/2026-W28.md`: "Ghostfolio doesn't support live sync anyway, only CSV import" (Doru's own words, months ago) — and it was never actually deployed or integrated (`#4`, reopened once already in `docs/sessions/2026-W27.md` with the exact same unease, never given the "dedicated conversation" that session said it needed). If Majordom is rendering all the investment charts itself anyway, a CSV-only, unintegrated engine contributes nothing a live API would.
+2. **Ghostfolio has no case left.** Confirmed already in `docs/sessions/2026-W28.md`: "Ghostfolio doesn't support live sync anyway, only CSV import" (the user's own words, months ago) — and it was never actually deployed or integrated (`#4`, reopened once already in `docs/sessions/2026-W27.md` with the exact same unease, never given the "dedicated conversation" that session said it needed). If Majordom is rendering all the investment charts itself anyway, a CSV-only, unintegrated engine contributes nothing a live API would.
 
 **Portfolio data source: deliberately left open, not re-decided today.** Options for later (manual entry, CSV import into majordom's own storage, a different API-first portfolio engine, or building return/cost-basis calculation in-house) are not evaluated here — this entry only removes Ghostfolio as the assumed answer.
 
-**UI built ahead of the data decision, on purpose (Doru's explicit call):** the Analytics investment reports (Net Worth Drivers, Investment Contributions, Investment Projection, portfolio holdings) are mocked with realistic layout and copy now, each visually flagged as pending a data source, so wiring them up later is a backend task, not a redesign.
+**UI built ahead of the data decision, on purpose (the user's explicit call):** the Analytics investment reports (Net Worth Drivers, Investment Contributions, Investment Projection, portfolio holdings) are mocked with realistic layout and copy now, each visually flagged as pending a data source, so wiring them up later is a backend task, not a redesign.
 
 **Follow-up, not done here:** the monthly `sure-migration` cloud routine's criteria (`#ghostfolio-vs-sure-portfolio-comparison`) were framed partly around Ghostfolio; worth a quick check that its automated check still makes sense now that Ghostfolio is out of the comparison, but that's an ops task, not a redesign decision.
 
@@ -471,7 +471,7 @@ Both exist for categories today (structure via `CategoryOverviewCard`, amounts v
 
 **Context:** implementing #192 from the Universal Transaction UI mockup, the mockup's own widget list (Balance trend, Latest Transactions, Cash Flow, Expenses Structure, Vehicle costs) turned out not to include Financial Goals (Portfolio Independence/FIRE + goal cards) or Budget at all — both existing, real, actively-used features from the old Home screen. Nothing in this mockup session's own record (`#universal-transaction-ui`, `#nav-five-tabs`) flags this as a deliberate removal; it reads as an omission, not a decision.
 
-**Decision:** kept both as widgets in the new Dashboard widget registry, alongside the mockup's own five — confirmed with Doru mid-implementation rather than silently dropped or silently kept. Both default ON, both removable/re-addable through Customize mode like every other widget.
+**Decision:** kept both as widgets in the new Dashboard widget registry, alongside the mockup's own five — confirmed with the user mid-implementation rather than silently dropped or silently kept. Both default ON, both removable/re-addable through Customize mode like every other widget.
 
 **Why:** a widget-based redesign is not the place to lose two shipped, real features by omission. The mockup is UI/UX reference for the *new* widgets it introduces, not a literal spec of the complete Dashboard content — a feature list built during a mockup session can undercount what the screen it's replacing already does.
 
@@ -514,7 +514,7 @@ Both exist for categories today (structure via `CategoryOverviewCard`, amounts v
 
 **Decision:** classified per **income category** (e.g. "Rental Income"), stored the same way as goal metadata — a parsed tag in Actual Budget's `Categories.notes` field (`actualpy`'s `Categories` model has a native `notes` field; `Payees` does not, ruling out a per-payee approach without a new mechanism). No SQLite table, no per-payee granularity for now — matches the existing `TARGET:`/`DEADLINE:` note-parsing pattern used for goals (`_compute_goal_progress()`).
 
-**Why not per-payee:** `Payees` has no `notes` field in `actualpy`, and per-payee granularity isn't needed yet — confirmed with Doru. Revisit only if a real case appears where one category mixes clearly passive and clearly active income sources.
+**Why not per-payee:** `Payees` has no `notes` field in `actualpy`, and per-payee granularity isn't needed yet — confirmed with the user. Revisit only if a real case appears where one category mixes clearly passive and clearly active income sources.
 
 **Applies to:** the Expense Coverage (Coast/Barista FIRE) issue.
 
@@ -576,9 +576,9 @@ Both exist for categories today (structure via `CategoryOverviewCard`, amounts v
 
 **Date raised:** 2026-08-28. **Status:** an idea to test, not a decision — not implemented, don't act on it without an explicit go-ahead.
 
-**Context:** Doru is considering whether Majordom's own conversational model (see `CLAUDE.md#current-model`, currently `qwen3.5:9b` as the local Ollama fallback) should be even smaller than that, specifically so the app can run on cheaper hardware than what's needed today. Explicitly distinct from `delegate-by-complexity`'s dev-tooling model choice (DeepSeek/Qwen3.8 used to develop Majordom) — the two were confused twice in one session before this entry existed, see the `CLAUDE.md#current-model` clarifying note added the same day.
+**Context:** the user is considering whether Majordom's own conversational model (see `CLAUDE.md#current-model`, currently `qwen3.5:9b` as the local Ollama fallback) should be even smaller than that, specifically so the app can run on cheaper hardware than what's needed today. Explicitly distinct from `delegate-by-complexity`'s dev-tooling model choice (DeepSeek/Qwen3.8 used to develop Majordom) — the two were confused twice in one session before this entry existed, see the `CLAUDE.md#current-model` clarifying note added the same day.
 
-**Doru's own framing:** "if it's not ok [i.e. a smaller model turns out too weak], it still remains to be tested" — the idea is explicitly provisional, meant to be empirically tried, not committed to.
+**The user's own framing:** "if it's not ok [i.e. a smaller model turns out too weak], it still remains to be tested" — the idea is explicitly provisional, meant to be empirically tried, not committed to.
 
 ---
 
@@ -674,9 +674,9 @@ life-os/
 
 **Decision:** Issue #96 (work on a `dev` branch, merge to `main` only when verified — since every push to `main` deploys instantly to production) is deprioritized. Left open, not scheduled.
 
-**Why:** Doru is currently the only user of Majordom. A broken commit reaching production instantly only affects him, in the same session where he'd notice and fix it — the risk #96 protects against doesn't really exist yet with a single user.
+**Why:** the user is currently the only user of Majordom. A broken commit reaching production instantly only affects him, in the same session where he'd notice and fix it — the risk #96 protects against doesn't really exist yet with a single user.
 
-**Trigger to revisit:** the moment a second person starts actually using Majordom (partner, family member, anyone besides Doru). Claude should proactively bring this back up if that comes up in a future conversation, rather than waiting to be asked.
+**Trigger to revisit:** the moment a second person starts actually using Majordom (partner, family member, anyone besides the user). Claude should proactively bring this back up if that comes up in a future conversation, rather than waiting to be asked.
 
 ---
 
@@ -701,7 +701,7 @@ life-os/
 
 **Decision:** `vehicle-manager` becomes a fully standalone application, including its own frontend UI. Majordom does not own, embed, or duplicate that UI — it only *communicates* with vehicle-manager over its API (queries and actions), the same relationship `VehicleClient` already has today. The two apps work perfectly well independently; when connected, Majordom's AI can query/command vehicle-manager as an external service, the same shape as any other integration (Sure, Home Assistant, Immich).
 
-**Why:** Doru's own words (2026-09-11): vehicle-manager should be able to connect to Majordom — "tot frontendul vreau sa-i apartina [vehicle-manager] si in majordom doar sa putem sa comunicam cu vehicle manager" — with the explicit framing that the two can run standalone, and being *connected* is what lets Majordom's AI query it, not a merge of the two UIs.
+**Why:** the user's own words (2026-09-11): vehicle-manager should be able to connect to Majordom — "tot frontendul vreau sa-i apartina [vehicle-manager] si in majordom doar sa putem sa comunicam cu vehicle manager" — with the explicit framing that the two can run standalone, and being *connected* is what lets Majordom's AI query it, not a merge of the two UIs.
 
 **This resolves the "explicitly undecided" question** left open by the 2026-07-05 opt-in-profile decision above (`#vehicle-manager` compose-profile stopgap): the answer is full split, own frontend, own deploy — API-only connection to Majordom, not a shared UI.
 
@@ -721,13 +721,13 @@ life-os/
 
 **Question:** Keep one bespoke tool + one bespoke React component per chart type (as #30 decided), or move to a generic `{"type": "chart", "chart_type": ..., "data": {...}}` contract with one dispatcher component?
 
-**Decision:** Generic contract, 4 `chart_type`s (`pie`, `bar`, `line`, `progress_list`). All 4 existing chart tools migrated (not left on the old format) — `SpendingChart`/`BudgetChart`/`GoalsChart`/`TrendChart` deleted, replaced by one `frontend/src/components/Chart.tsx`. The *tool* (backend) decides `chart_type`, never the LLM — confirmed with Doru before implementation, since letting the LLM pick a chart type for data it doesn't structurally understand risks a mismatched visual with no error to reveal it.
+**Decision:** Generic contract, 4 `chart_type`s (`pie`, `bar`, `line`, `progress_list`). All 4 existing chart tools migrated (not left on the old format) — `SpendingChart`/`BudgetChart`/`GoalsChart`/`TrendChart` deleted, replaced by one `frontend/src/components/Chart.tsx`. The *tool* (backend) decides `chart_type`, never the LLM — confirmed with the user before implementation, since letting the LLM pick a chart type for data it doesn't structurally understand risks a mismatched visual with no error to reveal it.
 
 **Why now, not when #30 was written:** #30's "beyond 6 chart types → refactor" threshold hadn't been hit, but the #143 audit (2026-07-05) found `BudgetChart`/`GoalsChart` were already ~90% duplicate code — the real trigger was duplication, not type count. Building a 5th bespoke component (vehicle consumption chart, this session's original ask) on top of already-duplicated ones would have made a future migration only more expensive, not less.
 
-**Full migration vs. generic-for-new-only:** chose full migration. Trade-off discussed with Doru upfront — more short-term risk (4 tools + 4 components retested in one session) vs. leaving the real `BudgetChart`/`GoalsChart` duplication unresolved. Doru chose full migration.
+**Full migration vs. generic-for-new-only:** chose full migration. Trade-off discussed with the user upfront — more short-term risk (4 tools + 4 components retested in one session) vs. leaving the real `BudgetChart`/`GoalsChart` duplication unresolved. The user chose full migration.
 
-**In-card period refetch (added mid-session, not in original scope):** once the vehicle consumption chart shipped with fixed preset buttons (3M/1Y/5Y/All), Doru asked to change the period *from the chart itself* rather than by typing a new chat message, and then to extend the same idea to the other charts (budget/spending: prev/next month; spending trend: custom month range; vehicle charts: custom date range, additive to the existing buttons). Implemented as a `refetch` block or REST GET endpoint that bypasses the chat/LLM round-trip entirely — a period change is a deterministic parameter, not a new question. Three modes (`period_buttons`/`month_nav`/`month_range`) because "period" genuinely means different things per chart: budget/spending are bound to one Actual Budget calendar month (can't take an arbitrary range), spending trend is already multi-month (range makes sense), vehicle logs are day-granular (free date range makes sense in addition to presets). See `docs/architecture.md` rule 23 for the technical shape.
+**In-card period refetch (added mid-session, not in original scope):** once the vehicle consumption chart shipped with fixed preset buttons (3M/1Y/5Y/All), the user asked to change the period *from the chart itself* rather than by typing a new chat message, and then to extend the same idea to the other charts (budget/spending: prev/next month; spending trend: custom month range; vehicle charts: custom date range, additive to the existing buttons). Implemented as a `refetch` block or REST GET endpoint that bypasses the chat/LLM round-trip entirely — a period change is a deterministic parameter, not a new question. Three modes (`period_buttons`/`month_nav`/`month_range`) because "period" genuinely means different things per chart: budget/spending are bound to one Actual Budget calendar month (can't take an arbitrary range), spending trend is already multi-month (range makes sense), vehicle logs are day-granular (free date range makes sense in addition to presets). See `docs/architecture.md` rule 23 for the technical shape.
 
 **Rejected:** having period-switcher buttons re-send a synthetic chat message (e.g. "last 5 years") instead of a dedicated REST endpoint — would've needed zero new backend routes, but costs an LLM call and a visible new chat bubble for what the user experiences as a simple in-place UI control.
 
@@ -759,7 +759,7 @@ life-os/
 **Decision:** a public demo instance is a fully separate deployment, not a mode flag on the personal instance:
 - **Own LXC/VPS** — external VPS (not the home LXC), own dedicated demo domain, kept off the existing personal domain. Isolates network/bandwidth risk from the home setup and doubles as a demonstration of the already-planned VPS consulting service.
 - **Actual Budget fully invisible, technically, not just in the UI** — AB and the Majordom backend talk only over the internal Docker network; no AB port is ever exposed publicly.
-- **Fictitious persona/data**, never Doru's real data (see "confidentiality directive" below — applies to docs too, not just the demo).
+- **Fictitious persona/data**, never the user's real data (see "confidentiality directive" below — applies to docs too, not just the demo).
 - **Concurrent visitors:** writes/confirmations in the demo are visually confirmed only, never actually persisted — per-visitor isolation was considered and rejected as too complex. Chat itself stays real (reads the fictitious seed data), only the write/confirm step is faked.
 - **Reset:** nightly Btrfs snapshot restore (simple, matches existing backup mechanism) rather than a separate "fake write" storage layer.
 - **Model:** Gemini 2.5 Flash Lite via Google Vertex EU — cheaper (~3x) than MiniMax M3, already proven in production, EU data processing (simpler sovereignty story for the target audience). Explicitly not an OpenRouter `:free` model (throttling risk exactly at traffic peaks). MiniMax stays for private empirical testing only, not the public demo.
@@ -785,7 +785,7 @@ life-os/
 
 **Why not MoneyMatter:** Enable Banking NL sync confirmed working on their side, but switching engines doesn't fix the real problems observed (partial misunderstanding of rollover/carryover, deduplication bugs on import) — those are usage/implementation issues on the current engine, not AB limitations, and would follow to any new engine.
 
-**Why not Firefly III:** incompatible data model — Firefly is double-entry bookkeeping (business accounting), AB is envelope budgeting (YNAB-style, with rollover on savings categories). Migrating would mean rebuilding the budgeting logic from scratch around new accounting concepts. No native bank sync (CSV or paid importers only). AB already handles the shared-budget case (Doru + partner) without manual reconciliation — a real advantage for the current use case.
+**Why not Firefly III:** incompatible data model — Firefly is double-entry bookkeeping (business accounting), AB is envelope budgeting (YNAB-style, with rollover on savings categories). Migrating would mean rebuilding the budgeting logic from scratch around new accounting concepts. No native bank sync (CSV or paid importers only). AB already handles the shared-budget case (the user + partner) without manual reconciliation — a real advantage for the current use case.
 
 **Why not a custom engine:** disproportionate risk for the benefit, especially without a programming background — double-entry correctness, reconciliation, and bank sync are exactly the areas where mistakes are expensive and hard to debug. Sure (the long-term successor candidate already tracked in this repo, see `#ghostfolio-vs-sure-portfolio-comparison`) confirms the right model: a mature engine + an external conversational layer, not an engine built from scratch.
 
@@ -802,15 +802,15 @@ life-os/
 
 **Date:** 2026-08-17
 
-**Decision:** Majordom stays self-hosted only. No tier where Doru hosts other users' financial data. The public demo stays an isolated, non-persistent showcase, not an alternative way to use the product.
+**Decision:** Majordom stays self-hosted only. No tier where the user hosts other users' financial data. The public demo stays an isolated, non-persistent showcase, not an alternative way to use the product.
 
 **Why it came up:** real setup friction connecting to AB (blind `base_url`/`password`/`file` entry) suggested a hosted tier as a way around it, following MoneyMatter's self-host-or-cloud model.
 
 **Why rejected:**
 - Doesn't solve the actual problem — self-host users still enter AB credentials; a SaaS tier just gives some users a way to skip the step entirely, it doesn't remove it.
 - Business-model shift, not a technical one: hosting other people's financial data is direct GDPR liability as a data controller for sensitive third-party data — a different category from "sell setup consulting on the client's own server" (the current model).
-- AB has no safe native multi-tenancy (one server password, not isolated accounts) — correct hosting would still need one AB instance per client, technically identical to the existing VPS-setup-as-a-service, just with Doru holding final access instead of the client.
-- Contradicts DEPPSiT's positioning (digital sovereignty — your data, your server); a tier where Doru hosts other people's money is the opposite of that message.
+- AB has no safe native multi-tenancy (one server password, not isolated accounts) — correct hosting would still need one AB instance per client, technically identical to the existing VPS-setup-as-a-service, just with the user holding final access instead of the client.
+- Contradicts DEPPSiT's positioning (digital sovereignty — your data, your server); a tier where the user hosts other people's money is the opposite of that message.
 
 **The real friction gets solved by a setup wizard instead** — see `docs/specs/ab-setup-wizard.md` — credentials entered once, validated live, encrypted at rest.
 
@@ -894,7 +894,7 @@ isolates its db/log/session-history from any other concurrent instance. `--conti
 does not work across that isolation (a fresh `XDG_DATA_HOME` has no prior session to
 continue) — the delegate re-derives context by re-reading its own prompt file and the
 relevant issue/docs instead, which worked fine in practice but costs some redundant
-exploration. Doru is evaluating Aider as a possible replacement for opencode in the
+exploration. The user is evaluating Aider as a possible replacement for opencode in the
 `delegate-by-complexity` skill for a future session, specifically because Aider keeps
 state per-repo rather than in one shared global db — not decided, not started.
 
@@ -967,7 +967,7 @@ form not yet seen.
 
 **Date:** 2026-08-28
 
-**Decision:** three changes to `.claude/skills/task-complete/SKILL.md`, after Doru flagged
+**Decision:** three changes to `.claude/skills/task-complete/SKILL.md`, after the user flagged
 the end-of-session protocol as too expensive mid-session:
 
 1. **Step 1's `pre-commit-review` subagent is now conditional.** Skip it when every piece
@@ -1008,9 +1008,9 @@ file permanently heavier.
 
 **Decision:** Bottom nav becomes Dashboard / Accounts / Transactions / Planned / Majordom / Analytics — 6 persistent tabs. New `Planned` tab (`CalendarClock` icon, `/planned` route) hosts Financial Goals as a dedicated full-screen page (`frontend/src/pages/Planned.tsx`), reusing the same `GoalsSection` component also rendered as the existing Dashboard widget — not a duplicate implementation, not a replacement (Financial Goals stays on Dashboard too, toggleable via Customize as before).
 
-**Why:** raised by Doru reviewing the MoneyMatter reference again — the Financial Goals widget's older card style (label-above-separate-accent-cards) no longer matched the new single-card widget shell every other Dashboard widget uses (`TrendWidget`, `LatestTransactionsWidget`, etc.), and moving it into its own page needed a real nav entry point. A button-launched full-screen page (the #184 pattern, proposed first) was considered and rejected — Doru's read was that this doesn't fit that pattern: #184's transaction table is a secondary drill-down reached occasionally, while Planned is meant to be a primary destination checked regularly, closer to Accounts/Transactions than to a one-off full-screen flow.
+**Why:** raised by the user reviewing the MoneyMatter reference again — the Financial Goals widget's older card style (label-above-separate-accent-cards) no longer matched the new single-card widget shell every other Dashboard widget uses (`TrendWidget`, `LatestTransactionsWidget`, etc.), and moving it into its own page needed a real nav entry point. A button-launched full-screen page (the #184 pattern, proposed first) was considered and rejected — the user's read was that this doesn't fit that pattern: #184's transaction table is a secondary drill-down reached occasionally, while Planned is meant to be a primary destination checked regularly, closer to Accounts/Transactions than to a one-off full-screen flow.
 
-**Also decided the same session — write path stays chat-mediated, just without the typing/navigation step.** Doru pushed back on "everything must go through typed chat" as a general principle — agreed there's no reason a structured input (name, amount, deadline) needs a free-text round trip. The fix implemented is narrow, not a new write path: the "+ New goal" button opens a form (`frontend/src/components/NewGoalSheet.tsx`) that constructs a natural-language message from the form fields and submits it to the existing `/chat` endpoint in the background (`sendChatMessageStreaming`, no visible transcript), then renders the existing `GoalProposalCard` confirmation card inline once the stream returns a `goal_proposal`. `finance__set_account_goal` was already in `_PROPOSAL_TOOLS` — no backend changes, no new endpoint, the "LLM = translator, logic = backend" principle (`docs/learn/10-chat-tools.md`) is unaffected. This is a UI-level shortcut around free-text typing, not a bypass of the confirmation-card write pattern (`architecture.md`'s "all write tools → confirmation card" rule still holds — the card is still shown, still editable, still requires an explicit confirm).
+**Also decided the same session — write path stays chat-mediated, just without the typing/navigation step.** the user pushed back on "everything must go through typed chat" as a general principle — agreed there's no reason a structured input (name, amount, deadline) needs a free-text round trip. The fix implemented is narrow, not a new write path: the "+ New goal" button opens a form (`frontend/src/components/NewGoalSheet.tsx`) that constructs a natural-language message from the form fields and submits it to the existing `/chat` endpoint in the background (`sendChatMessageStreaming`, no visible transcript), then renders the existing `GoalProposalCard` confirmation card inline once the stream returns a `goal_proposal`. `finance__set_account_goal` was already in `_PROPOSAL_TOOLS` — no backend changes, no new endpoint, the "LLM = translator, logic = backend" principle (`docs/learn/10-chat-tools.md`) is unaffected. This is a UI-level shortcut around free-text typing, not a bypass of the confirmation-card write pattern (`architecture.md`'s "all write tools → confirmation card" rule still holds — the card is still shown, still editable, still requires an explicit confirm).
 
 **Rejected:** keeping Financial Goals as a button-launched page under Dashboard (didn't fit — see above); building a new non-chat write endpoint for goal creation (bigger scope, not needed — the existing tool/proposal machinery already does everything required, the only real complaint was the typing/navigation step, not the underlying mechanism).
 
@@ -1025,7 +1025,7 @@ file permanently heavier.
 
 **Decision:** stop routing `/task-complete` through a background fork for now. Run it inline (main conversation) until it's made cheap enough that forking it isn't disproportionate to the task. This does not undo step 7a in `plan-feature/SKILL.md` — that step is about *implementation* work (the thing that actually benefits from running unattended while the conversation continues), not the wrap-up checklist.
 
-**Why:** Doru flagged the cost live ("costa prea mult pentru o simpla confirmare ca totul e ok sau sa gaseasca chestii minore") — a fork's fixed overhead (re-deriving context, running the pre-commit-review subagent, doing its own file reads) turned a step that step-1's own conditional-skip rule should have made near-free into one of the most expensive single actions of the session.
+**Why:** the user flagged the cost live ("costa prea mult pentru o simpla confirmare ca totul e ok sau sa gaseasca chestii minore") — a fork's fixed overhead (re-deriving context, running the pre-commit-review subagent, doing its own file reads) turned a step that step-1's own conditional-skip rule should have made near-free into one of the most expensive single actions of the session.
 
 **Not done here:** no redesign of `/task-complete` itself — the existing conditional-review/batching/scaled-logs rules (`#task-complete-skill-made-cheaper`) are believed still correct, the problem is specifically the fork wrapper adding its own overhead on top. A future pass should look at whether step 1's "skip if already reviewed in this conversation" can be judged by the *main* session before forking at all, instead of re-derived inside the fork.
 
@@ -1036,9 +1036,9 @@ file permanently heavier.
 
 **Date:** 2026-08-29 (same session, right after `#task-complete-via-fork-paused`)
 
-**Context:** two well-scoped frontend tasks (Budget widget restyle, category-click → filtered Transactions) got written as static `scripts/prompts/deepseek/*.md` files, the old manual-handoff habit — even though `delegate-by-complexity` (Aider headless dispatch, migrated from opencode 2026-08-28) already exists and was the actual intended default. Doru caught it live: "am schimbat structura de colaborare, nu mai scrii acolo prompturile pentru deepseek ci le delegi tu direct prin aider. nu stiu de ce nu s-a activat skill-ul."
+**Context:** two well-scoped frontend tasks (Budget widget restyle, category-click → filtered Transactions) got written as static `scripts/prompts/deepseek/*.md` files, the old manual-handoff habit — even though `delegate-by-complexity` (Aider headless dispatch, migrated from opencode 2026-08-28) already exists and was the actual intended default. The user caught it live: "am schimbat structura de colaborare, nu mai scrii acolo prompturile pentru deepseek ci le delegi tu direct prin aider. nu stiu de ce nu s-a activat skill-ul."
 
-**Decision:** `CLAUDE.md` (root), `majordom-financiar/CLAUDE.md`, and `plan-feature/SKILL.md` step 8 all corrected — default delegation path is now explicitly "run `delegate-by-complexity`, dispatch via Aider, review the diff, merge only on Doru's confirmation." The old "write to `scripts/prompts/deepseek/NNN_desc.md` and stop" behavior is kept only as a named fallback (Doru wants to run DeepSeek himself, or Claude Code is unavailable) — no longer described as "the default handoff."
+**Decision:** `CLAUDE.md` (root), `majordom-financiar/CLAUDE.md`, and `plan-feature/SKILL.md` step 8 all corrected — default delegation path is now explicitly "run `delegate-by-complexity`, dispatch via Aider, review the diff, merge only on the user's confirmation." The old "write to `scripts/prompts/deepseek/NNN_desc.md` and stop" behavior is kept only as a named fallback (the user wants to run DeepSeek himself, or Claude Code is unavailable) — no longer described as "the default handoff."
 
 **Why it silently resurfaced:** the two static prompt files were written by pattern-matching on this session's own earlier `plan-feature`-driven work (which correctly used the manual-file convention because that's what the docs said at the time) — nothing in the moment flagged that a newer, better mechanism existed and should have been checked first. Root cause is the docs, not a one-off lapse: `CLAUDE.md`'s collaboration-workflow section still described the manual file save as the default, so following it faithfully produced the outdated behavior.
 
@@ -1057,7 +1057,7 @@ file permanently heavier.
 
 **Why not a new SQLite table or column:** the "No financial data in SQLite — Actual Budget is the source of truth" rule (`CLAUDE.md`) extends naturally to account metadata that drives real financial aggregation (Net Worth totals, trend scopes) — this isn't cosmetic like `categoryGroupOrder.ts`'s pure-display `localStorage` ordering. Writing it into AB's own `notes` field keeps AB as the literal source of truth, visible/editable even outside Majordom (in AB's own UI), and needs zero new schema.
 
-**"Ventures" → "Rental":** the original value set (Cash/Investment/Vehicle/Loan) came from #205's own issue title; "Ventures" was a 5th label picked up mechanically from the #207 MoneyMatter reference screenshot's own toggle text ("Include in net worth: Loans/Vehicles/Ventures") without ever being defined in this project. Asked directly — Doru didn't know what it meant either, and on reflection it wasn't inherited from a real need. Replaced with "Rental" after he described the actual case: a rented-out apartment whose *value* he wants trackable toward Net Worth, explicitly distinct from tracking the rental's ongoing income/expenses (which needs no new mechanism — plain AB income/expense categories already do that, unblocked, not part of this task).
+**"Ventures" → "Rental":** the original value set (Cash/Investment/Vehicle/Loan) came from #205's own issue title; "Ventures" was a 5th label picked up mechanically from the #207 MoneyMatter reference screenshot's own toggle text ("Include in net worth: Loans/Vehicles/Ventures") without ever being defined in this project. Asked directly — the user didn't know what it meant either, and on reflection it wasn't inherited from a real need. Replaced with "Rental" after he described the actual case: a rented-out apartment whose *value* he wants trackable toward Net Worth, explicitly distinct from tracking the rental's ongoing income/expenses (which needs no new mechanism — plain AB income/expense categories already do that, unblocked, not part of this task).
 
 **Not done here:** #205 only adds the tagging mechanism and a manual dropdown editor (`AccountDetail.tsx`) — no auto-inference from account name (deliberately manual-only, matching the "coach not consultant" user-controlled-inputs principle used elsewhere). The actual consumers (#207 Net Worth widget, Balance trend's Portfolio/Vehicles/Loans scopes) are separate, unstarted follow-up work.
 
@@ -1068,9 +1068,9 @@ file permanently heavier.
 
 **Date:** 2026-08-29
 
-**Context:** #204 was opened as "Income is excluded from Categories Watchlist, fix the exclusion." Investigating the real fix (extend the shared `_compute_budget_vs_spent` with an opt-in `include_income`/`earned_by_category` path, isolated from `get_budget_status`'s other consumers — overspend notifications, the `finance__get_budget_status` chat tool) surfaced a bigger misunderstanding mid-discussion: Categories Watchlist isn't a manually curated picker at all today — `BudgetDashboard.tsx`'s `spendingCats` filter shows *any* category with budget or spending activity automatically, and "+ Add category" creates a brand-new AB category rather than selecting from existing ones. What Doru actually wants (per the MoneyMatter reference) is a real picker — choosing specific existing categories one at a time, including individual income categories (not the whole Income group in one click).
+**Context:** #204 was opened as "Income is excluded from Categories Watchlist, fix the exclusion." Investigating the real fix (extend the shared `_compute_budget_vs_spent` with an opt-in `include_income`/`earned_by_category` path, isolated from `get_budget_status`'s other consumers — overspend notifications, the `finance__get_budget_status` chat tool) surfaced a bigger misunderstanding mid-discussion: Categories Watchlist isn't a manually curated picker at all today — `BudgetDashboard.tsx`'s `spendingCats` filter shows *any* category with budget or spending activity automatically, and "+ Add category" creates a brand-new AB category rather than selecting from existing ones. What the user actually wants (per the MoneyMatter reference) is a real picker — choosing specific existing categories one at a time, including individual income categories (not the whole Income group in one click).
 
-**Decision:** don't implement either the automatic-inclusion fix or the picker now. Doru confirmed, once he saw the actual current behavior, that this isn't a current priority. Re-scoped and retitled the issue to describe the real ask (manual picker), downgraded `tier-2` → `tier-3`, and recorded the full technical findings (both root causes, the AB/`actualpy` "nothing precomputes this" finding, the planned `include_income` shape) as an issue comment so the research isn't lost whenever it's picked back up.
+**Decision:** don't implement either the automatic-inclusion fix or the picker now. The user confirmed, once he saw the actual current behavior, that this isn't a current priority. Re-scoped and retitled the issue to describe the real ask (manual picker), downgraded `tier-2` → `tier-3`, and recorded the full technical findings (both root causes, the AB/`actualpy` "nothing precomputes this" finding, the planned `include_income` shape) as an issue comment so the research isn't lost whenever it's picked back up.
 
 **Also confirmed while investigating:** neither Actual Budget nor `actualpy` precompute an "actual received/spent per category" figure anywhere — `zero_budgets`/`reflect_budgets` only ever store the *planned* amount, and `queries.py` has no equivalent read helper. Every consumer, including AB's own web UI, derives it by summing transactions at read time — this codebase already does exactly that for expenses (`_compute_budget_vs_spent`'s `spent_by_category` loop); income would need the mirror of it, not something fetchable from an existing field.
 
@@ -1081,7 +1081,7 @@ file permanently heavier.
 
 **Date:** 2026-08-30
 
-**Context:** [Adapter created](#financeprovider-abstraction) (2026-06-03) but never fully wired — an audit the same session #222 was opened in (`decisions.md#financeprovider-abstraction`, F12, 2026-08-29) found 11 `backend/api/*.py` modules plus `tools/finance/vehicle.py` still constructing `ActualBudgetClient` directly, bypassing `get_provider()` entirely. `CLAUDE.md`'s Phase A reframed *why* finishing it matters: no longer a Sure-migration hedge (that evaluation concluded AB stays, see `#sure-budget-parity-evaluation`) but general backend swappability — Doru wants Majordom usable by people who won't all run Actual Budget (hledger/beancount/a custom engine are now live candidates, see the competitive-reference discussion on #222 re: Accountant24).
+**Context:** [Adapter created](#financeprovider-abstraction) (2026-06-03) but never fully wired — an audit the same session #222 was opened in (`decisions.md#financeprovider-abstraction`, F12, 2026-08-29) found 11 `backend/api/*.py` modules plus `tools/finance/vehicle.py` still constructing `ActualBudgetClient` directly, bypassing `get_provider()` entirely. `CLAUDE.md`'s Phase A reframed *why* finishing it matters: no longer a Sure-migration hedge (that evaluation concluded AB stays, see `#sure-budget-parity-evaluation`) but general backend swappability — the user wants Majordom usable by people who won't all run Actual Budget (hledger/beancount/a custom engine are now live candidates, see the competitive-reference discussion on #222 re: Accountant24).
 
 **Decision:** routed all 11 modules (`accounts.py`, `home.py`, `budget.py`, `transactions.py`, `setup.py`, `close_account.py`, `transfer_conversion.py`, `balance_adjustments.py`, `income_sources.py`, `vehicle_accounts_internal.py`, `vehicle_log_actions.py`) plus `tools/finance/vehicle.py` through `get_provider()`. 3 done directly by Claude (`accounts.py`, `home.py`, `transactions.py` — higher complexity: new Protocol methods, a non-obvious FIRE-calc convention, and the signature-drift bug below), 7 delegated in 3 parallel Aider/DeepSeek-Flash batches via `delegate-by-complexity` (all correct on the first pass, ~$0.05 total). Every touched method live-tested against the local fixture stack; `scripts/check_provider_wiring.py` passes (58 methods).
 
@@ -1100,7 +1100,7 @@ file permanently heavier.
 
 **Date:** 2026-08-30
 
-**Context:** reported live by Doru — repeated ING → Revolut transfers where Revolut ended up with two entries (the transfer's own linked leg, plus a genuine second row from Revolut's own bank sync), and confirming the "duplicate merge" in the existing #181 review screen made account balances stop matching the real bank. Traced to `_find_duplicate_candidates()`/`merge_duplicate_transaction()` matching purely on `cleared` state (one uncleared "manual" side, one cleared "synced" side, same exact amount) with zero awareness of `Transactions.transferred_id`. When the "manual" side was actually a linked transfer leg — left uncleared by `convert_transaction_to_transfer()` (#144) when the original transaction wasn't cleared — the old merge tombstoned it, breaking the transfer link: the counterpart account's leg was left pointing at a dead `transferred_id`, and the amount stopped being recognized as a transfer at all.
+**Context:** reported live by the user — repeated ING → Revolut transfers where Revolut ended up with two entries (the transfer's own linked leg, plus a genuine second row from Revolut's own bank sync), and confirming the "duplicate merge" in the existing #181 review screen made account balances stop matching the real bank. Traced to `_find_duplicate_candidates()`/`merge_duplicate_transaction()` matching purely on `cleared` state (one uncleared "manual" side, one cleared "synced" side, same exact amount) with zero awareness of `Transactions.transferred_id`. When the "manual" side was actually a linked transfer leg — left uncleared by `convert_transaction_to_transfer()` (#144) when the original transaction wasn't cleared — the old merge tombstoned it, breaking the transfer link: the counterpart account's leg was left pointing at a dead `transferred_id`, and the amount stopped being recognized as a transfer at all.
 
 Already independently documented before this session connected it to #181's risk: `docs/learn/08-transfers.md`'s "Duplicate placeholder pattern" gotcha, and a 2026-08-02 comment on #117 describing the identical pattern as a reconciliation "suspect." Cross-referenced #120 (linking two never-linked transactions across accounts — a different feature, shares the same low-level safety rule) and #102 (a related, already-fixed CSV-import-path bug from a different trigger).
 
@@ -1140,13 +1140,13 @@ Already independently documented before this session connected it to #181's risk
 
 **Decision:** new `GET /home/uncategorized/groups` (backend/api/home.py) wraps each payee group from `get_uncategorized_groups()` into the existing `categorize_with_rule` action directly — no new action type, no LLM involved. `dismissed_findings` (see above) gained its second wired `finding_type`, `"uncategorized_payee"`, keyed on `payee_id` (a `Payees.id` UUID — identity, not financial data, same reasoning as `duplicate_pair`'s transaction-id keys). `cancel_category_action` extended to dismiss on this action type too, guarded on `payee_id` being present (the chat-originated path didn't carry it before this session — added there too, for consistency, so a chat-typed cancel also persists).
 
-**Frontend pattern, decided implicitly and confirmed by Doru approving the plan before implementation:** a dedicated `NotificationBell` row → dedicated full-page review screen (`UncategorizedReviewPage.tsx`), mirroring `DuplicatesReviewPage.tsx` exactly rather than building Phase B's literally-named "Inbox itself" as one unified queue screen. Reasoning: `NotificationBell` already *is* the consolidated "what needs attention" surface (`#nav-five-tabs` — it deliberately replaced separate header icons), so a second finding type funneling through it satisfies the same architecture, not a compromise on it. Two occupants with differing internal shapes (month-drill-down for duplicates vs. a flat list for payee groups) didn't justify a shared abstraction yet — extract only at a real third occurrence with a shape that actually repeats (`duplication-prevention.md`).
+**Frontend pattern, decided implicitly and confirmed by the user approving the plan before implementation:** a dedicated `NotificationBell` row → dedicated full-page review screen (`UncategorizedReviewPage.tsx`), mirroring `DuplicatesReviewPage.tsx` exactly rather than building Phase B's literally-named "Inbox itself" as one unified queue screen. Reasoning: `NotificationBell` already *is* the consolidated "what needs attention" surface (`#nav-five-tabs` — it deliberately replaced separate header icons), so a second finding type funneling through it satisfies the same architecture, not a compromise on it. Two occupants with differing internal shapes (month-drill-down for duplicates vs. a flat list for payee groups) didn't justify a shared abstraction yet — extract only at a real third occurrence with a shape that actually repeats (`duplication-prevention.md`).
 
 **Two real bugs found and fixed during live verification** (both are now `architecture.md` rules 32 and 33): `list_uncategorized_by_payee()` wasn't using the cached read connection, so the new endpoint's per-group loop cost ~8-10s for 27 groups instead of ~1.6s; `CategoryActionCard`'s category `<select>` had no placeholder for an empty `selectedCategory`, so a group with no suggested category looked like it had one selected while Categorize stayed correctly-but-invisibly disabled.
 
 **Retired in the same task** (`duplication-prevention.md`): the generic `"uncategorized"` item in `get_pending_items()` (chat-prefill path) — removed now that the dedicated surface exists, not left in "just in case."
 
-**Open question, not resolved this session:** whether Phase B's own done-condition ("the first thing you see is what it found... not a dashboard you have to interpret") is fully met by a bell that still requires one tap to open, versus something more prominent on the Home/Dashboard landing view. Flagged to Doru, not decided — revisit before considering Phase B fully closed.
+**Open question, not resolved this session:** whether Phase B's own done-condition ("the first thing you see is what it found... not a dashboard you have to interpret") is fully met by a bell that still requires one tap to open, versus something more prominent on the Home/Dashboard landing view. Flagged to the user, not decided — revisit before considering Phase B fully closed.
 
 **Implemented via a Claude Code fork** (backend + 4 frontend files, non-obvious card/dismiss conventions — a poor DeepSeek fit per the collaboration rules' >2-coupled-files guidance). Live-verified end to end on the local fixture stack: confirm categorizes in AB and removes the card; cancel persists in `memory.db` and survives a full reload; the two bugs above were caught by that live testing, not by the diff review alone.
 
@@ -1159,7 +1159,7 @@ Already independently documented before this session connected it to #181's risk
 
 **Context:** the open question left by occupant #2's session (above) — whether `NotificationBell` alone satisfies Phase B's done-condition ("the first thing you see is what it found... not a dashboard you interpret"), or needs something more prominent on the Home/Dashboard landing view.
 
-**Decision:** the bell is sufficient. Phase B is fully closed. Reasoning, from Doru's own ask for a recommendation rather than a forced choice: the product-plan.md quote's intent is about *content*, not tap-count — the contrast is with a dashboard of numbers the user has to interpret themselves, not with "requires exactly zero taps." Every item behind the bell already carries a proposal + proof + one-tap confirm (Phase B's stronger, explicitly-stated requirement — "every item in the Inbox must carry its own proof"), which is the actual bar the done-condition is testing for. A Home banner would show the same data with one fewer tap, not add anything Phase B cares about. The bell's badge is already visible on every tab's header, not hidden.
+**Decision:** the bell is sufficient. Phase B is fully closed. Reasoning, from the user's own ask for a recommendation rather than a forced choice: the product-plan.md quote's intent is about *content*, not tap-count — the contrast is with a dashboard of numbers the user has to interpret themselves, not with "requires exactly zero taps." Every item behind the bell already carries a proposal + proof + one-tap confirm (Phase B's stronger, explicitly-stated requirement — "every item in the Inbox must carry its own proof"), which is the actual bar the done-condition is testing for. A Home banner would show the same data with one fewer tap, not add anything Phase B cares about. The bell's badge is already visible on every tab's header, not hidden.
 
 **Rejected:** a Home-screen card/banner surfacing top findings without a tap. Cost (new UI + duplicated data-fetching) for a one-tap savings, right when Phase C is the actual growth area — same "no plugin framework, extract only from what's evidenced" discipline product-plan.md already applies to Phase C's own capabilities.
 
@@ -1189,7 +1189,7 @@ Already independently documented before this session connected it to #181's risk
 
 **Date:** 2026-08-30
 
-**Context:** `docs/product-plan.md` Phase C's third named example (the other two: uncategorised transactions → occupant #2, month-end unreconciled → occupant #3). Real motivating case: category "House repairing" budgeted €100/month, one month had €1019.38 spent (€939 one-off Coolblue stove + €80.38 recurring) — the correct read is "the small category is realistic, distorted by one purchase," not "raise the budget." Scoped via `/plan-feature` earlier this session: #110's own text proposes moving the outlier into a sinking fund, which is literally #111's mechanism — no category-level goal-tracking exists yet (only account-level `TARGET:`/`DEADLINE:`, for real savings accounts). Decision, confirmed by Doru: v1 does not build that mechanism — #111 stays its owner.
+**Context:** `docs/product-plan.md` Phase C's third named example (the other two: uncategorised transactions → occupant #2, month-end unreconciled → occupant #3). Real motivating case: category "House repairing" budgeted €100/month, one month had €1019.38 spent (€939 one-off Coolblue stove + €80.38 recurring) — the correct read is "the small category is realistic, distorted by one purchase," not "raise the budget." Scoped via `/plan-feature` earlier this session: #110's own text proposes moving the outlier into a sinking fund, which is literally #111's mechanism — no category-level goal-tracking exists yet (only account-level `TARGET:`/`DEADLINE:`, for real savings accounts). Decision, confirmed by the user: v1 does not build that mechanism — #111 stays its owner.
 
 **Decision:** `list_budget_realism_flags()` (`client.py`) computes, for the most recently closed calendar month, each budgeted category's actual spend vs. a trailing 3-6 month average (reusing `_compute_monthly_totals()`/`_compute_budget_vs_spent()`/`_tombstoned_category_remap()` rather than re-deriving the aggregation — architecture.md rule 20), and flags a category only when it's over its own budget **and** a single transaction that month is >5x the average of the category's other transactions (the "one-off distortion" signal from the issue). The confirm action reuses the existing `add_transaction_tag()` mechanism to tag the outlier `#one-off` — a real, useful action that doesn't touch goal/sinking-fund state — and also dismisses the finding (`dismissed_findings`, fourth wired `finding_type`: `"budget_outlier"`, keyed on the outlier transaction's own `id`, not category_id, so a different large transaction next month in the same category flags again rather than being suppressed by an old dismiss). Same architecture as occupants #2/#3: live-computed on every fetch, no digest/anti-spam gating, dedicated `NotificationBell` row + review page.
 
@@ -1229,7 +1229,7 @@ Already independently documented before this session connected it to #181's risk
 
 **What broke it, live:** the fixture budget already had an unrelated "Transport" category (its own "Transport" group) — creating a second "Transport" inside "Dolomiti" made `actualpy`'s `get_category(session, name)` (name-only lookup, not group-scoped) raise `MultipleResultsFound` on every subsequent call for that name. See `docs/architecture.md` rule 37 for the mechanism. This surfaced a real product-design question, not just a bug: should goal-tracked trip spending live in its own new categories at all?
 
-**Doru's correction (his own words, paraphrased):** categories and groups should stay unique — a Transport expense during a trip is still Transport, categorized exactly the same as any other Transport expense; it should additionally get a `#TripName` tag. Total Transport spending for the month still shows everything; filtering to just the trip's share of Transport is what the tag is for. This is a materially different mental model than the original issue text — the goal is never supposed to create its own category structure, it's supposed to track against categories that already exist.
+**The user's correction (his own words, paraphrased):** categories and groups should stay unique — a Transport expense during a trip is still Transport, categorized exactly the same as any other Transport expense; it should additionally get a `#TripName` tag. Total Transport spending for the month still shows everything; filtering to just the trip's share of Transport is what the tag is for. This is a materially different mental model than the original issue text — the goal is never supposed to create its own category structure, it's supposed to track against categories that already exist.
 
 **Decision:** replaced `propose_goal_budget_plan` with `finance__propose_set_tag_goal(tag, total_amount, by_month)` — a single lightweight target (not a multi-category split), stored as a preference (`MemoryDB.set_preference`, key `tag_goal:<tag>`, same storage pattern already used for `fire_model` — a planning target, not financial data, so this doesn't violate the "no financial data in SQLite" rule) — and `finance__get_tag_goal_progress(tag)`, which compares the stored target against actual tagged spending via the already-existing `get_tag_category_breakdown()` (built for #126's per-order costing, reused as-is here). Tagging a trip expense uses the pre-existing `finance__propose_tag_transaction` flow — nothing new needed there. No new categories, no `goal_def` template, no rollover, for this flow.
 
@@ -1271,7 +1271,7 @@ Already independently documented before this session connected it to #181's risk
 
 **Decision 2 — encryption key is generated once and stored on disk, never a user passphrase:** a `Fernet` key is created on first use and written to `<same dir as memory.db>/.ab_credentials.key` (the existing `data/` host-mounted volume, already gitignored — confirmed, not re-verified per-install), permissions `0600`. Chosen over asking the user for a separate encryption passphrase (real security benefit — nothing on disk alone can decrypt — but adds a second password to remember, exactly the friction this wizard exists to remove, for a single-user self-hosted install where the threat model is "don't leave the AB password sitting in a shell-readable `.env`," not "defend against an attacker with filesystem read access"). Losing the key file means re-running the wizard; treated as an acceptable trade-off, not a defect.
 
-**Both decisions were surfaced to Doru and confirmed before any code was written**, not decided silently and not left to whichever subagent implemented the feature — see `docs/sessions/2026-W37.md`'s 2026-09-11 entry. The alternative for decision 1 (wizard writes to `.env`, requires an explicit restart) was rejected because it contradicts the spec's own promised UX (an explicit success screen followed by an automatic redirect to a now-working Home screen).
+**Both decisions were surfaced to the user and confirmed before any code was written**, not decided silently and not left to whichever subagent implemented the feature — see `docs/sessions/2026-W37.md`'s 2026-09-11 entry. The alternative for decision 1 (wizard writes to `.env`, requires an explicit restart) was rejected because it contradicts the spec's own promised UX (an explicit success screen followed by an automatic redirect to a now-working Home screen).
 
 **Also fixed in the same pass:** `scripts/check-private-data.sh`'s "Real credential value" check false-positived on this feature's own code (`password=body.password`, `self.password = saved["password"]` — legitimate references, not literal secrets) — the existing exclusion list already special-cased `settings.`/`cfg.` for the identical reason, extended to also cover `body.`/`self.`/`saved[`/`request.` rather than writing a second check.
 
@@ -1288,9 +1288,9 @@ Already independently documented before this session connected it to #181's risk
 
 **Context:** Two consecutive chat answers to the same "show me my transactions" question came back formatted differently (payee bolded one time, date bolded the next) — the backend tool (`finance__get_transactions`) already returned a consistently-formatted text string, but the LLM re-composed its own reply from that text each turn rather than relaying it verbatim, since plain assistant messages render as freeform Markdown.
 
-**Two options presented to Doru before implementing either:** (1) a system-prompt instruction telling the model to relay the tool's result verbatim — cheap, but only a strong suggestion the model can still drift from, and the only way to verify it holds is repeated live multi-turn testing, not a diff; (2) a dedicated structured card (same mechanism already used for every chart type — `_PROPOSAL_TOOLS` short-circuits the tool-call loop and streams the raw JSON straight to the frontend, bypassing the LLM's own reply-composition entirely) — more upfront work (new tool, new frontend component, new system-prompt routing bullet) but eliminates the failure mode structurally rather than asking the model nicely.
+**Two options presented to the user before implementing either:** (1) a system-prompt instruction telling the model to relay the tool's result verbatim — cheap, but only a strong suggestion the model can still drift from, and the only way to verify it holds is repeated live multi-turn testing, not a diff; (2) a dedicated structured card (same mechanism already used for every chart type — `_PROPOSAL_TOOLS` short-circuits the tool-call loop and streams the raw JSON straight to the frontend, bypassing the LLM's own reply-composition entirely) — more upfront work (new tool, new frontend component, new system-prompt routing bullet) but eliminates the failure mode structurally rather than asking the model nicely.
 
-**Decision:** option 2. Doru's choice, not decided silently — matches this codebase's existing convention (every other "here are results to look at, not act on" tool already renders this way) rather than introducing a second, weaker convention for one case.
+**Decision:** option 2. The user's choice, not decided silently — matches this codebase's existing convention (every other "here are results to look at, not act on" tool already renders this way) rather than introducing a second, weaker convention for one case.
 
 **A real regression this could have introduced, caught before implementation, not after:** the existing `finance__get_transactions` is used for a second, different purpose — the model calling it mid-turn to find a transaction's id before immediately calling a write tool (`propose_transfer_conversion`, `propose_tag_transaction`), which depends on the tool's text result being fed back into the model's own context as a normal `role: tool` message. Anything in `_PROPOSAL_TOOLS` short-circuits that (`yield result; return`, ending the loop immediately) — simply adding the existing tool to that set would have silently broken the id-lookup flow. Resolved by adding a *new*, separate tool (`finance__list_transactions`) for the display case, leaving `get_transactions` completely untouched for the lookup case, with an explicit system-prompt bullet distinguishing when to call which (matching this codebase's established multi-specific-tool convention, e.g. the several separate `get_*_chart` tools, rather than one tool serving two purposes).
 
@@ -1305,9 +1305,9 @@ Already independently documented before this session connected it to #181's risk
 
 **Context:** #190's spec cut this scope deliberately — no app-wide mechanism existed to detect "AB just went unreachable" across arbitrary API calls. Investigation before implementing found `/api/setup/status`'s `ab_connected` field only checks `settings.actual.is_configured` (credentials saved), not live reachability — so it could NOT be reused as-is for this.
 
-**Two options presented to Doru before writing any code:** (1) reactive — translate the failure once at `ActualBudgetClient._run()` (the single choke point every read/write method already awaits through, see `architecture.md` rule 40) into a distinct 503, and have the existing unified `authFetch()` transport (#214) recognize it and flip a shared flag; zero added load on AB, but the banner only appears at the next real API call. (2) active polling — a new liveness-check endpoint, polled on an interval from the frontend; detects the outage faster even with no user activity, at the cost of a permanent background round-trip to AB for a rare condition, on a self-hosted single-instance app that already had a documented Home-load perf issue (#223/#227) from *too many* AB connections.
+**Two options presented to the user before writing any code:** (1) reactive — translate the failure once at `ActualBudgetClient._run()` (the single choke point every read/write method already awaits through, see `architecture.md` rule 40) into a distinct 503, and have the existing unified `authFetch()` transport (#214) recognize it and flip a shared flag; zero added load on AB, but the banner only appears at the next real API call. (2) active polling — a new liveness-check endpoint, polled on an interval from the frontend; detects the outage faster even with no user activity, at the cost of a permanent background round-trip to AB for a rare condition, on a self-hosted single-instance app that already had a documented Home-load perf issue (#223/#227) from *too many* AB connections.
 
-**Decision:** option 1 (reactive). Doru's choice. Directly reuses `_classify_ab_connection_error()` (already written for #190's `ab-test-connection` endpoint, moved into `client.py` so both call sites share it instead of diverging) and the existing `authFetch()` single-transport pattern instead of introducing a second one.
+**Decision:** option 1 (reactive). The user's choice. Directly reuses `_classify_ab_connection_error()` (already written for #190's `ab-test-connection` endpoint, moved into `client.py` so both call sites share it instead of diverging) and the existing `authFetch()` single-transport pattern instead of introducing a second one.
 
 **Live-verified in Chrome** (not just diff review): AB up → no banner; `docker compose stop actual-budget` → banner appears app-wide with the exact `{"error_type":"connection","detail":"..."}` body, `Reconnect` navigates to `/setup/ab`, banner itself hidden there; `docker compose start actual-budget` → banner clears on the next successful call, with no page reload. Stack restored after.
 
@@ -1320,9 +1320,9 @@ Already independently documented before this session connected it to #181's risk
 
 **Date:** 2026-09-11
 
-**Context:** the issue's own formula (`expected_by_now = (pool / 12) * months_elapsed`, compared against cumulative discretionary spend since Jan 1) was already specified by Doru in the GitHub issue body. What was open: where `annual_income` and the fixed-expense/sinking-fund category tagging live, and where the resulting alert surfaces.
+**Context:** the issue's own formula (`expected_by_now = (pool / 12) * months_elapsed`, compared against cumulative discretionary spend since Jan 1) was already specified by the user in the GitHub issue body. What was open: where `annual_income` and the fixed-expense/sinking-fund category tagging live, and where the resulting alert surfaces.
 
-**Decision 1 — Settings, not chat.** Confirmed with Doru before dispatch (two options: a new Settings section vs. waiting for #124's chat-based budget config and folding this in). Settings won — doesn't couple two separate features, and matches `docs/decisions.md#coach-not-consultant`'s requirement that these numbers stay user-editable, never guessed. Config stored via `MemoryDB.get_preference`/`set_preference` under one `user_preferences` key (`budget_pacing_config`, JSON) — the exact mechanism already used for `tag_goal:*` (#113), not a new table; this is preference metadata (which categories are tagged, a typed-in income figure), not financial data, so it doesn't touch the "no financial data in SQLite" rule.
+**Decision 1 — Settings, not chat.** Confirmed with the user before dispatch (two options: a new Settings section vs. waiting for #124's chat-based budget config and folding this in). Settings won — doesn't couple two separate features, and matches `docs/decisions.md#coach-not-consultant`'s requirement that these numbers stay user-editable, never guessed. Config stored via `MemoryDB.get_preference`/`set_preference` under one `user_preferences` key (`budget_pacing_config`, JSON) — the exact mechanism already used for `tag_goal:*` (#113), not a new table; this is preference metadata (which categories are tagged, a typed-in income figure), not financial data, so it doesn't touch the "no financial data in SQLite" rule.
 
 **Decision 2 — annualize fixed/sinking-fund totals by extrapolating from elapsed months, not a flat ×12 of the current month.** `annual_fixed = (fixed_budgeted_elapsed / months_elapsed) * 12`. Pure implementation call (decided without asking, zero user-visible consequence either way) — handles a goal category created mid-year more sensibly than assuming its current-month budgeted amount held for the whole year.
 
@@ -1343,7 +1343,7 @@ Already independently documented before this session connected it to #181's risk
 
 **Context:** the issue's original text illustrated the need with a live-bank-sync example (a real BUNQ account with a native target Majordom couldn't see). First-pass triage this session wrongly treated that as a hard blocker — this codebase has no live bank API integration, only CSV import. On closer investigation, the account-level `TARGET:`/`DEADLINE:` note mechanism (already shipping, powers the Dashboard's "Financial Goals" section, `get_goals()`) is exactly the "declared purpose" signal the BUNQ example was illustrating — a user can already declare a savings goal on any account, bank-synced or not, with zero new infrastructure. The blocker was never real; it was an incomplete first read of the issue.
 
-**Decision — scope cut to the account-goal half only, not the "generic For a Rainy Day category list" half.** The issue actually bundles two different features: (A) noticing a declared-but-unbudgeted goal account, (B) periodically suggesting common large-expense categories (car maintenance, appliance replacement) the user might not have thought of at all. (A) has a clean, existing signal to build on; (B) needs either a static suggestion list (cheap, risks feeling like noise) or transaction-pattern detection (more valuable, more room to get wrong) — a real product choice, not decided here. Doru confirmed: (A) only, this session.
+**Decision — scope cut to the account-goal half only, not the "generic For a Rainy Day category list" half.** The issue actually bundles two different features: (A) noticing a declared-but-unbudgeted goal account, (B) periodically suggesting common large-expense categories (car maintenance, appliance replacement) the user might not have thought of at all. (A) has a clean, existing signal to build on; (B) needs either a static suggestion list (cheap, risks feeling like noise) or transaction-pattern detection (more valuable, more room to get wrong) — a real product choice, not decided here. The user confirmed: (A) only, this session.
 
 **Decision — conservative trigger, no account↔category name-matching.** The nudge fires only when: at least one account has a `TARGET:` goal AND zero categories are tagged as sinking-fund anywhere (reusing #112's `sinking_fund_category_ids` config from the same session). Explicitly rejected: trying to match a goal account to "its" category by name similarity (e.g. account "ING Savings" ↔ category "Savings") — fragile, real accounts and categories won't reliably share names, and a wrong match is worse than a missed one. The chosen trigger can miss a case (user has 3 goals, 1 sinking-fund category covering only one of them, the other 2 still unprotected) but never produces a false positive, matching this cluster's established "coach not consultant" bar.
 
@@ -1351,7 +1351,7 @@ Already independently documented before this session connected it to #181's risk
 
 **Delegated to Aider/DeepSeek Flash** (mechanical, well-scoped, matches the proven `get_pending_items()`/chat-tool shape of #41/#116/#112 exactly) — see the process incident below for what went wrong in the dispatch mechanics (content was correct; the isolation step failed).
 
-**Process incident, not a content bug:** the launch command's `cd` to the intended isolated worktree used a wrong assumed path (`git worktree add ../X` from the monorepo root resolves `../` to the monorepo's *parent*, not a sibling inside it, unlike this repo's own existing `life-os-<slug>` worktree convention) — the `cd` failed silently (bash doesn't stop on an uncaught error), and Aider ran directly on the main checkout, committing straight to `main` (`--yes-always`) instead of the isolated branch. Caught immediately after by checking `git worktree list`/`git log` on both the main checkout and the worktree. Diff reviewed after the fact (not before, as intended) — verified correct (4 files, exactly the requested scope, `check_silent_exceptions.py`/`check_provider_wiring.py` clean, live-tested both the positive case — 2 goal accounts, config temporarily set to zero sinking-fund categories, restored exactly after — and the negative case against real fixture data). Doru chose to keep the commit on `main` rather than reset and redo, given the content was already verified sound and nothing had been pushed. Fixed in `delegate-by-complexity`'s own `SKILL.md`/`references/decisions.md` (verify the real worktree path mechanically before any `cd`, never assume it from the command; guard any pre-launch `cd` with `|| exit 1`) — a skill-level fix, not specific to this repo, since it protects every future delegation using this skill, not just this one.
+**Process incident, not a content bug:** the launch command's `cd` to the intended isolated worktree used a wrong assumed path (`git worktree add ../X` from the monorepo root resolves `../` to the monorepo's *parent*, not a sibling inside it, unlike this repo's own existing `life-os-<slug>` worktree convention) — the `cd` failed silently (bash doesn't stop on an uncaught error), and Aider ran directly on the main checkout, committing straight to `main` (`--yes-always`) instead of the isolated branch. Caught immediately after by checking `git worktree list`/`git log` on both the main checkout and the worktree. Diff reviewed after the fact (not before, as intended) — verified correct (4 files, exactly the requested scope, `check_silent_exceptions.py`/`check_provider_wiring.py` clean, live-tested both the positive case — 2 goal accounts, config temporarily set to zero sinking-fund categories, restored exactly after — and the negative case against real fixture data). The user chose to keep the commit on `main` rather than reset and redo, given the content was already verified sound and nothing had been pushed. Fixed in `delegate-by-complexity`'s own `SKILL.md`/`references/decisions.md` (verify the real worktree path mechanically before any `cd`, never assume it from the command; guard any pre-launch `cd` with `|| exit 1`) — a skill-level fix, not specific to this repo, since it protects every future delegation using this skill, not just this one.
 
 ---
 
@@ -1362,13 +1362,13 @@ Already independently documented before this session connected it to #181's risk
 
 **Supersedes:** [Planned tab added — 6 tabs, not 5](#planned-tab-added) (2026-08-29) — reversed for Planned specifically; nothing else about the tab bar changes.
 
-**Context:** #218 had flagged both Planned and Analytics as dead nav slots — Planned duplicated the Dashboard's own Financial Goals widget pixel-for-pixel with nothing else on the screen, Analytics was a bare "coming soon" placeholder. #239 tracked Analytics' emptiness as a separate issue. Doru brought a third competitor reference (MoneyMatter's own Analytics tab, screenshots) that reframed the fix: fold Planned into Analytics specifically, so the surviving tab earns its slot with real content, rather than fixing the two problems independently (#218's original two options were "give Planned distinct content" or "fold Planned into Dashboard").
+**Context:** #218 had flagged both Planned and Analytics as dead nav slots — Planned duplicated the Dashboard's own Financial Goals widget pixel-for-pixel with nothing else on the screen, Analytics was a bare "coming soon" placeholder. #239 tracked Analytics' emptiness as a separate issue. The user brought a third competitor reference (MoneyMatter's own Analytics tab, screenshots) that reframed the fix: fold Planned into Analytics specifically, so the surviving tab earns its slot with real content, rather than fixing the two problems independently (#218's original two options were "give Planned distinct content" or "fold Planned into Dashboard").
 
 **Decision — remove `/planned` and its nav entry; Financial Goals stays reachable only via the existing Dashboard widget** (already the same `GoalsSection` component, not a duplicate implementation — removing the page loses zero functionality, only the redundant second entry point). Bottom nav returns to 5 tabs: Dashboard / Accounts / Transactions / Majordom / Analytics.
 
 **Decision — Analytics v1 reuses the 4 existing REST endpoints as-is (`GET /api/finance/{spending-chart,budget-chart,spending-trend,savings-rate}`), rendered via the existing `<Chart chart_type=... data=... refetch=... />` component exactly as Dashboard.tsx already does for its own widgets** — zero new backend code for v1. Deliberately **not** included in v1: the period-over-period "what changed" comparison framing raised alongside the MoneyMatter reference (a category's % change vs. the previous period, a net-worth trend split by asset category) — that needs new backend computation not yet speced, and mixing a scoping discussion into an implementation task was judged worse than shipping the clean, already-buildable half now and revisiting the comparison layer as its own pass. `#239`'s "product-plan.md notices vs. displays" concern about a passive reports page still applies to that later pass, not to this reuse-only v1 (see the discussion on #218's thread — the honest read is that v1 is exactly the "displays" the plan warns about being wary of *building more of*, made acceptable here only because it's fixing an empty placeholder that already existed with zero new cost, not because it's the sought-after "notices" material).
 
-**Why reversing `#planned-tab-added` was still the right call, not just churn:** that entry's original reasoning (Financial Goals needed a dedicated page, once its card style stopped matching the rest of the Dashboard) is unaffected — the widget still exists and still works. What changed is that giving it a *second*, nearly-identical destination turned out not to be worth a whole nav slot once Analytics needed one more urgently for something with no other home. Confirmed explicitly with Doru before removing a tab he'd asked for by name in the prior decision, specifically because reversing a past explicit request (not just an implementation detail) needed his own sign-off, not a silent call.
+**Why reversing `#planned-tab-added` was still the right call, not just churn:** that entry's original reasoning (Financial Goals needed a dedicated page, once its card style stopped matching the rest of the Dashboard) is unaffected — the widget still exists and still works. What changed is that giving it a *second*, nearly-identical destination turned out not to be worth a whole nav slot once Analytics needed one more urgently for something with no other home. Confirmed explicitly with the user before removing a tab he'd asked for by name in the prior decision, specifically because reversing a past explicit request (not just an implementation detail) needed his own sign-off, not a silent call.
 
 **Rejected:** giving Planned its own distinct content instead (#218's original option 1) — would have fixed one dead slot while leaving Analytics empty, the exact "half the problem" outcome this decision was raised to avoid.
 
@@ -1387,7 +1387,7 @@ in exact naming, resolves the "Open fork" entry in root `CLAUDE.md` (2026-09-05,
 
 **Context:** raised while doing a full backlog retrospective, after Phase C (zero-touch
 administration) and Phase C2 (coaching cluster) both closed out — the "revisit once M0-M4 feels
-stable" condition on the open packaging-vs-new-capabilities fork was finally met. Doru's answer
+stable" condition on the open packaging-vs-new-capabilities fork was finally met. The user's answer
 wasn't either of the two original options as written: not "package for others" yet, and not the
 RAG/documents idea from the "new capabilities" side either — a third, more specific direction that
 crystallized while looking at the retrospective together.
@@ -1395,7 +1395,7 @@ crystallized while looking at the retrospective together.
 **Decision — two personal-use gaps get solved before anything about packaging for others:**
 1. `vehicle-manager` (currently backend-only, `tools/vehicle-manager/`, its data surfaced through
    pages living inside majordom-financiar's own React app) gets a real standalone frontend of its
-   own — its own charts, Fuelio referenced explicitly as the shape Doru wants. Runs independently;
+   own — its own charts, Fuelio referenced explicitly as the shape the user wants. Runs independently;
    majordom-financiar keeps working standalone too, consuming it only via the existing API client
    for chat/notifications, unchanged from today's relationship.
 2. **A new, separate investment/portfolio-tracking app** — own frontend, own backend, own
@@ -1430,7 +1430,7 @@ other path — this entry records the *decision to build it separately*, not an 
 Tracked as new GitHub issues rather than specced further in this entry.
 
 **Addendum, same day — the orchestrator vision refined and deliberately sequenced last, not
-first.** Doru's fuller picture: "Majordom" itself becomes a separate MCP-hub service (chat,
+first.** the user's fuller picture: "Majordom" itself becomes a separate MCP-hub service (chat,
 dashboard shell, notifications) distinct from `majordom-finance`/`majordom-transport`/the
 investment app, each of which stays independently usable and exposes an MCP server the hub
 connects to. Real vision, tracked as **#263** — but deliberately **not** built before #261/#262:
@@ -1440,3 +1440,80 @@ an already-working REST API later is mechanical, not a rewrite. Agreed sequencin
 get built first with today's simple REST connection (majordom-financiar calling each domain app's
 API directly, unchanged from the pattern already used for vehicle data) — #263 gets designed once
 there are two real, proven services to design it against, not before.
+
+<a id="303-actualpy-enable-banking-incompatible"></a>
+### #303 (ledger diverges from real bank) — root cause is actualpy's `run_bank_sync()` not supporting Enable Banking at all, not a Majordom bug
+
+**Context:** diagnosed live against real LXC data. `ING current` showed ~€2000 in Actual Budget
+against a real bank balance of ~€19.59. Read-only investigation (`scripts/ab_audit.py`, plus a
+direct read-only call to `Actual.bank_sync_transactions()`) found the bulk of the gap was 53 real
+transactions missing entirely from AB across a stretch where the sync had silently failed — most
+visibly a full week (Sept 1-6) with zero transactions of any kind, including the mortgage payment.
+
+**Root cause confirmed, not guessed:** every `run_bank_sync()` call for this account throws
+`pydantic.ValidationError` — Enable Banking's balance response includes an ISO 20022 balance-type
+code (`XPCD` on this account; upstream's own reproducer uses `ITBD`) that `actualpy`'s `BalanceType`
+enum doesn't recognize, so the whole response fails to validate before any transaction is extracted.
+`run_bank_resync_all()`'s per-account `try/except` swallows this silently (logged as a warning,
+account added to `failed`) — the sync "runs" with no visible error, but imports nothing. This is
+**upstream, not local**: confirmed via [bvanelli/actualpy#208](https://github.com/bvanelli/actualpy/issues/208)
+(open, unfixed as of 2026-09-23), which documents both the balance-type enum gap and a deeper one —
+Enable Banking's transaction shape is structurally incompatible with `actualpy`'s model (amount
+always positive with a separate `credit_debit_indicator` instead of a signed amount, no `date`
+field, `booked` as a status string not boolean). Checked the latest release (0.22.3 vs. the
+installed 0.21.0) — the enum is unchanged, upgrading does not fix this.
+
+**Decision:** track the upstream issue rather than building a local workaround now — the fix isn't
+a small patch (the transaction-shape mismatch means even a relaxed enum could still misparse
+amounts/dates), and the user's own bank-sync button in Actual Budget's native UI works correctly
+right now as a manual fallback (it doesn't go through this `actualpy` code path). Revisit if the
+upstream issue stalls or if losing Majordom's own sync button becomes painful enough to justify a
+local response-shim.
+
+**Secondary finding, fixed same session:** while reconciling via AB's native sync, found
+`_find_duplicate_candidates()`'s "no date window" design (the trade-off explicitly flagged as
+"revisit... only if this turns out noisy in practice" in
+[#229](#229-transfer-blind-duplicate-merge-fixed)) had in fact become noisy: 134 candidate pairs on
+this one account, 132 false positives (mostly `kind: transfer` pairs matching unrelated
+same-round-amount transactions months apart). Fixed with a 7-day match window, same convention
+`scripts/ab_audit.py`'s `dupes()` already used — see commit `63521dc`. Accepted trade-off: a
+genuine duplicate separated by a sync outage longer than 7 days (exactly what #303 produced) won't
+surface automatically and needs the manual script — not reintroducing the false-positive flood by
+widening the window was judged the better default.
+
+**Also found, filed separately:** the Connections settings page guesses a wrong port
+(`${origin}:5006`) on this Tailscale-`serve` deployment, where Actual Budget is reverse-proxied on
+a different HTTPS port — filed as #306, not fixed here (unrelated to #303's actual cause).
+
+**Update, same evening:** the user then ran Actual Budget's own native bank-sync button directly
+(bypassing the broken `actualpy` code path entirely) — it correctly pulled in the full missing week
+plus the rest of September, closing the ~53-missing-transaction gap without any manual CSV
+reconciliation. `ING current`'s AB-vs-real gap dropped from ~€1982 to ~€96.50, fully explained by one
+manual-vs-synced duplicate (found and merged via the now-fixed duplicate-review screen, see the
+follow-up entry below). **#303 stays open only for the upstream `actualpy`/Enable Banking gap**
+(tracked via actualpy#208, not resolved locally) — the account itself is now reconciled.
+
+---
+
+<a id="303-transfer-duplicate-financial-id-gate"></a>
+### #303 follow-up — transfer-kind duplicate candidates gated on missing `financial_id`
+
+**Date:** 2026-09-23
+
+**Decision:** the 7-day date window on `_find_duplicate_candidates()` (commit `63521dc`) cut the
+amount-only false positives, but live data still showed 17 — all `kind: transfer`: an
+already-resolved, bank-confirmed transfer leg (cleared, with its own `financial_id`) matched
+against an unrelated same-amount transaction within the window (recurring round-amount transfers
+clustered around the same day each month). Fixed with an immediate follow-up: the `manuals`
+candidate list now includes a `transferred_id`-set transaction only when it lacks its own
+`financial_id` — a transfer leg already independently confirmed by its own bank sync is excluded
+from candidacy entirely, however close its amount/date sit to something else, so only a genuinely
+unresolved transfer leg is ever suggested. This is exactly the revisit path the #229 entry's
+"Known precision trade-off" paragraph anticipated ("gate on the transfer leg lacking its own
+`financial_id`").
+
+**Accepted trade-off:** `financial_id` is also set on Majordom-created rows (`add_transaction()`'s
+`imported_id`, architecture.md rule 7) and CSV-imported rows, not only bank-synced ones — so a
+Majordom/CSV-created transaction later converted to a transfer is also excluded from candidacy
+while still uncleared. Narrow false-negative class (such a pair must be resolved manually in AB);
+judged clearly preferable to the 17 live false positives.
