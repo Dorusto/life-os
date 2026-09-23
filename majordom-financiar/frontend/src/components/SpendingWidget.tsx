@@ -9,6 +9,20 @@
 import { useMemo, type ReactNode } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getAccountList, getTransactionsFiltered, type Transaction } from '../lib/api'
+
+// /transactions caps a page at 200 rows, so a busy month is read page by page.
+const PAGE_SIZE = 200
+const MAX_PAGES = 10
+
+async function fetchMonth(dateFrom: string, dateTo: string): Promise<Transaction[]> {
+  const rows: Transaction[] = []
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const batch = await getTransactionsFiltered({ dateFrom, dateTo, limit: PAGE_SIZE, offset: page * PAGE_SIZE })
+    rows.push(...batch)
+    if (batch.length < PAGE_SIZE) break
+  }
+  return rows
+}
 import { formatCurrency, formatPercent } from '../lib/formatCurrency'
 import WidgetLoading from './WidgetLoading'
 import { Card, SectionLabel } from './kit/Card'
@@ -112,13 +126,13 @@ export default function SpendingWidget({ month, year }: { month: number; year: n
   const currentQuery = useQuery({
     queryKey: ['transactions', 'spending', year, month],
     queryFn: () =>
-      getTransactionsFiltered({ dateFrom: current.dateFrom, dateTo: current.dateTo, limit: 1000 }),
+      fetchMonth(current.dateFrom, current.dateTo),
     staleTime: 60_000,
   })
   const previousQuery = useQuery({
     queryKey: ['transactions', 'spending', prevYear, prevMonth],
     queryFn: () =>
-      getTransactionsFiltered({ dateFrom: previous.dateFrom, dateTo: previous.dateTo, limit: 1000 }),
+      fetchMonth(previous.dateFrom, previous.dateTo),
     staleTime: 60_000,
   })
   // Same key as the dashboard's own account query — this reads its cache for the
