@@ -2,20 +2,20 @@ import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
 import {
-  Bell, Pencil, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Calendar, ArrowUpRight,
+  Bell, Pencil, Plus, X, ChevronDown, ChevronLeft, ChevronRight, Calendar, ArrowUpRight, SlidersHorizontal,
 } from 'lucide-react'
 import {
   getHomeData, getAccountList, getBalanceHistory, getTransactions, getBudgetPeriod, getVehicleCostsSummary,
-  type BudgetCategory, type AccountListItem, type Transaction,
+  type BudgetCategory, type AccountListItem, type Transaction, type FireData,
 } from '../lib/api'
 import { requestAndSubscribe } from '../lib/push'
 import BudgetDashboard from '../components/BudgetDashboard'
 import GoalsSection from '../components/GoalsSection'
-import PageHeader from '../components/PageHeader'
+import { PageHeader } from '../components/shell/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import BottomSheet from '../components/BottomSheet'
 import Chart from '../components/Chart'
-import { WIDGETS, loadWidgetPrefs, saveWidgetPrefs, type WidgetId } from '../lib/dashboardWidgets'
+import { WIDGETS, WIDGET_SPAN, loadWidgetPrefs, saveWidgetPrefs, type WidgetId } from '../lib/dashboardWidgets'
 import { loadNetWorthIncludePrefs, saveNetWorthIncludePrefs } from '../lib/netWorthPrefs'
 import { useState, useEffect, useRef } from 'react'
 import { formatCurrency, formatPercent } from '../lib/formatCurrency'
@@ -124,13 +124,18 @@ export default function Dashboard() {
   function renderWidget(id: WidgetId): ReactNode {
     switch (id) {
       case 'goals':
-        return <GoalsSection fireData={fireData} expenseCoverage={expenseCoverage} goals={goals} isLoading={homeLoading} />
+        return (
+          <div className="space-y-4">
+            {fireData && fireData.fire_target > 0 && <GoalsHeadline fire={fireData} />}
+            <GoalsSection fireData={fireData} expenseCoverage={expenseCoverage} goals={goals} isLoading={homeLoading} />
+          </div>
+        )
       case 'budget':
         // Same explicit error branch as the 'expenses' widget below — without
         // it a failed budget-period query makes the Watchlist vanish silently.
         if (periodBudgetError) {
           return (
-            <div className="bg-token-surface border border-token-line rounded-2xl p-4">
+            <div className="bg-token-surface border border-token-line rounded-xl p-4">
               <p className="text-xs text-token-ink-3 uppercase tracking-wide">Categories Watchlist</p>
               <p className="text-token-ink-3 text-sm text-center py-2">
                 Couldn't load this month's budget.
@@ -146,7 +151,7 @@ export default function Dashboard() {
           />
         ) : null
       case 'trend':
-        return <TrendWidget accounts={accounts} dashboardMonth={dashboardMonth} dashboardYear={dashboardYear} />
+        return <BalanceHero accounts={accounts} dashboardMonth={dashboardMonth} dashboardYear={dashboardYear} />
       case 'latest':
         return <LatestTransactionsWidget transactions={transactions} navigate={navigate} isLoading={transactionsLoading} />
       case 'expenses':
@@ -157,7 +162,7 @@ export default function Dashboard() {
         // means the latter.
         if (periodBudgetLoading || periodBudgetError) {
           return (
-            <div className="bg-token-surface border border-token-line rounded-2xl p-4">
+            <div className="bg-token-surface border border-token-line rounded-xl p-4">
               <p className="text-xs text-token-ink-3 uppercase tracking-wide">Expenses Structure</p>
               {periodBudgetLoading ? (
                 <WidgetLoading label="Loading expenses…" />
@@ -170,7 +175,7 @@ export default function Dashboard() {
           )
         }
         return (
-          <div className="bg-token-surface border border-token-line rounded-2xl">
+          <div className="bg-token-surface border border-token-line rounded-xl">
             <Chart
               chart_type="pie"
               title="Expenses Structure"
@@ -186,19 +191,81 @@ export default function Dashboard() {
     }
   }
 
-  const fullWidgets = WIDGETS.filter(w => w.column === 'full' && enabled[w.id])
-  const leftWidgets = WIDGETS.filter(w => w.column === 'left' && enabled[w.id])
-  const rightWidgets = WIDGETS.filter(w => w.column === 'right' && enabled[w.id])
+  const visibleWidgets = WIDGETS.filter(w => enabled[w.id])
   const removedWidgets = WIDGETS.filter(w => !enabled[w.id])
 
+  // Stat strip — only figures the page already has. Spent/income come from the selected
+  // period's budget categories (Income group = money in, everything else = spending).
+  const periodSpent = periodCategories
+    ?.filter(c => c.group_name !== 'Income')
+    .reduce((sum, c) => sum + Math.max(c.spent, 0), 0)
+  const incomeCategories = periodCategories?.filter(c => c.group_name === 'Income')
+  const periodIncome = incomeCategories && incomeCategories.length > 0
+    ? incomeCategories.reduce((sum, c) => sum + Math.abs(c.spent), 0)
+    : undefined
+  const periodShort = periodIsCurrentMonth
+    ? MONTH_NAMES_FULL[dashboardMonth - 1].slice(0, 3)
+    : periodLabel
+  const stats: { label: string; value: string; sub?: string }[] = []
+  if (onBudgetTotal != null) {
+    stats.push({ label: 'On budget', value: formatCurrency(onBudgetTotal, { decimals: 0 }), sub: accountCount != null ? `${accountCount} account${accountCount === 1 ? '' : 's'}` : undefined })
+  }
+  if (periodSpent != null) stats.push({ label: `Spent · ${periodShort}`, value: formatCurrency(periodSpent) })
+  if (periodIncome != null) stats.push({ label: `Income · ${periodShort}`, value: formatCurrency(periodIncome) })
+  if (periodSpent != null && periodIncome != null && periodIncome > 0) {
+    const rate = ((periodIncome - periodSpent) / periodIncome) * 100
+    stats.push({ label: 'Savings rate', value: formatPercent(rate, { decimals: 0 }) })
+  }
+
+  const showDashboard = !(homeData && accountCount === 0)
+
+  const headerActions = showDashboard && homeData ? (
+    <>
+      <div className="flex items-center gap-0.5 rounded-full border border-token-line bg-token-surface p-[3px]">
+        <button
+          onClick={() => shiftDashboardPeriod(-1)}
+          className="flex h-8 w-8 items-center justify-center rounded-full text-token-ink-3 hover:text-token-ink"
+          aria-label="Previous period"
+        >
+          <ChevronLeft size={14} />
+        </button>
+        <button
+          onClick={() => setPeriodSheetOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1.5 font-mono text-xs text-token-ink hover:bg-token-surface-2"
+        >
+          <Calendar size={13} />
+          {periodLabel}
+        </button>
+        <button
+          onClick={() => shiftDashboardPeriod(1)}
+          className="flex h-8 w-8 items-center justify-center rounded-full text-token-ink-3 hover:text-token-ink"
+          aria-label="Next period"
+        >
+          <ChevronRight size={14} />
+        </button>
+      </div>
+      <button
+        onClick={editing ? cancelEdit : enterEdit}
+        className={`flex h-9 w-9 items-center justify-center rounded-full border border-token-line bg-token-surface transition-colors ${editing ? 'text-token-ink' : 'text-token-ink-3 hover:text-token-ink'}`}
+        aria-label={editing ? 'Cancel customizing' : 'Customize dashboard'}
+        title="Customize"
+      >
+        <SlidersHorizontal size={15} />
+      </button>
+      <StandardHeaderActions />
+    </>
+  ) : (
+    <StandardHeaderActions />
+  )
+
   return (
-    <div className="min-h-full bg-token-paper flex flex-col">
-      <PageHeader label={dateLabel} title="Dashboard" actions={<StandardHeaderActions />} />
+    <div className="flex flex-col">
+      <PageHeader eyebrow={dateLabel} title="Dashboard" actions={headerActions} />
 
       {notifState === 'default' && (
         <button
           onClick={handleEnableNotifications}
-          className="mx-5 mt-3 flex items-center gap-3 px-4 py-3 rounded-xl bg-token-surface border border-token-line hover:border-token-brand transition-colors text-left"
+          className="mb-5 flex items-center gap-3 px-4 py-3 rounded-xl bg-token-surface border border-token-line hover:border-token-brand transition-colors text-left"
         >
           <Bell size={18} className="text-token-brand-ink flex-shrink-0" />
           <div>
@@ -209,9 +276,9 @@ export default function Dashboard() {
       )}
 
       {/* Empty state (brand-new install) or normal dashboard */}
-      {homeData && accountCount === 0 ? (
-        <section className="px-5 pt-4 pb-24">
-          <div className="bg-token-surface border border-token-line rounded-2xl px-5 py-6">
+      {!showDashboard ? (
+        <section>
+          <div className="bg-token-surface border border-token-line rounded-xl px-5 py-6">
             <h2 className="font-plex-sans text-xl font-bold text-token-ink mb-4">Let's get started</h2>
             <ul className="space-y-2 text-token-ink-3 mb-5">
               <li className="flex gap-2">
@@ -236,45 +303,40 @@ export default function Dashboard() {
           </div>
         </section>
       ) : (
-        <section className="px-5 pt-3 pb-24">
-          {onBudgetTotal != null && (
-            <div className="mb-5">
-              <p className="font-plex-mono text-[11px] uppercase tracking-wide text-token-ink-3">On budget</p>
-              <p className="font-plex-mono font-medium text-2xl mt-0.5 tabular-nums">
-                {formatCurrency(onBudgetTotal, { decimals: 0 })}
-              </p>
-            </div>
-          )}
-
-          {fullWidgets.length > 0 && (
-            <div className="space-y-6 mb-6">
-              {fullWidgets.map(w => (
-                <WidgetShell key={w.id} editing={editing} onRemove={() => removeWidget(w.id)}>
-                  {renderWidget(w.id)}
-                </WidgetShell>
+        <section className="flex flex-col gap-6">
+          {stats.length > 0 && (
+            <div className={`grid grid-cols-2 overflow-hidden rounded-xl border border-token-line bg-token-surface ${stats.length === 4 ? 'lg:grid-cols-4' : stats.length === 3 ? 'lg:grid-cols-3' : ''}`}>
+              {stats.map((stat, i) => (
+                <div
+                  key={stat.label}
+                  className={`flex flex-col gap-1.5 px-5 py-4 ${i % 2 === 1 ? 'border-l border-token-line' : ''} ${i >= 2 ? 'border-t border-token-line lg:border-t-0' : ''} ${i === 2 ? 'lg:border-l' : ''}`}
+                >
+                  <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-token-ink-3">{stat.label}</span>
+                  <span className="font-mono text-xl tabular-nums text-token-ink">{stat.value}</span>
+                  {stat.sub && <span className="font-mono text-xs text-token-ink-3">{stat.sub}</span>}
+                </div>
               ))}
             </div>
           )}
 
-          {/* One auto-flow grid: two per row at lg, three at xl. Concatenating
-              left then right keeps the same reading order the old two-column
-              split produced, while auto-placement is free to flow across the
-              full row. The left/right distinction in the registry no longer
-              maps to a fixed column — it only contributes this ordering. */}
-          <div className="flex flex-col gap-6 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:items-start">
-            {[...leftWidgets, ...rightWidgets].map(w => (
-              <WidgetShell key={w.id} editing={editing} onRemove={() => removeWidget(w.id)}>
-                {renderWidget(w.id)}
-              </WidgetShell>
+          {/* 12-column grid (lg+); each widget declares its span in the registry.
+              `items-start` keeps short cards from stretching to their row's tallest card. */}
+          <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-12">
+            {visibleWidgets.map(w => (
+              <div key={w.id} className={`min-w-0 ${WIDGET_SPAN[w.size]} ${w.id === 'trend' ? 'order-first' : ''}`}>
+                <WidgetShell editing={editing} onRemove={() => removeWidget(w.id)}>
+                  {renderWidget(w.id)}
+                </WidgetShell>
+              </div>
             ))}
           </div>
 
           {editing && (
             <>
               {removedWidgets.length > 0 && (
-                <div className="mt-6">
-                  <p className="font-plex-mono text-[11px] uppercase tracking-wide text-token-ink-3 mb-2">Add widgets</p>
-                  <div className="flex flex-col gap-2">
+                <div>
+                  <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-token-ink-3 mb-2">Add widgets</p>
+                  <div className="grid grid-cols-1 gap-2 lg:grid-cols-3">
                     {removedWidgets.map(w => (
                       <div
                         key={w.id}
@@ -296,16 +358,16 @@ export default function Dashboard() {
                   </div>
                 </div>
               )}
-              <div className="flex justify-end gap-2.5 mt-5">
+              <div className="flex justify-end gap-2.5">
                 <button
                   onClick={cancelEdit}
-                  className="text-token-ink-3 border border-token-line bg-token-surface font-semibold text-xs px-4 py-2 rounded-xl hover:text-token-ink transition-colors"
+                  className="text-token-ink-3 border border-token-line bg-token-surface font-semibold text-xs px-4 py-2 rounded-full hover:text-token-ink transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={doneEdit}
-                  className="bg-token-brand hover:bg-token-brand-2 text-token-on-brand font-semibold text-xs px-4 py-2 rounded-xl transition-colors"
+                  className="bg-token-brand hover:bg-token-brand-2 text-token-on-brand font-semibold text-xs px-4 py-2 rounded-full transition-colors"
                 >
                   Done
                 </button>
@@ -313,54 +375,6 @@ export default function Dashboard() {
             </>
           )}
         </section>
-      )}
-
-      {/* Always-visible bottom bar — sticky, so it lives inside the content
-          column: above the shell's floating tab bar on mobile (bottom-24) and flush with the
-          bottom at lg: where the nav is hidden. Being in the content column
-          means it respects AppShell's rail with no hardcoded offset.
-          Combines Customize (used to sit in its own row at the top, wasting
-          vertical space) with the period control (used to live at the bottom
-          of the scrollable widget list) — switching periods and seeing every
-          widget react no longer requires scrolling down to the control and
-          back up to look at the result. */}
-      {homeData && accountCount !== 0 && (
-        <div className="sticky bottom-24 lg:bottom-0 z-40 flex items-center justify-between gap-2 px-4 py-2.5 bg-token-paper/95 backdrop-blur border-t border-token-line">
-          {!editing ? (
-            <button
-              onClick={enterEdit}
-              className="inline-flex items-center gap-1.5 bg-token-surface-2 border border-token-line text-token-ink hover:border-token-line-strong text-xs font-semibold px-3 py-2 rounded-xl transition-colors flex-shrink-0"
-            >
-              <Pencil size={13} />
-              Customize
-            </button>
-          ) : (
-            <span className="w-[1px]" aria-hidden />
-          )}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              onClick={() => shiftDashboardPeriod(-1)}
-              className="w-9 h-9 rounded-lg bg-token-surface-2 border border-token-line text-token-ink-3 hover:text-token-ink flex items-center justify-center flex-shrink-0"
-              aria-label="Previous period"
-            >
-              <ChevronLeft size={14} />
-            </button>
-            <button
-              onClick={() => setPeriodSheetOpen(true)}
-              className="inline-flex items-center gap-1.5 bg-token-surface-2 border border-token-line rounded-lg px-3 py-2 text-xs font-semibold text-token-ink hover:border-token-brand-ink transition-colors"
-            >
-              <Calendar size={13} />
-              {periodLabel}
-            </button>
-            <button
-              onClick={() => shiftDashboardPeriod(1)}
-              className="w-9 h-9 rounded-lg bg-token-surface-2 border border-token-line text-token-ink-3 hover:text-token-ink flex items-center justify-center flex-shrink-0"
-              aria-label="Next period"
-            >
-              <ChevronRight size={14} />
-            </button>
-          </div>
-        </div>
       )}
 
       <PeriodPickerSheet
@@ -381,7 +395,7 @@ export default function Dashboard() {
     itself flags real drag-reorder as "not settled", mocked with remove/add only). */
 function WidgetShell({ editing, onRemove, children }: { editing: boolean; onRemove: () => void; children: ReactNode }) {
   return (
-    <div className={editing ? 'relative outline outline-1 outline-dashed outline-interactive/50 outline-offset-[3px] rounded-2xl' : 'relative'}>
+    <div className={editing ? 'relative outline outline-1 outline-dashed outline-token-line-strong outline-offset-[3px] rounded-xl' : 'relative'}>
       {editing && (
         <button
           onClick={onRemove}
@@ -445,12 +459,10 @@ function PeriodPickerSheet({ open, onClose, onApply }: { open: boolean; onClose:
 const TREND_SCOPES = ['Total', 'On-budget', 'Portfolio', 'Vehicles'] as const
 type TrendScope = typeof TREND_SCOPES[number]
 
-/** Balance trend widget — current snapshot is real (summed from `getAccountList`);
-    a historical chart needs a time-series endpoint that doesn't exist yet, and
-    Portfolio/Vehicles scopes have no data source at all (Ghostfolio dropped,
-    vehicle-manager cost aggregation not built) — both honestly marked pending
-    rather than faked, per the "shell real, data placeholder" scope decision. */
-function TrendWidget({ accounts, dashboardMonth, dashboardYear }: {
+/** The dashboard's hero: the balance as one large figure, its 30-day change, and the trend
+    line full width under it — no card, per the design mockup. Portfolio/Vehicles scopes have
+    no data source yet and say so rather than faking a number. */
+function BalanceHero({ accounts, dashboardMonth, dashboardYear }: {
   accounts: AccountListItem[] | undefined
   dashboardMonth: number
   dashboardYear: number
@@ -499,74 +511,94 @@ function TrendWidget({ accounts, dashboardMonth, dashboardYear }: {
     series: [
       {
         label: 'Balance',
-        color: 'var(--brand)',
+        color: 'var(--accent)',
         points: historyPoints.map(p => ({ x: p.date, y: p.balance })),
       },
     ],
     empty_message: 'No balance history yet',
   }
 
+  // Cents dimmed, as in the mockup: split the formatted amount at its decimal separator.
+  const formatted = amount != null ? formatCurrency(amount) : '—'
+  const cents = formatted.match(/([.,]\d{2})$/)
+  const whole = cents ? formatted.slice(0, -cents[1].length) : formatted
+
   return (
-    <div className="bg-gradient-to-br from-token-surface to-token-surface-2 border border-token-line rounded-2xl p-5">
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-plex-sans font-bold text-[15px]">Balance trend</span>
-        <div className="relative">
-          <button
-            onClick={() => setMenuOpen(o => !o)}
-            className="inline-flex items-center gap-1.5 bg-token-surface-2 border border-token-line text-token-ink text-xs font-semibold px-2.5 py-1.5 rounded-lg"
-          >
-            {scope}
-            <ChevronDown size={12} />
-          </button>
-          {menuOpen && (
-            <div className="absolute top-full right-0 mt-1.5 bg-token-surface-2 border border-token-line-strong rounded-xl p-1.5 min-w-[150px] shadow-lg z-10">
-              {TREND_SCOPES.map(s => (
-                <button
-                  key={s}
-                  onClick={() => { setScope(s); setMenuOpen(false) }}
-                  className={`w-full text-left px-2.5 py-2 rounded-lg text-xs transition-colors ${
-                    scope === s ? 'text-token-ink font-semibold' : 'text-token-ink-3 hover:text-token-ink hover:bg-white/5'
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+    <section className="flex flex-col gap-1.5">
+      <div className="relative flex items-center gap-2">
+        <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-token-ink-3">
+          {scope === 'Total' ? 'Net balance' : scope} · today
+        </span>
+        <button
+          onClick={() => setMenuOpen(o => !o)}
+          className="inline-flex items-center rounded-full p-1 text-token-ink-3 hover:bg-token-surface-2 hover:text-token-ink"
+          aria-label="Change balance scope"
+        >
+          <ChevronDown size={13} />
+        </button>
+        {menuOpen && (
+          <div className="absolute left-0 top-full z-10 mt-1.5 min-w-[150px] rounded-xl border border-token-line-strong bg-token-surface-2 p-1.5 shadow-lg">
+            {TREND_SCOPES.map(s => (
+              <button
+                key={s}
+                onClick={() => { setScope(s); setMenuOpen(false) }}
+                className={`w-full rounded-lg px-2.5 py-2 text-left font-mono text-xs transition-colors ${
+                  scope === s ? 'text-token-ink' : 'text-token-ink-3 hover:bg-token-surface hover:text-token-ink'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
       {hasSnapshot ? (
         <>
-          <p className="font-plex-mono text-[10px] tracking-widest uppercase text-token-ink-3 mt-3">Today</p>
-          <p className="font-plex-mono font-medium text-3xl mt-1 tabular-nums">
-            {amount != null ? formatCurrency(amount, { decimals: 0 }) : '—'}
+          <p className="font-mono text-[34px] font-medium leading-none tracking-tight tabular-nums text-token-ink lg:text-[44px]">
+            {whole}
+            {cents && <span className="text-token-ink-3">{cents[1]}</span>}
           </p>
+          {periodDiff != null && periodPct != null && (
+            <p className="flex flex-wrap gap-x-3 font-mono text-[13px]">
+              <span className={periodDiff >= 0 ? 'text-token-gain' : 'text-token-loss'}>
+                {formatCurrency(periodDiff, { signDisplay: 'always' })}
+              </span>
+              <span className={periodDiff >= 0 ? 'text-token-gain' : 'text-token-loss'}>
+                {formatPercent(periodPct, { signDisplay: 'always' })}
+              </span>
+              <span className="text-token-ink-3">vs 30 days ago</span>
+            </p>
+          )}
           {balanceHistoryQuery.isLoading ? (
             <WidgetLoading label="Loading historical balance…" className="mt-3" />
           ) : balanceHistoryQuery.isError ? (
-            <p className="text-token-ink-3 text-xs mt-3">Couldn't load balance history.</p>
+            <p className="mt-3 text-xs text-token-ink-3">Couldn't load balance history.</p>
           ) : historyPoints.length >= 2 ? (
-            <>
-              <div className="mt-3">
-                <Chart chart_type="line" title="Balance trend" data={lineData} bare />
-              </div>
-              {periodDiff != null && periodPct != null && (
-                <p className={`text-xs mt-1.5 ${periodDiff >= 0 ? 'text-token-gain' : 'text-token-loss'}`}>
-                  {formatCurrency(periodDiff, { signDisplay: 'always' })} ·{' '}
-                  {formatPercent(periodPct, { signDisplay: 'always' })} vs 30d ago
-                </p>
-              )}
-            </>
+            <div className="mt-3">
+              <Chart chart_type="line" title="Balance trend" data={lineData} bare />
+            </div>
           ) : (
-            <p className="text-token-ink-3 text-xs mt-3">Not enough balance history yet.</p>
+            <p className="mt-3 text-xs text-token-ink-3">Not enough balance history yet.</p>
           )}
         </>
       ) : (
-        <p className="text-token-ink-3 text-xs mt-3">
+        <p className="mt-2 text-sm text-token-ink-3">
           {scope === 'Portfolio' ? 'No portfolio data source yet.' : 'Needs vehicle-manager cost data.'}
         </p>
       )}
-    </div>
+    </section>
+  )
+}
+
+/** The one serif statement on the dashboard (design mockup): how far Portfolio Independence
+    is funded, and when it is projected to land. */
+function GoalsHeadline({ fire }: { fire: FireData }) {
+  const pct = Math.max(0, Math.min(Math.round(fire.fire_pct), 999))
+  return (
+    <p className="font-serif text-[26px] leading-[1.15] text-token-ink lg:text-[30px]">
+      Portfolio independence is <span className="text-token-accent">{pct}% funded</span>
+      {fire.estimated_year ? <> — on track for {fire.estimated_year}.</> : '.'}
+    </p>
   )
 }
 
@@ -633,9 +665,9 @@ function NetWorthWidget({ accounts, dashboardMonth, dashboardYear }: {
   }
 
   return (
-    <div className="bg-gradient-to-br from-token-surface to-token-surface-2 border border-token-line rounded-2xl p-5">
+    <div className="bg-gradient-to-br from-token-surface to-token-surface-2 border border-token-line rounded-xl p-5">
       <div className="flex items-center justify-between gap-2">
-        <span className="font-plex-sans font-bold text-[15px]">Net Worth</span>
+        <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-token-ink-3">Net Worth</span>
         <div className="relative flex items-center gap-1">
           <button
             onClick={() => navigate('/analytics')}
@@ -711,9 +743,9 @@ function NetWorthWidget({ accounts, dashboardMonth, dashboardYear }: {
 
 function LatestTransactionsWidget({ transactions, navigate, isLoading }: { transactions: Transaction[] | undefined; navigate: NavigateFn; isLoading?: boolean }) {
   return (
-    <div className="bg-token-surface border border-token-line rounded-2xl px-4 pt-4 pb-1.5">
+    <div className="bg-token-surface border border-token-line rounded-xl px-4 pt-4 pb-1.5">
       <div className="flex items-center justify-between mb-1.5">
-        <span className="font-plex-sans font-bold text-[15px]">Latest Transactions</span>
+        <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-token-ink-3">Latest Transactions</span>
         <button onClick={() => navigate('/transactions')} className="text-token-ink-3 hover:text-token-ink transition-colors" aria-label="See all transactions">
           <ArrowUpRight size={16} />
         </button>
@@ -808,8 +840,8 @@ function VehicleCostsWidget({ dashboardMonth, dashboardYear }: {
   }
 
   return (
-    <div className="bg-token-surface border border-token-line rounded-2xl px-4 py-4">
-      <p className="font-plex-sans font-bold text-[15px]">Vehicle costs</p>
+    <div className="bg-token-surface border border-token-line rounded-xl px-4 py-4">
+      <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-token-ink-3">Vehicle costs</p>
       {content}
     </div>
   )
@@ -836,10 +868,10 @@ function BudgetPeriodCard({
   const queryClient = useQueryClient()
 
   return (
-    <div className="bg-token-surface border border-token-line rounded-2xl overflow-hidden">
+    <div className="bg-token-surface border border-token-line rounded-xl overflow-hidden">
       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-token-line">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="font-plex-sans font-bold text-[15px]">Categories Watchlist</span>
+          <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-token-ink-3">Categories Watchlist</span>
           <button
             onClick={() => setEditingGroups(o => !o)}
             className={`text-token-ink-3 hover:text-token-ink transition-colors p-2.5 ${editingGroups ? 'text-token-brand-ink' : ''}`}
