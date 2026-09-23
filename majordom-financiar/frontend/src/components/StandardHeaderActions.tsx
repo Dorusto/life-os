@@ -1,18 +1,15 @@
-import { useNavigate } from 'react-router-dom'
-import { Settings } from 'lucide-react'
-import IconButton from './IconButton'
 import AddButton from './AddButton'
-import NotificationBell from './NotificationBell'
 
 /**
- * Shared header-right cluster for Dashboard/Accounts/Transactions/Analytics —
- * Add + Notifications + Settings, same three everywhere
- * (decisions.md#nav-five-tabs), replacing the old per-page kebab menu.
+ * Header-right cluster for Dashboard/Accounts/Transactions/Analytics.
  *
- * `variant` lets review/detail pages reuse the same component rather than
- * copying markup: 'no-add' drops Add where adding is meaningless, and
- * 'bell-only' is for Settings, which must not link to itself. Default output
- * ('full') is unchanged.
+ * The Notifications bell and the Settings button now live in the shared shell
+ * (`components/shell/AppShell`) — rail on desktop, mobile top-right + More
+ * sheet — so rendering them here would duplicate them in every page header.
+ * Add is the one action that is genuinely page-scoped, so this cluster is
+ * Add-only now: 'full' renders Add, and 'no-add' / 'bell-only' render nothing.
+ * The variant type and prop stay so existing callers (review/detail pages,
+ * Settings) keep compiling unchanged.
  */
 export type StandardHeaderActionsVariant = 'full' | 'no-add' | 'bell-only'
 
@@ -21,14 +18,6 @@ interface StandardHeaderActionsProps {
 }
 
 export default function StandardHeaderActions({ variant = 'full' }: StandardHeaderActionsProps) {
-  const navigate = useNavigate()
-  return (
-    <>
-      {variant === 'full' && <AddButton />}
-      <NotificationBell />
-      {variant !== 'bell-only' && (
-        <IconButton icon={Settings} onClick={() => navigate('/settings')} label="Settings" />
-      )}
-    </>
-  )
+  if (variant !== 'full') return null
+  return <AddButton />
 }

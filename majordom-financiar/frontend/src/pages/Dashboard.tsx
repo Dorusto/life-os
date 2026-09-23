@@ -192,7 +192,7 @@ export default function Dashboard() {
   const removedWidgets = WIDGETS.filter(w => !enabled[w.id])
 
   return (
-    <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
+    <div className="min-h-full bg-token-paper flex flex-col">
       <PageHeader label={dateLabel} title="Dashboard" actions={<StandardHeaderActions />} />
 
       {notifState === 'default' && (
@@ -316,7 +316,7 @@ export default function Dashboard() {
       )}
 
       {/* Always-visible bottom bar — sticky, so it lives inside the content
-          column: above BottomNav on mobile (bottom-16) and flush with the
+          column: above the shell's floating tab bar on mobile (bottom-24) and flush with the
           bottom at lg: where the nav is hidden. Being in the content column
           means it respects AppShell's rail with no hardcoded offset.
           Combines Customize (used to sit in its own row at the top, wasting
@@ -325,7 +325,7 @@ export default function Dashboard() {
           widget react no longer requires scrolling down to the control and
           back up to look at the result. */}
       {homeData && accountCount !== 0 && (
-        <div className="sticky bottom-16 lg:bottom-0 z-40 flex items-center justify-between gap-2 px-4 py-2.5 bg-token-paper/95 backdrop-blur border-t border-token-line">
+        <div className="sticky bottom-24 lg:bottom-0 z-40 flex items-center justify-between gap-2 px-4 py-2.5 bg-token-paper/95 backdrop-blur border-t border-token-line">
           {!editing ? (
             <button
               onClick={enterEdit}
