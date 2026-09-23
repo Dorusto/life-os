@@ -450,10 +450,10 @@ export default function TransactionsPage() {
           </>
         )}
 
+        {/* Bleeds the scroll container out to the Page's own gutter, so the
+            table stays aligned with the rows above without letting it spill
+            past the viewport. */}
         {transactions.length > 0 && view === 'table' && (
-          {/* Bleeds the scroll container out to the Page's own gutter, so the
-              table stays aligned with the rows above without letting it spill
-              past the viewport. */}
           <div className="overflow-x-auto -mx-4 px-4 lg:-mx-10 lg:px-10">
             <table className="w-full text-sm border-collapse min-w-[540px]">
               <thead>
