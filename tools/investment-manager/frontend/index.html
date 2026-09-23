@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-accent="olive">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 
     <!-- PWA: allows "Add to Home Screen" on Android and iOS -->
     <link rel="manifest" href="/manifest.json" />
-    <link rel="icon" type="image/png" href="/icon-192.png" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
-    <meta name="theme-color" content="#eef1f3" />
+    <meta name="theme-color" content="#f4f3ef" />
     <title>Majordom Invest</title>
     <script>
       // Apply the saved theme (or the OS preference on first visit) before
@@ -26,7 +26,7 @@
           document.documentElement.setAttribute('data-theme', theme)
           document.documentElement.style.colorScheme = theme
           var meta = document.querySelector('meta[name="theme-color"]')
-          if (meta) meta.setAttribute('content', theme === 'dark' ? '#0e151c' : '#eef1f3')
+          if (meta) meta.setAttribute('content', theme === 'dark' ? '#131312' : '#f4f3ef')
         } catch (e) {}
       })()
     </script>

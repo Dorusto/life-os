@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 export type Theme = 'light' | 'dark'
 
 const STORAGE_KEY = 'theme'
-const THEME_COLOR: Record<Theme, string> = { light: '#eef1f3', dark: '#0e151c' }
+const THEME_COLOR: Record<Theme, string> = { light: '#f4f3ef', dark: '#131312' }
 
 function systemPrefersDark(): boolean {
   return window.matchMedia('(prefers-color-scheme: dark)').matches

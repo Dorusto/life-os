@@ -4,23 +4,12 @@ import { LogOut } from 'lucide-react'
 import { clearAuth, getUsername } from '../lib/auth'
 import { destinationsFor } from '../lib/navigation'
 import { cn } from '../lib/ui'
+import { BrandMark } from './BrandMark'
 import { ThemeToggle } from './ThemeToggle'
 import { TopBarActions } from './TopBarActions'
 import { MobileBottomNav } from './MobileBottomNav'
 import { MoreSheet } from './MoreSheet'
 
-
-function BrandMark() {
-  return (
-    <span className="flex h-8 w-8 items-center justify-center rounded bg-brand text-white">
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
-        <rect x="2" y="10" width="3" height="6" rx="1" fill="currentColor" opacity="0.55" />
-        <rect x="7.5" y="6" width="3" height="10" rx="1" fill="currentColor" opacity="0.8" />
-        <rect x="13" y="2" width="3" height="14" rx="1" fill="currentColor" />
-      </svg>
-    </span>
-  )
-}
 
 function NavItems({ onNavigate }: { onNavigate?: () => void }) {
   return (
@@ -84,7 +73,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {/* Desktop sidebar */}
       <aside className="hidden border-r border-line bg-surface lg:flex lg:flex-col">
         <div className="flex items-center gap-2.5 px-5 py-5">
-          <BrandMark />
+          <BrandMark size={32} />
           <div className="leading-tight">
             <p className="text-sm font-semibold text-ink">Majordom</p>
             <p className="text-[11px] font-medium text-brand-ink">Invest</p>

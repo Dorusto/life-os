@@ -1,9 +1,9 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Navigate, useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
-import { TrendingUp } from 'lucide-react'
 import { login } from '../lib/api'
 import { isAuthenticated, saveAuth } from '../lib/auth'
+import { BrandMark } from '../components/BrandMark'
 import { Button } from '../components/Button'
 import { Field, TextInput } from '../components/Form'
 
@@ -35,20 +35,18 @@ export default function Login() {
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
       {/* Statement panel — the one bold surface in the app. */}
-      <div className="relative hidden flex-col justify-between overflow-hidden bg-brand px-12 py-12 text-white lg:flex">
+      <div className="relative hidden flex-col justify-between overflow-hidden border-r border-line bg-surface-sunken px-[3rem] py-12 text-ink lg:flex">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded bg-white/15">
-            <TrendingUp className="h-5 w-5" />
-          </span>
+          <BrandMark size={36} />
           <span className="text-sm font-semibold tracking-wide">Majordom Invest</span>
         </div>
 
         <div className="relative z-10 max-w-md">
-          <p className="text-[13px] text-white/70">Portfolio tracker</p>
+          <p className="text-[13px] text-ink-2">Portfolio tracker</p>
           <h1 className="mt-3 text-3xl font-semibold leading-tight">
             Every position, contribution and dividend in one ledger.
           </h1>
-          <p className="mt-4 text-sm leading-relaxed text-white/75">
+          <p className="mt-4 text-sm leading-relaxed text-ink-2">
             Track holdings and cost basis, compare time-weighted and money-weighted returns against
             a benchmark, and watch a projection toward each goal.
           </p>
@@ -56,7 +54,7 @@ export default function Login() {
 
         <svg
           viewBox="0 0 400 160"
-          className="absolute -bottom-2 left-0 w-full text-white/15"
+          className="absolute -bottom-2 left-0 w-full text-line-strong"
           preserveAspectRatio="none"
           aria-hidden
         >
@@ -73,9 +71,7 @@ export default function Login() {
       <div className="flex items-center justify-center bg-paper px-6 py-16">
         <div className="w-full max-w-sm">
           <div className="mb-8 lg:hidden">
-            <span className="flex h-9 w-9 items-center justify-center rounded bg-brand text-white">
-              <TrendingUp className="h-5 w-5" />
-            </span>
+            <BrandMark size={36} />
           </div>
           <h2 className="text-xl font-semibold text-ink">Sign in</h2>
           <p className="mt-1 text-sm text-ink-2">Use your investment-manager account.</p>
