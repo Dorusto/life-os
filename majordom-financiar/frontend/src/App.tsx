@@ -12,7 +12,6 @@ import AccountDetail from './pages/AccountDetail'
 import TransactionsPage from './pages/Transactions'
 import AnalyticsPage from './pages/Analytics'
 import SettingsPage from './pages/Settings'
-import ReceiptFlow from './pages/ReceiptFlow'
 import ImportPage from './pages/ImportPage'
 import DuplicatesReviewPage from './pages/DuplicatesReviewPage'
 import UncategorizedReviewPage from './pages/UncategorizedReviewPage'
@@ -87,7 +86,7 @@ function MajordomRedirect() {
  * Routes where the bottom nav should NOT be shown.
  * Full-screen flows (login, receipt scan, AB setup) handle their own navigation.
  */
-const HIDE_NAV_ON = ['/login', '/receipt', '/setup/ab']
+const HIDE_NAV_ON = ['/login', '/setup/ab']
 
 function Layout() {
   const location = useLocation()
@@ -212,14 +211,6 @@ function Layout() {
           element={
             <ProtectedRoute>
               <SettingsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/receipt"
-          element={
-            <ProtectedRoute>
-              <ReceiptFlow />
             </ProtectedRoute>
           }
         />
