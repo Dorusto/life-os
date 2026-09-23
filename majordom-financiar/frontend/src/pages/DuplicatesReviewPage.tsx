@@ -11,7 +11,8 @@ import {
   type DuplicateTransactionSide,
 } from '../lib/api'
 import { PageHeader } from '../components/shell/PageHeader'
-import { Card } from '../components/ui/Card'
+import { Card } from '../components/kit/Card'
+import { ListRow } from '../components/kit/Stats'
 import ActionCardButtons from '../components/ActionCardButtons'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import { formatCurrency } from '../lib/formatCurrency'
@@ -163,23 +164,13 @@ export default function DuplicatesReviewPage() {
           </div>
         ) : (
           months.map(m => (
-            <button
+            <ListRow
               key={m.month}
+              title={formatMonthTitle(m.month)}
+              subtitle={`${m.count} ${m.count === 1 ? 'pair' : 'pairs'} to review`}
+              value={<ChevronRight size={18} className="text-token-ink-3" />}
               onClick={() => setSelectedMonth(m.month)}
-              className="w-full text-left"
-            >
-              <Card variant="list-item" className="hover:bg-token-surface-2 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-token-ink text-sm font-medium capitalize">{formatMonthTitle(m.month)}</p>
-                    <p className="text-token-ink-3 text-xs mt-0.5">
-                      {m.count} {m.count === 1 ? 'pair' : 'pairs'} to review
-                    </p>
-                  </div>
-                  <ChevronRight size={18} className="text-token-ink-3 flex-shrink-0" />
-                </div>
-              </Card>
-            </button>
+            />
           ))
         )}
       </div>
@@ -212,7 +203,7 @@ function DuplicatePairCard({
   }
 
   return (
-    <Card variant="list-item" className="border-l-[3px] border-l-token-warn">
+    <Card className="border-l-[3px] border-l-token-warn">
       <div className="grid grid-cols-2 gap-3">
         <SideBlock title={isTransfer ? 'Transfer' : 'Manual entry'} side={pair.manual} keep={isTransfer} />
         <SideBlock title="Bank-synced" side={pair.synced} keep={!isTransfer} />
