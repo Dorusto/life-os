@@ -3,6 +3,7 @@ import { Droplet, Shield, Trash2, Wrench, CircleDollarSign } from 'lucide-react'
 import LogEntryForm from '../components/LogEntryForm'
 import VehicleSwitcher from '../components/VehicleSwitcher'
 import { Loading } from '../components/Feedback'
+import { PageHeader } from '../components/shell/PageHeader'
 import { deleteLogEntry, getVehicleLog, type VehicleLogEntry } from '../lib/api'
 import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 import { formatDate } from '../lib/formatDate'
@@ -68,9 +69,7 @@ export default function TimelinePage() {
 
   return (
     <div>
-      <header className="mb-4">
-        <h1 className="text-xl font-semibold text-ink">Timeline</h1>
-      </header>
+      <PageHeader title="Timeline" />
 
       {isLoading ? (
         <Loading />
