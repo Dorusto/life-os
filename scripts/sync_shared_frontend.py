@@ -44,6 +44,9 @@ MANIFEST = {
     "shell/PageHeader.tsx": (ALL_APPS, "src/components/shell/PageHeader.tsx"),
     "shell/appearance.ts": (ALL_APPS, "src/components/shell/appearance.ts"),
     "shell/AppearanceSettings.tsx": (ALL_APPS, "src/components/shell/AppearanceSettings.tsx"),
+    "kit/Card.tsx": (ALL_APPS, "src/components/kit/Card.tsx"),
+    "kit/Stats.tsx": (ALL_APPS, "src/components/kit/Stats.tsx"),
+    "kit/Charts.tsx": (ALL_APPS, "src/components/kit/Charts.tsx"),
 }
 
 # Dark tile (the apps default to dark) — the favicon can't follow the in-app theme.
