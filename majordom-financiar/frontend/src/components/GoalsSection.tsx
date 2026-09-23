@@ -8,7 +8,8 @@ import NewGoalSheet from './NewGoalSheet'
 import { formatCurrency, formatPercent } from '../lib/formatCurrency'
 import { formatMonthYear } from '../lib/formatDate'
 import WidgetLoading from './WidgetLoading'
-import { colorForKey } from '../lib/chartColors'
+import { Card } from './kit/Card'
+import { ProgressBar } from './kit/Stats'
 
 // Amounts are shown in full, never abbreviated (no €14k / 1.2M). On a screen that also
 // shows exact figures, an abbreviated one reintroduces exactly the ambiguity #211 removed.
@@ -64,18 +65,18 @@ export default function GoalsSection({
   }
 
   return (
-    <div className="bg-token-surface border border-token-line rounded-2xl px-4 pt-4 pb-1.5">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="font-plex-sans font-bold text-[15px]">Financial Goals</span>
+    <Card
+      label="Financial goals"
+      action={
         <button
           onClick={() => setSheetOpen(true)}
-          className="text-token-ink-3 hover:text-token-ink transition-colors p-2"
+          className="p-2 text-token-ink-3 transition-colors hover:text-token-ink"
           aria-label="New goal"
         >
           <Plus size={16} />
         </button>
-      </div>
-
+      }
+    >
       {isLoading ? (
         <WidgetLoading label="Loading goals…" />
       ) : !hasContent ? (
@@ -104,18 +105,17 @@ export default function GoalsSection({
           {fireData && <PortfolioIndependenceRow data={fireData} navigate={navigate} />}
           {showExpenseCoverage && expenseCoverage && <ExpenseCoverageRow data={expenseCoverage} />}
           {goals?.map((goal) => (
-            <GoalRow key={goal.id} goal={goal} color={colorForKey(goal.id)} navigate={navigate} />
+            <GoalRow key={goal.id} goal={goal} navigate={navigate} />
           ))}
         </>
       )}
 
       <NewGoalSheet open={sheetOpen} onClose={() => setSheetOpen(false)} onCreated={handleCreated} />
-    </div>
+    </Card>
   )
 }
 
 function PortfolioIndependenceRow({ data, navigate }: { data: FireData; navigate: NavigateFunction }) {
-  const color = 'var(--info)' // info
   const trend = data.trend_months
 
   return (
@@ -156,24 +156,19 @@ function PortfolioIndependenceRow({ data, navigate }: { data: FireData; navigate
             )}
           </InfoIcon>
         </p>
-        <p className="font-plex-sans font-bold text-lg tabular-nums flex-shrink-0" style={{ color }}>
+        <p className="flex-shrink-0 font-mono text-lg tabular-nums text-token-ink">
           {formatPercent(data.fire_pct, { decimals: 0 })}
         </p>
       </div>
 
-      <div className="relative w-full h-1.5 bg-token-line rounded-full overflow-hidden mt-3 mb-2.5">
-        <div
-          className="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
-          style={{ width: `${Math.min(data.fire_pct, 100)}%`, backgroundColor: color }}
-        />
-      </div>
+      <ProgressBar value={data.fire_pct / 100} className="mt-3 mb-2.5" />
 
-      <div className="flex items-center justify-between text-xs text-token-ink-3">
+      <div className="flex items-center justify-between font-mono text-xs tabular-nums text-token-ink-3">
         <span>{euro(data.fire_portfolio)} saved</span>
         <span>{euro(data.monthly_contribution)}/mo</span>
       </div>
 
-      <div className="flex items-center justify-between text-[11px] text-token-ink-2 mt-1.5">
+      <div className="mt-1.5 flex items-center justify-between font-mono text-[11px] tabular-nums text-token-ink-2">
         <span>target ~{euro(data.fire_target)}</span>
         <span>
           {data.estimated_year ? `est. ${data.estimated_year}` : '—'}
@@ -198,8 +193,6 @@ function PortfolioIndependenceRow({ data, navigate }: { data: FireData; navigate
 }
 
 function ExpenseCoverageRow({ data }: { data: ExpenseCoverageData }) {
-  const color = 'var(--gain)' // positive — same green used for income-side amounts elsewhere
-  const pct = Math.min(data.coverage_pct, 100)
 
   return (
     <div className="py-3.5 border-b border-token-line last:border-b-0">
@@ -220,22 +213,14 @@ function ExpenseCoverageRow({ data }: { data: ExpenseCoverageData }) {
             </p>
           </InfoIcon>
         </p>
-        <p className="font-plex-sans font-bold text-lg tabular-nums flex-shrink-0" style={{ color }}>
+        <p className="flex-shrink-0 font-mono text-lg tabular-nums text-token-ink">
           {formatPercent(data.coverage_pct, { decimals: 0 })}
         </p>
       </div>
 
-      <div className="relative w-full h-1.5 bg-token-line rounded-full overflow-hidden mt-3 mb-2.5">
-        <div
-          className="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
-          style={{ width: `${pct}%`, backgroundColor: color }}
-        />
-        {/* Milestone ticks at 33% and 100% — meaning lives only in the info-icon popup above, never as visible text here */}
-        <div className="absolute top-0 h-full w-px bg-token-line-strong" style={{ left: '33%' }} />
-        <div className="absolute top-0 h-full w-px bg-token-line-strong right-0" />
-      </div>
+      <ProgressBar value={data.coverage_pct / 100} className="mt-3 mb-2.5" />
 
-      <div className="flex items-center justify-between text-xs text-token-ink-3">
+      <div className="flex items-center justify-between font-mono text-xs tabular-nums text-token-ink-3">
         <span>{euro(data.passive_semi_passive_income)}/mo passive+semi-passive</span>
         <span>{euro(data.filtered_monthly_expenses)}/mo expenses</span>
       </div>
@@ -245,11 +230,10 @@ function ExpenseCoverageRow({ data }: { data: ExpenseCoverageData }) {
 
 interface GoalRowProps {
   goal: Goal
-  color: string
   navigate: NavigateFunction
 }
 
-function GoalRow({ goal, color, navigate }: GoalRowProps) {
+function GoalRow({ goal, navigate }: GoalRowProps) {
   return (
     <div className="py-3.5 border-b border-token-line last:border-b-0">
       <div className="flex items-baseline justify-between gap-2">
@@ -273,27 +257,21 @@ function GoalRow({ goal, color, navigate }: GoalRowProps) {
             )}
           </InfoIcon>
         </p>
-        <p className="font-plex-sans font-bold text-lg tabular-nums flex-shrink-0" style={{ color }}>
+        <p className="flex-shrink-0 font-mono text-lg tabular-nums text-token-ink">
           {euro(goal.target)}
         </p>
       </div>
 
-      <div className="relative w-full h-1.5 bg-token-line rounded-full overflow-hidden mt-3 mb-2.5">
-        <div
-          className="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
-          style={{ width: `${Math.min(goal.percentage, 100)}%`, backgroundColor: color }}
-        />
-      </div>
+      <ProgressBar value={goal.percentage / 100} className="mt-3 mb-2.5" />
 
-      <div className="flex items-center justify-between text-xs text-token-ink-3">
+      <div className="flex flex-wrap items-center gap-x-3 font-mono text-[11px] tabular-nums text-token-ink-3">
         <span>{euro(goal.balance)} saved</span>
         {goal.monthly_needed != null && goal.monthly_needed > 0 && (
           <span>{euro(goal.monthly_needed)}/mo</span>
         )}
-      </div>
-
-      <div className="text-right text-[11px] text-token-ink-2 mt-1.5">
-        {goal.deadline ? `target: ${formatDeadline(goal.deadline)}` : formatPercent(goal.percentage, { decimals: 0 })}
+        <span className="ml-auto">
+          {goal.deadline ? `target ${formatDeadline(goal.deadline)}` : formatPercent(goal.percentage, { decimals: 0 })}
+        </span>
       </div>
     </div>
   )

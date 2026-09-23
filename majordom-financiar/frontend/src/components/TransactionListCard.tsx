@@ -7,6 +7,7 @@
  */
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatDate } from '../lib/formatDate'
+import { ListRow, toneOf } from './kit/Stats'
 
 interface TransactionListItem {
   id: string
@@ -32,35 +33,27 @@ export default function TransactionListCard({ title, data }: TransactionListCard
   return (
     <div className="bg-token-surface rounded-2xl p-4">
       <div className="flex items-baseline justify-between mb-3">
-        <p className="text-xs text-token-ink-3 uppercase tracking-wide">{title}</p>
-        <p className="text-token-ink-3 text-xs">{data.count} transaction{data.count === 1 ? '' : 's'}</p>
+        <p className="font-mono text-xs uppercase tracking-[0.12em] text-token-ink-3">{title}</p>
+        <p className="font-mono text-xs text-token-ink-3">{data.count} transaction{data.count === 1 ? '' : 's'}</p>
       </div>
 
       {data.transactions.length === 0 ? (
         <p className="text-token-ink-3 text-sm text-center py-4">No transactions found.</p>
       ) : (
-        <div className="space-y-2">
-          {data.transactions.map(tx => (
-            <div key={tx.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-token-paper">
-              <div className="flex-1 min-w-0">
-                <p className="text-token-ink text-sm font-medium truncate">{tx.merchant || 'Unknown'}</p>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="inline-block bg-token-surface-2 text-token-ink-3 text-[10px] font-bold px-1.5 py-0.5 rounded truncate max-w-[16ch]">
-                    {tx.category_name || 'Uncategorized'}
-                  </span>
-                  <span className="text-token-ink-3 text-xs flex-shrink-0">{formatDate(tx.date)}</span>
-                  {tx.account_name && (
-                    <span className="text-token-ink-2 text-xs flex-shrink-0 truncate">· {tx.account_name}</span>
-                  )}
-                </div>
-              </div>
-              <span
-                className={`font-plex-mono text-[13.5px] tabular-nums flex-shrink-0 ${!tx.is_expense ? 'text-token-gain' : 'text-token-ink'}`}
-              >
-                {formatCurrency(tx.is_expense ? -tx.amount : tx.amount, { signDisplay: 'always' })}
-              </span>
-            </div>
-          ))}
+        <div className="divide-y divide-token-line">
+          {data.transactions.map(tx => {
+            const signed = tx.is_expense ? -Math.abs(tx.amount) : Math.abs(tx.amount)
+            return (
+              <ListRow
+                key={tx.id}
+                title={tx.merchant || 'Unknown'}
+                subtitle={`${tx.category_name || 'Uncategorized'}${tx.account_name ? ` · ${tx.account_name}` : ''}`}
+                value={formatCurrency(signed, { signDisplay: 'always' })}
+                tone={toneOf(signed)}
+                meta={formatDate(tx.date)}
+              />
+            )
+          })}
         </div>
       )}
     </div>
