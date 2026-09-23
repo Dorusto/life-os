@@ -6,6 +6,7 @@ import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { ErrorState, Loading } from '../components/Feedback'
 import { MetricTile } from '../components/MetricTile'
+import { PageHeader } from '../components/shell/PageHeader'
 import { getVehicleSummary } from '../lib/api'
 import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 import { formatDate } from '../lib/formatDate'
@@ -25,9 +26,14 @@ export default function Dashboard() {
 
   return (
     <div>
-      <header className="mb-4">
-        <h1 className="text-xl font-semibold text-ink">Home</h1>
-      </header>
+      <PageHeader
+        title="Home"
+        eyebrow={new Date().toLocaleDateString('en-GB', {
+          weekday: 'short',
+          day: 'numeric',
+          month: 'short',
+        })}
+      />
 
       {isLoading ? (
         <Loading />

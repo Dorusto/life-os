@@ -9,7 +9,7 @@ import {
   type ImportResult,
 } from '../lib/api'
 import { matchAccountBySource } from '../lib/csvImportUtils'
-import PageHeader from '../components/PageHeader'
+import { PageHeader } from '../components/shell/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import { formatDate } from '../lib/formatDate'
 import { formatCurrency } from '../lib/formatCurrency'
@@ -165,12 +165,12 @@ export default function ImportPage() {
   }
 
   return (
-    <div className="min-h-full bg-token-paper flex flex-col">
+    <div className="flex flex-col">
       {/* Header — bell + gear only: Add is meaningless on the import flow itself. */}
       <PageHeader
-        label="Bank statements"
+        eyebrow="Bank statements"
         title="Import CSV"
-        bordered
+        back={{ to: '/transactions' }}
         actions={<StandardHeaderActions variant="no-add" />}
       />
 
@@ -179,7 +179,7 @@ export default function ImportPage() {
 
       {/* Error banner */}
       {error && (
-        <div className="mx-5 mt-2 px-4 py-3 rounded-xl bg-token-loss-soft border border-token-loss flex items-start gap-2">
+        <div className="mt-2 px-4 py-3 rounded-xl bg-token-loss-soft border border-token-loss flex items-start gap-2">
           <AlertCircle size={16} className="text-token-loss flex-shrink-0 mt-0.5" />
           <p className="text-token-loss text-sm">{error}</p>
         </div>
@@ -255,7 +255,7 @@ export default function ImportPage() {
 function StepIndicator({ current }: { current: Step }) {
   const labels = ['Upload', 'Preview', 'Confirm']
   return (
-    <div className="flex items-center justify-center gap-2 py-4 px-5">
+    <div className="flex items-center justify-center gap-2 py-4">
       {labels.map((label, i) => {
         const n = (i + 1) as Step
         const active = n === current
@@ -291,7 +291,7 @@ function Step1Upload({ file, fileInputRef, loading, onDrop, onFileChange, onPick
   onNext: () => void
 }) {
   return (
-    <div className="flex-1 flex flex-col px-5 pt-4 pb-6 gap-4">
+    <div className="flex-1 flex flex-col pt-4 pb-6 gap-4">
       {/* Drop zone */}
       <div
         onDrop={onDrop}
@@ -379,7 +379,7 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
   `
 
   return (
-    <div className="flex-1 flex flex-col px-5 pt-2 pb-6 gap-4 overflow-hidden">
+    <div className="flex-1 flex flex-col pt-2 pb-6 gap-4 overflow-hidden">
       {/* Account selector */}
       <div className="flex items-center gap-3">
         <label className="text-xs text-token-ink-3 whitespace-nowrap">Account</label>
@@ -399,7 +399,7 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
       )}
 
       {/* Table */}
-      <div className="flex-1 overflow-y-auto -mx-5 px-5">
+      <div className="flex-1 overflow-y-auto">
         <table className="w-full text-xs">
           <thead className="sticky top-0 bg-token-paper">
             <tr className="text-token-ink-3">
@@ -534,7 +534,7 @@ function Step3Confirm({ activeCount, duplicateCount, transferCandidateCount, nee
   onImport: () => void
 }) {
   return (
-    <div className="flex-1 flex flex-col px-5 pt-4 pb-6 gap-6">
+    <div className="flex-1 flex flex-col pt-4 pb-6 gap-6">
       <div className="bg-token-surface border border-token-line rounded-2xl p-5 flex flex-col gap-4">
         <h2 className="text-token-ink font-medium">Ready to import</h2>
         <div className="space-y-2">
@@ -615,7 +615,7 @@ function SummaryRow({ label, value, muted, bold }: { label: string; value: strin
 
 function Step4Done({ imported, skipped, merged, retroactivelyUpdated, onHome }: { imported: number; skipped: number; merged?: number; retroactivelyUpdated?: number; onHome: () => void }) {
   return (
-    <div className="flex-1 flex flex-col items-center justify-center gap-6 px-5">
+    <div className="flex-1 flex flex-col items-center justify-center gap-6">
       <motion.div
         initial={{ scale: 0, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}

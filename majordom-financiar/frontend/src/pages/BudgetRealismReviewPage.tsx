@@ -1,10 +1,8 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, TrendingUp } from 'lucide-react'
+import { TrendingUp } from 'lucide-react'
 import { getBudgetRealismFlags, type CategoryActionData } from '../lib/api'
-import PageHeader from '../components/PageHeader'
-import IconButton from '../components/IconButton'
+import { PageHeader } from '../components/shell/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import CategoryActionCard from '../components/CategoryActionCard'
 
@@ -20,7 +18,6 @@ import CategoryActionCard from '../components/CategoryActionCard'
  * scope, deliberately not built here).
  */
 export default function BudgetRealismReviewPage() {
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [handledIds, setHandledIds] = useState<Set<string>>(new Set())
 
@@ -37,22 +34,14 @@ export default function BudgetRealismReviewPage() {
   }
 
   return (
-    <div className="min-h-full bg-token-paper flex flex-col">
+    <div className="flex flex-col">
       <PageHeader
-        label="Review"
+        eyebrow="Review"
         title="Budget Realism"
-        actions={
-          <>
-            <IconButton
-              icon={ArrowLeft}
-              onClick={() => navigate('/')}
-              label="Back to home"
-            />
-            <StandardHeaderActions variant="no-add" />
-          </>
-        }
+        back={{ to: '/' }}
+        actions={<StandardHeaderActions variant="no-add" />}
       />
-      <div className="flex-1 px-5 pb-24 space-y-3">
+      <div className="flex-1 space-y-3">
         <p className="text-xs text-token-ink-3 px-1">
           Categories where last month's overspend looks like a one-off purchase, not
           recurring habit. Review each and confirm one at a time — nothing is touched

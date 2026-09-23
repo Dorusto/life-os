@@ -13,6 +13,7 @@ import { Field, TextInput } from '../components/Form'
 import { Loading } from '../components/Feedback'
 import { MetricTile } from '../components/MetricTile'
 import { TypePill } from '../components/Pill'
+import { PageHeader } from '../components/shell/PageHeader'
 import {
   ApiError,
   getVehicle,
@@ -228,16 +229,12 @@ export default function VehicleDetail() {
 
   return (
     <div className="flex flex-col">
-      <header className="pb-3">
-        <div className="mb-3 flex items-center justify-between">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/vehicles')} className="-ml-3">
-            <ChevronLeft size={16} /> Vehicles
-          </Button>
-          <NotificationBell vehicleId={vehicle.id} />
-        </div>
-        <p className="font-mono text-[11px] uppercase tracking-wide text-ink-3">Vehicle</p>
-        <h1 className="truncate text-2xl font-semibold text-ink">{vehicle.name}</h1>
-      </header>
+      <PageHeader
+        title={vehicle.name}
+        eyebrow="Vehicle"
+        back={{ to: '/vehicles' }}
+        actions={<NotificationBell vehicleId={vehicle.id} />}
+      />
 
       <section className="pt-2">
         {projection404 ? (

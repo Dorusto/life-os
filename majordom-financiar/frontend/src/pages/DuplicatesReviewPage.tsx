@@ -1,7 +1,6 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ChevronRight, Copy, GitCompareArrows } from 'lucide-react'
+import { ChevronRight, Copy, GitCompareArrows } from 'lucide-react'
 import {
   getDuplicateMonths,
   getDuplicatePairs,
@@ -11,10 +10,9 @@ import {
   type DuplicatePair,
   type DuplicateTransactionSide,
 } from '../lib/api'
-import PageHeader from '../components/PageHeader'
+import { PageHeader } from '../components/shell/PageHeader'
 import { Card } from '../components/ui/Card'
 import ActionCardButtons from '../components/ActionCardButtons'
-import IconButton from '../components/IconButton'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatDate, formatMonthYear } from '../lib/formatDate'
@@ -30,7 +28,6 @@ import { formatDate, formatMonthYear } from '../lib/formatDate'
  * endpoints — never automatic, never bulk.
  */
 export default function DuplicatesReviewPage() {
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [selectedMonth, setSelectedMonth] = useState<string | null>(null)
   // Locally-dismissed pairs (confirmed or cancelled) — filters them out of the
@@ -105,37 +102,16 @@ export default function DuplicatesReviewPage() {
   // Filter out pairs the user already resolved this session.
   const visiblePairs = pairs.filter(p => !handledIds.has(p.action_id))
 
-  const backToMonths = selectedMonth
-    ? (
-      <IconButton
-        icon={ArrowLeft}
-        onClick={() => { setSelectedMonth(null); setHandledIds(new Set()); setActionError(null) }}
-        label="Back to months"
-      />
-    )
-    : (
-      <IconButton
-        icon={ArrowLeft}
-        onClick={() => navigate('/')}
-        label="Back to home"
-      />
-    )
-
-
   if (selectedMonth) {
     return (
-      <div className="min-h-full bg-token-paper flex flex-col">
+      <div className="flex flex-col">
         <PageHeader
-          label="Review"
+          eyebrow="Review"
           title={formatMonthTitle(selectedMonth)}
-          actions={
-            <>
-              {backToMonths}
-              <StandardHeaderActions variant="no-add" />
-            </>
-          }
+          back={{ onClick: () => { setSelectedMonth(null); setHandledIds(new Set()); setActionError(null) } }}
+          actions={<StandardHeaderActions variant="no-add" />}
         />
-        <div className="flex-1 px-5 pb-24 space-y-3">
+        <div className="flex-1 space-y-3">
           {actionError && (
             <p className="text-token-ink-3 text-xs">{actionError}</p>
           )}
@@ -166,18 +142,14 @@ export default function DuplicatesReviewPage() {
   }
 
   return (
-    <div className="min-h-full bg-token-paper flex flex-col">
+    <div className="flex flex-col">
       <PageHeader
-        label="Review"
+        eyebrow="Review"
         title="Duplicates"
-        actions={
-          <>
-            {backToMonths}
-            <StandardHeaderActions variant="no-add" />
-          </>
-        }
+        back={{ to: '/' }}
+        actions={<StandardHeaderActions variant="no-add" />}
       />
-      <div className="flex-1 px-5 pb-24 space-y-3">
+      <div className="flex-1 space-y-3">
         <p className="text-xs text-token-ink-3 px-1">
           Bank-sync vs. manual entries that look like the same payment. Review each
           pair side by side and merge one at a time — nothing is touched until you tap Confirm.

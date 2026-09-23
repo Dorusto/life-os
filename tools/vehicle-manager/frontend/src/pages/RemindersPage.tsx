@@ -4,6 +4,7 @@ import VehicleSwitcher from '../components/VehicleSwitcher'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { Field, TextInput } from '../components/Form'
+import { PageHeader } from '../components/shell/PageHeader'
 import { Loading } from '../components/Feedback'
 import ReminderRow from '../components/ReminderRow'
 import { getVehicleSummary, patchVehicle } from '../lib/api'
@@ -74,9 +75,7 @@ export default function RemindersPage() {
 
   return (
     <div>
-      <header className="mb-4">
-        <h1 className="text-xl font-semibold text-ink">Reminders</h1>
-      </header>
+      <PageHeader title="Reminders" />
 
       {isLoading ? (
         <Loading />

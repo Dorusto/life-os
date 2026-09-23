@@ -1,10 +1,8 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Repeat } from 'lucide-react'
+import { Repeat } from 'lucide-react'
 import { getRecurringFindings, type CategoryActionData } from '../lib/api'
-import PageHeader from '../components/PageHeader'
-import IconButton from '../components/IconButton'
+import { PageHeader } from '../components/shell/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import CategoryActionCard from '../components/CategoryActionCard'
 
@@ -19,7 +17,6 @@ import CategoryActionCard from '../components/CategoryActionCard'
  *    confirming deactivates it (deactivate_schedule), never deletes.
  */
 export default function RecurringReviewPage() {
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [handledIds, setHandledIds] = useState<Set<string>>(new Set())
 
@@ -44,22 +41,14 @@ export default function RecurringReviewPage() {
   const bothEmpty = newCandidates.length === 0 && stale.length === 0
 
   return (
-    <div className="min-h-full bg-token-paper flex flex-col">
+    <div className="flex flex-col">
       <PageHeader
-        label="Review"
+        eyebrow="Review"
         title="Recurring"
-        actions={
-          <>
-            <IconButton
-              icon={ArrowLeft}
-              onClick={() => navigate('/')}
-              label="Back to home"
-            />
-            <StandardHeaderActions variant="no-add" />
-          </>
-        }
+        back={{ to: '/' }}
+        actions={<StandardHeaderActions variant="no-add" />}
       />
-      <div className="flex-1 px-5 pb-24 space-y-5">
+      <div className="flex-1 space-y-5">
         {isLoading ? (
           <p className="text-token-ink-3 text-sm">Loading…</p>
         ) : isError ? (

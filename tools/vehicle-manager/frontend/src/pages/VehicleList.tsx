@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Car, Upload } from 'lucide-react'
 import { Button } from '../components/Button'
 import { ErrorState, Loading } from '../components/Feedback'
+import { PageHeader } from '../components/shell/PageHeader'
 import { getVehicles } from '../lib/api'
 import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 
@@ -20,12 +21,14 @@ export default function VehicleList() {
 
   return (
     <div>
-      <header className="mb-6 flex items-center justify-between">
-        <h1 className="text-xl font-semibold text-ink">Vehicles</h1>
-        <Button variant="ghost" size="sm" onClick={() => navigate('/import')} className="-mr-2 text-brand">
-          <Upload size={15} /> Import
-        </Button>
-      </header>
+      <PageHeader
+        title="Vehicles"
+        actions={
+          <Button variant="ghost" size="sm" onClick={() => navigate('/import')} className="-mr-2 text-brand">
+            <Upload size={15} /> Import
+          </Button>
+        }
+      />
 
       {isLoading && <Loading />}
 

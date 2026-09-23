@@ -10,7 +10,7 @@ import { ErrorState, Loading } from '../components/Feedback'
 import { GoalModal } from '../components/GoalModal'
 import { LineChart } from '../components/LineChart'
 import { MetricTile } from '../components/MetricTile'
-import { PageHeader } from '../components/PageHeader'
+import { PageHeader } from '../components/shell/PageHeader'
 import { Pill } from '../components/Pill'
 import { formatDate, formatEur, formatPercentPoints } from '../lib/format'
 

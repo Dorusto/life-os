@@ -5,7 +5,7 @@ import { Card } from '../components/Card'
 import { EmptyState } from '../components/EmptyState'
 import { ErrorState, Loading } from '../components/Feedback'
 import { MetricTile } from '../components/MetricTile'
-import { PageHeader } from '../components/PageHeader'
+import { PageHeader } from '../components/shell/PageHeader'
 import { formatDate, formatEur, formatMoney } from '../lib/format'
 import { seriesColor } from '../lib/ui'
 

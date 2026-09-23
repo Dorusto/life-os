@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-accent="olive">
+<html lang="en" data-theme="dark" data-accent="olive">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -11,22 +11,17 @@
     <meta name="theme-color" content="#f4f3ef" />
     <title>Majordom Invest</title>
     <script>
-      // Apply the saved theme (or the OS preference on first visit) before
-      // paint, so there's no flash of the wrong palette. Keep in sync with
-      // src/lib/theme.tsx, the single source of truth for the app.
       (function () {
         try {
-          var stored = localStorage.getItem('theme')
-          var theme =
-            stored === 'light' || stored === 'dark'
-              ? stored
-              : window.matchMedia('(prefers-color-scheme: dark)').matches
-                ? 'dark'
-                : 'light'
-          document.documentElement.setAttribute('data-theme', theme)
-          document.documentElement.style.colorScheme = theme
-          var meta = document.querySelector('meta[name="theme-color"]')
-          if (meta) meta.setAttribute('content', theme === 'dark' ? '#131312' : '#f4f3ef')
+          var t = localStorage.getItem('majordom_theme') || localStorage.getItem('theme');
+          var a = localStorage.getItem('majordom_accent');
+          var root = document.documentElement;
+          var theme = t === 'light' ? 'light' : 'dark';
+          root.setAttribute('data-theme', theme);
+          root.style.colorScheme = theme;
+          if (a === 'sage' || a === 'amber' || a === 'olive' || a === 'slate') root.setAttribute('data-accent', a);
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', theme === 'light' ? '#f4f3ef' : '#131312');
         } catch (e) {}
       })()
     </script>

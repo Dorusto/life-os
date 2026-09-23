@@ -1,13 +1,17 @@
+/* Instrument Serif — only for the dashboard's headline statement; one weight from Google
+   Fonts instead of a new npm dependency. Must stay the first @import: a remote @import that
+   ends up after the inlined tokens would be ignored by the browser. */
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif&display=swap');
 @import './styles/tokens.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Apply dark background globally — avoids flash of white on load */
+/* Page colors come from the theme tokens, so light mode (Settings → Appearance) works too. */
 html, body, #root {
-  background-color: #0F0F0F;
-  color: #FAFAFA;
+  background-color: var(--paper);
+  color: var(--ink);
   min-height: 100dvh;
 }
 

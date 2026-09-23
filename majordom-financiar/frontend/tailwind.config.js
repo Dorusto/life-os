@@ -82,6 +82,7 @@ export default {
         // Bare `mono` matches Transport/Invest so shared components can use font-mono.
         mono: ['IBM Plex Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
         'plex-mono': ['IBM Plex Mono', 'ui-monospace', 'SFMono-Regular', 'monospace'],
+        serif: ['Instrument Serif', 'Georgia', 'Times New Roman', 'serif'],
       },
       borderRadius: {
         'xl': '12px',

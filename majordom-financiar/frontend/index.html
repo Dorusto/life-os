@@ -17,6 +17,24 @@
     <!-- Theme color: matches background color so browser chrome blends in -->
     <meta name="theme-color" content="#131312" />
 
+    <!-- Applies the stored theme/accent before first paint, so a light-mode
+         user never sees a dark flash (mirrors components/shell/appearance.ts). -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('majordom_theme') || localStorage.getItem('theme');
+          var a = localStorage.getItem('majordom_accent');
+          var root = document.documentElement;
+          var theme = t === 'light' ? 'light' : 'dark';
+          root.setAttribute('data-theme', theme);
+          root.style.colorScheme = theme;
+          if (a === 'sage' || a === 'amber' || a === 'olive' || a === 'slate') root.setAttribute('data-accent', a);
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', theme === 'light' ? '#f4f3ef' : '#131312');
+        } catch (e) {}
+      })()
+    </script>
+
     <title>Majordom Financiar</title>
   </head>
   <body>

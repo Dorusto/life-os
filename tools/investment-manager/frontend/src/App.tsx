@@ -5,7 +5,6 @@ import { AppShell } from './components/shell/AppShell'
 import { APP_LINKS } from './components/shell/appLinks'
 import { Page } from './components/shell/Page'
 import { NotificationBell } from './components/NotificationBell'
-import { ThemeToggle } from './components/ThemeToggle'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Holdings from './pages/Holdings'
@@ -41,7 +40,6 @@ function Protected({ children, width = 'wide' }: { children: React.ReactNode; wi
       notifications={<NotificationBell buttonClassName={bellButtonClass} />}
       username={getUsername()}
       onLogout={logout}
-      railFooter={<ThemeToggle />}
     >
       <Page width={width}>{children}</Page>
     </AppShell>
