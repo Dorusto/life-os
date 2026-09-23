@@ -46,7 +46,7 @@ export function MobileTabBar({ nav, chat, moreOpen, onMore }: {
           <MessageCircle size={20} aria-hidden />
         </NavLink>
       ) : (
-        <a href={chat.href} target="_blank" rel="noopener noreferrer" aria-label="Majordom chat" className={chatClass}>
+        <a href={chat.href} aria-label="Majordom chat" className={chatClass}>
           <MessageCircle size={20} aria-hidden />
         </a>
       )}

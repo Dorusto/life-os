@@ -17,7 +17,10 @@ export interface ShellNavItem {
   end?: boolean
 }
 
-/** In-app route (`to`) when the chat lives in this app, cross-origin link (`href`) otherwise. */
+/**
+ * In-app route (`to`) when the chat lives in this app, cross-origin link (`href`) otherwise.
+ * The cross-origin link opens in the same tab on purpose: chat is a place you go, not a popup.
+ */
 export type ShellChat = { to: string } | { href: string }
 
 interface AppShellProps {
@@ -175,7 +178,7 @@ export function AppShell({
               {chatItem}
             </NavLink>
           ) : (
-            <a href={chat.href} target="_blank" rel="noopener noreferrer" title="Majordom chat" className={itemClass(false, collapsed)}>
+            <a href={chat.href} title="Majordom chat" className={itemClass(false, collapsed)}>
               {chatItem}
             </a>
           )}
