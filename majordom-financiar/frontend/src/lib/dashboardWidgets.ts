@@ -1,4 +1,4 @@
-export type WidgetId = 'goals' | 'budget' | 'trend' | 'latest' | 'expenses' | 'vehicle' | 'networth'
+export type WidgetId = 'goals' | 'budget' | 'trend' | 'latest' | 'expenses' | 'vehicle' | 'networth' | 'spending'
 
 export interface WidgetMeta {
   id: WidgetId
@@ -28,6 +28,7 @@ export const WIDGET_SPAN: Record<WidgetSize, string> = {
  */
 export const WIDGETS: WidgetMeta[] = [
   { id: 'trend', name: 'Balance trend', desc: 'Total / on-budget / portfolio / vehicles', defaultEnabled: true, size: 'full' },
+  { id: 'spending', name: 'Spending', desc: 'Spent this month, per day, and where it went', defaultEnabled: true, size: 'full' },
   { id: 'goals', name: 'Financial Goals', desc: 'Portfolio Independence and your savings goals', defaultEnabled: true, size: 'lg' },
   { id: 'latest', name: 'Latest Transactions', desc: 'Recent activity across all accounts', defaultEnabled: true, size: 'sm' },
   { id: 'budget', name: 'Categories Watchlist', desc: 'Category groups with current-month amounts', defaultEnabled: true, size: 'sm' },
