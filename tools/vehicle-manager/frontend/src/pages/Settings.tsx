@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ArrowUpRight, LogOut } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/Button'
-import { Card } from '../components/Card'
+import { Card } from '../components/kit/Card'
 import { AppearanceSettings } from '../components/shell/AppearanceSettings'
 import { PageHeader } from '../components/shell/PageHeader'
 import { clearAuth, getUsername } from '../lib/auth'
@@ -86,7 +86,7 @@ export default function Settings() {
       <h3 className="mb-2 text-xs uppercase tracking-wide text-ink-2">Appearance</h3>
       <AppearanceSettings appDefault="amber" />
 
-      <Card title="Majordom apps" className="mt-4">
+      <Card label="Majordom apps" className="mt-4">
         <div className="space-y-2">
           {APP_LINKS.map((link) => (
             <AppLink key={link.href} {...link} />
@@ -94,7 +94,7 @@ export default function Settings() {
         </div>
       </Card>
 
-      <Card title="Data" className="mt-4">
+      <Card label="Data" className="mt-4">
         <div className="space-y-3">
           {vehicles.length > 1 && (
             <div className="space-y-1.5">
@@ -137,7 +137,7 @@ export default function Settings() {
         </div>
       </Card>
 
-      <Card title="Account" className="mt-4">
+      <Card label="Account" className="mt-4">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-ink">{getUsername() ?? 'Signed in'}</p>

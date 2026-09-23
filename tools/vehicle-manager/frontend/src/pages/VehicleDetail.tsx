@@ -5,13 +5,12 @@ import { ChevronLeft, Trash2 } from 'lucide-react'
 import ChartSection from '../components/ChartSection'
 import LogEntryForm from '../components/LogEntryForm'
 import { Button } from '../components/Button'
-import { Card } from '../components/Card'
 import { Field, TextInput } from '../components/Form'
 import { Loading } from '../components/Feedback'
 import { TypePill } from '../components/Pill'
 import { AreaChart } from '../components/kit/Charts'
 import { Card as KitCard, SectionLabel } from '../components/kit/Card'
-import { HeroValue, StatStrip, toneClass, toneOf, type Stat } from '../components/kit/Stats'
+import { HeroValue, ListRow, StatStrip, toneClass, toneOf, type Stat } from '../components/kit/Stats'
 import { PageHeader } from '../components/shell/PageHeader'
 import {
   ApiError,
@@ -273,7 +272,7 @@ export default function VehicleDetail() {
 
       <section className="pt-2">
         {projection404 ? (
-          <Card className="mt-4">
+          <KitCard className="mt-4">
             <p className="text-sm text-ink-2">
               This vehicle has no purchase price set — value tracking is unavailable.
             </p>
@@ -307,7 +306,7 @@ export default function VehicleDetail() {
                 </Button>
               </div>
             </div>
-          </Card>
+          </KitCard>
         ) : (
           projection && (
             <KitCard className="mt-4">
@@ -356,15 +355,15 @@ export default function VehicleDetail() {
           )
         )}
 
-        <Card className="mt-4">
+        <KitCard className="mt-4">
           <InfoRow label="Class" value={vehicle.vehicle_class || '—'} />
           <InfoRow label="Year" value={vehicle.year ? String(vehicle.year) : '—'} />
           <InfoRow label="Mileage" value={mileage ? `${formatNumber(mileage)} km` : '—'} />
           <InfoRow label="Depreciation model" value={depreciationModel} />
-        </Card>
+        </KitCard>
 
-        <h3 className="mb-2 mt-6 text-xs uppercase tracking-wide text-ink-2">Reminders</h3>
-        <Card>
+        <SectionLabel className="mb-2 mt-6">Reminders</SectionLabel>
+        <KitCard>
           <InfoRow label="APK / inspection due" value={formatDate(vehicle.apk_due)} />
           <InfoRow label="Insurance due" value={formatDate(vehicle.insurance_due)} />
           <InfoRow
@@ -378,27 +377,27 @@ export default function VehicleDetail() {
                 : '—'
             }
           />
-        </Card>
+        </KitCard>
 
-        <Card title="Override history" className="mt-6">
+        <KitCard label="Override history" className="mt-6">
           {history.length === 0 ? (
             <p className="text-sm text-ink-2">No overrides yet.</p>
           ) : (
             <div>
               {history.map(entry => (
-                <div key={entry.id} className="border-b border-line py-2.5 first:pt-0 last:border-0 last:pb-0">
-                  <div className="flex items-center justify-between">
-                    <p className="font-mono text-sm font-medium text-ink tnum">{formatMoney(entry.value)}</p>
-                    <span className="text-xs text-ink-3">{formatDate(entry.date)}</span>
-                  </div>
-                  {entry.note && <p className="mt-1 text-xs text-ink-2">{entry.note}</p>}
-                </div>
+                <ListRow
+                  key={entry.id}
+                  title={formatDate(entry.date)}
+                  subtitle={entry.note ?? undefined}
+                  value={formatMoney(entry.value)}
+                  className="border-b border-line last:border-0"
+                />
               ))}
             </div>
           )}
-        </Card>
+        </KitCard>
 
-        <h3 className="mb-3 mt-6 text-xs uppercase tracking-wide text-ink-2">Fuel & Costs</h3>
+        <SectionLabel className="mb-3 mt-6">Fuel & Costs</SectionLabel>
         <div className="space-y-4">
           <ChartSection data={consumptionQuery.data} />
           <ChartSection data={distanceQuery.data} />
@@ -407,7 +406,7 @@ export default function VehicleDetail() {
           <ChartSection data={mileageQuery.data} />
         </div>
 
-        <h3 className="mb-3 mt-6 text-xs uppercase tracking-wide text-ink-2">Log</h3>
+        <SectionLabel className="mb-3 mt-6">Log</SectionLabel>
         {log.length === 0 ? (
           <p className="text-sm text-ink-2">No log entries yet.</p>
         ) : (

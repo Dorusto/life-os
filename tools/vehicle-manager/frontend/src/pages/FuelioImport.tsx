@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Upload } from 'lucide-react'
 import { Button } from '../components/Button'
-import { Card } from '../components/Card'
+import { Card } from '../components/kit/Card'
 import { PageHeader } from '../components/shell/PageHeader'
 import { importFuelio, type FuelioImportResult } from '../lib/api'
 
