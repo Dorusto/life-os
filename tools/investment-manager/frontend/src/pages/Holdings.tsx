@@ -82,7 +82,7 @@ export default function Holdings() {
               </label>
             }
           >
-            <div className="overflow-x-auto">
+            <div className="hidden overflow-x-auto md:block">
               <table className="w-full min-w-[760px] border-collapse text-sm">
                 <thead>
                   <tr className="border-b border-line text-left text-[12px] text-ink-3">
@@ -144,6 +144,44 @@ export default function Holdings() {
                 </tbody>
               </table>
             </div>
+
+            {/* Phones: same holdings as the table above, laid out as two-line list items. */}
+            <ul className="divide-y divide-line md:hidden">
+              {holdings.map((h) => (
+                <li key={h.security_id} className="px-4 py-3">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="font-mono text-[13px] font-medium text-ink">{h.ticker}</span>
+                    <span className="shrink-0 font-mono tnum font-medium text-ink">
+                      {formatEur(h.market_value_eur)}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-baseline justify-between gap-3">
+                    <p className="min-w-0 truncate text-xs text-ink-2">
+                      {h.name ?? '—'}
+                      <span className="text-ink-3">
+                        {' · '}
+                        {formatShares(h.shares)} · {formatPercentPoints(h.weight_pct)}
+                      </span>
+                    </p>
+                    {h.shares > 0 ? (
+                      <span
+                        className={cn(
+                          'shrink-0 whitespace-nowrap font-mono tnum text-xs',
+                          changeTextClass(h.unrealized_gain_eur),
+                        )}
+                      >
+                        {formatEur(h.unrealized_gain_eur)} ·{' '}
+                        {formatPercentPoints((h.unrealized_gain_pct ?? 0) * 100)}
+                      </span>
+                    ) : (
+                      <span className="shrink-0 whitespace-nowrap text-xs text-ink-3">
+                        closed · realized {formatMoney(h.realized_gain_native, h.currency)}
+                      </span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
             <p className="px-5 py-3 text-[12px] text-ink-3">
               Cost basis uses the average-cost method, not FIFO — a tracking figure, not a tax figure.
               Native-currency prices are shown where a security isn't EUR.

@@ -15,6 +15,7 @@ import { TransactionModal } from '../components/TransactionModal'
 import { XtbImportModal } from '../components/XtbImportModal'
 import { formatDate, formatMoney, formatShares } from '../lib/format'
 import { transactionSignedAmount } from '../lib/transactions'
+import { changeTextClass, cn } from '../lib/ui'
 
 const TYPE_FILTERS = ['all', 'buy', 'sell', 'dividend', 'fee']
 
@@ -117,7 +118,7 @@ export default function Transactions() {
             />
           </div>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[820px] border-collapse text-sm">
               <thead>
                 <tr className="border-b border-line text-left text-[12px] text-ink-3">
@@ -181,6 +182,44 @@ export default function Transactions() {
             </table>
           </div>
         )}
+
+        {/* Phones: same rows as the table above, laid out as two-line list items. */}
+        <ul className="divide-y divide-line md:hidden">
+          {(transactions.data ?? []).map((t) => {
+            const amount = transactionSignedAmount(t)
+            return (
+              <li key={t.id} className="flex items-start gap-2 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="font-mono text-[13px] font-medium text-ink">{t.ticker}</span>
+                    <span className={cn('shrink-0 font-mono tnum font-medium', changeTextClass(amount))}>
+                      {formatMoney(amount, t.currency)}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between gap-3">
+                    <p className="truncate text-xs text-ink-2">{t.security_name ?? '—'}</p>
+                    <span className="flex shrink-0 items-center gap-1.5 whitespace-nowrap text-xs text-ink-3">
+                      {formatDate(t.date)}
+                      <TypePill type={t.type} />
+                      <span className="font-mono tnum">
+                        {t.quantity !== null ? formatShares(t.quantity) : '—'} ×{' '}
+                        {t.price_per_unit !== null ? formatMoney(t.price_per_unit, t.currency) : '—'}
+                      </span>
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Delete transaction"
+                  onClick={() => setPendingDelete(t.id)}
+                  className="rounded p-1.5 text-ink-3 transition-colors hover:bg-loss-soft hover:text-loss"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </li>
+            )
+          })}
+        </ul>
       </Card>
 
       <TransactionModal open={showTransaction} onClose={() => setShowTransaction(false)} securities={securities.data ?? []} />
