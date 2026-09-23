@@ -5,7 +5,6 @@ import { ChevronLeft, Trash2 } from 'lucide-react'
 import Chart from '../components/Chart'
 import ChartSection from '../components/ChartSection'
 import LogEntryForm from '../components/LogEntryForm'
-import NotificationBell from '../components/NotificationBell'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { Delta } from '../components/Delta'
@@ -233,7 +232,6 @@ export default function VehicleDetail() {
         title={vehicle.name}
         eyebrow="Vehicle"
         back={{ to: '/vehicles' }}
-        actions={<NotificationBell vehicleId={vehicle.id} />}
       />
 
       <section className="pt-2">

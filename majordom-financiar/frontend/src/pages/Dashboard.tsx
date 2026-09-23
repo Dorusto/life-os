@@ -304,24 +304,25 @@ export default function Dashboard() {
         </section>
       ) : (
         <section className="flex flex-col gap-6">
-          {stats.length > 0 && (
-            <div className={`grid grid-cols-2 overflow-hidden rounded-xl border border-token-line bg-token-surface ${stats.length === 4 ? 'lg:grid-cols-4' : stats.length === 3 ? 'lg:grid-cols-3' : ''}`}>
-              {stats.map((stat, i) => (
-                <div
-                  key={stat.label}
-                  className={`flex flex-col gap-1.5 px-5 py-4 ${i % 2 === 1 ? 'border-l border-token-line' : ''} ${i >= 2 ? 'border-t border-token-line lg:border-t-0' : ''} ${i === 2 ? 'lg:border-l' : ''}`}
-                >
-                  <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-token-ink-3">{stat.label}</span>
-                  <span className="font-mono text-xl tabular-nums text-token-ink">{stat.value}</span>
-                  {stat.sub && <span className="font-mono text-xs text-token-ink-3">{stat.sub}</span>}
-                </div>
-              ))}
-            </div>
-          )}
-
           {/* 12-column grid (lg+); each widget declares its span in the registry.
               `items-start` keeps short cards from stretching to their row's tallest card. */}
           <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-12">
+            {/* Stat strip sits right under the balance hero (order-first) and above the
+                other widgets, whatever their registry order. */}
+            {stats.length > 0 && (
+              <div className={`order-[-1] grid grid-cols-2 overflow-hidden rounded-xl lg:col-span-12 border border-token-line bg-token-surface ${stats.length === 4 ? 'lg:grid-cols-4' : stats.length === 3 ? 'lg:grid-cols-3' : ''}`}>
+                {stats.map((stat, i) => (
+                  <div
+                    key={stat.label}
+                    className={`flex flex-col gap-1.5 px-5 py-4 ${i % 2 === 1 ? 'border-l border-token-line' : ''} ${i >= 2 ? 'border-t border-token-line lg:border-t-0' : ''} ${i === 2 ? 'lg:border-l' : ''}`}
+                  >
+                    <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-token-ink-3">{stat.label}</span>
+                    <span className="font-mono text-xl tabular-nums text-token-ink">{stat.value}</span>
+                    {stat.sub && <span className="font-mono text-xs text-token-ink-3">{stat.sub}</span>}
+                  </div>
+                ))}
+              </div>
+            )}
             {visibleWidgets.map(w => (
               <div key={w.id} className={`min-w-0 ${WIDGET_SPAN[w.size]} ${w.id === 'trend' ? 'order-first' : ''}`}>
                 <WidgetShell editing={editing} onRemove={() => removeWidget(w.id)}>
