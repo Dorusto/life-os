@@ -271,6 +271,92 @@ export function BarChart({
   )
 }
 
+export interface BarGroup {
+  label: string
+  /** One value per series, same order as `series`. */
+  values: number[]
+}
+
+/** Side-by-side bars per label for 2–3 series (income vs. spending per month). */
+export function GroupedBarChart({
+  series,
+  data,
+  height = 180,
+  formatValue = (v) => v.toFixed(0),
+  formatLabel = (l) => l,
+  emptyMessage = 'No data for this period yet.',
+  onSelect,
+}: {
+  series: { label: string; color: string }[]
+  data: BarGroup[]
+  height?: number
+  formatValue?: (value: number) => string
+  formatLabel?: (label: string) => string
+  emptyMessage?: string
+  onSelect?: (index: number) => void
+}) {
+  const { ref, width } = useWidth<HTMLDivElement>()
+  const [hover, setHover] = useState<number | null>(null)
+  const all = data.flatMap(d => d.values)
+  if (!data.length || all.every(v => !v)) return <EmptyState title={emptyMessage} />
+
+  const maxV = Math.max(0, ...all)
+  const minV = Math.min(0, ...all)
+  const span = maxV - minV || 1
+  const zeroY = (maxV / span) * height
+  const slot = 100 / data.length
+  const groupW = Math.min(slot * 0.7, 10 * series.length)
+  const barW = groupW / series.length
+
+  return (
+    <div>
+      <div ref={ref} className="relative" style={{ height }}>
+        <svg viewBox={`0 0 100 ${height}`} preserveAspectRatio="none" className="h-full w-full" role="img" aria-label={series.map(s => s.label).join(' vs ')}>
+          <line x1={0} x2={100} y1={zeroY} y2={zeroY} stroke="var(--line)" strokeWidth={1} vectorEffect="non-scaling-stroke" />
+          {data.map((d, i) => (
+            <g
+              key={i}
+              opacity={hover === null || hover === i ? 0.9 : 0.45}
+              onMouseEnter={() => setHover(i)}
+              onMouseLeave={() => setHover(null)}
+              onClick={() => onSelect?.(i)}
+              className={onSelect ? 'cursor-pointer' : undefined}
+            >
+              <rect x={i * slot} y={0} width={slot} height={height} fill="transparent" />
+              {d.values.map((v, s) => {
+                const h = (Math.abs(v) / span) * height
+                return (
+                  <rect key={s} x={i * slot + (slot - groupW) / 2 + s * barW} y={v >= 0 ? zeroY - h : zeroY} width={barW * 0.85} height={Math.max(h, 0.5)} rx={0.6} fill={series[s]?.color ?? 'var(--accent)'} />
+                )
+              })}
+            </g>
+          ))}
+        </svg>
+        {width > 0 && hover !== null && (
+          <Readout x={((hover + 0.5) * slot / 100) * width} width={width}>
+            <p className="text-ink-3">{formatLabel(data[hover].label)}</p>
+            {series.map((s, k) => (
+              <p key={s.label} className="flex items-center justify-between gap-3 font-mono tabular-nums text-ink">
+                <span className="flex items-center gap-1.5"><span className="inline-block h-2 w-2 rounded-full" style={{ background: s.color }} />{s.label}</span>
+                {formatValue(data[hover].values[k] ?? 0)}
+              </p>
+            ))}
+          </Readout>
+        )}
+      </div>
+      <div className="mt-2 flex items-center justify-between font-mono text-[11px] text-ink-3">
+        <span>{formatLabel(data[0].label)}</span>
+        <span className="flex gap-3">
+          {series.map(s => (
+            <span key={s.label} className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full" style={{ background: s.color }} />{s.label}</span>
+          ))}
+        </span>
+        <span>{formatLabel(data[data.length - 1].label)}</span>
+      </div>
+    </div>
+  )
+}
+
 // ----------------------------------------------------------------------------- composition
 
 export interface Slice {
