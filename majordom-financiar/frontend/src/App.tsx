@@ -127,6 +127,7 @@ function ShellLayout() {
       }}
     >
       <Page width={isSettings ? 'narrow' : 'wide'} className="h-full">
+        <AbConnectionBanner />
         <Outlet />
       </Page>
     </AppShell>
@@ -330,7 +331,6 @@ function Layout() {
         {/* Catch-all: redirect unknown paths to home */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <AbConnectionBanner />
     </>
   )
 }

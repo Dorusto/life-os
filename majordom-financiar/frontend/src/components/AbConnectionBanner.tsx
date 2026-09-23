@@ -9,6 +9,9 @@ import { isAbDown, subscribeAbDown } from '../lib/abConnectionStatus'
  * changed directly on AB. Distinct from NotificationBell's Inbox occupants:
  * those are dismissible findings with proof: this is "the tool doesn't work
  * right now," so it isn't routed through that component/pattern.
+ *
+ * Rendered inside the shell's content column (App.tsx ShellLayout), sticky at the
+ * top of the scroll area — a fixed full-width bar covered the rail and headers.
  */
 export default function AbConnectionBanner() {
   const [down, setDown] = useState(isAbDown())
@@ -21,7 +24,7 @@ export default function AbConnectionBanner() {
   if (!down || location.pathname.startsWith('/setup/ab')) return null
 
   return (
-    <div className="fixed top-0 inset-x-0 bg-token-loss-soft border-b border-token-loss px-4 py-2.5 flex items-center gap-2.5 z-50">
+    <div className="sticky top-0 z-40 mb-4 flex items-center gap-2.5 rounded-lg border border-token-loss bg-token-loss-soft px-4 py-2.5">
       <AlertTriangle size={16} className="text-token-loss flex-shrink-0" />
       <span className="flex-1 text-sm font-medium text-token-loss">
         AB connection lost
