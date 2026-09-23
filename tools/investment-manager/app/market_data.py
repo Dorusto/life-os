@@ -489,11 +489,14 @@ def get_price(ticker: str, currency: str | None = None, force: bool = False) -> 
     if cached and not force and _is_fresh(cached["fetched_at"]):
         return float(cached["price"])
 
-    (price, live_currency), error = _fetch_live(
+    result, error = _fetch_live(
         ticker,
         lambda: _yahoo_price(ticker),
         lambda: _twelve_data_price(ticker),
     )
+    # _fetch_live returns (None, error) when every provider failed, so the
+    # (price, currency) pair can only be unpacked from a real result.
+    price, live_currency = result if result is not None else (None, None)
     if price is None:
         if error is not None:
             _record_error(ticker, error)
