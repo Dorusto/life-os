@@ -35,7 +35,7 @@ export default function Login() {
   return (
     <div className="grid min-h-screen lg:grid-cols-[1.05fr_1fr]">
       {/* Statement panel — the one bold surface in the app. */}
-      <div className="relative hidden flex-col justify-between overflow-hidden border-r border-line bg-surface-sunken px-12 py-12 text-ink lg:flex">
+      <div className="relative hidden flex-col justify-between overflow-hidden border-r border-line bg-surface-sunken px-[3rem] py-12 text-ink lg:flex">
         <div className="flex items-center gap-3">
           <BrandMark size={36} />
           <span className="text-sm font-semibold tracking-wide">Majordom Invest</span>
