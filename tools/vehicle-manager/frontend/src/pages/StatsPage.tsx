@@ -6,6 +6,7 @@ import { Card } from '../components/Card'
 import { Loading } from '../components/Feedback'
 import { MetricTile } from '../components/MetricTile'
 import { Segmented } from '../components/Segmented'
+import { PageHeader } from '../components/shell/PageHeader'
 import { getCostCategories, getVehicleStatsDetail } from '../lib/api'
 import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 import { useSelectedVehicle } from '../lib/useSelectedVehicle'
@@ -52,9 +53,7 @@ export default function StatsPage() {
 
   return (
     <div>
-      <header className="mb-4">
-        <h1 className="text-xl font-semibold text-ink">Statistics</h1>
-      </header>
+      <PageHeader title="Statistics" />
 
       {isLoading ? (
         <Loading />
