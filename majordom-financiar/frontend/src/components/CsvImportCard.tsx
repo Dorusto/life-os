@@ -355,7 +355,7 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
               <th className="text-left pb-1 font-medium w-[160px]">Category</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-border">
+          <tbody className="divide-y divide-token-line">
             {rows.map(row => {
               const dimmed = row.duplicate || (row.isTransferCandidate && row.excluded)
               return (

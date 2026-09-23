@@ -28,6 +28,9 @@ export default {
         'brand-2': 'var(--brand-2)',
         'brand-soft': 'var(--brand-soft)',
         'brand-ink': 'var(--brand-ink)',
+        'on-brand': 'var(--on-brand)',
+        accent: 'var(--accent)',
+        'accent-soft': 'var(--accent-soft)',
         gain: 'var(--gain)',
         'gain-soft': 'var(--gain-soft)',
         loss: 'var(--loss)',
@@ -35,6 +38,7 @@ export default {
         warn: 'var(--warn)',
         'warn-soft': 'var(--warn-soft)',
         info: 'var(--info)',
+        'info-soft': 'var(--info-soft)',
       },
       fontFamily: {
         sans: ['IBM Plex Sans', 'ui-sans-serif', 'system-ui', 'sans-serif'],

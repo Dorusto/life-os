@@ -5,39 +5,39 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Dark palette inspired by Linear / Raycast.
-        // Using CSS custom properties would also work, but inline colors
-        // are easier to understand at a glance when reading component files.
-        background: '#0F0F0F',   // page background
-        surface:    '#1A1A1A',   // cards, inputs, modals
-        'surface-2': '#222222',  // hover states, nested surfaces
-        border:     '#2A2A2A',   // default border
-        'border-hover': '#3D3D3D',
-        accent:     '#6366F1',   // indigo-500 — primary action color
-        'accent-hover': '#4F52D4',
-        muted:      '#71717A',   // secondary text (zinc-500)
-        'muted-2':  '#82828C',   // even more muted — ~5:1 contrast against #0F0F0F background (WCAG AA), up from the prior ~2.5:1
-        success:    '#22C55E',   // green-500
-        danger:     '#EF4444',   // red-500
+        // Same bare keys as tools/vehicle-manager and tools/investment-manager, so a component
+        // shared through packages/frontend-shared uses identical class names in every app.
+        // The old flat hex keys (background/surface/border/accent/muted/...) are gone —
+        // they were the only reason for the token.* namespace below (decided 2026-09-23).
+        paper: 'var(--paper)',
+        surface: 'var(--surface)',
+        'surface-2': 'var(--surface-2)',
+        'surface-sunken': 'var(--surface-sunken)',
+        ink: 'var(--ink)',
+        'ink-2': 'var(--ink-2)',
+        'ink-3': 'var(--ink-3)',
+        line: 'var(--line)',
+        'line-strong': 'var(--line-strong)',
+        overlay: 'var(--overlay)',
+        brand: 'var(--brand)',
+        'brand-2': 'var(--brand-2)',
+        'brand-soft': 'var(--brand-soft)',
+        'brand-ink': 'var(--brand-ink)',
+        'on-brand': 'var(--on-brand)',
+        accent: 'var(--accent)',
+        'accent-soft': 'var(--accent-soft)',
+        gain: 'var(--gain)',
+        'gain-soft': 'var(--gain-soft)',
+        loss: 'var(--loss)',
+        'loss-soft': 'var(--loss-soft)',
+        warn: 'var(--warn)',
+        'warn-soft': 'var(--warn-soft)',
+        info: 'var(--info)',
+        'info-soft': 'var(--info-soft)',
 
-        // Semantic Card-system tokens (2026-07-07 Home redesign) — one role per
-        // color, used by the shared <Card>/<InfoIcon> system and anything built
-        // against the Financial Goals mockup. `accent`/`success` above are the
-        // pre-existing app-wide colors (buttons, links, etc.) and are intentionally
-        // left untouched for now rather than mass-renamed — see docs/decisions.md.
-        positive:        '#22C55E', // motivational/positive (on-track, goal progress)
-        'positive-dim':  '#1D3D2C',
-        attention:       '#E8A838', // attention/warning (near-limit, behind schedule)
-        'attention-dim': '#3D3320',
-        info:            '#4F8EF7', // informational/neutral metric
-        'info-dim':      '#1C2C47',
-        interactive:     '#8B7BF0', // chat/CTA/active-tab accent for the new Card system
-        'interactive-dim': '#241F47',
-
-        // Shared design-token layer ported from investment-manager
-        // (src/styles/tokens.css). Nested under `token` so every new utility
-        // class is unambiguously `bg-token-surface`, `text-token-ink`, etc.,
-        // and none of the pre-existing flat color keys above are shadowed.
+        // Legacy alias of the bare keys above, kept so the ~70 files already written
+        // against it keep working. New code uses the bare keys; migrating the old call
+        // sites is mechanical and happens as files are touched.
         token: {
           paper: 'var(--paper)',
           surface: 'var(--surface)',
@@ -53,6 +53,9 @@ export default {
           'brand-2': 'var(--brand-2)',
           'brand-soft': 'var(--brand-soft)',
           'brand-ink': 'var(--brand-ink)',
+          'on-brand': 'var(--on-brand)',
+          accent: 'var(--accent)',
+          'accent-soft': 'var(--accent-soft)',
           gain: 'var(--gain)',
           'gain-soft': 'var(--gain-soft)',
           loss: 'var(--loss)',
