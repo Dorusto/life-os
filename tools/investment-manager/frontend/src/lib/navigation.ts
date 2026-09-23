@@ -1,49 +1,17 @@
-import {
-  ArrowLeftRight,
-  Briefcase,
-  HandCoins,
-  LayoutDashboard,
-  Scale,
-  Settings as SettingsIcon,
-  Target,
-  type LucideIcon,
-} from 'lucide-react'
-
-/** Which navigation surface lists a destination. */
-export type NavSurface = 'rail' | 'tabs' | 'more'
-
-export interface Destination {
-  to: string
-  label: string
-  icon: LucideIcon
-  /** `true` for `/` so it isn't active on every route. */
-  end: boolean
-  /** Surfaces that render this destination; every surface filters this list. */
-  surfaces: readonly NavSurface[]
-}
+import { ArrowLeftRight, Briefcase, HandCoins, LayoutDashboard, Scale, Target } from 'lucide-react'
+import type { ShellNavItem } from '../components/shell/AppShell'
 
 /**
- * Single source of truth for app destinations. The desktop rail, the mobile
- * tab bar and the More sheet all derive from this list, so adding, moving or
- * relabelling a destination is a one-line change here.
+ * Single source of truth for this app's destinations, in display order. The shared shell
+ * derives every surface from it: the desktop rail lists all of them; the phone bar shows the
+ * first three (around the chat button) and the More sheet the rest. Settings is not listed —
+ * the shell renders it on its own.
  */
-const DESTINATIONS: readonly Destination[] = [
-  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true, surfaces: ['rail', 'tabs'] },
-  { to: '/holdings', label: 'Holdings', icon: Briefcase, end: false, surfaces: ['rail', 'tabs'] },
-  {
-    to: '/transactions',
-    label: 'Transactions',
-    icon: ArrowLeftRight,
-    end: false,
-    surfaces: ['rail', 'tabs'],
-  },
-  { to: '/income', label: 'Income', icon: HandCoins, end: false, surfaces: ['rail', 'more'] },
-  { to: '/rebalancing', label: 'Rebalancing', icon: Scale, end: false, surfaces: ['rail', 'more'] },
-  { to: '/goals', label: 'Goals', icon: Target, end: false, surfaces: ['rail', 'tabs'] },
-  { to: '/settings', label: 'Settings', icon: SettingsIcon, end: false, surfaces: ['rail', 'tabs'] },
+export const NAV: ShellNavItem[] = [
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, end: true },
+  { to: '/holdings', label: 'Holdings', icon: Briefcase },
+  { to: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
+  { to: '/goals', label: 'Goals', icon: Target },
+  { to: '/income', label: 'Income', icon: HandCoins },
+  { to: '/rebalancing', label: 'Rebalancing', icon: Scale },
 ]
-
-/** Destinations for one surface, in the shared list's order. */
-export function destinationsFor(surface: NavSurface): Destination[] {
-  return DESTINATIONS.filter((destination) => destination.surfaces.includes(surface))
-}
