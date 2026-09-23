@@ -5,7 +5,18 @@ export interface WidgetMeta {
   name: string
   desc: string
   defaultEnabled: boolean
-  column: 'full' | 'left' | 'right'
+  /** Width in the dashboard's 12-column grid (lg and up); every widget is full width on mobile. */
+  size: WidgetSize
+}
+
+export type WidgetSize = 'sm' | 'md' | 'lg' | 'full'
+
+/** lg:col-span-* per size — full class strings so Tailwind's scanner sees them. */
+export const WIDGET_SPAN: Record<WidgetSize, string> = {
+  sm: 'lg:col-span-4',
+  md: 'lg:col-span-6',
+  lg: 'lg:col-span-8',
+  full: 'lg:col-span-12',
 }
 
 /**
@@ -13,18 +24,20 @@ export interface WidgetMeta {
  * trend/latest/cashflow/expenses/vehicle — Financial Goals and Budget aren't
  * in the mockup at all, but they're existing, real, actively-used features
  * from the old Home screen, so they're kept as widgets too (confirmed with
- * Doru rather than silently dropped or silently kept — see session notes).
+ * the user rather than silently dropped or silently kept — see session notes).
  */
 export const WIDGETS: WidgetMeta[] = [
-  { id: 'goals', name: 'Financial Goals', desc: 'Portfolio Independence and your savings goals', defaultEnabled: true, column: 'full' },
-  { id: 'budget', name: 'Categories Watchlist', desc: 'Category groups with current-month amounts', defaultEnabled: true, column: 'full' },
-  { id: 'trend', name: 'Balance trend', desc: 'Total / on-budget / portfolio / vehicles', defaultEnabled: true, column: 'left' },
-  { id: 'latest', name: 'Latest Transactions', desc: 'Recent activity across all accounts', defaultEnabled: true, column: 'right' },
-  { id: 'expenses', name: 'Expenses Structure', desc: "This month's spend, broken down by category", defaultEnabled: true, column: 'right' },
-  { id: 'vehicle', name: 'Vehicle costs', desc: 'Fuel + maintenance from vehicle-manager, cost/km', defaultEnabled: true, column: 'left' },
-  { id: 'networth', name: 'Net Worth', desc: 'Total balance, adjustable by account category', defaultEnabled: false, column: 'left' },
+  { id: 'trend', name: 'Balance trend', desc: 'Total / on-budget / portfolio / vehicles', defaultEnabled: true, size: 'full' },
+  { id: 'goals', name: 'Financial Goals', desc: 'Portfolio Independence and your savings goals', defaultEnabled: true, size: 'lg' },
+  { id: 'latest', name: 'Latest Transactions', desc: 'Recent activity across all accounts', defaultEnabled: true, size: 'sm' },
+  { id: 'budget', name: 'Categories Watchlist', desc: 'Category groups with current-month amounts', defaultEnabled: true, size: 'sm' },
+  { id: 'expenses', name: 'Expenses Structure', desc: "This month's spend, broken down by category", defaultEnabled: true, size: 'md' },
+  { id: 'vehicle', name: 'Vehicle costs', desc: 'Fuel + maintenance from vehicle-manager, cost/km', defaultEnabled: true, size: 'sm' },
+  { id: 'networth', name: 'Net Worth', desc: 'Total balance, adjustable by account category', defaultEnabled: false, size: 'md' },
 ]
 
+// Unchanged by the 12-column layout (2026-09-23): only on/off is stored, never layout, so
+// existing saved choices keep working.
 const STORAGE_KEY = 'majordom_dashboard_widgets_v1'
 
 export function loadWidgetPrefs(): Record<WidgetId, boolean> {
