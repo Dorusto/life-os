@@ -330,9 +330,9 @@ export default function TransactionsPage() {
     <div className="flex flex-col">
       <PageHeader eyebrow="All transactions" title="Transactions" actions={<StandardHeaderActions />} />
 
-      {/* pb-40 stays: it clears this page's own fixed bulk-action bar
-          (bottom-16 lg:bottom-0), not the shell's bottom nav. */}
-      <section className="flex-1 pb-40">
+      {/* The bulk-action bar below is sticky inside the content column (above the
+          floating tab bar on phones), so the list needs no extra bottom clearance. */}
+      <section className="flex-1 pb-6">
         {/* Toolbar: list/table toggle + filters */}
         <div className="flex items-center justify-between py-3">
           <div className="flex items-center gap-1 bg-token-surface border border-token-line rounded-lg p-1">
@@ -692,8 +692,8 @@ export default function TransactionsPage() {
       </BottomSheet>
 
       {bulkNotice && selected.size === 0 && (
-        <div className="fixed bottom-16 lg:bottom-0 left-0 right-0 bg-token-surface border-t border-token-line px-4 py-3 z-40 flex items-center justify-between gap-2">
-          <p className="text-amber-400 text-xs">{bulkNotice}</p>
+        <div className="sticky bottom-24 lg:bottom-4 z-40 mt-4 rounded-xl border border-token-line bg-token-surface px-4 py-3 shadow-lg flex items-center justify-between gap-2">
+          <p className="text-token-warn text-xs">{bulkNotice}</p>
           <button
             onClick={() => setBulkNotice(null)}
             className="text-token-ink-3 hover:text-token-ink flex-shrink-0"
@@ -705,7 +705,7 @@ export default function TransactionsPage() {
       )}
 
       {selected.size > 0 && (
-        <div className="fixed bottom-16 lg:bottom-0 left-0 right-0 bg-token-surface border-t border-token-line px-4 py-3 z-40">
+        <div className="sticky bottom-24 lg:bottom-4 z-40 mt-4 rounded-xl border border-token-line bg-token-surface px-4 py-3 shadow-lg">
           <div className="flex items-center gap-2">
             <p className="text-token-ink text-sm font-semibold flex-shrink-0">{selected.size} selected</p>
             <select

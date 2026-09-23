@@ -21,6 +21,8 @@
  */
 
 /** European number formatting: 1.234,56 */
+import { amountsHidden, MASK } from './privacy'
+
 const LOCALE = 'nl-NL'
 
 /** U+2212 MINUS SIGN — visually balanced with the digits, unlike a hyphen. */
@@ -49,6 +51,8 @@ export interface CurrencyOptions {
  */
 export function formatCurrency(amount: number, options: CurrencyOptions = {}): string {
   const { decimals = 2, signDisplay = 'auto' } = options
+  // Privacy mode masks every money figure at the one place they are all formatted.
+  if (amountsHidden()) return MASK
 
   const safe = Number.isFinite(amount) ? amount : 0
   // Round first: -0.004 at 0 decimals is zero, and must not keep its minus sign.

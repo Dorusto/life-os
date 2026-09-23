@@ -33,6 +33,7 @@ ALL_APPS = (FINANCE, TRANSPORT, INVEST)
 MANIFEST = {
     "formatCurrency.ts": ((FINANCE, TRANSPORT), "src/lib/formatCurrency.ts"),
     "formatDate.ts": ((FINANCE, TRANSPORT), "src/lib/formatDate.ts"),
+    "privacy.ts": (ALL_APPS, "src/lib/privacy.ts"),
     "tokens.css": (ALL_APPS, "src/styles/tokens.css"),
     "BrandMark.tsx": (ALL_APPS, "src/components/BrandMark.tsx"),
     "shell/AppShell.tsx": (ALL_APPS, "src/components/shell/AppShell.tsx"),

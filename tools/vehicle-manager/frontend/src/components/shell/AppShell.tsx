@@ -3,7 +3,9 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { NavLink } from 'react-router-dom'
-import { Check, ChevronsUpDown, LogOut, MessageCircle, PanelLeft, Settings, type LucideIcon } from 'lucide-react'
+import { Check, ChevronsUpDown, Eye, EyeOff, LogOut, MessageCircle, PanelLeft, Settings, type LucideIcon } from 'lucide-react'
+// Generated layout: this file lands in src/components/shell/, privacy.ts in src/lib/.
+import { setAmountsHidden, useAmountsHidden } from '../../lib/privacy'
 import { BrandMark } from '../BrandMark'
 import { APP_LINKS, type AppId } from './appLinks'
 import { cx } from './cx'
@@ -121,6 +123,23 @@ function AppSwitcher({ app, collapsed }: { app: AppId; collapsed: boolean }) {
   )
 }
 
+function PrivacyToggle({ className }: { className?: string }) {
+  const hidden = useAmountsHidden()
+  const Icon = hidden ? EyeOff : Eye
+  return (
+    <button
+      type="button"
+      onClick={() => setAmountsHidden(!hidden)}
+      title={hidden ? 'Show amounts' : 'Hide amounts'}
+      aria-label={hidden ? 'Show amounts' : 'Hide amounts'}
+      aria-pressed={hidden}
+      className={cx('rounded-lg p-1.5 text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink', className)}
+    >
+      <Icon className="h-4 w-4" aria-hidden />
+    </button>
+  )
+}
+
 /**
  * The shell every Majordom app renders around its routes: a collapsible left rail on desktop
  * (lg+) and a floating 5-button bar + More sheet on phones. Pages wrap their own content in
@@ -130,6 +149,8 @@ export function AppShell({
   app, nav, chat, settingsTo, notifications, username, onLogout, railFooter, children,
 }: AppShellProps) {
   const [collapsed, setCollapsed] = useState(readCollapsed)
+  // Flipping privacy mode remounts the page so every formatted amount re-renders at once.
+  const amountsHidden = useAmountsHidden()
   const [moreOpen, setMoreOpen] = useState(false)
 
   const toggleCollapsed = () => {
@@ -196,6 +217,7 @@ export function AppShell({
               <span className="min-w-0 truncate font-mono text-xs text-ink-3">{username ?? 'Signed in'}</span>
             )}
             <span className={cx('flex items-center gap-1', collapsed && 'flex-col')}>
+              <PrivacyToggle />
               {onLogout && (
                 <button
                   type="button"
@@ -223,8 +245,11 @@ export function AppShell({
       </aside>
 
       <main className="relative h-dvh min-w-0 overflow-y-auto pb-28 lg:pb-0">
-        <div className="absolute right-4 top-3 z-30 lg:hidden">{notifications}</div>
-        {children}
+        <div className="absolute right-4 top-3 z-30 flex items-center gap-1 lg:hidden">
+          <PrivacyToggle />
+          {notifications}
+        </div>
+        <div key={amountsHidden ? 'hidden' : 'shown'} className="contents">{children}</div>
       </main>
 
       <MobileTabBar nav={nav} chat={chat} moreOpen={moreOpen} onMore={() => setMoreOpen(true)} />

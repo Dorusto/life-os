@@ -38,7 +38,7 @@ export function PageHeader({
   title, eyebrow, description, back, tabs, tab, onTabChange, actions, className,
 }: PageHeaderProps) {
   return (
-    <header className={cx('mb-6 flex flex-wrap items-start justify-between gap-x-6 gap-y-4 pr-12 lg:pr-0', className)}>
+    <header className={cx('mb-6 flex flex-wrap items-start justify-between gap-x-6 gap-y-4 pr-20 lg:pr-0', className)}>
       <div className="flex min-w-0 items-start gap-3">
         {back && ('to' in back ? (
           <Link to={back.to} aria-label="Back" className={backClass}>
