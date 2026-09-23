@@ -16,24 +16,37 @@ def test_public_settings_never_include_api_key(monkeypatch, tmp_path):
     monkeypatch.delenv("TWELVE_DATA_API_KEY", raising=False)
 
     # database.get_settings() would happily return the raw row, so the
-    # response helper is the one place that has to strip it.
-    assert main._market_data_configured() is False
+    # response helper is the one place that has to strip it. Market data is
+    # "configured" with or without a key now: Yahoo needs none, and Twelve
+    # Data is only an optional fallback.
+    assert main._market_data_configured() is True
+    assert main._public_settings()["market_data_source"] == "yahoo"
+    assert main._public_settings()["market_data_key_source"] is None
 
     database.set_setting("twelve_data_api_key", "super-secret")
 
     assert main._market_data_configured() is True
     settings = main._public_settings()
+    assert settings["market_data_source"] == "yahoo+twelvedata"
+    assert settings["market_data_key_source"] == "settings"
     assert "twelve_data_api_key" not in settings
     assert "super-secret" not in str(settings)
 
 
-def test_market_data_configured_falls_back_to_env(monkeypatch, tmp_path):
+def test_market_data_configured_is_true_even_without_any_key(monkeypatch, tmp_path):
+    """Yahoo is keyless, so the "configured" flag no longer gates pricing; a key
+    only widens the provider set reported to the UI."""
     db_path = str(tmp_path / "inv.db")
     database.init_db(db_path)
     monkeypatch.setattr(database, "get_db_path", lambda: db_path)
+    monkeypatch.delenv("TWELVE_DATA_API_KEY", raising=False)
+
+    assert main._market_data_configured() is True
+    assert main._public_settings()["market_data_source"] == "yahoo"
 
     monkeypatch.setenv("TWELVE_DATA_API_KEY", "env-key")
     assert main._market_data_configured() is True
+    assert main._public_settings()["market_data_source"] == "yahoo+twelvedata"
 
 
 def test_api_key_source_prefers_stored_key(monkeypatch, tmp_path):
@@ -78,7 +91,8 @@ def test_public_settings_expose_source_and_errors(monkeypatch, tmp_path):
     )
 
     settings = main._public_settings()
-    assert settings["market_data_source"] == "settings"
+    assert settings["market_data_source"] == "yahoo+twelvedata"
+    assert settings["market_data_key_source"] == "settings"
     assert settings["market_data_errors"] == {"AAPL": "symbol AAPL is missing or invalid"}
     # The key itself still never leaves the backend.
     assert "twelve_data_api_key" not in settings
