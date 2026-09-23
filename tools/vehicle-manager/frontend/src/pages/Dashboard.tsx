@@ -3,9 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { Car } from 'lucide-react'
 import VehicleSwitcher from '../components/VehicleSwitcher'
 import { Button } from '../components/Button'
-import { Card } from '../components/Card'
 import { ErrorState, Loading } from '../components/Feedback'
-import { MetricTile } from '../components/MetricTile'
+import { Card } from '../components/kit/Card'
+import { HeroValue, StatStrip } from '../components/kit/Stats'
+import { DomainTabs } from '../components/shell/DomainTabs'
 import { PageHeader } from '../components/shell/PageHeader'
 import { getVehicleSummary } from '../lib/api'
 import { formatCurrency, formatNumber } from '../lib/formatCurrency'
@@ -26,6 +27,8 @@ export default function Dashboard() {
 
   return (
     <div>
+      <DomainTabs app="transport" active="vehicles" />
+
       <PageHeader
         title="Home"
         eyebrow={new Date().toLocaleDateString('en-GB', {
@@ -64,56 +67,67 @@ export default function Dashboard() {
             </div>
           ) : (
             <>
-              <Card title="Fuel economy" className="mt-5">
-                <div className="grid grid-cols-3 gap-3">
-                  <MetricTile
-                    label="Average"
-                    value={summary?.avg_consumption != null ? formatNumber(summary.avg_consumption, 1) : '—'}
-                    hint="L/100km"
-                  />
-                  <MetricTile
-                    label="Last fill"
-                    value={summary?.last_consumption != null ? formatNumber(summary.last_consumption, 1) : '—'}
-                    hint="L/100km"
-                  />
-                  <MetricTile
-                    label="Last price"
-                    value={
-                      summary?.last_fuel_price != null
-                        ? formatCurrency(summary.last_fuel_price, { decimals: 3 })
-                        : '—'
-                    }
-                    hint={summary?.last_fuel_date ? formatDate(summary.last_fuel_date) : undefined}
-                  />
+              {summary && (
+                <div className="mt-6">
+                  <HeroValue label="Spent this year" value={formatCurrency(summary.cost_this_year)} />
                 </div>
+              )}
+
+              <Card label="Fuel economy" className="mt-5">
+                <StatStrip
+                  stats={[
+                    {
+                      label: 'Average',
+                      value: summary?.avg_consumption != null ? formatNumber(summary.avg_consumption, 1) : '—',
+                      hint: 'L/100km',
+                    },
+                    {
+                      label: 'Last fill',
+                      value: summary?.last_consumption != null ? formatNumber(summary.last_consumption, 1) : '—',
+                      hint: 'L/100km',
+                    },
+                    {
+                      label: 'Last price',
+                      value:
+                        summary?.last_fuel_price != null
+                          ? formatCurrency(summary.last_fuel_price, { decimals: 3 })
+                          : '—',
+                      hint: summary?.last_fuel_date ? formatDate(summary.last_fuel_date) : undefined,
+                    },
+                  ]}
+                />
               </Card>
 
-              <Card title="Costs" className="mt-5">
-                <div className="grid grid-cols-3 gap-3">
-                  <MetricTile label="This month" value={summary ? formatCurrency(summary.cost_this_month) : '—'} />
-                  <MetricTile label="This year" value={summary ? formatCurrency(summary.cost_this_year) : '—'} />
-                  <MetricTile label="All time" value={summary ? formatCurrency(summary.total_cost) : '—'} />
-                </div>
+              <Card label="Costs" className="mt-5">
+                <StatStrip
+                  stats={[
+                    { label: 'This month', value: summary ? formatCurrency(summary.cost_this_month) : '—' },
+                    { label: 'This year', value: summary ? formatCurrency(summary.cost_this_year) : '—' },
+                    { label: 'All time', value: summary ? formatCurrency(summary.total_cost) : '—' },
+                  ]}
+                />
               </Card>
 
-              <Card title="Distance" className="mt-5">
-                <div className="grid grid-cols-3 gap-3">
-                  <MetricTile
-                    label="Odometer"
-                    value={summary?.last_odo != null ? formatNumber(summary.last_odo) : '—'}
-                    hint="km"
-                  />
-                  <MetricTile
-                    label="This month"
-                    value={summary ? formatNumber(summary.distance_this_month) : '—'}
-                    hint="km"
-                  />
-                  <MetricTile
-                    label="This year"
-                    value={summary ? formatNumber(summary.distance_this_year) : '—'}
-                    hint="km"
-                  />
-                </div>
+              <Card label="Distance" className="mt-5">
+                <StatStrip
+                  stats={[
+                    {
+                      label: 'Odometer',
+                      value: summary?.last_odo != null ? formatNumber(summary.last_odo) : '—',
+                      hint: 'km',
+                    },
+                    {
+                      label: 'This month',
+                      value: summary ? formatNumber(summary.distance_this_month) : '—',
+                      hint: 'km',
+                    },
+                    {
+                      label: 'This year',
+                      value: summary ? formatNumber(summary.distance_this_year) : '—',
+                      hint: 'km',
+                    },
+                  ]}
+                />
               </Card>
             </>
           )}
