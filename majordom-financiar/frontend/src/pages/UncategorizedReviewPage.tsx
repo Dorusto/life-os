@@ -1,10 +1,8 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Tags } from 'lucide-react'
+import { Tags } from 'lucide-react'
 import { getUncategorizedGroups, type CategoryActionData } from '../lib/api'
-import PageHeader from '../components/PageHeader'
-import IconButton from '../components/IconButton'
+import { PageHeader } from '../components/shell/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import CategoryActionCard from '../components/CategoryActionCard'
 
@@ -19,7 +17,6 @@ import CategoryActionCard from '../components/CategoryActionCard'
  * checkbox and drives confirm/cancel itself.
  */
 export default function UncategorizedReviewPage() {
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   // Locally-dismissed items (confirmed or cancelled) — filters them out of
   // the list without waiting on a refetch, same pattern as DuplicatesReviewPage.
@@ -38,22 +35,14 @@ export default function UncategorizedReviewPage() {
   }
 
   return (
-    <div className="min-h-full bg-token-paper flex flex-col">
+    <div className="flex flex-col">
       <PageHeader
-        label="Review"
+        eyebrow="Review"
         title="Uncategorized"
-        actions={
-          <>
-            <IconButton
-              icon={ArrowLeft}
-              onClick={() => navigate('/')}
-              label="Back to home"
-            />
-            <StandardHeaderActions variant="no-add" />
-          </>
-        }
+        back={{ to: '/' }}
+        actions={<StandardHeaderActions variant="no-add" />}
       />
-      <div className="flex-1 px-5 pb-24 space-y-3">
+      <div className="flex-1 space-y-3">
         <p className="text-xs text-token-ink-3 px-1">
           Transactions grouped by payee, with a suggested category from your history.
           Review each group and confirm one at a time — nothing is touched until you tap Confirm.

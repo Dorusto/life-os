@@ -28,7 +28,7 @@ import VehicleStatusCard from '../components/VehicleStatusCard'
 import NotificationTimeCard from '../components/NotificationTimeCard'
 import Chart from '../components/Chart'
 import TransactionListCard, { TransactionListData } from '../components/TransactionListCard'
-import PageHeader from '../components/PageHeader'
+import { PageHeader } from '../components/shell/PageHeader'
 import IconButton from '../components/IconButton'
 import BottomSheet from '../components/BottomSheet'
 import StandardHeaderActions from '../components/StandardHeaderActions'
@@ -1018,12 +1018,11 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
   }
 
   return (
-    <div className="h-full bg-token-paper flex flex-col">
+    <div className="h-full flex flex-col">
       {/* Header */}
       <PageHeader
-        label="Your financial advisor"
+        eyebrow="Your financial advisor"
         title="Majordom"
-        bordered
         actions={
           <>
             <IconButton icon={MoreVertical} onClick={() => setShowMenu(true)} label="More options" />

@@ -6,6 +6,7 @@ import { getAccountList, getTransactions, setAccountType, ACCOUNT_TYPES } from '
 import { formatCurrency } from '../lib/formatCurrency'
 import { listVehicles } from '../lib/vehicleValueApi'
 import DetailPageSkeleton from '../components/DetailPageSkeleton'
+import { PageHeader } from '../components/shell/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import { groupByMonth } from '../lib/groupByMonth'
 
@@ -134,30 +135,24 @@ export default function AccountDetail() {
   }
 
   return (
-    <div className="min-h-full bg-token-paper flex flex-col">
-      <header className="flex-shrink-0 px-5 pb-3 pt-14">
-        {/* Header stays hand-built: the balance figure lives inside it and the
-            back affordance is a text link, so PageHeader can't take it over
-            without changing the layout (TASK_SPEC gotcha). Only the shared
-            cluster is added, top-right, so bell/gear can't drift from the tabs. */}
-        <div className="flex items-center justify-between gap-2 mb-3">
-          <button
-            onClick={() => navigate('/accounts')}
-            className="flex items-center gap-1 text-token-ink-3 hover:text-token-ink transition-colors text-sm"
-          >
-            <ChevronLeft size={16} /> Accounts
-          </button>
-          <StandardHeaderActions variant="no-add" />
-        </div>
+    <div className="flex flex-col">
+      <PageHeader
+        eyebrow="Account"
+        title={account.name}
+        back={{ to: '/accounts' }}
+        actions={<StandardHeaderActions variant="no-add" />}
+      />
+
+      <section className="pt-2">
+        {/* The balance figure used to live in the hand-built header; the shared
+            PageHeader can't carry a 3xl mono number, so it leads the content
+            instead (eyebrow went from "Balance" to "Account"). */}
         <p className="font-plex-mono text-[11px] uppercase tracking-wide text-token-ink-3">Balance</p>
-        <h1 className="font-plex-sans text-3xl font-bold text-token-ink truncate">{account.name}</h1>
         <p className="font-plex-mono font-medium text-3xl mt-1 tabular-nums">
           {formatCurrency(account.balance, { decimals: 0 })}
         </p>
-      </header>
 
-      <section className="px-5 pt-2 pb-24">
-        <div className="flex items-center gap-1 bg-token-paper rounded-full p-1 border border-token-line w-fit">
+        <div className="flex items-center gap-1 bg-token-paper rounded-full p-1 border border-token-line w-fit mt-4">
           {TABS.map(t => (
             <button
               key={t.value}
