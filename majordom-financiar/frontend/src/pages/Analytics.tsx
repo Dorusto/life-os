@@ -81,7 +81,7 @@ function PillTabs<T extends string>({
           onClick={() => onChange(t.value)}
           className={`text-[11px] font-semibold px-3.5 py-1 rounded-full transition-colors ${
             value === t.value
-              ? 'bg-token-brand text-token-ink'
+              ? 'bg-token-brand text-token-on-brand'
               : 'text-token-ink-3 hover:text-token-ink'
           }`}
         >

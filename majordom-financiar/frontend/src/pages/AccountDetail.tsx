@@ -163,7 +163,7 @@ export default function AccountDetail() {
               key={t.value}
               onClick={() => setTab(t.value)}
               className={`text-[11px] font-semibold px-3.5 py-1 rounded-full transition-colors ${
-                tab === t.value ? 'bg-token-brand text-token-ink' : 'text-token-ink-3 hover:text-token-ink'
+                tab === t.value ? 'bg-token-brand text-token-on-brand' : 'text-token-ink-3 hover:text-token-ink'
               }`}
             >
               {t.label}

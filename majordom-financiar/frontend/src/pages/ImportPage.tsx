@@ -265,7 +265,7 @@ function StepIndicator({ current }: { current: Step }) {
             <div className={`
               w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium
               ${done  ? 'bg-token-gain text-token-ink' : ''}
-              ${active ? 'bg-token-brand text-token-ink' : ''}
+              ${active ? 'bg-token-brand text-token-on-brand' : ''}
               ${!done && !active ? 'bg-token-surface border border-token-line text-token-ink-3' : ''}
             `}>
               {done ? <Check size={12} /> : n}
@@ -510,7 +510,7 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
         <button
           onClick={onNext}
           disabled={!accountId}
-          className="flex-1 py-3 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-ink font-medium text-sm flex items-center justify-center gap-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="flex-1 py-3 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-on-brand font-medium text-sm flex items-center justify-center gap-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Continue <ChevronRight size={16} />
         </button>
@@ -589,7 +589,7 @@ function Step3Confirm({ activeCount, duplicateCount, transferCandidateCount, nee
         <button
           onClick={onImport}
           disabled={loading}
-          className="flex-1 py-3 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-ink font-medium text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-40"
+          className="flex-1 py-3 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-on-brand font-medium text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-40"
         >
           {loading ? (
             <><Loader2 size={16} className="animate-spin" /> Importing...</>

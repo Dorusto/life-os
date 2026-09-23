@@ -184,7 +184,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
           className={`
             px-4 py-3 text-sm leading-relaxed rounded-2xl
             ${msg.role === 'user'
-              ? 'bg-token-brand text-token-ink rounded-br-sm'
+              ? 'bg-token-brand text-token-on-brand rounded-br-sm'
               : 'bg-token-surface border border-token-line text-token-ink rounded-bl-sm'
             }
           `}
@@ -1180,7 +1180,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
             className={`
               w-10 h-10 rounded-xl border flex items-center justify-center transition-all
               ${showMediaMenu
-                ? 'bg-token-brand border-token-brand text-token-ink'
+                ? 'bg-token-brand border-token-brand text-token-on-brand'
                 : 'bg-token-surface border-token-line text-token-ink-3 hover:border-token-brand hover:text-token-ink'}
             `}
             aria-label="Add media"

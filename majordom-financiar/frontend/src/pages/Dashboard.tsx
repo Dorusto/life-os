@@ -229,7 +229,7 @@ export default function Dashboard() {
             </ul>
             <button
               onClick={() => navigate('/chat')}
-              className="w-full py-3 rounded-xl bg-token-brand text-token-ink font-semibold hover:opacity-90 transition-opacity"
+              className="w-full py-3 rounded-xl bg-token-brand text-token-on-brand font-semibold hover:opacity-90 transition-opacity"
             >
               Go to Chat
             </button>
@@ -305,7 +305,7 @@ export default function Dashboard() {
                 </button>
                 <button
                   onClick={doneEdit}
-                  className="bg-token-brand hover:bg-token-brand-2 text-token-ink font-semibold text-xs px-4 py-2 rounded-xl transition-colors"
+                  className="bg-token-brand hover:bg-token-brand-2 text-token-on-brand font-semibold text-xs px-4 py-2 rounded-xl transition-colors"
                 >
                   Done
                 </button>

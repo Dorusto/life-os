@@ -122,7 +122,7 @@ export default function OwnAccountPanel({
             type="button"
             onClick={handleConvert}
             disabled={loading || !accountId}
-            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-token-brand hover:bg-token-brand-2 text-token-ink text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-token-brand hover:bg-token-brand-2 text-token-on-brand text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {loading ? <><Loader2 size={12} className="animate-spin" /> Converting…</> : 'Convert'}
           </button>
