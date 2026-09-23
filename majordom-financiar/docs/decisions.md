@@ -1517,3 +1517,22 @@ unresolved transfer leg is ever suggested. This is exactly the revisit path the 
 Majordom/CSV-created transaction later converted to a transfer is also excluded from candidacy
 while still uncleared. Narrow false-negative class (such a pair must be resolved manually in AB);
 judged clearly preferable to the 17 live false positives.
+
+---
+
+<a id="unified-ui-shared-frontend"></a>
+### Unified UI across Finance, Transport and Invest — shared tokens, shell and content kit (#283, #238)
+
+**Date:** 2026-09-23
+
+**Decision:** The three frontends share one visual system through `packages/frontend-shared`, delivered as **generated copies** (option B): `scripts/sync_shared_frontend.py` writes each shared file into every app at a fixed path with a GENERATED banner, and `scripts/check_shared_frontend_sync.py` (pre-commit) fails on drift. Shared today: `tokens.css` (graphite palette, light/dark, per-app accent via `data-accent`: Finance sage, Transport amber, Invest olive), `BrandMark.tsx` (serif "M" as one path constant; favicon + PWA icons are generated from it), the shell (`AppShell`, `MobileTabBar`, `MoreSheet`, `Page`, `PageHeader`, `DomainTabs`, `AppearanceSettings`, `appLinks`), the content kit (`Card`, `SectionLabel`, `HeroValue`, `StatStrip`, `ListRow`, `ProgressBar`, `EmptyState`, `Segmented`, and dependency-free charts `AreaChart`/`BarChart`/`GroupedBarChart`/`StackedBar`/`DonutChart`/`BarList`), `privacy.ts` (hide-amounts mode) and the money/date formatters.
+
+**Visual direction:** Wealthfolio as reference (agreed on a design mockup). Warm graphite surfaces, no brand hue on chrome (primary action = light pill on dark), color only for data (the app accent) and gain/loss. IBM Plex Mono for navigation, labels, figures and tables, Plex Sans for prose, Instrument Serif only for headline statements and the logo. Collapsible left rail on desktop; floating 5-button bar on phones with the Majordom chat in the middle. Pages are `wide` (max 1600px) or `narrow` (max 1040px, settings/forms). Domain tabs (Spending / Net worth / Investments / Vehicles) at the top of each home page make the three apps read as one product; cross-app tabs are real page loads (different origins).
+
+**Supersedes in part:** `tools/design-unification-plan.md` "Decided" items 1 (248px rail, naval-blue brand), 2 (Finance's `token-*` namespace as mandatory — it is now only a legacy alias; the old flat hex keys it avoided are gone, every app has the same bare Tailwind keys) and 5 (no shared package).
+
+**Why generated copies, not a workspace package:** each app's Docker build context is its own `frontend/` directory and the three services deploy independently; a real package would move build contexts to the repo root and couple the pipelines. Generated files keep builds untouched while making divergence impossible to commit. Revisit (→ a real package) when the #263 hub exists or at the "package for others" stage — the shared files are already context-free (no app imports), so that switch is mechanical.
+
+**Rejected:** a hand-synced copy per app (that is what had diverged: three AppShells, three chat icons, three NotificationBells); MoneyMatter's layout as the reference (the user preferred Wealthfolio after comparing).
+
+**Consequences / rules:** never edit a generated copy; a component needed by two apps goes into the kit at its second occurrence; text on a `bg-brand` fill uses `text-on-brand`; the shell owns scrolling (`main` is `h-dvh overflow-y-auto`), so pages never add their own `h-dvh`/`min-h-dvh` scroll wrapper or bottom-nav padding.

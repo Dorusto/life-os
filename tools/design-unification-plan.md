@@ -1,5 +1,15 @@
 # Design unification across life-os apps — plan
 
+> **Status 2026-09-23 — superseded by the unified-UI work (#283/#238).** The "Decided" items 1, 2
+> and 5 below were replaced: one shared visual system now lives in `packages/frontend-shared`
+> (tokens, logo, shell, content kit, privacy mode) and is generated into all three apps. Rail is
+> collapsible (224/64px), brand is neutral (light pill), Finance's `token-*` keys are only a legacy
+> alias. Rationale: `majordom-financiar/docs/decisions.md#unified-ui-shared-frontend`. Phases below
+> are kept as history; do not follow them for new work. Left open: Transport's local `Card` /
+> `ChartSection` (still imported by a few pages), Finance card-shaped components outside the
+> dashboard (chat action cards, review pages) not yet on the kit.
+
+
 Commissioned 2026-09-13 (overnight session, continued after the user woke up mid-loop). The user's own
 framing: majordom-financiar's Dashboard is visibly messy (uneven widget widths, a forced
 two-column layout that doesn't fit), and he wants **all three apps** (majordom-financiar,
