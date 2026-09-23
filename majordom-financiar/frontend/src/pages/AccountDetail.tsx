@@ -90,7 +90,7 @@ export default function AccountDetail() {
   // has resolved — so a partial load can never fire the redirect.
   if (handingOffToVehicleApp) {
     return (
-      <div className="min-h-dvh bg-token-paper flex flex-col items-center justify-center px-5 pb-24">
+      <div className="min-h-full bg-token-paper flex flex-col items-center justify-center px-5">
         <p className="font-plex-mono text-[11px] uppercase tracking-wide text-token-ink-3">
           Opening Transport…
         </p>
@@ -100,14 +100,14 @@ export default function AccountDetail() {
 
   if (!account) {
     return (
-      <div className="min-h-dvh bg-token-paper flex flex-col px-5 pt-14">
+      <div className="min-h-full bg-token-paper flex flex-col px-5 pt-14">
         <button
           onClick={() => navigate('/accounts')}
           className="flex items-center gap-1 text-token-ink-3 hover:text-token-ink transition-colors text-sm self-start"
         >
           <ChevronLeft size={16} /> Accounts
         </button>
-        <div className="flex-1 flex flex-col items-center justify-center gap-3 pb-24">
+        <div className="flex-1 flex flex-col items-center justify-center gap-3">
           <p className="font-plex-sans text-xl font-bold text-token-ink">Account not found</p>
           <button
             onClick={() => navigate('/accounts')}
@@ -134,7 +134,7 @@ export default function AccountDetail() {
   }
 
   return (
-    <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
+    <div className="min-h-full bg-token-paper flex flex-col">
       <header className="flex-shrink-0 px-5 pb-3 pt-14">
         {/* Header stays hand-built: the balance figure lives inside it and the
             back affordance is a text link, so PageHeader can't take it over

@@ -9,14 +9,14 @@
  */
 export default function DetailPageSkeleton() {
   return (
-    <div className="min-h-dvh bg-token-paper flex flex-col overflow-y-auto animate-pulse">
+    <div className="min-h-full bg-token-paper flex flex-col animate-pulse">
       <header className="flex-shrink-0 px-5 pb-3 pt-14">
         <div className="bg-token-surface-2 rounded mb-3 h-4 w-20" />
         <div className="bg-token-surface-2 rounded mb-2 h-3 w-16" />
         <div className="bg-token-surface-2 rounded mb-1.5 h-8 w-40" />
         <div className="bg-token-surface-2 rounded h-8 w-32" />
       </header>
-      <section className="px-5 pt-2 pb-24 space-y-3">
+      <section className="px-5 pt-2 space-y-3">
         <div className="bg-token-surface-2 rounded-full h-9 w-48" />
         <div className="bg-token-surface rounded-2xl h-32" />
         <div className="bg-token-surface rounded-2xl h-20" />

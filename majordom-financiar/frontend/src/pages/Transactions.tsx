@@ -282,7 +282,7 @@ export default function TransactionsPage() {
   )
 
   return (
-    <div className="h-dvh bg-token-paper flex flex-col overflow-y-auto">
+    <div className="min-h-full bg-token-paper flex flex-col">
       <PageHeader label="All transactions" title="Transactions" actions={<StandardHeaderActions />} bordered />
 
       <section className="flex-1 px-5 pb-40">
