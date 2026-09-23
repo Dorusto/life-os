@@ -212,7 +212,7 @@ export default function LogEntryForm({
         </button>
         <button
           type="submit" disabled={saving}
-          className="flex-1 rounded border border-transparent bg-brand py-2 text-sm font-medium text-white transition-colors hover:bg-brand-2 disabled:opacity-50"
+          className="flex-1 rounded border border-transparent bg-brand py-2 text-sm font-medium text-on-brand transition-colors hover:bg-brand-2 disabled:opacity-50"
         >
           {saving ? 'Saving…' : 'Save'}
         </button>

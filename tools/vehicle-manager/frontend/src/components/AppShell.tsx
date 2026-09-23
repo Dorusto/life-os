@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
-import { Car, LogOut } from 'lucide-react'
+import { LogOut } from 'lucide-react'
+import { BrandMark } from './BrandMark'
 import MajordomButton from './MajordomButton'
 import NotificationBell from './NotificationBell'
 import SettingsButton from './SettingsButton'
@@ -8,13 +9,6 @@ import { clearAuth, getUsername } from '../lib/auth'
 import { NAV_TABS } from '../lib/navTabs'
 import { cn } from '../lib/ui'
 
-function BrandMark() {
-  return (
-    <span className="flex h-8 w-8 items-center justify-center rounded bg-brand text-white">
-      <Car size={17} aria-hidden />
-    </span>
-  )
-}
 
 /**
  * Desktop-only left rail, matching investment-manager's `AppShell.tsx` shape
@@ -38,7 +32,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <div className="lg:grid lg:grid-cols-[248px_1fr]">
       <aside className="hidden border-r border-line bg-surface lg:flex lg:flex-col">
         <div className="flex items-center gap-2.5 px-5 py-5">
-          <BrandMark />
+          <BrandMark size={32} />
           <div className="leading-tight">
             <p className="text-sm font-semibold text-ink">Majordom</p>
             <p className="text-[11px] font-medium text-brand-ink">Transport</p>
