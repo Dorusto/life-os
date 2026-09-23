@@ -1,9 +1,10 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, Upload } from 'lucide-react'
+import { Upload } from 'lucide-react'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
+import { PageHeader } from '../components/shell/PageHeader'
 import { importFuelio, type FuelioImportResult } from '../lib/api'
 
 /**
@@ -38,19 +39,11 @@ export default function FuelioImport() {
 
   return (
     <div>
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={() => navigate('/vehicles')}
-        className="-ml-3 mb-6"
-      >
-        <ChevronLeft size={16} /> Vehicles
-      </Button>
-
-      <h1 className="mb-1 text-xl font-semibold text-ink">Import from Fuelio</h1>
-      <p className="mb-6 text-sm text-ink-2">
-        Upload a Fuelio sync CSV export to create or update a vehicle and its fuel/cost log.
-      </p>
+      <PageHeader
+        title="Import from Fuelio"
+        description="Upload a Fuelio sync CSV export to create or update a vehicle and its fuel/cost log."
+        back={{ to: '/settings' }}
+      />
 
       {result ? (
         <Card>
