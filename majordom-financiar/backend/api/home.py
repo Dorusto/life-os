@@ -306,8 +306,8 @@ async def suggest_uncategorized_category(
 
     A 200 with {"category_name": None} is a valid answer ("the LLM found no
     matching category"), not an error — only a real failure (timeout, bad
-    status, unparseable response, AB unreachable) becomes a 503 the user can
-    retry.
+    status, unparseable response, AB unreachable) turns into a retryable
+    HTTP 503.
     """
     client = get_provider()
     try:
