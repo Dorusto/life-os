@@ -317,6 +317,17 @@ export async function getVehicleCostsSummary(period?: string): Promise<VehicleCo
   return request<VehicleCostsSummary>(`/vehicle/costs-summary${query ? `?${query}` : ''}`)
 }
 
+export interface InvestmentStatus {
+  available: boolean
+}
+
+// The Finance backend proxies Invest's unauthenticated /health, so this reports
+// reachability only. request(), not abRequest(): a 200 here proves nothing
+// about Actual Budget's health (audit finding 57).
+export async function getInvestmentStatus(): Promise<InvestmentStatus> {
+  return request<InvestmentStatus>('/investment/status')
+}
+
 export const ACCOUNT_TYPES = ['Cash', 'Investment', 'Vehicle', 'Loan', 'Rental'] as const
 
 export async function getAccountList(): Promise<AccountListItem[]> {

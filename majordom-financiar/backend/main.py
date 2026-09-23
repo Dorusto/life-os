@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from backend.api import auth, receipts, transactions, chat, chat_history, csv_import, proposals, budget, accounts, setup, balance_adjustments, close_account, push, income_sources, category_actions, fuelio_import, vehicle_proposals, vehicle_log_actions, vehicle_reminder_actions, vehicle_status_actions, vehicle_charts, vehicle_value, finance_charts, home, transfer_conversion, vehicle_accounts_internal, notification_actions, budget_pacing, fire_settings
+from backend.api import auth, receipts, transactions, chat, chat_history, csv_import, proposals, budget, accounts, setup, balance_adjustments, close_account, push, income_sources, category_actions, fuelio_import, vehicle_proposals, vehicle_log_actions, vehicle_reminder_actions, vehicle_status_actions, vehicle_charts, investment_status, vehicle_value, finance_charts, home, transfer_conversion, vehicle_accounts_internal, notification_actions, budget_pacing, fire_settings
 from backend.api.upload_guards import UploadSizeGuardMiddleware
 
 from backend.core.actual_client.client import ActualBudgetUnavailableError
@@ -243,6 +243,7 @@ app.include_router(vehicle_log_actions.router, prefix="/api")
 app.include_router(vehicle_reminder_actions.router, prefix="/api")
 app.include_router(vehicle_status_actions.router, prefix="/api")
 app.include_router(vehicle_charts.router, prefix="/api")
+app.include_router(investment_status.router, prefix="/api")
 app.include_router(vehicle_value.router, prefix="/api")
 app.include_router(finance_charts.router, prefix="/api")
 app.include_router(home.router, prefix="/api")
