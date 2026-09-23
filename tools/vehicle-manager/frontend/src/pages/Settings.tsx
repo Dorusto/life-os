@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { ArrowUpRight, LogOut } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import BottomNav from '../components/BottomNav'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { clearAuth, getUsername } from '../lib/auth'
@@ -79,7 +78,7 @@ export default function Settings() {
   }
 
   return (
-    <div className="min-h-dvh bg-paper px-4 pb-24 pt-8">
+    <div>
       <header className="mb-4">
         <h1 className="text-xl font-semibold text-ink">Settings</h1>
       </header>
@@ -146,8 +145,6 @@ export default function Settings() {
           </Button>
         </div>
       </Card>
-
-      <BottomNav />
     </div>
   )
 }
