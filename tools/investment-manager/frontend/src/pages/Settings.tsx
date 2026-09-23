@@ -6,7 +6,7 @@ import { Button } from '../components/Button'
 import { Card } from '../components/Card'
 import { ErrorState, Loading } from '../components/Feedback'
 import { Field, TextInput } from '../components/Form'
-import { PageHeader } from '../components/PageHeader'
+import { PageHeader } from '../components/shell/PageHeader'
 
 export default function SettingsPage() {
   const queryClient = useQueryClient()
