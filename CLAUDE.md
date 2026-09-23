@@ -16,64 +16,50 @@ Issue priority: GitHub Milestones + Labels, not a doc — see `majordom-financia
 
 ## Rules
 
-- **Language:** discussions in Romanian, all code/docs/commits/issues in English
-- **Before any code:** read `ARCHITECTURE.md` and `ROADMAP.md`
-- **Implementation order:** follow the steps in ARCHITECTURE.md — do not skip the architecture audit (Step 1)
-- **One feature at a time**
-- **Do not store financial data in SQLite** — Actual Budget is the source of truth
-- **GitHub issues, commit messages, code comments** → English only
-- **No real names, license plates, Telegram IDs, personal locations, or personal domains/hostnames/IPs** in any tracked file (docs, decisions, GitHub issues) — this category has leaked into docs twice already (see `docs/sessions/` and git history for both incidents; deliberately not naming the actual leaked value again here — that would just recreate the same problem in the rule meant to prevent it). Illustrative examples in any doc must be generic/hypothetical, never the user's real data — the real data already lives in Actual Budget/`memory.db`/private config, it should never be duplicated into docs. When in doubt, genericize ("the personal domain", "the home LXC") instead of naming the real value.
-  - **Mechanism, not just a warning:** `scripts/check-private-data.sh` (repo root) has a regex per known-sensitive pattern. Enforced two ways: (1) a tracked pre-commit hook at `scripts/hooks/pre-commit`, activated via `git config core.hooksPath scripts/hooks` — see "New dev machine setup" below; (2) a Claude Code `PostToolUse` hook (`majordom-financiar/.claude/settings.json`) that runs it automatically after any `Edit`/`Write` to a `*.md` file, so the mid-session check no longer depends on remembering to run it manually (#213 — the old instruction to run it by hand, added 2026-07-07, had never actually fired because of exactly that dependency, and its command also broke when run from `majordom-financiar/` since the script lives at this repo's root, not a subdirectory). If a new leak category is found, add a `check` line to the script rather than writing a separate one-off check — one scanner, not several.
+- **Language:** discussions in Romanian; all code, docs, commits, issues, comments in English
+- **Before any code:** `majordom-financiar/docs/architecture.md` + `docs/roadmap.md` (via that project's `CLAUDE.md` routing table)
+- **One task per session**; Actual Budget is the source of truth — no financial data in SQLite
+- **No personal data in any tracked file or GitHub text** — the repo is public. No real names
+  (write "the user"), account names, license plates, Telegram IDs, locations, personal
+  domains/hostnames/IPs, personal filesystem paths. Examples must be generic. When in doubt,
+  genericize ("the personal domain", "the home LXC"). Real data lives in Actual Budget,
+  `memory.db`, `PRIVATE_context.md` and `CLAUDE.local.md` — never duplicate it into docs.
+  - Enforced by `scripts/check-private-data.sh` (one regex per category — add a `check` line for a
+    new category, don't write a separate checker), run by the pre-commit hook
+    (`git config core.hooksPath scripts/hooks`) and by a `PostToolUse` hook after every file edit
+    (`majordom-financiar/.claude/settings.json`). History: #213.
 
 ---
 
 ## Collaboration workflow
 
-**Claude** = senior/architect: reads the code, designs the solution, scopes the task.
-**DeepSeek** = engineer: implements.
+Claude = architect, DeepSeek (via Aider, `delegate-by-complexity` skill) = engineer. The full
+rules live in `majordom-financiar/CLAUDE.md#collaboration-rules` — not repeated here.
+When the user asks only to note a bug or idea → create a GitHub issue and stop.
 
-**Default (2026-08-29, corrected from the old manual-file habit): Claude delegates directly via Aider headless, using the `delegate-by-complexity` skill** — isolated git worktree, `aider --model deepseek/... --message-file <task>`, Claude reviews the diff, merges only with the user's explicit confirmation. Claude does not write a static prompt file and stop.
-
-**Fallback only** — when the user wants to run DeepSeek themselves, or Claude Code isn't available (credit exhausted): a prompt file saved under `majordom-financiar/scripts/prompts/deepseek/` to paste directly into DeepSeek. This is the exception path, not the default.
-
-When the user asks only to note a bug or idea → create a GitHub issue and stop. Do not implement.
-
-**`opencode-61` as a coordination system — tried 2026-09-13, reverted 2026-09-14.** Self-hosted DeepSeek agents via OpenRouter (own git push/PR, remote-supervised only) were evaluated as a parallel track to Aider-based delegation above. Outcome: reverted — the GUI-driven setup turned out to be more friction than the already-working Aider flow, no clear net win. Full reasoning: `~/.claude/skills/delegate-by-complexity/references/decisions.md#opencode-61--openhands-detour-reverted-2026-09-13--2026-09-14`. The `opencode-61` LXC itself is still available for other uses (e.g. as an interactive agent Doru drives directly) — that's a separate question from this reverted coordination-system role.
+`opencode-61` as a coordination system was tried 2026-09-13 and reverted 2026-09-14 — see
+`~/.claude/skills/delegate-by-complexity/references/decisions.md`.
 
 ---
 
 ## Financial profile
 
-See `majordom-financiar/PRIVATE_context.md` (gitignored, private) for the complete family financial profile, budget breakdown, and personal context. (`majordom-financiar/CLAUDE.md` itself is tracked/public — dev workflow guide only, no financial data.)
+`majordom-financiar/PRIVATE_context.md` (gitignored). Never copy its content into tracked files.
 
 ---
 
-## Current priorities (2026-07-05)
+## Priorities
 
-Full prioritized backlog lives on GitHub as Milestones + Labels (`tier-2`, `tier-3`, `intelligence-cluster`, `deferred-local-first`, `deferred-opportunistic`) — not a doc, see `majordom-financiar/CLAUDE.md#priority-tracking`. Example: `gh issue list --label tier-2`.
+GitHub Milestones + Labels are the only source of truth (`gh issue list --label tier-2`), see
+`majordom-financiar/.claude/rules/priority-tracking.md`. Do not keep a priority list in this file.
 
-1. **Just completed** — #99 (`merchant_mappings` SQLite removed, replaced by Actual Budget's native Rules engine), #93 (code audit), [#138](https://github.com/Dorusto/life-os/issues/138) (extract `vehicle-manager` as independent service)
-2. **Next up** — check `gh issue list --label tier-2` / `tier-3` for the current ready-to-pick-up backlog (this list drifts — GitHub is the source of truth, see `#priority-tracking` above)
-3. **Proactive budget intelligence** (#41, #42, #110-114, #116, #124) — real but medium priority, grouped, picked up once standard-functionality work runs dry
-4. **Deferred to local-first LLM switch-back** — #75, #65, #80/#81/#86 (see `decisions.md#llm-provider`), high priority again once local models are back in active use
-5. **M2.5 budget calibration** — reframed from "goal proposal", tracked as [#110](https://github.com/Dorusto/life-os/issues/110)/[#111](https://github.com/Dorusto/life-os/issues/111) (see `majordom-financiar/docs/decisions.md#budget-calibration`)
-6. **Sure/Ghostfolio evaluation — decided 2026-07-05, Ghostfolio half superseded 2026-08-28.** All 4 M5 checklist items resolved (MCP server, budget parity, portfolio comparison, all tested live). Original decision: stay on AB + Ghostfolio — Sure lacks true budget carryover and API-level budget/goal writes; Ghostfolio computes portfolio performance natively, Sure's API doesn't yet. **That still holds for AB vs. Sure** (the monthly `sure-migration-trigger-check` cloud routine was stopped 2026-08-30, alongside deleting Sure's own trial deployment — nothing left to watch for). **Ghostfolio itself was dropped 2026-08-28** — never deployed/integrated, confirmed CSV-only; portfolio data source is now open, not decided. See `majordom-financiar/docs/decisions.md#ghostfolio-dropped` and `#sure-budget-parity-evaluation`.
+**Platform sequencing (decided 2026-09-12)** — personal completeness first, packaging last:
+1. `vehicle-manager` as a standalone app — ✅ built 2026-09-12 (#261), awaiting the user's review
+2. Separate investment/portfolio app (#262) — supersedes Phase D's "portfolio inside Majordom";
+   read `tools/standalone-app-playbook.md` first
+3. Visual polish across all apps (MoneyMatter as reference)
+4. Only then: package for others (generic setup, installer)
 
-## Open fork: after majordom-financiar stabilizes — resolved 2026-09-12
-
-Superseded the 2026-07-05 framing below once Phase C/C2 (majordom-financiar's own zero-touch-administration + coaching cluster) actually reached "stable," the condition this fork was always waiting on.
-
-**Decision — personal completeness first, packaging-for-others last.** Explicit sequencing, in order:
-1. **`vehicle-manager` becomes a real standalone app** — its own frontend with its own charts (Fuelio-style), not pages living inside majordom-financiar's own React app the way they do today (`tools/vehicle-manager/` is currently backend-only). Runs independently; majordom-financiar keeps working standalone too. Majordom-financiar consumes it only through its existing API client for chat/notifications ("intelligence"), same relationship as today, just with a real UI on the other end now. **✅ Built and live-verified standalone 2026-09-12** (`tools/vehicle-manager/docs/standalone-app-plan.md`, #261) — next checkpoint is Doru's own review, not a further phase.
-2. **A new, separate investment/portfolio-tracking app** (#262) — same shape as (1): its own frontend + backend + database, its own URL, talks to Majordom over API. This **supersedes Phase D's original framing** in `majordom-financiar/docs/product-plan.md` ("build the portfolio calculation layer inside Majordom") — the calculation layer now belongs to this new service instead, not inside majordom-financiar's own codebase. See `majordom-financiar/docs/decisions.md#portfolio-becomes-separate-service` for the full reasoning, and `tools/standalone-app-playbook.md` for the reusable build process extracted from building (1) — read that before starting this one.
-3. **Visual polish across the board**, MoneyMatter as the explicit reference (already the direction tonight's Analytics v1 took, and the `frontend-design` skill's kind of pass) — Doru's own read of the current state: it looks fairly rough.
-4. **Only then**, package for others (the original option 1 below) — generic setup, no Docker knowledge required, installer.
-
-This also resolves (in direction, not in the concrete folder path yet) the still-open #150 naming-convention question for these two new services — they follow the "each service independent" architecture target already stated above, exact naming/location still pending #150 itself.
-
-**Original 2026-07-05 framing, kept for history:**
-Two directions competed for what comes after the core (M0-M4) is stable:
-1. Package Majordom for others to install/use — generic setup instead of hardcoded personal config (`PRIVATE_context.md` assumptions), an installer that doesn't require Docker knowledge.
-2. Keep building new personal capabilities — e.g. a "digital majordom" that ingests documents (insurance cards, warranties), remembers them via RAG, stores the file in Nextcloud, and retrieves it on request. Also a future wellness domain.
-
-The leaning at the time was (1) first; what actually got decided once the moment arrived was a more specific version of (2) — not the RAG/documents idea, but the two standalone-app extractions above — sequenced *before* (1), not after. The RAG/wellness idea from option 2 isn't rejected, just not what got prioritized here.
+Naming/location of new services is still pending #150. History of this decision and of the
+Sure/Ghostfolio evaluation: `majordom-financiar/docs/decisions.md` and
+`majordom-financiar/docs/sessions/claude-md-archive.md`.

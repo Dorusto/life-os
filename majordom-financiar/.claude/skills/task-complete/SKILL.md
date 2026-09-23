@@ -11,6 +11,8 @@ Formalizes the step that used to live as prose in `CLAUDE.md` under "End-of-task
 
 ## 1 — Pre-commit review, before committing anything
 
+First run `scripts/smoke-test.sh` and keep its output as evidence — a failing check blocks the commit the same way a review violation does.
+
 Run the `pre-commit-review` subagent (`.claude/agents/pre-commit-review.md`) on the diff — pass it the DeepSeek prompt file path too if the task was implemented by DeepSeek. If it reports a violation: fix directly (Claude-implemented) or send back to DeepSeek/Aider with the specific observation (delegated). Only after it reports "safe to commit" → proceed to step 2.
 
 **Skip it only when every piece of the diff was already manually reviewed line-by-line in THIS conversation** — code you personally wrote and read, or every delegated diff read plus live/functional verification (not just a compile check). Note what was already checked in the session log instead. Default to running it whenever anything went straight from delegation to merge without an in-conversation review, or whenever in doubt — this is a bar to clear, not a default to lean on. Why: `decisions.md#task-complete-skill-made-cheaper`.
@@ -27,14 +29,16 @@ Run the `pre-commit-review` subagent (`.claude/agents/pre-commit-review.md`) on 
    - Design decision made during session → add to `docs/decisions.md`.
    - **Hit friction this session that a rule/skill/hook would have caught or avoided → implement that setup change now** (new `.claude/rules/` entry, skill update, or GitHub issue if it's bigger than one session), not just a session-log note. The setup should get measurably better every session, not just document what happened.
    - Rule already documented → no action.
-7. Fix any outdated notes in `CLAUDE.md`.
+7. Fix any outdated notes in `CLAUDE.md` — rules only; dated history goes to `docs/decisions.md` or the session log, never into `CLAUDE.md` itself.
+8. Run any private wrap-up steps listed in `CLAUDE.local.md` (if present).
+9. GitHub-side steps (`git push`, `gh issue close`) are gated by a local time-window hook — if it blocks, list the pending closes in the summary instead of skipping them.
 
 ## 3 — When reporting the task as done: summary + next-session kickoff prompt
 
 After the summary of what was done, decide whether to also hand off to a fresh session:
 
 - **Default:** give a kickoff prompt for the next session, written to paste directly into a new chat here — never saved to a file (same reasoning as the DeepSeek-prompt-file rule under "Collaboration rules": nothing downstream consumes it). Base it on what actually makes sense to pick up next (open issues, the roadmap, anything flagged `Unresolved` in this session's log entry). Take into account whatever delegation tooling is available now (e.g. `/delegate-by-complexity` for parallel opencode/DeepSeek/qwen-local dispatch) when the next task is a good fit for it — name it in the prompt if so.
-- **Exception:** if this session's context isn't heavily loaded yet and the next step is purely architecture discussion + delegation dispatch (no heavy file-reading or implementation work), skip the new-session suggestion — say so, and just continue in the current chat instead. Established 2026-08-28, at Doru's explicit request, as the default going forward — not a one-time note in a session log; codified here since majordom-financiar's own "no auto-memory" rule means workflow preferences live in this file, not `~/.claude/projects/.../memory/`.
+- **Exception:** if this session's context isn't heavily loaded yet and the next step is purely architecture discussion + delegation dispatch (no heavy file-reading or implementation work), skip the new-session suggestion — say so, and just continue in the current chat instead. Established 2026-08-28, at the user's explicit request, as the default going forward — not a one-time note in a session log; codified here since majordom-financiar's own "no auto-memory" rule means workflow preferences live in this file, not `~/.claude/projects/.../memory/`.
 
 ## Sessions log format
 
