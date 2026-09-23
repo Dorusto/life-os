@@ -130,13 +130,14 @@ def test_get_price_history_skips_yahoo_null_closes(monkeypatch, tmp_path):
 
 
 def test_get_price_caches_with_string_currency(monkeypatch, tmp_path):
-    """``build_holdings`` passes the security's currency *string*; the caller's
-    annotation must win over the provider's and must not be read as a dict."""
+    """``build_holdings`` passes the security's currency *string*; it must not be
+    read as a dict. (A provider quoting another currency is converted instead —
+    see test_get_price_converts_pence_and_foreign_listing_currency.)"""
     db_path = str(tmp_path / "inv.db")
     database.init_db(db_path)
     monkeypatch.setattr(database, "get_db_path", lambda: db_path)
     monkeypatch.delenv("TWELVE_DATA_API_KEY", raising=False)
-    _patch_yahoo(monkeypatch, _yahoo_chart_payload(price="123.45", currency="EUR"))
+    _patch_yahoo(monkeypatch, _yahoo_chart_payload(price="123.45", currency="USD"))
 
     price = market_data.get_price("ACME.US", currency="USD")
     assert price == 123.45
@@ -334,3 +335,29 @@ def test_429_enters_cooldown_and_skips_remaining_calls_without_waiting(monkeypat
     clock.now += market_data.RATE_LIMIT_COOLDOWN_SECONDS
     monkeypatch.setattr(market_data.httpx, "get", lambda *a, **k: _StubResponse())
     market_data._get_json("/price", {"symbol": "ACME.US"})  # no longer in cooldown, retries live
+
+
+def test_yahoo_symbol_maps_broker_suffixes():
+    assert market_data._yahoo_symbol("EGLN.UK") == "EGLN.L"
+    assert market_data._yahoo_symbol("INTC.US") == "INTC"
+    assert market_data._yahoo_symbol("SXR8.DE") == "SXR8.DE"
+    assert market_data._yahoo_symbol("USDEUR=X") == "USDEUR=X"
+
+
+def test_get_price_converts_pence_and_foreign_listing_currency(monkeypatch, tmp_path):
+    db_path = str(tmp_path / "inv.db")
+    database.init_db(db_path)
+    monkeypatch.setattr(database, "get_db_path", lambda: db_path)
+    monkeypatch.delenv("TWELVE_DATA_API_KEY", raising=False)
+    requested = []
+
+    def fake_chart(symbol, params):
+        requested.append(symbol)
+        if symbol == "GBPUSD=X":
+            return {"meta": {"regularMarketPrice": 1.25, "currency": "USD"}}
+        return {"meta": {"regularMarketPrice": 5000.0, "currency": "GBp"}}
+
+    monkeypatch.setattr(market_data, "_yahoo_chart", fake_chart)
+    # 5000 pence = 50 GBP, at 1.25 USD per GBP = 62.5 USD
+    assert market_data.get_price("ABC.UK", currency="USD") == pytest.approx(62.5)
+    assert requested[0] == "ABC.UK"

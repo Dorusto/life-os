@@ -296,6 +296,33 @@ def _to_float(value) -> float | None:
 # Yahoo Finance (keyless primary)
 # ---------------------------------------------------------------------------
 
+# Broker exports (XTB) suffix tickers by market (EGLN.UK, INTC.US); Yahoo uses
+# exchange suffixes instead (EGLN.L, INTC). Only the live request is translated —
+# the stored ticker stays what the user imported.
+_YAHOO_SUFFIX = {
+    ".US": "", ".UK": ".L", ".NL": ".AS", ".FR": ".PA", ".IT": ".MI",
+    ".ES": ".MC", ".CH": ".SW", ".PL": ".WA", ".BE": ".BR", ".PT": ".LS",
+}
+
+# Yahoo quotes some venues in minor units (London in pence as "GBp"/"GBX").
+_MINOR_UNITS = {"GBp": "GBP", "GBX": "GBP", "ZAc": "ZAR", "ILA": "ILS"}
+
+
+def _yahoo_symbol(ticker: str) -> str:
+    """Translate a broker-style ticker to Yahoo's symbol (``=X`` FX pairs pass through)."""
+    for suffix, yahoo_suffix in _YAHOO_SUFFIX.items():
+        if ticker.upper().endswith(suffix):
+            return ticker[: -len(suffix)] + yahoo_suffix
+    return ticker
+
+
+def _major_units(value: float, currency: str | None) -> tuple[float, str | None]:
+    """Convert a minor-unit quote (pence) to its major currency."""
+    if currency in _MINOR_UNITS:
+        return value / 100.0, _MINOR_UNITS[currency]
+    return value, currency
+
+
 def _yahoo_chart(symbol: str, params: dict) -> dict:
     """GET ``/v8/finance/chart/{symbol}`` and return the first chart result.
 
@@ -305,7 +332,7 @@ def _yahoo_chart(symbol: str, params: dict) -> dict:
     """
     try:
         resp = httpx.get(
-            f"{YAHOO_BASE}/v8/finance/chart/{symbol}",
+            f"{YAHOO_BASE}/v8/finance/chart/{_yahoo_symbol(symbol)}",
             params=params,
             headers=YAHOO_HEADERS,
             timeout=YAHOO_TIMEOUT_SECONDS,
@@ -350,7 +377,7 @@ def _yahoo_price(ticker: str) -> tuple[float, str | None]:
     price = _to_float(meta.get("regularMarketPrice"))
     if price is None:
         raise MarketDataError(f"No price returned for {ticker}")
-    return price, meta.get("currency")
+    return _major_units(price, meta.get("currency"))
 
 
 def _yahoo_rate(from_currency: str, to_currency: str) -> float:
@@ -369,6 +396,10 @@ def _yahoo_history(ticker: str, start_date: str,
     })
     timestamps = result.get("timestamp") or []
     quote = ((result.get("indicators") or {}).get("quote") or [{}])[0]
+    # Same unit as get_price: minor-unit venues (London pence) scale to major units.
+    # A listing currency that differs from the security's own is not converted here
+    # (history has no requested currency); see get_price for the spot-price case.
+    scale = 0.01 if (result.get("meta") or {}).get("currency") in _MINOR_UNITS else 1.0
     points: list[tuple[str, float]] = []
     for timestamp, close in zip(timestamps, quote.get("close") or []):
         value = _to_float(close)
@@ -376,7 +407,7 @@ def _yahoo_history(ticker: str, start_date: str,
             # Yahoo pads non-trading sessions with nulls.
             continue
         day = datetime.fromtimestamp(timestamp, timezone.utc).date().isoformat()
-        points.append((day, value))
+        points.append((day, value * scale))
     if not points:
         raise MarketDataError(f"No price history returned for {ticker}")
     return points
@@ -504,6 +535,20 @@ def get_price(ticker: str, currency: str | None = None, force: bool = False) -> 
             logger.warning("Serving stale cached price for %s: %s", ticker, error)
             return float(cached["price"])
         raise error or MarketDataError(f"No price available for {ticker}")
+    # A provider may quote the same instrument in another currency than the one
+    # the security is held in (EGLN: Yahoo's London line is EUR, the broker line
+    # USD). Convert to the requested currency rather than storing a price in the
+    # wrong unit; if the FX rate itself is unavailable, fall back to cache.
+    if currency and live_currency and live_currency.upper() != currency.upper():
+        try:
+            price = price * get_fx_rate(live_currency, currency)
+        except MarketDataError as exc:
+            _record_error(ticker, exc)
+            if cached:
+                logger.warning("Serving stale cached price for %s: %s", ticker, exc)
+                return float(cached["price"])
+            raise
+        live_currency = currency.upper()
     # Cache-annotation currency priority: caller-supplied > provider-supplied >
     # already-cached > USD. A plain ``currency`` string is common here
     # (build_holdings always passes the security's own), so this must not
