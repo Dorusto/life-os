@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { isAuthenticated } from './lib/auth'
+import { LayoutGrid, Layers, Table2, BarChart3 } from 'lucide-react'
+import { clearAuth, getUsername, isAuthenticated } from './lib/auth'
 import { requestAndSubscribe } from './lib/push'
 import { getSetupStatus } from './lib/api'
 import Login from './pages/Login'
@@ -20,9 +21,9 @@ import BudgetRealismReviewPage from './pages/BudgetRealismReviewPage'
 import RecurringReviewPage from './pages/RecurringReviewPage'
 import Chat, { type Message, INITIAL_MESSAGES } from './pages/Chat'
 import { getChatHistory } from './lib/api'
-import BottomNav from './components/BottomNav'
 import AbConnectionBanner from './components/AbConnectionBanner'
-import { AppShell } from './components/AppShell'
+import NotificationBell from './components/NotificationBell'
+import { AppShell, type ShellNavItem } from './components/shell/AppShell'
 
 /**
  * ProtectedRoute: redirects to /login if the user is not authenticated.
@@ -83,14 +84,53 @@ function MajordomRedirect() {
 }
 
 /**
- * Routes where the bottom nav should NOT be shown.
- * Full-screen flows (login, receipt scan, AB setup) handle their own navigation.
+ * Shell destinations. Order matters: `MobileTabBar` puts the first two and the
+ * third destination around the centre Majordom chat button, while `MoreSheet`
+ * lists `nav.slice(3)` — so Accounts deliberately sits last, behind More
+ * (decisions.md#nav-five-tabs), keeping the bar to five buttons.
  */
-const HIDE_NAV_ON = ['/login', '/setup/ab']
+const NAV: ShellNavItem[] = [
+  { to: '/', label: 'Dashboard', icon: LayoutGrid, end: true },
+  { to: '/transactions', label: 'Transactions', icon: Table2 },
+  { to: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { to: '/accounts', label: 'Accounts', icon: Layers },
+]
+
+/**
+ * The shared shell, mounted exactly once around every protected route via a
+ * pathless layout route + <Outlet/> (not one <AppShell> per page). The shell
+ * owns the rail / floating tab bar, scrolling, notifications, Settings and
+ * Log out — this wrapper only caps content width: 1600px for pages, 1040px for
+ * Settings' narrower form column. `h-full` is required: pages use
+ * `min-h-full`, which needs a parent with a definite height (the shell's <main>
+ * is `h-dvh` and renders its children directly).
+ */
+function ShellLayout() {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const maxWidth = location.pathname.startsWith('/settings') ? 'max-w-[1040px]' : 'max-w-[1600px]'
+
+  return (
+    <AppShell
+      app="finance"
+      nav={NAV}
+      chat={{ to: '/chat' }}
+      settingsTo="/settings"
+      notifications={<NotificationBell />}
+      username={getUsername()}
+      onLogout={() => {
+        clearAuth()
+        navigate('/login', { replace: true })
+      }}
+    >
+      <div className={`mx-auto h-full w-full ${maxWidth}`}>
+        <Outlet />
+      </div>
+    </AppShell>
+  )
+}
 
 function Layout() {
-  const location = useLocation()
-  const showNav = !HIDE_NAV_ON.some(p => location.pathname.startsWith(p))
   const [chatMessages, setChatMessages] = useState<Message[]>(INITIAL_MESSAGES)
   // Lifted above <Chat/> (rather than local state there) so a half-typed message
   // survives navigating away and back — <Chat/> only mounts on the /chat route,
@@ -154,9 +194,7 @@ function Layout() {
 
   return (
     <>
-      <AppShell>
-      <div className="lg:mx-auto lg:max-w-5xl">
-        <Routes>
+      <Routes>
         <Route path="/login" element={<Login />} />
         <Route
           path="/setup/ab"
@@ -166,127 +204,129 @@ function Layout() {
             </ProtectedRoute>
           }
         />
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <Dashboard />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/accounts"
-          element={
-            <ProtectedRoute>
-              <Accounts />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/accounts/:id"
-          element={
-            <ProtectedRoute>
-              <AccountDetail />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/transactions"
-          element={
-            <ProtectedRoute>
-              <TransactionsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/analytics"
-          element={
-            <ProtectedRoute>
-              <AnalyticsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <ProtectedRoute>
-              <SettingsPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/import"
-          element={
-            <ProtectedRoute>
-              <ImportPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/duplicates"
-          element={
-            <ProtectedRoute>
-              <DuplicatesReviewPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/uncategorized-review"
-          element={
-            <ProtectedRoute>
-              <UncategorizedReviewPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/unreconciled-review"
-          element={
-            <ProtectedRoute>
-              <UnreconciledReviewPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/budget-realism-review"
-          element={
-            <ProtectedRoute>
-              <BudgetRealismReviewPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/recurring-review"
-          element={
-            <ProtectedRoute>
-              <RecurringReviewPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/chat"
-          element={
-            <ProtectedRoute>
-              <Chat messages={chatMessages} setMessages={setChatMessages} input={chatInput} setInput={setChatInput} />
-            </ProtectedRoute>
-          }
-        />
-        {/* Cross-app entry point (#12) — other apps link to /majordom. */}
-        <Route
-          path="/majordom"
-          element={
-            <ProtectedRoute>
-              <MajordomRedirect />
-            </ProtectedRoute>
-          }
-        />
+        {/* Pathless layout route: AppShell (desktop rail, mobile floating tab
+            bar) wraps every protected page exactly once, replacing the old
+            per-page wrapper plus the separate <BottomNav /> that used to be
+            rendered outside <Routes>. /login and /setup/ab stay outside it —
+            they own their full-screen flows. */}
+        <Route element={<ShellLayout />}>
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/accounts"
+            element={
+              <ProtectedRoute>
+                <Accounts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/accounts/:id"
+            element={
+              <ProtectedRoute>
+                <AccountDetail />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/transactions"
+            element={
+              <ProtectedRoute>
+                <TransactionsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/analytics"
+            element={
+              <ProtectedRoute>
+                <AnalyticsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/import"
+            element={
+              <ProtectedRoute>
+                <ImportPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/duplicates"
+            element={
+              <ProtectedRoute>
+                <DuplicatesReviewPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/uncategorized-review"
+            element={
+              <ProtectedRoute>
+                <UncategorizedReviewPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/unreconciled-review"
+            element={
+              <ProtectedRoute>
+                <UnreconciledReviewPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/budget-realism-review"
+            element={
+              <ProtectedRoute>
+                <BudgetRealismReviewPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/recurring-review"
+            element={
+              <ProtectedRoute>
+                <RecurringReviewPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/chat"
+            element={
+              <ProtectedRoute>
+                <Chat messages={chatMessages} setMessages={setChatMessages} input={chatInput} setInput={setChatInput} />
+              </ProtectedRoute>
+            }
+          />
+          {/* Cross-app entry point (#12) — other apps link to /majordom. */}
+          <Route
+            path="/majordom"
+            element={
+              <ProtectedRoute>
+                <MajordomRedirect />
+              </ProtectedRoute>
+            }
+          />
+        </Route>
         {/* Catch-all: redirect unknown paths to home */}
         <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </div>
-      </AppShell>
-
-      {/* Bottom nav rendered outside Routes so it persists across page changes */}
-      {showNav && isAuthenticated() && <BottomNav />}
+      </Routes>
       <AbConnectionBanner />
     </>
   )
