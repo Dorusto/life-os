@@ -174,6 +174,9 @@ def _tx_side_dict(tx) -> dict:
     }
 
 
+_DUPLICATE_MATCH_WINDOW_DAYS = 7
+
+
 def _find_duplicate_candidates(
     session, account, newly_synced_ids: set[str] | None = None,
 ) -> list[dict]:
@@ -182,9 +185,18 @@ def _find_duplicate_candidates(
     Matching rule (#181): same account, exact amount match (both sides describe the
     same real payment — no tolerance, unlike #121's OCR-vs-card-auth matcher), one
     side ``cleared == False`` (manual placeholder) and one side ``cleared == True``
-    (bank-synced). No date window — a bank-linked account's uncleared pool stays small
-    on its own, and a bad match is only a dismissible suggestion, never an automatic
-    action. The "manual" side is the uncleared one, the "synced" side the cleared one.
+    (bank-synced), and within ``_DUPLICATE_MATCH_WINDOW_DAYS`` of each other — same
+    convention as ``scripts/ab_audit.py``'s ``dupes()``. Without this window, matching
+    degenerates to amount-only across the account's entire history: live-verified on
+    real data (#303) to produce 132 false positives out of 134 candidates on a single
+    account, mostly recurring same-amount transfers (e.g. a €200 transfer matched
+    against an unrelated €200 gift ~73 days apart) drowning out the 2 real duplicates.
+    A genuine duplicate separated by a longer bank-sync outage (also seen in #303,
+    where sync was down for weeks) falls outside this window and won't surface here —
+    an accepted trade-off, since widening it reintroduces the same false-positive
+    flood from recurring round-amount transfers; such a gap is still findable via the
+    manual `ab_audit.py dupes` script. The "manual" side is the uncleared one, the
+    "synced" side the cleared one.
 
     When ``newly_synced_ids`` is provided, only pairs whose synced side's
     ``financial_id`` is in that set are returned (used at sync time to restrict
@@ -229,6 +241,8 @@ def _find_duplicate_candidates(
                 if m.id == s.id:
                     continue
                 if newly_synced_ids is not None and s.financial_id not in newly_synced_ids:
+                    continue
+                if abs((m.get_date() - s.get_date()).days) > _DUPLICATE_MATCH_WINDOW_DAYS:
                     continue
                 if m.transferred_id and s.transferred_id:
                     continue  # two real transfer legs — ambiguous, skip (#229)
