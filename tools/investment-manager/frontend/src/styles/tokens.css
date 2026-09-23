@@ -51,6 +51,13 @@
   --accent-soft: #e3ebdd;
   --brand-ink: var(--accent);
 
+  /* Fixed swatches for the accent picker (Settings → Appearance) — they must not follow the
+     current accent, so they are separate from --accent. */
+  --swatch-sage: #5e7f4f;
+  --swatch-amber: #9a6a12;
+  --swatch-olive: #6f7222;
+  --swatch-slate: #4d6b8f;
+
   /* --- Semantic --- */
   --gain: #2f7a3e;
   --gain-soft: #e1efe3;
@@ -118,6 +125,11 @@
 
   --accent: #9bb58a;
   --accent-soft: #232a1f;
+
+  --swatch-sage: #9bb58a;
+  --swatch-amber: #d9a441;
+  --swatch-olive: #b5b85a;
+  --swatch-slate: #8fa8c8;
 
   /* --- Semantic --- */
   --gain: #7fb77e;
