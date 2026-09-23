@@ -15,6 +15,7 @@ import { PageHeader } from '../components/shell/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import BottomSheet from '../components/BottomSheet'
 import Chart from '../components/Chart'
+import SpendingWidget from '../components/SpendingWidget'
 import { WIDGETS, WIDGET_SPAN, loadWidgetPrefs, saveWidgetPrefs, type WidgetId } from '../lib/dashboardWidgets'
 import { loadNetWorthIncludePrefs, saveNetWorthIncludePrefs } from '../lib/netWorthPrefs'
 import { useState, useEffect, useRef } from 'react'
@@ -155,6 +156,8 @@ export default function Dashboard() {
         ) : null
       case 'trend':
         return <BalanceHero accounts={accounts} dashboardMonth={dashboardMonth} dashboardYear={dashboardYear} />
+      case 'spending':
+        return <SpendingWidget month={dashboardMonth} year={dashboardYear} />
       case 'latest':
         return <LatestTransactionsWidget transactions={transactions} navigate={navigate} isLoading={transactionsLoading} />
       case 'expenses':
