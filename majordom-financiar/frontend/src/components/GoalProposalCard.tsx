@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { confirmCategoryAction, cancelCategoryAction } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
-import { Card } from './ui/Card'
+import { Card, SectionLabel } from './kit/Card'
 
 export interface GoalProposalData {
   id: string
@@ -50,53 +50,52 @@ export default function GoalProposalCard({ data, onConfirmed, onCancelled }: Pro
   }
 
   return (
-    <Card variant="bubble">
-      <div>
-        <p className="text-token-ink font-medium">Set savings goal?</p>
-        <p className="text-token-ink-3 text-xs mt-0.5">{data.account_name}</p>
-      </div>
+    <Card label="Set savings goal?" className="max-w-[85%] rounded-bl-sm">
+      <div className="space-y-3">
+        <p className="text-token-ink-3 text-xs">{data.account_name}</p>
 
-      {/* Editable amount */}
-      <div className="space-y-1">
-        <p className="text-token-ink-3 text-xs">Target amount</p>
-        <div className="flex items-center gap-1.5 bg-token-paper border border-token-line rounded-xl px-3 py-2">
-          <span className="text-token-ink-3 text-sm">€</span>
+        {/* Editable amount */}
+        <div className="space-y-1">
+          <SectionLabel>Target amount</SectionLabel>
+          <div className="flex items-center gap-1.5 bg-token-paper border border-token-line rounded-xl px-3 py-2">
+            <span className="text-token-ink-3 text-sm">€</span>
+            <input
+              type="number"
+              value={target}
+              onChange={e => setTarget(e.target.value)}
+              className="flex-1 bg-transparent text-token-ink text-sm font-mono tabular-nums outline-none min-w-0"
+              min={0}
+            />
+          </div>
+        </div>
+
+        {/* Editable deadline — input type="month" gives native picker on mobile */}
+        <div className="space-y-1">
+          <SectionLabel>Deadline (optional)</SectionLabel>
           <input
-            type="number"
-            value={target}
-            onChange={e => setTarget(e.target.value)}
-            className="flex-1 bg-transparent text-token-ink text-sm font-plex-mono outline-none min-w-0"
-            min={0}
+            type="month"
+            value={deadline}
+            onChange={e => setDeadline(e.target.value)}
+            className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm font-mono outline-none focus:border-token-brand"
           />
         </div>
+
+        {/* Editable purpose — shown later in the goal card's (i) info popup */}
+        <div className="space-y-1">
+          <SectionLabel>Description (optional)</SectionLabel>
+          <input
+            type="text"
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            placeholder="e.g. trip to Scandinavia"
+            className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
+          />
+        </div>
+
+        {error && <p className="text-token-loss text-xs">{error}</p>}
+
+        <ActionCardButtons onConfirm={handleConfirm} onCancel={handleCancel} loading={loading} confirmDisabled={!target} />
       </div>
-
-      {/* Editable deadline — input type="month" gives native picker on mobile */}
-      <div className="space-y-1">
-        <p className="text-token-ink-3 text-xs">Deadline <span className="text-token-ink-3">(optional)</span></p>
-        <input
-          type="month"
-          value={deadline}
-          onChange={e => setDeadline(e.target.value)}
-          className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm font-plex-mono outline-none focus:border-token-brand"
-        />
-      </div>
-
-      {/* Editable purpose — shown later in the goal card's (i) info popup */}
-      <div className="space-y-1">
-        <p className="text-token-ink-3 text-xs">Description <span className="text-token-ink-3">(optional)</span></p>
-        <input
-          type="text"
-          value={note}
-          onChange={e => setNote(e.target.value)}
-          placeholder="e.g. trip to Scandinavia"
-          className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
-        />
-      </div>
-
-      {error && <p className="text-token-loss text-xs">{error}</p>}
-
-      <ActionCardButtons onConfirm={handleConfirm} onCancel={handleCancel} loading={loading} confirmDisabled={!target} />
     </Card>
   )
 }
