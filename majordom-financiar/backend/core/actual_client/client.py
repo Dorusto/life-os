@@ -205,7 +205,11 @@ def _find_duplicate_candidates(
     Each pair carries a ``"kind"`` (#229): ``"manual_sync"`` for the ordinary case
     above, or ``"transfer"`` when the "manual" side is actually a linked transfer leg
     (``transferred_id`` set — e.g. left uncleared by ``convert_transaction_to_transfer()``
-    and never absorbed by the destination account's own bank sync). Blindly tombstoning
+    and never absorbed by the destination account's own bank sync). A transfer leg that
+    already carries its own ``financial_id`` (independently confirmed by its own bank
+    sync) is excluded from candidacy entirely, however close its amount/date sit to
+    another transaction — that is not an uncertain match, it is already known-complete.
+    Blindly tombstoning
     that side (the old #181 behavior) breaks the transfer link and corrupts both
     accounts' balances — see #229. If the "synced" side is ALSO a transfer leg, the
     pair is ambiguous (two real transfers, not a transfer-vs-duplicate) and is skipped
@@ -234,7 +238,16 @@ def _find_duplicate_candidates(
 
     pairs = []
     for group in by_amount.values():
-        manuals = [t for t in group if not t.cleared or t.transferred_id]
+        # A transfer leg only qualifies as the "manual" (candidate) side while it is
+        # still unresolved — one that already carries its own financial_id was
+        # independently confirmed by its own bank sync and must never be offered for
+        # merging, however closely its amount/date match something else. Non-transfer
+        # placeholders keep the original "not cleared" condition. (#303 follow-up)
+        manuals = [
+            t for t in group
+            if (t.transferred_id and not t.financial_id)
+            or (not t.transferred_id and not t.cleared)
+        ]
         synceds = [t for t in group if t.cleared]
         for m in manuals:
             for s in synceds:
