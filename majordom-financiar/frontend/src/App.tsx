@@ -12,6 +12,7 @@ import Accounts from './pages/Accounts'
 import AccountDetail from './pages/AccountDetail'
 import TransactionsPage from './pages/Transactions'
 import AnalyticsPage from './pages/Analytics'
+import NetWorthPage from './pages/NetWorth'
 import SettingsPage from './pages/Settings'
 import ImportPage from './pages/ImportPage'
 import DuplicatesReviewPage from './pages/DuplicatesReviewPage'
@@ -251,6 +252,16 @@ function Layout() {
             element={
               <ProtectedRoute>
                 <AnalyticsPage />
+              </ProtectedRoute>
+            }
+          />
+          {/* Reached by the platform-wide DomainTabs "Net worth" tab, deliberately
+              not in NAV — the rail stays at five destinations. */}
+          <Route
+            path="/net-worth"
+            element={
+              <ProtectedRoute>
+                <NetWorthPage />
               </ProtectedRoute>
             }
           />
