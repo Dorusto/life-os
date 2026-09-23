@@ -1,10 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Droplet, Shield, Trash2, Wrench, CircleDollarSign } from 'lucide-react'
-import BottomNav from '../components/BottomNav'
-import LogoutButton from '../components/LogoutButton'
-import MajordomButton from '../components/MajordomButton'
-import NotificationBell from '../components/NotificationBell'
-import SettingsButton from '../components/SettingsButton'
 import LogEntryForm from '../components/LogEntryForm'
 import VehicleSwitcher from '../components/VehicleSwitcher'
 import { Loading } from '../components/Feedback'
@@ -72,15 +67,9 @@ export default function TimelinePage() {
   }
 
   return (
-    <div className="min-h-dvh bg-paper px-4 pb-24 pt-8">
-      <header className="mb-4 flex items-center justify-between">
+    <div>
+      <header className="mb-4">
         <h1 className="text-xl font-semibold text-ink">Timeline</h1>
-        <div className="flex items-center gap-3">
-          <NotificationBell />
-          <SettingsButton />
-          <MajordomButton />
-          <LogoutButton />
-        </div>
       </header>
 
       {isLoading ? (
@@ -151,8 +140,6 @@ export default function TimelinePage() {
           <LogEntryForm vehicleId={vehicle.id} onAdded={invalidate} />
         </>
       )}
-
-      <BottomNav />
     </div>
   )
 }

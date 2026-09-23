@@ -1,8 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Car, Upload } from 'lucide-react'
-import BottomNav from '../components/BottomNav'
-import LogoutButton from '../components/LogoutButton'
 import { Button } from '../components/Button'
 import { ErrorState, Loading } from '../components/Feedback'
 import { getVehicles } from '../lib/api'
@@ -21,15 +19,12 @@ export default function VehicleList() {
   })
 
   return (
-    <div className="min-h-dvh bg-paper px-4 pb-24 pt-8">
+    <div>
       <header className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-semibold text-ink">Vehicles</h1>
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate('/import')} className="-mr-2 text-brand">
-            <Upload size={15} /> Import
-          </Button>
-          <LogoutButton />
-        </div>
+        <Button variant="ghost" size="sm" onClick={() => navigate('/import')} className="-mr-2 text-brand">
+          <Upload size={15} /> Import
+        </Button>
       </header>
 
       {isLoading && <Loading />}
@@ -82,8 +77,6 @@ export default function VehicleList() {
           })}
         </ul>
       )}
-
-      <BottomNav />
     </div>
   )
 }

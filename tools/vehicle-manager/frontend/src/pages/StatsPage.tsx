@@ -1,8 +1,6 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import BottomNav from '../components/BottomNav'
 import ChartSection from '../components/ChartSection'
-import LogoutButton from '../components/LogoutButton'
 import VehicleSwitcher from '../components/VehicleSwitcher'
 import { Card } from '../components/Card'
 import { Loading } from '../components/Feedback'
@@ -53,10 +51,9 @@ export default function StatsPage() {
     n != null ? formatNumber(n, dec) : '—'
 
   return (
-    <div className="min-h-dvh bg-paper px-4 pb-24 pt-8">
-      <header className="mb-4 flex items-center justify-between">
+    <div>
+      <header className="mb-4">
         <h1 className="text-xl font-semibold text-ink">Statistics</h1>
-        <LogoutButton />
       </header>
 
       {isLoading ? (
@@ -168,8 +165,6 @@ export default function StatsPage() {
           <ChartSection data={categoriesQuery.data} className="mt-3" />
         </>
       )}
-
-      <BottomNav />
     </div>
   )
 }
