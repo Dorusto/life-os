@@ -12,7 +12,6 @@ Route handlers stay thin (plan section 11): validate → delegate to
 math never lives in this file.
 """
 import logging
-import os
 from datetime import date, datetime, timezone
 
 from fastapi import Depends, FastAPI, File, HTTPException, UploadFile
@@ -303,22 +302,23 @@ def _market_data_configured() -> bool:
     Deliberately reduced to a boolean at the REST boundary: the key value
     itself must never appear in a response body or a log line (plan section 6).
     """
-    stored = (database.get_setting("twelve_data_api_key") or "").strip()
-    env = os.getenv("TWELVE_DATA_API_KEY", "").strip()
-    return bool(stored or env)
+    return market_data.api_key_source() is not None
 
 
 def _public_settings() -> dict:
-    """Stored settings, minus the API key, plus the configuration flag.
+    """Stored settings, minus the API key, plus the market-data diagnostics.
 
     ``database.get_settings()`` returns the raw settings table, which now
     includes ``twelve_data_api_key``; the key is write-only (set via PUT, never
     read back), so it is stripped here to keep a single choke point for every
-    settings response.
+    settings response. ``market_data_source`` says which key is in use (never
+    the key itself) and ``market_data_errors`` explains blank prices.
     """
     settings = dict(database.get_settings())
     settings.pop("twelve_data_api_key", None)
     settings["market_data_configured"] = _market_data_configured()
+    settings["market_data_source"] = market_data.api_key_source()
+    settings["market_data_errors"] = market_data.recent_errors()
     return settings
 
 

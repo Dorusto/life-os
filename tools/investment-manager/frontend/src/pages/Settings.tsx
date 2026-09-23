@@ -62,6 +62,8 @@ export default function SettingsPage() {
   }
 
   const configured = settings.data?.market_data_configured ?? false
+  const source = settings.data?.market_data_source ?? null
+  const errors = Object.entries(settings.data?.market_data_errors ?? {})
 
   return (
     <>
@@ -137,13 +139,32 @@ export default function SettingsPage() {
                 {configured ? 'Twelve Data is configured' : 'Twelve Data is not configured'}
               </p>
               <p className="mt-1 text-ink-2">
-                {configured
-                  ? 'Prices and FX rates refresh at most once a day per symbol; stale cached values are served if the API is unavailable.'
-                  : 'Set TWELVE_DATA_API_KEY in the service environment. Prices and FX rates cannot be fetched until then, and totals that depend on them will be blank.'}
+                {source === 'settings'
+                  ? 'Using the key saved here. It overrides TWELVE_DATA_API_KEY from the server environment, if one is set.'
+                  : source === 'env'
+                    ? 'Using TWELVE_DATA_API_KEY from the server environment. Saving a key here will override it.'
+                    : 'Save a key above, or set TWELVE_DATA_API_KEY in the service environment.'}
               </p>
-              <p className="mt-2 text-[12px] text-ink-3">
-                The API key is a server-side environment variable and is never shown or editable here.
-              </p>
+              {configured && (
+                <p className="mt-1 text-ink-2">
+                  Prices and FX rates refresh at most once a day per symbol; stale cached values are served if the API is unavailable.
+                </p>
+              )}
+              {errors.length > 0 && (
+                <div className="mt-3">
+                  <p className="font-medium text-ink">Symbols failing to refresh</p>
+                  <ul className="mt-1 space-y-0.5">
+                    {errors.slice(0, 10).map(([symbol, message]) => (
+                      <li key={symbol} className="text-[12px] text-ink-2">
+                        <span className="font-mono text-loss">{symbol}</span> — {message}
+                      </li>
+                    ))}
+                  </ul>
+                  {errors.length > 10 && (
+                    <p className="mt-1 text-[12px] text-ink-3">+{errors.length - 10} more</p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </Card>

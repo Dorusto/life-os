@@ -195,11 +195,16 @@ export interface Settings {
   assumed_annual_return: string
   market_data_configured: boolean
   /**
+   * Which key the backend is using: one saved through this page, the
+   * `TWELVE_DATA_API_KEY` environment variable, or none. Added at the REST
+   * boundary by main.py's `_public_settings` — it is not a `models.py` field.
+   */
+  market_data_source: 'settings' | 'env' | null
+  /**
    * Most recent failed price/FX refresh per symbol, empty when all healthy.
    * Added at the REST boundary by main.py's `_public_settings` — it is not a
-   * `models.py` field — and it is the only signal separating "the key is
-   * rejected" from "no key configured yet", because `market_data_configured`
-   * is true in both cases.
+   * `models.py` field — and it explains blank prices (a bad ticker, a
+   * paid-plan-only exchange) that `market_data_configured` cannot.
    */
   market_data_errors: Record<string, string>
 }
