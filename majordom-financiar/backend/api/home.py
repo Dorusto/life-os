@@ -281,6 +281,8 @@ async def get_uncategorized_group_actions(current_user: str = Depends(get_curren
             "notes_contains": "",
             "transactions": preview,
             "available_categories": available_categories,
+            "own_account": g.get("own_account"),
+            "interest_category": g.get("interest_category"),
         })
     return {"items": items}
 

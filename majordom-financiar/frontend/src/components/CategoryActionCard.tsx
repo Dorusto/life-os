@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { confirmCategoryAction, cancelCategoryAction, type CategoryActionData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
+import OwnAccountPanel from './OwnAccountPanel'
 import { formatCurrency } from '../lib/formatCurrency'
 import { Card } from './ui/Card'
 
@@ -427,6 +428,15 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
 
       {isCategorizeWithRule && (
         <div className="space-y-2">
+          {data.own_account && (
+            <OwnAccountPanel
+              payee={payee || data.payee || ''}
+              ownAccount={data.own_account}
+              interestCategory={data.interest_category}
+              onInterest={(category) => setSelectedCategory(category)}
+              onConverted={(message) => onConfirmed(message)}
+            />
+          )}
           <div className="space-y-1">
             <p className="text-token-ink-3 text-xs">Payee</p>
             <input
