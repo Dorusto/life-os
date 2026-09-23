@@ -11,7 +11,7 @@ import {
 } from '../lib/api'
 import Chart from '../components/Chart'
 import InvestmentProjection from '../components/InvestmentProjection'
-import PageHeader from '../components/shell/PageHeader'
+import { PageHeader } from '../components/shell/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import WidgetLoading from '../components/WidgetLoading'
 import { colorForKey } from '../lib/chartColors'

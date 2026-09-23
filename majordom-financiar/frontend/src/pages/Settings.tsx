@@ -18,7 +18,7 @@ import {
 import { isAbDown, subscribeAbDown } from '../lib/abConnectionStatus'
 import { clearAuth } from '../lib/auth'
 import { requestAndSubscribe } from '../lib/push'
-import PageHeader from '../components/shell/PageHeader'
+import { PageHeader } from '../components/shell/PageHeader'
 import { AppearanceSettings } from '../components/shell/AppearanceSettings'
 
 type PageKey =
