@@ -1,0 +1,18 @@
+# Build context for Dockerfile.backend (`COPY . .`). Runtime data and backups are
+# bind-mounted volumes (docker-compose.yml), so they never belong in the image — and
+# secrets/private notes must never be baked into a layer.
+.git
+.env
+.env.*
+!.env.example
+data/
+backups/
+*.local.md
+PRIVATE_context.md
+.claude/
+.worktrees/
+frontend/
+docs/
+**/__pycache__/
+**/*.pyc
+**/node_modules/
