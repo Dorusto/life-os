@@ -13,11 +13,13 @@ import {
   getAccountList,
   type ReceiptDraft,
   type ConfirmResponse,
+  type FuelConfirmResponse,
   type NearDuplicateMatch,
   type Category,
   type AccountOption,
 } from '../lib/api'
 import { formatCurrency } from '../lib/formatCurrency'
+import FuelReceiptCard from '../components/FuelReceiptCard'
 
 /**
  * Receipt flow — the multi-step process after selecting a photo, or manual entry.
@@ -30,9 +32,12 @@ import { formatCurrency } from '../lib/formatCurrency'
  *   success    → checkmark animation, then auto-close
  *   error      → something went wrong, with a retry option
  *
- * Two entry modes, both supplied as props by the caller (AddButton):
+ * Two entry modes, both supplied as props by the caller — AddButton (photo and
+ * manual) and Chat (photo):
  *   - Photo: the picked File is uploaded immediately on mount so OCR runs while
- *     the user looks at the preview.
+ *     the user looks at the preview. A receipt OCR reads as fuel opens the fuel
+ *     form (vehicle, liters, price/L, odometer) with a tab back to the regular
+ *     receipt form — the same fuel form the chat text flow uses.
  *   - Manual: blank fields, no image, no OCR.
  *
  * Split lines (#115): a transaction can be split across 2+ categories. The first
@@ -62,21 +67,36 @@ interface Line {
   newCategoryGroup: string
 }
 
+/**
+ * Result handed back to an optional caller (`onSaved`) once the flow has saved.
+ * `kind` tells the caller which shape of confirmation to render — a plain chat
+ * line for a grocery transaction, or the refuel stats bubble for a fuel one.
+ */
+export type ReceiptSaved =
+  | { kind: 'transaction'; merchant: string; amount: number }
+  | { kind: 'fuel'; draft: ReceiptDraft; stats: FuelConfirmResponse }
+
 interface ReceiptFlowProps {
   mode: 'photo' | 'manual'
   /** The picked image — required in photo mode, ignored in manual mode. */
   file?: File
+  /** Called once when the flow reaches the success state. Optional — AddButton
+   *  doesn't need it; Chat uses it to leave one result line in the transcript. */
+  onSaved?: (result: ReceiptSaved) => void
   onClose: () => void
 }
 
-export default function ReceiptFlow({ mode, file, onClose }: ReceiptFlowProps) {
+export default function ReceiptFlow({ mode, file, onSaved, onClose }: ReceiptFlowProps) {
   const queryClient = useQueryClient()
   const isManual = mode === 'manual'
 
-  // Latest onClose in a ref: the photo-upload effect must run once per picked
-  // file, not re-run every time the parent re-renders with a fresh closure.
+  // Latest onClose/onSaved in refs: the photo-upload effect must run once per
+  // picked file, not re-run every time the parent re-renders with a fresh
+  // closure — so neither belongs in that effect's dependency list.
   const onCloseRef = useRef(onClose)
   useEffect(() => { onCloseRef.current = onClose }, [onClose])
+  const onSavedRef = useRef(onSaved)
+  useEffect(() => { onSavedRef.current = onSaved }, [onSaved])
 
   const [flowState, setFlowState] = useState<FlowState>('uploading')
   const [imageUrl, setImageUrl] = useState<string | null>(null)
@@ -94,6 +114,12 @@ export default function ReceiptFlow({ mode, file, onClose }: ReceiptFlowProps) {
   const [categories, setCategories] = useState<Category[]>([])
   const [accounts, setAccounts] = useState<AccountOption[]>([])
   const [categoryGroups, setCategoryGroups] = useState<string[]>([])
+  // Photo mode only — offer to create an AB rule for this merchant on save,
+  // same "save as rule" option the old inline receipt card had (#99).
+  const [createRule, setCreateRule] = useState(false)
+  // Which form a photo receipt shows. OCR decides the initial value (a fuel
+  // receipt opens straight into the fuel form); the tab row switches.
+  const [activeTab, setActiveTab] = useState<'fuel' | 'grocery'>('grocery')
 
   // Near-duplicate match (bank-sync) awaiting user decision (#121)
   const [possibleMatch, setPossibleMatch] = useState<NearDuplicateMatch | null>(null)
@@ -130,6 +156,7 @@ export default function ReceiptFlow({ mode, file, onClose }: ReceiptFlowProps) {
           isNewCategory: false,
           newCategoryGroup: '',
         }])
+        setActiveTab(result.receipt_type === 'fuel' ? 'fuel' : 'grocery')
         setFlowState('reviewing')
         // Fetch category groups for new-category UI (#187)
         try {
@@ -257,7 +284,7 @@ export default function ReceiptFlow({ mode, file, onClose }: ReceiptFlowProps) {
     try {
       const res: ConfirmResponse = isManual
         ? await createTransaction(base)
-        : await confirmReceipt({ receipt_id: draft!.receipt_id, ...base })
+        : await confirmReceipt({ receipt_id: draft!.receipt_id, ...base, create_rule: createRule })
 
       if (res.possible_match) {
         setPossibleMatch(res.possible_match)
@@ -283,6 +310,10 @@ export default function ReceiptFlow({ mode, file, onClose }: ReceiptFlowProps) {
         }
       }
 
+      // Hand the result back before the success screen's auto-close timer, so a
+      // caller (Chat) can leave one result line in its own transcript.
+      onSavedRef.current?.({ kind: 'transaction', merchant, amount: parsedAmount })
+
       setFlowState('success')
       // Invalidate every query derived from transactions so Home, balances and
       // the review counts refresh automatically (the old ['stats'] key had no
@@ -297,6 +328,27 @@ export default function ReceiptFlow({ mode, file, onClose }: ReceiptFlowProps) {
       setErrorMessage(err instanceof Error ? err.message : 'Failed to save')
       setFlowState('error')
     }
+  }
+
+  // --- Fuel form ---
+
+  // FuelReceiptCard calls this for BOTH outcomes: on success it carries the
+  // stats bubble, on failure `success === false` and `error` has the detail.
+  function handleFuelConfirmed(stats: FuelConfirmResponse) {
+    if (!stats.success) {
+      setErrorMessage(stats.error || 'Failed to save fuel receipt')
+      setFlowState('error')
+      return
+    }
+    queryClient.invalidateQueries({ queryKey: ['transactions'] })
+    queryClient.invalidateQueries({ queryKey: ['home'] })
+    queryClient.invalidateQueries({ queryKey: ['account-list'] })
+    queryClient.invalidateQueries({ queryKey: ['duplicates', 'months'] })
+    queryClient.invalidateQueries({ queryKey: ['home-pending'] })
+    if (draft) onSavedRef.current?.({ kind: 'fuel', draft, stats })
+    setSuccessNotice(stats.vehicle_name ? `Refuel logged — ${stats.vehicle_name}` : 'Refuel logged')
+    setFlowState('success')
+    setTimeout(() => onCloseRef.current(), 2200)
   }
 
   // --- Render states ---
@@ -363,6 +415,35 @@ export default function ReceiptFlow({ mode, file, onClose }: ReceiptFlowProps) {
             transition={{ duration: 0.3, ease: 'easeOut' }}
             className="flex-1 flex flex-col px-5 pt-5 pb-8 gap-4 overflow-y-auto"
           >
+            {draft?.receipt_type === 'fuel' && activeTab === 'fuel' ? (
+              /* Fuel receipt: reuse the fuel form component as-is. No imageUrl
+                 (the popup already shows the big image above) and no
+                 confirmEndpoint (photo mode confirms through confirmFuelReceipt). */
+              <FuelReceiptCard
+                draft={draft!}
+                onConfirmed={handleFuelConfirmed}
+                onCancelled={onClose}
+                onSwitchToGrocery={() => setActiveTab('grocery')}
+              />
+            ) : (
+              <>
+            {/* Fuel/Grocery tab row — only when OCR detected fuel but the user
+                switched to the grocery form. Styling matches FuelReceiptCard's
+                own tab row so the two forms look identical. */}
+            {draft?.receipt_type === 'fuel' && (
+              <div className="flex gap-2 border-b border-token-line">
+                <button
+                  onClick={() => setActiveTab('fuel')}
+                  className="tab-inactive text-sm pb-2 px-1 text-token-ink-3 hover:text-token-ink transition-colors"
+                >
+                  ⛽ Fuel Receipt
+                </button>
+                <button className="tab-active text-sm pb-2 px-1 text-token-brand-ink font-medium border-b-2 border-token-brand">
+                  🛒 Grocery Receipt
+                </button>
+              </div>
+            )}
+
             {/* Category source hint (photo mode only) */}
             {draft?.category_source === 'history' && (
               <p className="text-xs text-token-gain text-center">
@@ -540,6 +621,21 @@ export default function ReceiptFlow({ mode, file, onClose }: ReceiptFlowProps) {
               </button>
             </div>
 
+            {/* Save as rule — photo mode only, the same offer the inline receipt
+                card used to make (#99). Manual entry has no merchant history to
+                learn from, so it stays out of that path. */}
+            {!isManual && (
+              <label className="flex items-center gap-2 text-xs text-token-ink-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={createRule}
+                  onChange={e => setCreateRule(e.target.checked)}
+                  className="rounded border-token-line"
+                />
+                Save as rule — auto-categorize future receipts from this merchant
+              </label>
+            )}
+
             {/* Only show account selector if there are multiple accounts */}
             {accounts.length > 1 && (
               <Field label="Account">
@@ -608,6 +704,8 @@ export default function ReceiptFlow({ mode, file, onClose }: ReceiptFlowProps) {
                   </>
                 )}
               </button>
+            )}
+              </>
             )}
           </motion.div>
         )}

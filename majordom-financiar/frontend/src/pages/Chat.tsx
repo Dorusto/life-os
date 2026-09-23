@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, FormEvent } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Send, Plus, Camera, Image, FileText, HelpCircle, Trash2, MoreVertical } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
-import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, uploadReceipt, saveChatHistory, clearChatHistory, proposeSavingsBudget, type SetupAccount, type BalanceAdjustmentData, type CloseAccountData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type CategoryOverviewData, type BudgetOverviewData, type FuelConfirmResponse, type VehicleLogActionData, type VehicleReminderData, type VehicleStatusData, type TransferConversionData, type NotificationTimeData } from '../lib/api'
+import { sendChatMessageStreaming, getSetupStatus, previewCsvImport, importFuelio, saveChatHistory, clearChatHistory, proposeSavingsBudget, type SetupAccount, type BalanceAdjustmentData, type CloseAccountData, type ImportPreview, type ReceiptDraft, type CategoryActionData, type CategoryOverviewData, type BudgetOverviewData, type FuelConfirmResponse, type VehicleLogActionData, type VehicleReminderData, type VehicleStatusData, type TransferConversionData, type NotificationTimeData } from '../lib/api'
 import CsvImportCard from '../components/CsvImportCard'
 import FuelioImportCard, { FuelioImportData } from '../components/FuelioImportCard'
 import ProposalCard, { ProposalData } from '../components/ProposalCard'
@@ -14,8 +14,8 @@ import BalanceAdjustmentCard from '../components/BalanceAdjustmentCard'
 import CloseAccountCard from '../components/CloseAccountCard'
 import TransferConversionCard from '../components/TransferConversionCard'
 import IncomeSourceCard from '../components/IncomeSourceCard'
-import ReceiptCard from '../components/ReceiptCard'
 import FuelReceiptCard from '../components/FuelReceiptCard'
+import ReceiptFlow, { type ReceiptSaved } from './ReceiptFlow'
 import CategoryActionCard from '../components/CategoryActionCard'
 import CategoryOverviewCard from '../components/CategoryOverviewCard'
 import BudgetOverviewCard from '../components/BudgetOverviewCard'
@@ -37,7 +37,7 @@ import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 
 
 export interface Message {
-  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'close_account' | 'csv_import' | 'fuelio_import' | 'income_source' | 'receipt' | 'category_action' | 'category_overview' | 'budget_overview' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder' | 'vehicle_status' | 'transfer_conversion' | 'chart' | 'notification_time' | 'transaction_list'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'close_account' | 'csv_import' | 'fuelio_import' | 'income_source' | 'category_action' | 'category_overview' | 'budget_overview' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder' | 'vehicle_status' | 'transfer_conversion' | 'chart' | 'notification_time' | 'transaction_list'
 
   content: string
   ts?: number
@@ -59,14 +59,6 @@ export interface Message {
   csvImport?: { status: 'loading' | 'ready' | 'error'; preview?: ImportPreview; error?: string }
   fuelioImport?: FuelioImportData
   incomeRow?: { payee: string; amount: number; date: string }
-  receipt?: {
-    status: 'loading' | 'reviewing' | 'error'
-    imageUrl?: string
-    draft?: ReceiptDraft
-    error?: string
-    activeTab?: 'fuel' | 'grocery'
-    fuelStats?: FuelConfirmResponse
-  }
   categoryAction?: CategoryActionData
   categoryOverview?: CategoryOverviewData
   budgetOverview?: BudgetOverviewData
@@ -124,6 +116,9 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
   const [showMediaMenu, setShowMediaMenu] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
+  // Photo picked in chat — while this is set, ReceiptFlow renders over the chat
+  // (the same popup Add uses). Cleared when the flow closes.
+  const [receiptFile, setReceiptFile] = useState<File | null>(null)
   const messagesContainerRef = useRef<HTMLDivElement>(null)
   // Active chat stream's AbortController — aborted on unmount so navigating
   // away doesn't leave the fetch/reader running (audit 2026-09-15 finding 49).
@@ -521,65 +516,6 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
         />
       )
     },
-    receipt: (msg, idx) => {
-      if (!msg.receipt) return null
-      // Show fuel stats after confirmation
-      if (msg.receipt.status === 'reviewing' && msg.receipt.fuelStats) {
-        return <PendingFuelStatsDisplay msg={msg.receipt} />
-      }
-      if (msg.receipt.status === 'reviewing' && msg.receipt.draft?.receipt_type === 'fuel' && msg.receipt.activeTab !== 'grocery') {
-        return (
-          <FuelReceiptCard
-            draft={msg.receipt.draft}
-            imageUrl={msg.receipt.imageUrl}
-            onConfirmed={(stats) => {
-              setMessages(prev =>
-                prev.map((m, i) =>
-                  i === idx
-                    ? {
-                        ...m,
-                        receipt: {
-                          ...m.receipt!,
-                          fuelStats: stats,
-                        },
-                      }
-                    : m
-                )
-              )
-            }}
-            onCancelled={() => cancelAt(idx, 'Receipt cancelled.')}
-            onSwitchToGrocery={() => {
-              setMessages(prev =>
-                prev.map((m, i) =>
-                  i === idx
-                    ? { ...m, receipt: { ...m.receipt!, activeTab: 'grocery' } }
-                    : m
-                )
-              )
-            }}
-          />
-        )
-      }
-      return (
-        <ReceiptCard
-          imageUrl={msg.receipt.imageUrl}
-          status={msg.receipt.status}
-          draft={msg.receipt.draft}
-          error={msg.receipt.error}
-          onSwitchToFuel={() => {
-            setMessages(prev =>
-              prev.map((m, i) =>
-                i === idx
-                  ? { ...m, receipt: { ...m.receipt!, activeTab: 'fuel' } }
-                  : m
-              )
-            )
-          }}
-          onConfirmed={(message) => replaceWithStatus(idx, message)}
-          onCancelled={() => cancelAt(idx, 'Receipt cancelled.')}
-        />
-      )
-    },
     fuel_log: (msg, idx) => {
       if (!msg.fuelLog) return null
       if (msg.fuelLog.fuelStats) {
@@ -605,15 +541,6 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
             )
           }}
           onCancelled={() => cancelAt(idx)}
-          onSwitchToGrocery={() => {
-            setMessages(prev =>
-              prev.map((m, i) =>
-                i === idx
-                  ? { role: 'receipt' as const, content: '', receipt: { status: 'reviewing' as const, draft: m.fuelLog!.draft, activeTab: 'grocery' as const } }
-                  : m
-              )
-            )
-          }}
         />
       )
     },
@@ -694,40 +621,27 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
   }, [])
 
   function handleReceiptFile(file: File) {
-    const reader = new FileReader()
-    reader.onload = () => {
-      const imageUrl = reader.result as string
+    // The popup does the upload/OCR itself — chat only hosts it and keeps the
+    // one-line result `onSaved` hands back (see handleReceiptSaved).
+    setReceiptFile(file)
+  }
 
-      // Add loading placeholder to chat
+  // The popup reports its outcome once it has saved. A grocery receipt leaves a
+  // single status line; a fuel one appends the refuel stats bubble, which the
+  // existing `fuel_log` renderer already knows how to display.
+  function handleReceiptSaved(result: ReceiptSaved) {
+    if (result.kind === 'transaction') {
       setMessages(prev => [...prev, {
-        role: 'receipt' as const,
-        content: '',
-        receipt: { status: 'loading' as const, imageUrl },
+        role: 'status' as const,
+        content: `Receipt saved: ${result.merchant} — ${formatCurrency(result.amount)}`,
       }])
-
-      uploadReceipt(file)
-        .then(draft => {
-          setMessages(prev => {
-            const idx = [...prev].reverse().findIndex(m => m.role === 'receipt' && m.receipt?.status === 'loading')
-            if (idx === -1) return prev
-            const realIdx = prev.length - 1 - idx
-            const updated = [...prev]
-            updated[realIdx] = { ...updated[realIdx], receipt: { status: 'reviewing', imageUrl, draft } }
-            return updated
-          })
-        })
-        .catch(err => {
-          setMessages(prev => {
-            const idx = [...prev].reverse().findIndex(m => m.role === 'receipt' && m.receipt?.status === 'loading')
-            if (idx === -1) return prev
-            const realIdx = prev.length - 1 - idx
-            const updated = [...prev]
-            updated[realIdx] = { ...updated[realIdx], receipt: { status: 'error', imageUrl, error: err.message || 'Failed to read receipt' } }
-            return updated
-          })
-        })
+      return
     }
-    reader.readAsDataURL(file)
+    setMessages(prev => [...prev, {
+      role: 'fuel_log' as const,
+      content: '',
+      fuelLog: { draft: result.draft, fuelStats: result.stats },
+    }])
   }
 
   async function isFuelioFile(file: File): Promise<boolean> {
@@ -1364,6 +1278,17 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
           handleReceiptFile(f)
         }}
       />
+
+      {/* Receipt popup — the same flow Add opens. It portals itself to
+          document.body, so rendering it here keeps it over the chat. */}
+      {receiptFile && (
+        <ReceiptFlow
+          mode="photo"
+          file={receiptFile}
+          onClose={() => setReceiptFile(null)}
+          onSaved={handleReceiptSaved}
+        />
+      )}
     </div>
   )
 }
@@ -1383,44 +1308,40 @@ function TypingDots() {
 }
 
 /** Post-confirm fuel stats displayed as grey text after the card is confirmed. */
-function PendingFuelStatsDisplay({ msg, draft: propDraft, stats: propStats }: {
-  msg?: NonNullable<Message['receipt']>
+function PendingFuelStatsDisplay({ draft, stats }: {
   draft?: ReceiptDraft
   stats?: FuelConfirmResponse
 }) {
-  // Support both: receipt mode (msg with embedded fuelStats) and fuel_log mode (draft + stats)
-  const resolvedStats = propStats ?? msg?.fuelStats ?? null
-  const resolvedDraft = propDraft ?? msg?.draft ?? null
-  if (!resolvedStats) return null
+  if (!stats) return null
 
-  const vehicleName = resolvedDraft?.vehicles?.find(v => v.id === resolvedDraft?.suggested_vehicle_id)?.name ?? 'Vehicle'
-  const name = resolvedStats.vehicle_name ?? vehicleName
+  const vehicleName = draft?.vehicles?.find(v => v.id === draft?.suggested_vehicle_id)?.name ?? 'Vehicle'
+  const name = stats.vehicle_name ?? vehicleName
 
   return (
     <div className="bg-token-surface border border-token-line rounded-2xl rounded-bl-sm max-w-[420px] w-full px-4 py-3 space-y-1">
-      {resolvedStats.success ? (
+      {stats.success ? (
         <>
           <p className="text-sm text-token-ink font-medium">✅ Refuel logged — {name}</p>
-          {resolvedStats.liters != null && (
+          {stats.liters != null && (
             <p className="text-xs text-token-ink-3">
-              {resolvedStats.liters}L
-              {resolvedStats.price_per_liter != null && ` → ${formatCurrency(resolvedStats.price_per_liter, { decimals: 3 })}/L`}
-              {resolvedStats.fuel_grade && ` (${resolvedStats.fuel_grade})`}
+              {stats.liters}L
+              {stats.price_per_liter != null && ` → ${formatCurrency(stats.price_per_liter, { decimals: 3 })}/L`}
+              {stats.fuel_grade && ` (${stats.fuel_grade})`}
             </p>
           )}
-          {(resolvedStats.km_since_last != null || resolvedStats.consumption_l100km != null || resolvedStats.cost_per_km != null) && (
+          {(stats.km_since_last != null || stats.consumption_l100km != null || stats.cost_per_km != null) && (
             <p className="text-xs text-token-ink-3">
-              {resolvedStats.km_since_last != null && `+${formatNumber(resolvedStats.km_since_last)} km`}
-              {resolvedStats.consumption_l100km != null && `  |  ${formatNumber(resolvedStats.consumption_l100km, 1)} L/100km`}
-              {resolvedStats.cost_per_km != null && `  |  ${formatCurrency(resolvedStats.cost_per_km, { decimals: 3 })}/km`}
+              {stats.km_since_last != null && `+${formatNumber(stats.km_since_last)} km`}
+              {stats.consumption_l100km != null && `  |  ${formatNumber(stats.consumption_l100km, 1)} L/100km`}
+              {stats.cost_per_km != null && `  |  ${formatCurrency(stats.cost_per_km, { decimals: 3 })}/km`}
             </p>
           )}
-          {resolvedDraft?.merchant && <p className="text-xs text-token-ink-3">{resolvedDraft.merchant}</p>}
+          {draft?.merchant && <p className="text-xs text-token-ink-3">{draft.merchant}</p>}
         </>
       ) : (
         <p className="text-xs text-token-loss">
           ❌ Failed to save fuel receipt.
-          {resolvedStats.error && <span className="text-token-ink-3"> — {resolvedStats.error}</span>}
+          {stats.error && <span className="text-token-ink-3"> — {stats.error}</span>}
         </p>
       )}
     </div>
