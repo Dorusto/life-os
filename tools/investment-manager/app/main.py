@@ -35,6 +35,9 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
 )
+# httpx logs every request URL at INFO — including the Twelve Data ``apikey``
+# query parameter — so its logger is held at WARNING.
+logging.getLogger("httpx").setLevel(logging.WARNING)
 logger = logging.getLogger("investment-manager")
 
 app = FastAPI(title="investment-manager")
@@ -297,12 +300,15 @@ async def goal_projection(goal_id: int, caller: str = AUTH):
 # ---------------------------------------------------------------------------
 
 def _market_data_configured() -> bool:
-    """Whether a Twelve Data key is available, from the stored setting or env.
+    """Whether live market data is available — always true, since Yahoo needs
+    no key.
 
-    Deliberately reduced to a boolean at the REST boundary: the key value
-    itself must never appear in a response body or a log line (plan section 6).
+    Twelve Data is only an optional fallback now, so nothing in the app is
+    gated on a key any more. The flag is kept (and still boolean-shaped) so the
+    existing frontend check keeps working; the key value itself must never
+    appear in a response body or a log line (plan section 6).
     """
-    return market_data.api_key_source() is not None
+    return True
 
 
 def _public_settings() -> dict:
@@ -317,7 +323,11 @@ def _public_settings() -> dict:
     settings = dict(database.get_settings())
     settings.pop("twelve_data_api_key", None)
     settings["market_data_configured"] = _market_data_configured()
-    settings["market_data_source"] = market_data.api_key_source()
+    # ``market_data_source`` names the providers in play ("yahoo", or
+    # "yahoo+twelvedata" once a key is set); the old key-source value is kept
+    # alongside it so the frontend can still say where the key came from.
+    settings["market_data_source"] = market_data.provider_summary()
+    settings["market_data_key_source"] = market_data.api_key_source()
     settings["market_data_errors"] = market_data.recent_errors()
     return settings
 
