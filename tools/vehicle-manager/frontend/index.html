@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<!-- The design tokens in src/styles/tokens.css key dark mode off this
-     attribute. vehicle-manager keeps its existing dark identity rather than
-     following the OS preference: it has no theme toggle, and adding one would
-     be a structural change to the nav, not a re-skin. -->
+<!-- The design tokens in src/styles/tokens.css key theme and accent off these
+     attributes. They are this app's defaults; the inline script below applies
+     the stored choice (Settings -> Appearance) before first paint so there is
+     no flash of the wrong theme. -->
 <html lang="en" data-theme="dark" data-accent="amber">
   <head>
     <meta charset="UTF-8" />
@@ -14,6 +14,22 @@
 
     <!-- Theme color: matches the dark --paper token so browser chrome blends in -->
     <meta name="theme-color" content="#131312" />
+
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('majordom_theme') || localStorage.getItem('theme');
+          var a = localStorage.getItem('majordom_accent');
+          var root = document.documentElement;
+          var theme = t === 'light' ? 'light' : 'dark';
+          root.setAttribute('data-theme', theme);
+          root.style.colorScheme = theme;
+          if (a === 'sage' || a === 'amber' || a === 'olive' || a === 'slate') root.setAttribute('data-accent', a);
+          var meta = document.querySelector('meta[name="theme-color"]');
+          if (meta) meta.setAttribute('content', theme === 'light' ? '#f4f3ef' : '#131312');
+        } catch (e) {}
+      })()
+    </script>
 
     <title>Majordom Transport</title>
   </head>

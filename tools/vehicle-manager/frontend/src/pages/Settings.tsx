@@ -3,6 +3,8 @@ import { ArrowUpRight, LogOut } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
+import { AppearanceSettings } from '../components/shell/AppearanceSettings'
+import { PageHeader } from '../components/shell/PageHeader'
 import { clearAuth, getUsername } from '../lib/auth'
 import { exportVehicleCsv } from '../lib/api'
 import { useSelectedVehicle } from '../lib/useSelectedVehicle'
@@ -79,11 +81,12 @@ export default function Settings() {
 
   return (
     <div>
-      <header className="mb-4">
-        <h1 className="text-xl font-semibold text-ink">Settings</h1>
-      </header>
+      <PageHeader title="Settings" />
 
-      <Card title="Majordom apps" className="mt-3">
+      <h3 className="mb-2 text-xs uppercase tracking-wide text-ink-2">Appearance</h3>
+      <AppearanceSettings appDefault="amber" />
+
+      <Card title="Majordom apps" className="mt-4">
         <div className="space-y-2">
           {APP_LINKS.map((link) => (
             <AppLink key={link.href} {...link} />
