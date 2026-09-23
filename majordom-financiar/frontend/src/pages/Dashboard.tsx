@@ -558,7 +558,9 @@ function BalanceHero({ accounts, dashboardMonth, dashboardYear }: {
             {whole}
             {cents && <span className="text-token-ink-3">{cents[1]}</span>}
           </p>
-          {periodDiff != null && periodPct != null && (
+          {/* Two points minimum — a single snapshot has no 30-day comparison,
+              so the change line must not render a fabricated +0% off one point. */}
+          {historyPoints.length >= 2 && periodDiff != null && periodPct != null && (
             <p className="flex flex-wrap gap-x-3 font-mono text-[13px]">
               <span className={periodDiff >= 0 ? 'text-token-gain' : 'text-token-loss'}>
                 {formatCurrency(periodDiff, { signDisplay: 'always' })}
