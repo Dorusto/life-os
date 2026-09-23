@@ -4,12 +4,25 @@
  * Backend tools return {"type": "chart", "chart_type": ..., "title": ..., "data": {...}}.
  * The tool (backend, deterministic code) decides which chart_type fits its data —
  * this component never guesses the type, it only renders what it's told.
+ *
+ * This file owns the payload contract and the refetch logic; the pixels come from
+ * the shared kit (src/components/kit — generated, do not edit), so a Finance chart
+ * and an Invest chart of the same data render as the same chart.
  */
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { authFetch } from '../lib/auth'
 import { formatCurrency, formatPercent, formatNumber } from '../lib/formatCurrency'
-import { colorForKey } from '../lib/chartColors'
-import { useNavigate } from 'react-router-dom'
+import { cx } from './shell/cx'
+import { Card, SectionLabel } from './kit/Card'
+import { EmptyState, HeroValue, ProgressBar, type Tone } from './kit/Stats'
+import {
+  AreaChart,
+  BarChart as KitBarChart,
+  GroupedBarChart,
+  StackedBar,
+  SERIES_COLORS,
+} from './kit/Charts'
 
 // --- Contract types ---
 
@@ -74,6 +87,78 @@ interface LineSeriesData {
 export interface LineData {
   series: LineSeriesData[]
   empty_message?: string
+}
+
+// --- Kit rendering helpers ---------------------------------------------------
+// The payload supplies the data (and sometimes a color); every visual — axes,
+// tooltips, empty states, bars — comes from src/components/kit.
+
+/**
+ * A payload color is honored only when it is a kit CSS var; anything else (a hex
+ * from the old palette) is dropped for the kit's own series palette, so no chart
+ * can ship a color that isn't a design token.
+ */
+function seriesColor(color: string | undefined, index: number): string {
+  return color?.startsWith('var(') ? color : SERIES_COLORS[index % SERIES_COLORS.length]
+}
+
+// Segmented pills / pickers / Apply — one look for every refetch control, the
+// same as the shared PageHeader tabs.
+const PILL_BASE = 'rounded-full px-2.5 py-1 font-mono text-xs transition-colors disabled:opacity-50'
+const PILL_ACTIVE = 'bg-token-surface-2 text-token-ink'
+const PILL_IDLE = 'text-token-ink-3 hover:text-token-ink'
+const PICKER_INPUT =
+  'rounded-full border border-token-line bg-token-surface px-2.5 py-1 font-mono text-xs text-token-ink outline-none focus:border-token-brand disabled:opacity-50'
+const PICKER_APPLY =
+  'rounded-full bg-token-brand px-3 py-1 font-mono text-xs text-token-on-brand transition-colors hover:bg-token-brand-2 disabled:opacity-50'
+
+/** Text color for a semantic tone (a progress row keeps its green/amber/red read). */
+function toneText(tone: Tone): string {
+  if (tone === 'loss') return 'text-token-loss'
+  if (tone === 'warn') return 'text-token-warn'
+  return 'text-token-ink'
+}
+
+/**
+ * The card every variant lives in: kit Card with the chart's title as its label
+ * and its refetch control as the action. `bare` keeps the caller's own card (the
+ * Budget trend sits inside one) and drops only the surface and rounding.
+ */
+function ChartFrame({
+  title,
+  control,
+  error,
+  bare,
+  children,
+}: {
+  title: string
+  control?: ReactNode
+  error?: string | null
+  bare?: boolean
+  children: ReactNode
+}) {
+  const body = (
+    <>
+      {error && <p className="mb-3 font-mono text-xs text-token-loss">{error}</p>}
+      {children}
+    </>
+  )
+  if (bare) {
+    return (
+      <div className="p-4">
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <SectionLabel>{title}</SectionLabel>
+          {control}
+        </div>
+        {body}
+      </div>
+    )
+  }
+  return (
+    <Card label={title} action={control}>
+      {body}
+    </Card>
+  )
 }
 
 // Lets a chart switch its own time period in place (a REST GET) instead of
@@ -187,15 +272,13 @@ function useChartRefetch<T>(initialTitle: string, initialData: T, initialRefetch
   return { title: state.title, data: state.data, refetch: state.refetch, loading, error, refetchWith }
 }
 
-// Prev/next month arrows flanking the title — used instead of the plain title
-// line when refetch.mode is 'month_nav'.
-function MonthNavTitle({
-  title,
+// Prev/next month arrows for month_nav. The month label is the card's own label
+// (it moves with the refetched data), so the action is only the two arrows.
+function MonthNav({
   refetch,
   loading,
   onNav,
 }: {
-  title: string
   refetch: MonthNavRefetch
   loading: boolean
   onNav: (params: Record<string, number>) => void
@@ -214,22 +297,21 @@ function MonthNavTitle({
   }
 
   return (
-    <div className="flex items-center justify-between gap-2">
+    <div className="flex items-center">
       <button
         type="button"
         disabled={loading}
         onClick={() => shift(-1)}
-        className="text-token-ink-3 hover:text-token-ink disabled:opacity-40 px-3 py-2 text-sm leading-none"
+        className={cx(PILL_BASE, PILL_IDLE)}
         aria-label="Previous month"
       >
         ‹
       </button>
-      <p className="text-xs text-token-ink-3 uppercase tracking-wide text-center flex-1 truncate">{title}</p>
       <button
         type="button"
         disabled={loading}
         onClick={() => shift(1)}
-        className="text-token-ink-3 hover:text-token-ink disabled:opacity-40 px-3 py-2 text-sm leading-none"
+        className={cx(PILL_BASE, PILL_IDLE)}
         aria-label="Next month"
       >
         ›
@@ -238,7 +320,9 @@ function MonthNavTitle({
   )
 }
 
-// --- Pie / donut ---
+// --- Pie (a composition) — kit StackedBar ---
+// The kit's flat graph language has no donut: composition is one stacked bar
+// plus a legend carrying the numbers, which is also what Invest shows.
 
 function PieChart({ title, data, refetch: initialRefetch, bare }: { title: string; data: PieData; refetch?: RefetchConfig; bare?: boolean }) {
   const { title: liveTitle, data: liveData, refetch, loading, error, refetchWith } = useChartRefetch(
@@ -250,106 +334,45 @@ function PieChart({ title, data, refetch: initialRefetch, bare }: { title: strin
   // Show at most 7 categories + "Other" to keep the chart readable
   const topSegs = liveData.segments.slice(0, 7)
   const rest = liveData.segments.slice(7)
-  const otherValue = rest.reduce((s, c) => s + c.value, 0)
-  const otherPct = rest.reduce((s, c) => s + c.percentage, 0)
-
-  const segments = [
-    ...topSegs.map((s) => ({ ...s, color: colorForKey(s.name) })),
-    ...(rest.length > 0 ? [{ name: 'Other', value: otherValue, percentage: otherPct, color: 'var(--line-strong)' }] : []),
+  const slices = [
+    ...topSegs.map((s, i) => ({ label: s.name, value: s.value, color: SERIES_COLORS[i % SERIES_COLORS.length] })),
+    ...(rest.length > 0
+      ? [
+          {
+            label: 'Other',
+            value: rest.reduce((sum, s) => sum + s.value, 0),
+            color: 'var(--line-strong)',
+          },
+        ]
+      : []),
   ]
 
-  const wrapperClass = bare ? 'p-4' : 'bg-token-surface rounded-2xl p-4'
-
   return (
-    <div className={wrapperClass}>
-      <div className="flex items-baseline justify-between mb-4">
-        <div className="flex-1 min-w-0">
-          {refetch?.mode === 'month_nav' ? (
-            <MonthNavTitle title={liveTitle} refetch={refetch} loading={loading} onNav={refetchWith} />
-          ) : (
-            <p className="text-xs text-token-ink-3 uppercase tracking-wide">{liveTitle}</p>
-          )}
-          <p className="text-token-ink text-2xl font-semibold mt-0.5">{formatCurrency(liveData.total)}</p>
-          {liveData.count != null && (
-            <p className="text-token-ink-3 text-xs mt-0.5">{liveData.count} transactions</p>
-          )}
-        </div>
-        <Donut segments={segments} />
-      </div>
-
-      {error && <p className="text-xs text-token-loss mb-2">{error}</p>}
-
-      {segments.length === 0 ? (
-        <p className="text-token-ink-3 text-sm text-center py-2">No expenses this month</p>
-      ) : (
-        <div className="space-y-2.5">
-          {segments.map((seg) => (
-            <div key={seg.name}>
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: seg.color }} />
-                  <span className="text-token-ink text-xs truncate">{seg.name}</span>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0 ml-2">
-                  <span className="text-token-ink-3 text-xs">{formatPercent(seg.percentage, { decimals: 0 })}</span>
-                  <span className="text-token-ink text-xs font-medium w-16 text-right">{formatCurrency(seg.value)}</span>
-                </div>
-              </div>
-              <div className="h-1 bg-token-paper rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{ width: `${seg.percentage}%`, backgroundColor: seg.color }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+    <ChartFrame
+      title={liveTitle}
+      error={error}
+      bare={bare}
+      control={
+        refetch?.mode === 'month_nav' ? (
+          <MonthNav refetch={refetch} loading={loading} onNav={refetchWith} />
+        ) : null
+      }
+    >
+      {slices.length > 0 && (
+        <HeroValue
+          label="Total"
+          value={formatCurrency(liveData.total)}
+          sub={liveData.count != null ? `${liveData.count} transactions` : undefined}
+        />
       )}
-    </div>
+      <div className="mt-4">
+        <StackedBar slices={slices} formatValue={formatCurrency} />
+      </div>
+    </ChartFrame>
   )
 }
 
-function Donut({ segments }: { segments: { name: string; percentage: number; color: string }[] }) {
-  const size = 120
-  const radius = 46
-  const strokeWidth = 12
-  const cx = size / 2
-  const cy = size / 2
-  const circumference = 2 * Math.PI * radius
-  const gap = 1.5
-
-  let offset = 0
-  const paths = segments.map((seg) => {
-    const length = Math.max(0, (seg.percentage / 100) * circumference - gap)
-    const rotate = (offset / circumference) * 360 - 90
-    const el = (
-      <circle
-        key={seg.name}
-        cx={cx}
-        cy={cy}
-        r={radius}
-        fill="none"
-        stroke={seg.color}
-        strokeWidth={strokeWidth}
-        strokeDasharray={`${length} ${circumference - length}`}
-        strokeDashoffset={0}
-        transform={`rotate(${rotate} ${cx} ${cy})`}
-        strokeLinecap="butt"
-      />
-    )
-    offset += (seg.percentage / 100) * circumference
-    return el
-  })
-
-  return (
-    <svg width={size} height={size} className="flex-shrink-0">
-      <circle cx={cx} cy={cy} r={radius} fill="none" stroke="var(--line)" strokeWidth={strokeWidth} />
-      {paths}
-    </svg>
-  )
-}
-
-// --- Progress list (budget vs actual, savings goals) ---
+// --- Progress list (budget vs actual, savings goals) — kit ProgressBar ---
 
 function ProgressListChart({
   title,
@@ -366,72 +389,49 @@ function ProgressListChart({
     initialRefetch
   )
 
-  const chartTitle =
+  const control =
     refetch?.mode === 'month_nav' ? (
-      <MonthNavTitle title={liveTitle} refetch={refetch} loading={loading} onNav={refetchWith} />
-    ) : (
-      <p className="text-xs text-token-ink-3 uppercase tracking-wide mb-4">{liveTitle}</p>
-    )
+      <MonthNav refetch={refetch} loading={loading} onNav={refetchWith} />
+    ) : null
 
   if (liveData.items.length === 0) {
     return (
-      <div className="bg-token-surface rounded-2xl p-4">
-        {chartTitle}
-        {error && <p className="text-xs text-token-loss mb-2">{error}</p>}
-        <p className="text-token-ink-3 text-sm text-center py-4">{liveData.empty_message || 'No data available'}</p>
-      </div>
+      <ChartFrame title={liveTitle} control={control} error={error}>
+        <EmptyState title={liveData.empty_message || 'No data available'} />
+      </ChartFrame>
     )
   }
 
   return (
-    <div className="bg-token-surface rounded-2xl p-4">
-      {chartTitle}
-      {error && <p className="text-xs text-token-loss mb-2">{error}</p>}
+    <ChartFrame title={liveTitle} control={control} error={error}>
       <div className="space-y-4">
         {liveData.items.map((item) => {
-          const barWidth = Math.min(item.percentage, 100)
-          const color = item.color || colorForKey(item.label)
-          const isWarning = color === 'var(--loss)'
+          // Toned by how far past its target the row is: amber from 90%,
+          // red once it has overspent.
+          const tone: Tone = item.percentage > 100 ? 'loss' : item.percentage >= 90 ? 'warn' : 'default'
 
           return (
             <div key={item.label}>
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  {isWarning && <span className="text-sm">⚠️</span>}
-                  <span className="text-token-ink text-sm font-medium truncate mr-2">{item.label}</span>
-                </div>
-                <span
-                  className="text-xs font-medium px-1.5 py-0.5 rounded flex-shrink-0"
-                  style={{ color, backgroundColor: `${color}20` }}
-                >
+              <div className="mb-1.5 flex items-baseline justify-between gap-3">
+                <span className="truncate text-sm text-token-ink-2">{item.label}</span>
+                <span className={cx('shrink-0 font-mono text-xs tabular-nums', toneText(tone))}>
                   {formatPercent(item.percentage, { decimals: 0 })}
                 </span>
               </div>
-              <div className="h-2 bg-token-paper rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all duration-500"
-                  style={{ width: `${barWidth}%`, backgroundColor: color }}
-                />
-              </div>
-              <div className="flex items-center justify-between mt-1">
-                <span className="text-token-ink-3 text-xs">
-                  {formatCurrency(item.value)} / {formatCurrency(item.target)}
-                </span>
-              </div>
-              {item.extra && <p className="text-xs text-token-ink-3 mt-0.5">{item.extra}</p>}
+              <ProgressBar value={item.percentage / 100} tone={tone} />
+              <p className="mt-1 font-mono text-xs tabular-nums text-token-ink-3">
+                {formatCurrency(item.value)} / {formatCurrency(item.target)}
+              </p>
+              {item.extra && <p className="mt-0.5 text-xs text-token-ink-3">{item.extra}</p>}
             </div>
           )
         })}
       </div>
-    </div>
+    </ChartFrame>
   )
 }
 
-// --- Bar (grouped, e.g. spending vs income per month) ---
-
-const MAX_BAR_HEIGHT = 140
-const MIN_BAR_HEIGHT = 2
-const GRID_FRACTIONS = [0, 0.25, 0.5, 0.75, 1]
+// --- Bar (spending vs income per month) — kit BarChart / GroupedBarChart ---
 
 // Free start/end month range picker — two native <input type="month"> plus an
 // Apply button. Keyed by the current refetch.start/end wherever it's rendered,
@@ -456,28 +456,23 @@ function MonthRangePicker({
   }
 
   return (
-    <div className="flex items-center gap-2 mb-4">
+    <div className="flex items-center gap-1.5">
       <input
         type="month"
         value={start}
         onChange={(e) => setStart(e.target.value)}
         disabled={loading}
-        className="bg-token-paper text-token-ink rounded px-2 py-1 text-[10px] border border-transparent focus:border-token-brand outline-none disabled:opacity-50"
+        className={PICKER_INPUT}
       />
-      <span className="text-token-ink-3 text-xs">–</span>
+      <span className="font-mono text-xs text-token-ink-3">–</span>
       <input
         type="month"
         value={end}
         onChange={(e) => setEnd(e.target.value)}
         disabled={loading}
-        className="bg-token-paper text-token-ink rounded px-2 py-1 text-[10px] border border-transparent focus:border-token-brand outline-none disabled:opacity-50"
+        className={PICKER_INPUT}
       />
-      <button
-        type="button"
-        disabled={loading}
-        onClick={apply}
-        className="bg-token-brand hover:bg-token-brand-2 disabled:opacity-50 text-token-on-brand rounded-full px-3 py-1 text-[10px] transition-colors"
-      >
+      <button type="button" disabled={loading} onClick={apply} className={PICKER_APPLY}>
         Apply
       </button>
     </div>
@@ -490,129 +485,49 @@ function BarChart({ title, data, refetch: initialRefetch }: { title: string; dat
     data,
     initialRefetch
   )
-  // Which point's tooltip is open — index into liveData.points, or null.
-  const [activePoint, setActivePoint] = useState<number | null>(null)
   const navigate = useNavigate()
 
-  const rangePicker = refetch?.mode === 'month_range' && (
-    <MonthRangePicker key={`${refetch.start}_${refetch.end}`} refetch={refetch} loading={loading} onApply={refetchWith} />
-  )
-
-  if (liveData.points.length === 0) {
-    return (
-      <div className="bg-token-surface rounded-2xl p-4">
-        {rangePicker}
-        <p className="text-token-ink-3 text-sm text-center py-4">{error || 'No data available'}</p>
-      </div>
-    )
+  // A point carrying month + year is a drill-down handle: clicking its bar opens
+  // that month in the transactions list (what the old tooltip's link did).
+  function drillDown(index: number) {
+    const point = liveData.points[index]
+    if (!point || point.month == null || point.year == null) return
+    const month = String(point.month).padStart(2, '0')
+    const lastDay = new Date(point.year, point.month, 0).getDate()
+    const dateFrom = `${point.year}-${month}-01`
+    const dateTo = `${point.year}-${month}-${String(lastDay).padStart(2, '0')}`
+    navigate('/transactions', { state: { dateFrom, dateTo } })
   }
 
-  const maxVal = Math.max(...liveData.points.flatMap((p) => p.values), 1)
-  const scaleHeight = (value: number) => (value === 0 ? MIN_BAR_HEIGHT : Math.max((value / maxVal) * MAX_BAR_HEIGHT, MIN_BAR_HEIGHT))
+  const canDrillDown = liveData.points.some((p) => p.month != null && p.year != null)
+
+  const control =
+    refetch?.mode === 'month_range' ? (
+      <MonthRangePicker key={`${refetch.start}_${refetch.end}`} refetch={refetch} loading={loading} onApply={refetchWith} />
+    ) : null
+
+  const series = liveData.series.map((s, i) => ({ label: s.label, color: seriesColor(s.color, i) }))
 
   return (
-    <div className="bg-token-surface rounded-2xl p-4">
-      {liveTitle && <p className="text-xs text-token-ink-3 uppercase tracking-wide mb-2">{liveTitle}</p>}
-      {rangePicker}
-      {error && <p className="text-xs text-token-loss mb-2">{error}</p>}
-
-      <div className="flex items-center gap-4 mb-4 text-xs text-token-ink-3">
-        {liveData.series.map((s) => (
-          <div key={s.label} className="flex items-center gap-1.5">
-            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: s.color }} />
-            <span>{s.label}</span>
-          </div>
-        ))}
-      </div>
-
-      <div className="relative" style={{ height: MAX_BAR_HEIGHT }}>
-        {/* Y-axis gridlines + value labels — labels sit flush with the outer
-            edge; the bars/x-axis rows below reserve `pl-8` so nothing overlaps. */}
-        {GRID_FRACTIONS.map((f) => (
-          <div
-            key={f}
-            className="absolute left-0 right-0 border-t border-token-line"
-            style={{ top: `${(1 - f) * 100}%` }}
-          >
-            <span className="absolute left-0 -translate-y-1/2 text-[10px] text-token-ink-2 bg-token-surface pr-1">
-              {formatCurrency(maxVal * f, { decimals: 0 })}
-            </span>
-          </div>
-        ))}
-        <div className="absolute inset-0 flex items-end justify-around gap-3 pl-8">
-          {liveData.points.map((p, pi) => {
-            // Anchor the tooltip inward (not centered) on the first/last column
-            // so its whitespace-nowrap content can't spill past the card edge.
-            const isFirst = pi === 0
-            const isLast = pi === liveData.points.length - 1
-            const tooltipPos = isFirst ? 'left-0' : isLast ? 'right-0' : 'left-1/2 -translate-x-1/2'
-            return (
-              <button
-                key={p.x}
-                type="button"
-                onClick={() => setActivePoint(activePoint === pi ? null : pi)}
-                className="relative flex items-end gap-0.5 flex-1 justify-center h-full"
-              >
-                {p.values.map((v, i) => (
-                  <div
-                    key={i}
-                    className="w-3 rounded-t-sm transition-all duration-300"
-                    style={{ height: scaleHeight(v), backgroundColor: liveData.series[i]?.color || colorForKey(liveData.series[i]?.label ?? `series-${i}`) }}
-                  />
-                ))}
-                {activePoint === pi && (
-                  <div
-                    className={`absolute bottom-full mb-1.5 z-10 whitespace-nowrap rounded-md bg-token-surface-2 border border-token-line px-2 py-1 text-[10px] text-token-ink shadow-lg ${tooltipPos}`}
-                  >
-                    <p className="text-token-ink-2 mb-0.5">{p.x}</p>
-                    {p.values.map((v, i) => (
-                      <p key={i} style={{ color: liveData.series[i]?.color || colorForKey(liveData.series[i]?.label ?? `series-${i}`) }}>
-                        {liveData.series[i]?.label ?? `#${i + 1}`}: {formatCurrency(v)}
-                      </p>
-                    ))}
-                    {p.month != null && p.year != null && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          const year = p.year!
-                          const month = p.month!
-                          const dateFrom = `${year}-${String(month).padStart(2, '0')}-01`
-                          const lastDay = new Date(year, month, 0).getDate()
-                          const dateTo = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-                          navigate('/transactions', { state: { dateFrom, dateTo } })
-                        }}
-                        className="mt-1 text-[10px] text-token-brand-ink hover:text-token-ink underline"
-                      >
-                        View transactions
-                      </button>
-                    )}
-                  </div>
-                )}
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      <div className="flex justify-around gap-3 mt-2 pl-8">
-        {liveData.points.map((p) => (
-          <div key={p.x} className="flex-1 text-center">
-            <span className="text-xs text-token-ink-3">{p.x}</span>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex justify-around gap-3 mt-1 pl-8">
-        {liveData.points.map((p) => (
-          <div key={p.x} className="flex-1 text-center">
-            <span className="text-[10px] text-token-ink-3">
-              {formatCurrency(p.values[0] || 0, { decimals: 0 })}
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
+    <ChartFrame title={liveTitle} control={control} error={error}>
+      {series.length > 1 ? (
+        <GroupedBarChart
+          series={series}
+          data={liveData.points.map((p) => ({ label: p.x, values: p.values }))}
+          formatValue={formatCurrency}
+          emptyMessage="No data available"
+          onSelect={canDrillDown ? drillDown : undefined}
+        />
+      ) : (
+        <KitBarChart
+          data={liveData.points.map((p) => ({ label: p.x, value: p.values[0] ?? 0 }))}
+          color={seriesColor(liveData.series[0]?.color, 0)}
+          formatValue={formatCurrency}
+          emptyMessage="No data available"
+          onSelect={canDrillDown ? drillDown : undefined}
+        />
+      )}
+    </ChartFrame>
   )
 }
 
@@ -637,10 +552,9 @@ function formatDateFull(iso: string): string {
   return `${parseInt(d, 10)} ${MONTH_ABBR[parseInt(mo, 10) - 1]} '${y.slice(2)}`
 }
 
-// Decimals for the min/max readouts, picked from the series magnitude so the
-// header line and the Y-axis edge labels can never disagree: a sub-1 series
-// (e.g. cost/km) shows cents instead of rounding to "0", while a mileage
-// series doesn't get a noisy ",00" suffix.
+// Decimals for the readouts, picked from the series magnitude: a sub-1 series
+// (e.g. cost/km) shows cents instead of rounding to "0", while a mileage series
+// doesn't get a noisy ",00" suffix.
 function axisDecimals(min: number, max: number): 0 | 1 | 2 {
   const magnitude = Math.max(Math.abs(min), Math.abs(max))
   if (magnitude < 1) return 2
@@ -648,6 +562,7 @@ function axisDecimals(min: number, max: number): 0 | 1 | 2 {
   return 0
 }
 
+// Segmented pills, the same control the shared PageHeader tabs use.
 function PeriodSwitcher({
   refetch,
   loading,
@@ -658,18 +573,14 @@ function PeriodSwitcher({
   onSelect: (value: number) => void
 }) {
   return (
-    <div className="flex items-center gap-1 mb-3">
+    <div className="flex items-center gap-1 rounded-full border border-token-line bg-token-surface p-[3px]">
       {refetch.periods.map((p) => (
         <button
           key={p.value}
           type="button"
           disabled={loading}
           onClick={() => onSelect(p.value)}
-          className={`text-[10px] px-2 py-0.5 rounded-full transition-colors disabled:opacity-50 ${
-            p.value === refetch.current
-              ? 'bg-token-brand text-token-on-brand'
-              : 'bg-token-paper text-token-ink-3 hover:text-token-ink'
-          }`}
+          className={cx(PILL_BASE, p.value === refetch.current ? PILL_ACTIVE : PILL_IDLE)}
         >
           {p.label}
         </button>
@@ -699,28 +610,23 @@ function DateRangePicker({
   }
 
   return (
-    <div className="flex items-center gap-2 mb-3">
+    <div className="flex items-center gap-1.5">
       <input
         type="date"
         value={start}
         onChange={(e) => setStart(e.target.value)}
         disabled={loading}
-        className="bg-token-paper text-token-ink rounded px-2 py-1 text-[10px] border border-transparent focus:border-token-brand outline-none disabled:opacity-50"
+        className={PICKER_INPUT}
       />
-      <span className="text-token-ink-3 text-xs">–</span>
+      <span className="font-mono text-xs text-token-ink-3">–</span>
       <input
         type="date"
         value={end}
         onChange={(e) => setEnd(e.target.value)}
         disabled={loading}
-        className="bg-token-paper text-token-ink rounded px-2 py-1 text-[10px] border border-transparent focus:border-token-brand outline-none disabled:opacity-50"
+        className={PICKER_INPUT}
       />
-      <button
-        type="button"
-        disabled={loading}
-        onClick={apply}
-        className="bg-token-brand hover:bg-token-brand-2 disabled:opacity-50 text-token-on-brand rounded-full px-3 py-1 text-[10px] transition-colors"
-      >
+      <button type="button" disabled={loading} onClick={apply} className={PICKER_APPLY}>
         Apply
       </button>
     </div>
@@ -743,199 +649,70 @@ function LineChart({
     data,
     initialRefetch
   )
-  const wrapperClass = bare ? 'p-4' : 'bg-token-surface rounded-2xl p-4'
-  // Which point's tooltip is open — keyed by series label since each series
-  // renders its own independent svg/point set.
-  const [activePoint, setActivePoint] = useState<{ series: string; index: number } | null>(null)
 
   function handlePeriodSelect(value: number) {
     if (refetch?.mode === 'period_buttons') refetchWith({ [refetch.period_param]: value })
   }
 
-  const allPoints = chartData.series.flatMap((s) => s.points)
-
-  if (allPoints.length < 2) {
-    return (
-      <div className={wrapperClass}>
-        <p className="text-xs text-token-ink-3 uppercase tracking-wide mb-2">{liveTitle}</p>
-        {refetch?.mode === 'period_buttons' && (
-          <PeriodSwitcher refetch={refetch} loading={loading} onSelect={handlePeriodSelect} />
+  const control =
+    refetch?.mode === 'period_buttons' ? (
+      <div className="flex flex-col items-end gap-1.5">
+        <PeriodSwitcher refetch={refetch} loading={loading} onSelect={handlePeriodSelect} />
+        {refetch.range && (
+          <DateRangePicker
+            key={`${refetch.range.start}_${refetch.range.end}`}
+            range={refetch.range}
+            loading={loading}
+            onApply={refetchWith}
+          />
         )}
-        <p className="text-token-ink-3 text-sm text-center py-4">
-          {error || chartData.empty_message || 'Not enough data yet'}
-        </p>
       </div>
+    ) : null
+
+  const pointCount = chartData.series.reduce((n, s) => n + s.points.length, 0)
+
+  if (pointCount < 2) {
+    return (
+      <ChartFrame title={liveTitle} control={control} error={error} bare={bare}>
+        <EmptyState title={chartData.empty_message || 'Not enough data yet'} />
+      </ChartFrame>
     )
   }
 
-  const width = 300
-  const height = 160
-  const padX = 8
-  const padY = 12
+  // AreaChart draws every series on one shared x-axis, so feed it the union of
+  // the payload's dates (ISO, so a plain sort is chronological); a series with
+  // no point on a date contributes a gap instead of shifting its neighbours.
+  const labels = Array.from(new Set(chartData.series.flatMap((s) => s.points.map((p) => p.x)))).sort()
+  const series = chartData.series.map((s, i) => {
+    const byDate = new Map(s.points.map((p) => [p.x, p.y]))
+    return {
+      name: s.label,
+      values: labels.map((x) => byDate.get(x) ?? null),
+      color: seriesColor(s.color, i),
+      // The first series keeps the kit's area fill; the rest read as lines.
+      area: i === 0,
+    }
+  })
 
-  const values = allPoints.map((p) => p.y)
-  const minY = Math.min(...values)
-  const maxY = Math.max(...values)
-  const rangeY = maxY - minY || 1
-  const yPad = rangeY * 0.15
+  const allValues = chartData.series.flatMap((s) => s.points.map((p) => p.y))
+  const decimals = axisDecimals(Math.min(...allValues), Math.max(...allValues))
 
-  const scaleY = (y: number) => height - padY - ((y - minY + yPad) / (rangeY + yPad * 2)) * (height - padY * 2)
-
-  // Intermediate Y gridlines between the min/max labels already shown per
-  // series below — min/max (0 and 1) are skipped here, those two edges
-  // already get their own label overlay.
-  const GRID_FRACTIONS = [0.25, 0.5, 0.75]
+  // A multi-year series (e.g. a 12-year vehicle-value projection) has
+  // consecutive labeled points ~1 year apart that land on nearly the same
+  // day-of-month — "29 Aug · 28 Aug · 27 Aug" reads as consecutive days. The
+  // year-inclusive format is used whenever the series spans more than a year.
+  const spanDays = (Date.parse(labels[labels.length - 1]) - Date.parse(labels[0])) / 86_400_000
+  const formatAxisLabel = spanDays > 365 ? formatDateFull : formatDateShort
 
   return (
-    <div className={wrapperClass}>
-      <p className="text-xs text-token-ink-3 uppercase tracking-wide mb-2">{liveTitle}</p>
-      {refetch?.mode === 'period_buttons' && (
-        <>
-          <PeriodSwitcher refetch={refetch} loading={loading} onSelect={handlePeriodSelect} />
-          {refetch.range && (
-            <DateRangePicker
-              key={`${refetch.range.start}_${refetch.range.end}`}
-              range={refetch.range}
-              loading={loading}
-              onApply={refetchWith}
-            />
-          )}
-        </>
-      )}
-      {error && <p className="text-xs text-token-loss mb-2">{error}</p>}
-
-      {chartData.series.map((s) => {
-        const scaleX = (i: number) => padX + (i / (s.points.length - 1)) * (width - padX * 2)
-        const path = s.points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${scaleX(i)} ${scaleY(p.y)}`).join(' ')
-
-        // At most 4 x-axis labels (first, ~1/3, ~2/3, last), deduplicated for
-        // short series — showing every point would overlap once dates are
-        // longer than a couple of characters.
-        const lastIdx = s.points.length - 1
-        const labelIndices = Array.from(
-          new Set([0, Math.round(lastIdx / 3), Math.round((lastIdx * 2) / 3), lastIdx])
-        ).sort((a, b) => a - b)
-
-        // A multi-year series (e.g. a 12-year vehicle-value projection) has
-        // consecutive labeled points ~1 year apart that land on nearly the
-        // same day-of-month — formatDateShort() alone renders them as e.g.
-        // "29 Aug · 28 Aug · 27 Aug · 26 Aug", indistinguishable from
-        // consecutive days. Fall back to the year-inclusive format whenever
-        // the series spans more than a year; short spans keep the less
-        // crowded no-year label formatDateShort() was designed for.
-        const spanDays =
-          (Date.parse(s.points[lastIdx].x) - Date.parse(s.points[0].x)) / 86_400_000
-        const formatAxisLabel = spanDays > 365 ? formatDateFull : formatDateShort
-
-        const seriesMin = Math.min(...s.points.map((p) => p.y))
-        const seriesMax = Math.max(...s.points.map((p) => p.y))
-        const dec = axisDecimals(seriesMin, seriesMax)
-
-        // Short series keep a visible dot on every point — a bare 2-point line
-        // reads as a plain stroke. Longer series hide the dots so the line stays
-        // clean; the active point's dot reappears on interaction below.
-        const showMarkers = s.points.length <= 8
-
-        return (
-          <div key={s.label} className="mb-2">
-            <div className="flex items-center justify-between text-xs text-token-ink-3 mb-1">
-              <span>{s.label}</span>
-              <span>
-                min {formatNumber(seriesMin, dec)} · max {formatNumber(seriesMax, dec)}
-              </span>
-            </div>
-            <p className="text-[10px] text-token-ink-3 mb-1">
-              {formatDateFull(s.points[0].x)} – {formatDateFull(s.points[lastIdx].x)}
-            </p>
-            {/* Y-axis reference values — an HTML overlay, not SVG <text>, since
-                the SVG below uses preserveAspectRatio="none" (stretches to the
-                container width) and would visibly skew any text drawn inside it. */}
-            <div className="relative">
-              {GRID_FRACTIONS.map((f) => {
-                const gridVal = minY + f * (maxY - minY)
-                return (
-                  <div
-                    key={f}
-                    className="absolute left-0 right-0 border-t border-token-line"
-                    style={{ top: `${(scaleY(gridVal) / height) * 100}%` }}
-                  />
-                )
-              })}
-              <span
-                className="absolute left-0.5 text-[11px] text-token-ink-2 -translate-y-1/2 bg-token-surface px-0.5 rounded"
-                style={{ top: `${(scaleY(seriesMax) / height) * 100}%` }}
-              >
-                {formatNumber(seriesMax, dec)}
-              </span>
-              <span
-                className="absolute left-0.5 text-[11px] text-token-ink-2 -translate-y-1/2 bg-token-surface px-0.5 rounded"
-                style={{ top: `${(scaleY(seriesMin) / height) * 100}%` }}
-              >
-                {formatNumber(seriesMin, dec)}
-              </span>
-              <svg viewBox={`0 0 ${width} ${height}`} width="100%" height={height} preserveAspectRatio="none">
-                <path d={path} fill="none" stroke={s.color} strokeWidth={2} vectorEffect="non-scaling-stroke" />
-                {s.points.map((p, i) => (
-                  <g
-                    key={i}
-                    onClick={() =>
-                      setActivePoint(
-                        activePoint?.series === s.label && activePoint?.index === i
-                          ? null
-                          : { series: s.label, index: i }
-                      )
-                    }
-                    style={{ cursor: 'pointer' }}
-                  >
-                    {/* Larger transparent hit target — the visible dot (r=2.5) is too
-                        small to reliably tap on a phone. Kept for every point so
-                        tapping still opens the tooltip. */}
-                    <circle cx={scaleX(i)} cy={scaleY(p.y)} r={10} fill="transparent" />
-                    {(showMarkers || (activePoint?.series === s.label && activePoint?.index === i)) && (
-                      <circle cx={scaleX(i)} cy={scaleY(p.y)} r={2.5} fill={s.color} />
-                    )}
-                  </g>
-                ))}
-              </svg>
-              {activePoint?.series === s.label && s.points[activePoint.index] && (
-                <div
-                  className={`absolute z-10 -translate-y-full -mt-2 whitespace-nowrap rounded-md bg-token-surface-2 border border-token-line px-2 py-1 text-[10px] text-token-ink shadow-lg ${
-                    activePoint.index === 0
-                      ? ''
-                      : activePoint.index === lastIdx
-                      ? '-translate-x-full'
-                      : '-translate-x-1/2'
-                  }`}
-                  style={{
-                    left: `${(scaleX(activePoint.index) / width) * 100}%`,
-                    top: `${(scaleY(s.points[activePoint.index].y) / height) * 100}%`,
-                  }}
-                >
-                  <p className="text-token-ink-2">{formatDateFull(s.points[activePoint.index].x)}</p>
-                  <p style={{ color: s.color }}>{formatNumber(s.points[activePoint.index].y)}</p>
-                </div>
-              )}
-            </div>
-            <div className="relative h-4 mt-1 text-[10px] text-token-ink-3">
-              {labelIndices.map((i) => {
-                const pct = (scaleX(i) / width) * 100
-                const isFirst = i === 0
-                const isLast = i === lastIdx
-                const style = isFirst
-                  ? { left: 0 }
-                  : isLast
-                  ? { right: 0 }
-                  : { left: `${pct}%`, transform: 'translateX(-50%)' }
-                return (
-                  <span key={i} className="absolute whitespace-nowrap" style={style}>
-                    {formatAxisLabel(s.points[i].x)}
-                  </span>
-                )
-              })}
-            </div>
-          </div>
-        )
-      })}
-    </div>
+    <ChartFrame title={liveTitle} control={control} error={error} bare={bare}>
+      <AreaChart
+        labels={labels}
+        series={series}
+        formatValue={(value) => formatNumber(value, decimals)}
+        formatLabel={formatAxisLabel}
+        emptyMessage={chartData.empty_message}
+      />
+    </ChartFrame>
   )
 }

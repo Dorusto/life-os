@@ -2,16 +2,16 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, Trash2 } from 'lucide-react'
-import Chart from '../components/Chart'
 import ChartSection from '../components/ChartSection'
 import LogEntryForm from '../components/LogEntryForm'
 import { Button } from '../components/Button'
 import { Card } from '../components/Card'
-import { Delta } from '../components/Delta'
 import { Field, TextInput } from '../components/Form'
 import { Loading } from '../components/Feedback'
-import { MetricTile } from '../components/MetricTile'
 import { TypePill } from '../components/Pill'
+import { AreaChart } from '../components/kit/Charts'
+import { Card as KitCard, SectionLabel } from '../components/kit/Card'
+import { HeroValue, StatStrip, toneClass, toneOf, type Stat } from '../components/kit/Stats'
 import { PageHeader } from '../components/shell/PageHeader'
 import {
   ApiError,
@@ -33,6 +33,15 @@ import { formatDate } from '../lib/formatDate'
 function formatMoney(n: number | null | undefined): string {
   if (n == null || Number.isNaN(n)) return '—'
   return formatCurrency(n)
+}
+
+const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+
+/** "2026-03-01" → "Mar 2026" — axis labels for the value chart. */
+function yearMonth(iso: string): string {
+  const [year, month] = (iso || '').split('-')
+  const name = MONTH_ABBR[Number(month) - 1]
+  return name ? `${name} ${year}` : iso
 }
 
 function InfoRow({ label, value }: { label: string; value: string }) {
@@ -220,6 +229,34 @@ export default function VehicleDetail() {
     projection?.salvage_floor ??
     (purchasePrice != null ? purchasePrice * (vehicle.salvage_floor_pct / 100) : null)
 
+  // The current value is user-set whenever an override exists in the history;
+  // otherwise it comes straight from the depreciation curve.
+  const estimatedNow = projection?.curve?.length ? projection.curve[0].value : null
+  const isOverridden = history.length > 0
+
+  const valueStats: Stat[] = [
+    ...(purchasePrice != null
+      ? [
+          {
+            label: 'Purchase price',
+            value: formatMoney(purchasePrice),
+            hint: purchaseDate ? formatDate(purchaseDate) : undefined,
+          },
+          {
+            label: 'Lost so far',
+            value: formatMoney(purchasePrice - currentValue),
+            hint: deltaPct != null ? `${Math.abs(deltaPct).toFixed(1)}% of purchase` : undefined,
+            tone: toneOf(delta),
+          },
+        ]
+      : []),
+    {
+      label: `In ${projectionYears} years`,
+      value: curveLast ? formatMoney(curveLast.value) : '—',
+      hint: 'estimated',
+    },
+  ]
+
   const mileage = vehicle.last_odo ?? vehicle.manual_mileage
 
   const depreciationModel = vehicle.annual_depreciation_pct
@@ -273,55 +310,49 @@ export default function VehicleDetail() {
           </Card>
         ) : (
           projection && (
-            <Card className="mt-4">
-              <MetricTile
-                label="Current value"
+            <KitCard className="mt-4">
+              <HeroValue
+                label={isOverridden ? 'Current value · set by you' : 'Estimated value'}
                 value={formatMoney(currentValue)}
-                emphasis
-                hint={
+                sub={
                   purchasePrice != null && delta != null && deltaPct != null ? (
-                    <span className="inline-flex flex-wrap items-center gap-1">
-                      <Delta value={deltaPct / 100} eur={delta} />
-                      <span>since acquired {formatDate(purchaseDate)}</span>
-                    </span>
+                    <>
+                      <span className="text-ink-2">
+                        Bought for {formatMoney(purchasePrice)} on {formatDate(purchaseDate)}
+                      </span>
+                      <span className={toneClass(toneOf(delta))}>
+                        {` · ${deltaPct > 0 ? '+' : ''}${deltaPct.toFixed(1)}% since`}
+                      </span>
+                      {isOverridden && estimatedNow != null && (
+                        <span className="text-ink-3"> · estimate would be {formatMoney(estimatedNow)}</span>
+                      )}
+                    </>
                   ) : undefined
                 }
               />
 
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                <MetricTile
-                  label="Purchase price"
-                  value={purchasePrice != null ? formatMoney(purchasePrice) : '—'}
-                  hint={purchaseDate ? formatDate(purchaseDate) : undefined}
-                />
-                <MetricTile
-                  label="Depreciation"
-                  value={purchasePrice != null ? formatMoney(purchasePrice - currentValue) : '—'}
-                />
-                <MetricTile
-                  label={`Projected in ${projectionYears}y`}
-                  value={curveLast ? formatMoney(curveLast.value) : '—'}
-                />
-              </div>
+              <StatStrip className="mt-5" stats={valueStats} />
 
               {projection.curve.length > 0 && (
                 <div className="mt-6">
-                  <Chart
-                    chart_type="line"
-                    title="Value over time"
-                    data={{
-                      series: [
-                        { label: 'Estimated value', color: '#818CF8', points: projection.curve.map(p => ({ x: p.date, y: p.value })) },
-                        { label: 'Salvage floor', color: '#71717A', points: [
-                          { x: projection.curve[0].date, y: projection.salvage_floor },
-                          { x: projection.curve[projection.curve.length - 1].date, y: projection.salvage_floor },
-                        ] },
-                      ],
-                    } as never}
-                  />
+                  <SectionLabel>Value over time</SectionLabel>
+                  <div className="mt-3">
+                    <AreaChart
+                      labels={projection.curve.map(p => p.date)}
+                      series={[{ name: 'Estimated value', values: projection.curve.map(p => p.value) }]}
+                      baseline={projection.salvage_floor ?? null}
+                      formatValue={formatMoney}
+                      formatLabel={yearMonth}
+                    />
+                  </div>
+                  {salvageFloorAmount != null && (
+                    <p className="mt-2 font-mono text-[11px] tabular-nums text-ink-3">
+                      dashed line = floor {formatMoney(salvageFloorAmount)} ({formatPercent(vehicle.salvage_floor_pct ?? 0)} of purchase)
+                    </p>
+                  )}
                 </div>
               )}
-            </Card>
+            </KitCard>
           )
         )}
 
@@ -330,10 +361,6 @@ export default function VehicleDetail() {
           <InfoRow label="Year" value={vehicle.year ? String(vehicle.year) : '—'} />
           <InfoRow label="Mileage" value={mileage ? `${formatNumber(mileage)} km` : '—'} />
           <InfoRow label="Depreciation model" value={depreciationModel} />
-          <InfoRow
-            label="Salvage floor"
-            value={salvageFloorAmount != null ? `${formatPercent(vehicle.salvage_floor_pct ?? 0)} ≈ ${formatMoney(salvageFloorAmount)}` : '—'}
-          />
         </Card>
 
         <h3 className="mb-2 mt-6 text-xs uppercase tracking-wide text-ink-2">Reminders</h3>

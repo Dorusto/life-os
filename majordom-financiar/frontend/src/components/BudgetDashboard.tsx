@@ -6,6 +6,7 @@ import { applyCategoryOverview } from '../lib/api'
 import { loadGroupOrder, saveGroupOrder } from '../lib/categoryGroupOrder'
 import { formatCurrency } from '../lib/formatCurrency'
 import { colorForKey, INCOME_COLOR } from '../lib/chartColors'
+import { ProgressBar, type Tone } from './kit/Stats'
 
 const GROUP_ORDER = ['Housing', 'Daily Living', 'Transport', 'Health', 'Lifestyle', 'Finance', 'Unexpected']
 
@@ -15,11 +16,11 @@ interface Props {
   onDataChange?: () => void
 }
 
-function getBudgetColor(percentage: number, budgeted: number): string {
-  if (budgeted === 0) return 'var(--ink-3)'
-  if (percentage > 100) return 'var(--loss)'
-  const hue = Math.round(120 * (1 - percentage / 100))
-  return `hsl(${hue}, 75%, 45%)`
+/** Bar tone at the thresholds the old hue ramp encoded: warn from 90%, loss past 100%. */
+function budgetTone(percentage: number): Tone {
+  if (percentage > 100) return 'loss'
+  if (percentage >= 90) return 'warn'
+  return 'default'
 }
 
 function pad2(n: number): string {
@@ -161,7 +162,7 @@ export default function BudgetDashboard({ categories, editing, onDataChange }: P
   }
 
   return (
-    <div className="border-t border-token-line px-4 pb-2">
+    <div className="px-5 pb-2">
       {orderedGroups.length === 0 && !editing ? (
         <p className="text-token-ink-3 text-sm text-center py-4">No budget data this month</p>
       ) : (
@@ -301,7 +302,6 @@ function GroupRow({
   onDelete: () => void
 }) {
   const hasBudget = budgeted > 0 && !isIncome
-  const barColor = getBudgetColor(percentage, budgeted)
 
   return (
     <div className="py-3">
@@ -351,18 +351,19 @@ function GroupRow({
               </button>
             </div>
           )}
-          <span className={`font-plex-mono text-sm tabular-nums ${isIncome ? 'text-token-gain' : 'text-token-ink'}`}>
+          <span className={`font-mono text-[13px] tabular-nums ${isIncome ? 'text-token-gain' : 'text-token-ink'}`}>
             {formatCurrency(spent)}
           </span>
         </div>
       </div>
       {hasBudget && (
-        <div className="h-1.5 bg-token-line rounded-full overflow-hidden mt-2 ml-[18px]">
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${Math.min(percentage, 100)}%`, backgroundColor: barColor }}
-          />
-        </div>
+        <>
+          <div className="ml-[18px] mt-1 flex items-baseline justify-between gap-3 font-mono text-xs tabular-nums text-token-ink-3">
+            <span>budget {formatCurrency(budgeted)}</span>
+            <span>{percentage}%</span>
+          </div>
+          <ProgressBar value={spent / budgeted} tone={budgetTone(percentage)} className="ml-[18px] mt-1.5" />
+        </>
       )}
     </div>
   )
@@ -383,23 +384,23 @@ function SubcategoryRow({
 }) {
   const { category_name, spent, budgeted } = category
   const hasBudget = budgeted > 0
-  const barColor = getBudgetColor(percentage, budgeted)
   return (
-    <button onClick={onClick} className={`w-full text-left py-2 ${isLast ? '' : 'border-b border-token-line'}`}>
-      <div className="flex items-center justify-between gap-3 ml-3">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
-          <span className="text-token-ink-3 text-xs truncate">{category_name}</span>
-        </div>
-        <span className="font-plex-mono text-xs tabular-nums text-token-ink">{formatCurrency(spent)}</span>
+    <button onClick={onClick} className={`w-full py-2.5 text-left ${isLast ? '' : 'border-b border-token-line'}`}>
+      <div className="ml-3 flex items-baseline justify-between gap-3">
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="h-1.5 w-1.5 flex-shrink-0 rounded-full" style={{ backgroundColor: color }} />
+          <span className="truncate text-sm text-token-ink">{category_name}</span>
+        </span>
+        <span className="flex-shrink-0 font-mono text-[13px] tabular-nums text-token-ink">{formatCurrency(spent)}</span>
       </div>
       {hasBudget && (
-        <div className="h-1.5 bg-token-line rounded-full overflow-hidden mt-1.5 ml-[15px]">
-          <div
-            className="h-full rounded-full transition-all duration-500"
-            style={{ width: `${Math.min(percentage, 100)}%`, backgroundColor: barColor }}
-          />
-        </div>
+        <>
+          <div className="ml-3 mt-0.5 flex items-baseline justify-between gap-3 font-mono text-xs tabular-nums text-token-ink-3">
+            <span>budget {formatCurrency(budgeted)}</span>
+            <span>{percentage}%</span>
+          </div>
+          <ProgressBar value={spent / budgeted} tone={budgetTone(percentage)} className="ml-[15px] mt-1.5" />
+        </>
       )}
     </button>
   )

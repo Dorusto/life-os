@@ -4,11 +4,10 @@ import { Link } from 'react-router-dom'
 import { ArrowRight } from 'lucide-react'
 import { getHoldings } from '../lib/api'
 import { ButtonLink } from '../components/ButtonLink'
-import { Card } from '../components/Card'
+import { Card } from '../components/kit/Card'
 import { Delta } from '../components/Delta'
-import { EmptyState } from '../components/EmptyState'
+import { EmptyState, StatStrip, toneOf } from '../components/kit/Stats'
 import { ErrorState, Loading } from '../components/Feedback'
-import { MetricTile } from '../components/MetricTile'
 import { PageHeader } from '../components/shell/PageHeader'
 import { Pill } from '../components/Pill'
 import { formatEur, formatMoney, formatPercentPoints, formatShares, titleCase } from '../lib/format'
@@ -54,22 +53,24 @@ export default function Holdings() {
         />
       ) : (
         <>
-          <Card className="mb-6">
-            <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
-              <MetricTile label="Market value" value={formatEur(totalValue)} />
-              <MetricTile label="Cost basis" value={formatEur(totalCost)} />
-              <MetricTile
-                label="Unrealized gain"
-                value={<span className={changeTextClass(totalGain)}>{formatEur(totalGain)}</span>}
-                hint={<Delta value={totalCost > 0 ? totalGain / totalCost : null} />}
-              />
-              <MetricTile label="Positions" value={String(open.length)} />
-            </div>
-          </Card>
+          <StatStrip
+            className="mb-6"
+            stats={[
+              { label: 'Market value', value: formatEur(totalValue) },
+              { label: 'Cost basis', value: formatEur(totalCost) },
+              {
+                label: 'Unrealized gain',
+                value: formatEur(totalGain),
+                tone: toneOf(totalGain),
+                hint: <Delta value={totalCost > 0 ? totalGain / totalCost : null} />,
+              },
+              { label: 'Positions', value: String(open.length) },
+            ]}
+          />
 
           <Card
             padded={false}
-            title="Positions"
+            label="Positions"
             action={
               <label className="flex cursor-pointer items-center gap-2 text-[12px] text-ink-2">
                 <input

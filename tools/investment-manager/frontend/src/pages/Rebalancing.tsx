@@ -3,10 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Save, X } from 'lucide-react'
 import { getRebalancing, getSecurities, getTargetAllocation, setTargetAllocation } from '../lib/api'
 import { Button } from '../components/Button'
-import { Card } from '../components/Card'
-import { EmptyState } from '../components/EmptyState'
+import { Card } from '../components/kit/Card'
+import { EmptyState, StatStrip } from '../components/kit/Stats'
 import { ErrorState, Loading } from '../components/Feedback'
-import { MetricTile } from '../components/MetricTile'
 import { PageHeader } from '../components/shell/PageHeader'
 import { TextInput } from '../components/Form'
 import { formatEur, formatPercentPoints } from '../lib/format'
@@ -111,22 +110,22 @@ export default function Rebalancing() {
         }
       />
 
-      <Card className="mb-6">
-        <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
-          <MetricTile label="Portfolio value" value={formatEur(total)} />
-          <MetricTile
-            label="Targets total"
-            value={
-              <span className={sumOk ? 'text-gain' : 'text-warn'}>{formatPercentPoints(sum)}</span>
-            }
-            hint={sumOk ? 'Balanced' : 'Should sum to 100%'}
-          />
-          <MetricTile label="Tracked targets" value={String(drafts.filter((d) => d.target_key.trim()).length)} />
-          <MetricTile label="Drifted positions" value={String(rows.filter((r) => Math.abs(r.suggested_eur) > 1).length)} />
-        </div>
-      </Card>
+      <StatStrip
+        className="mb-6"
+        stats={[
+          { label: 'Portfolio value', value: formatEur(total) },
+          {
+            label: 'Targets total',
+            value: formatPercentPoints(sum),
+            tone: sumOk ? 'gain' : 'warn',
+            hint: sumOk ? 'Balanced' : 'Should sum to 100%',
+          },
+          { label: 'Tracked targets', value: String(drafts.filter((d) => d.target_key.trim()).length) },
+          { label: 'Drifted positions', value: String(rows.filter((r) => Math.abs(r.suggested_eur) > 1).length) },
+        ]}
+      />
 
-      <Card padded={false} title="Target weights">
+      <Card padded={false} label="Target weights">
         {drafts.length === 0 ? (
           <div className="p-5">
             <EmptyState
@@ -188,7 +187,7 @@ export default function Rebalancing() {
         )}
       </Card>
 
-      <Card padded={false} title="Drift and suggested trades" className="mt-6">
+      <Card padded={false} label="Drift and suggested trades" className="mt-6">
         {rows.length === 0 ? (
           <div className="p-5">
             <p className="text-sm text-ink-3">Set targets above to see suggestions.</p>

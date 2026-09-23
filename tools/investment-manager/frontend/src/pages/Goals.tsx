@@ -3,13 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2, Target } from 'lucide-react'
 import { deleteGoal, getGoalProjection, getGoals, type Goal } from '../lib/api'
 import { Button } from '../components/Button'
-import { Card } from '../components/Card'
+import { Card } from '../components/kit/Card'
+import { AreaChart } from '../components/kit/Charts'
 import { ConfirmDialog } from '../components/ConfirmDialog'
-import { EmptyState } from '../components/EmptyState'
+import { EmptyState, StatStrip } from '../components/kit/Stats'
 import { ErrorState, Loading } from '../components/Feedback'
 import { GoalModal } from '../components/GoalModal'
-import { LineChart } from '../components/LineChart'
-import { MetricTile } from '../components/MetricTile'
 import { PageHeader } from '../components/shell/PageHeader'
 import { Pill } from '../components/Pill'
 import { formatDate, formatEur, formatPercentPoints } from '../lib/format'
@@ -22,7 +21,7 @@ function GoalCard({ goal, onDelete }: { goal: Goal; onDelete: () => void }) {
 
   return (
     <Card
-      title={goal.name}
+      label={goal.name}
       action={
         <button
           type="button"
@@ -49,22 +48,27 @@ function GoalCard({ goal, onDelete }: { goal: Goal; onDelete: () => void }) {
             </span>
           </div>
 
-          <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <MetricTile label="Current" value={formatEur(data.current_value_eur)} />
-            <MetricTile
-              label="Projected"
-              value={<span className={data.on_track ? 'text-gain' : 'text-warn'}>{formatEur(data.projected_value_eur)}</span>}
-            />
-            <MetricTile label="Rate used" value={formatPercentPoints(data.rate * 100, 2)} />
-            <MetricTile
-              label={data.gap_eur >= 0 ? 'Surplus' : 'Shortfall'}
-              value={<span className={data.gap_eur >= 0 ? 'text-gain' : 'text-loss'}>{formatEur(Math.abs(data.gap_eur))}</span>}
-            />
-          </div>
+          <StatStrip
+            className="mb-5"
+            stats={[
+              { label: 'Current', value: formatEur(data.current_value_eur) },
+              {
+                label: 'Projected',
+                value: formatEur(data.projected_value_eur),
+                tone: data.on_track ? 'gain' : 'warn',
+              },
+              { label: 'Rate used', value: formatPercentPoints(data.rate * 100, 2) },
+              {
+                label: data.gap_eur >= 0 ? 'Surplus' : 'Shortfall',
+                value: formatEur(Math.abs(data.gap_eur)),
+                tone: data.gap_eur >= 0 ? 'gain' : 'loss',
+              },
+            ]}
+          />
 
-          <LineChart
+          <AreaChart
             labels={data.points.map((p) => p.date)}
-            series={[{ name: goal.name, values: data.points.map((p) => p.value), color: 'var(--c1)', area: true }]}
+            series={[{ name: goal.name, values: data.points.map((p) => p.value), area: true }]}
             baseline={goal.target_amount}
             height={220}
             formatValue={(v) => formatEur(v, true)}

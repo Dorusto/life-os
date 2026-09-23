@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CheckCircle2, CircleAlert, Save } from 'lucide-react'
 import { getSettings, updateSettings } from '../lib/api'
 import { Button } from '../components/Button'
-import { Card } from '../components/Card'
+import { Card } from '../components/kit/Card'
 import { ErrorState, Loading } from '../components/Feedback'
 import { Field, TextInput } from '../components/Form'
 import { AppearanceSettings } from '../components/shell/AppearanceSettings'
@@ -70,12 +70,12 @@ export default function SettingsPage() {
     <>
       <PageHeader title="Settings" description="The small set of preferences this app keeps." />
 
-      <Card title="Appearance" className="mb-6">
+      <Card label="Appearance" className="mb-6">
         <AppearanceSettings appDefault="olive" />
       </Card>
 
       <form onSubmit={onSubmit} className="space-y-6">
-        <Card title="Performance">
+        <Card label="Performance">
           <div className="grid gap-5 sm:grid-cols-2">
             <Field
               label="Benchmark ticker"
@@ -105,7 +105,7 @@ export default function SettingsPage() {
           </div>
         </Card>
 
-        <Card title="Market data">
+        <Card label="Market data">
           <Field
             label="Twelve Data API key"
             hint="Write-only: saving a new key replaces the stored one, and the value is never shown again."

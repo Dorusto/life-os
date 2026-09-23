@@ -19,8 +19,12 @@ import { WIDGETS, WIDGET_SPAN, loadWidgetPrefs, saveWidgetPrefs, type WidgetId }
 import { loadNetWorthIncludePrefs, saveNetWorthIncludePrefs } from '../lib/netWorthPrefs'
 import { useState, useEffect, useRef } from 'react'
 import { formatCurrency, formatPercent } from '../lib/formatCurrency'
-import { formatWeekdayDate } from '../lib/formatDate'
+import { formatDate, formatWeekdayDate } from '../lib/formatDate'
 import WidgetLoading from '../components/WidgetLoading'
+import { Card } from '../components/kit/Card'
+import { HeroValue, ListRow, StatStrip, toneOf, type Stat } from '../components/kit/Stats'
+import { AreaChart } from '../components/kit/Charts'
+import { DomainTabs } from '../components/shell/DomainTabs'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -135,12 +139,11 @@ export default function Dashboard() {
         // it a failed budget-period query makes the Watchlist vanish silently.
         if (periodBudgetError) {
           return (
-            <div className="bg-token-surface border border-token-line rounded-xl p-4">
-              <p className="text-xs text-token-ink-3 uppercase tracking-wide">Categories Watchlist</p>
+            <Card label="Categories Watchlist">
               <p className="text-token-ink-3 text-sm text-center py-2">
                 Couldn't load this month's budget.
               </p>
-            </div>
+            </Card>
           )
         }
         return periodCategories && periodCategories.length > 0 ? (
@@ -162,8 +165,7 @@ export default function Dashboard() {
         // means the latter.
         if (periodBudgetLoading || periodBudgetError) {
           return (
-            <div className="bg-token-surface border border-token-line rounded-xl p-4">
-              <p className="text-xs text-token-ink-3 uppercase tracking-wide">Expenses Structure</p>
+            <Card label="Expenses Structure">
               {periodBudgetLoading ? (
                 <WidgetLoading label="Loading expenses…" />
               ) : (
@@ -171,18 +173,18 @@ export default function Dashboard() {
                   Couldn't load this month's spending.
                 </p>
               )}
-            </div>
+            </Card>
           )
         }
         return (
-          <div className="bg-token-surface border border-token-line rounded-xl">
+          <Card padded={false}>
             <Chart
               chart_type="pie"
               title="Expenses Structure"
               data={toExpensesPieData(periodCategories)}
               bare
             />
-          </div>
+          </Card>
         )
       case 'vehicle':
         return <VehicleCostsWidget dashboardMonth={dashboardMonth} dashboardYear={dashboardYear} />
@@ -206,9 +208,9 @@ export default function Dashboard() {
   const periodShort = periodIsCurrentMonth
     ? MONTH_NAMES_FULL[dashboardMonth - 1].slice(0, 3)
     : periodLabel
-  const stats: { label: string; value: string; sub?: string }[] = []
+  const stats: Stat[] = []
   if (onBudgetTotal != null) {
-    stats.push({ label: 'On budget', value: formatCurrency(onBudgetTotal, { decimals: 0 }), sub: accountCount != null ? `${accountCount} account${accountCount === 1 ? '' : 's'}` : undefined })
+    stats.push({ label: 'On budget', value: formatCurrency(onBudgetTotal, { decimals: 0 }), hint: accountCount != null ? `${accountCount} account${accountCount === 1 ? '' : 's'}` : undefined })
   }
   if (periodSpent != null) stats.push({ label: `Spent · ${periodShort}`, value: formatCurrency(periodSpent) })
   if (periodIncome != null) stats.push({ label: `Income · ${periodShort}`, value: formatCurrency(periodIncome) })
@@ -260,6 +262,9 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col">
+      <div className="mb-5 flex">
+        <DomainTabs app="finance" active="spending" />
+      </div>
       <PageHeader eyebrow={dateLabel} title="Dashboard" actions={headerActions} />
 
       {notifState === 'default' && (
@@ -310,18 +315,7 @@ export default function Dashboard() {
             {/* Stat strip sits right under the balance hero (order-first) and above the
                 other widgets, whatever their registry order. */}
             {stats.length > 0 && (
-              <div className={`order-[-1] grid grid-cols-2 overflow-hidden rounded-xl lg:col-span-12 border border-token-line bg-token-surface ${stats.length === 4 ? 'lg:grid-cols-4' : stats.length === 3 ? 'lg:grid-cols-3' : ''}`}>
-                {stats.map((stat, i) => (
-                  <div
-                    key={stat.label}
-                    className={`flex flex-col gap-1.5 px-5 py-4 ${i % 2 === 1 ? 'border-l border-token-line' : ''} ${i >= 2 ? 'border-t border-token-line lg:border-t-0' : ''} ${i === 2 ? 'lg:border-l' : ''}`}
-                  >
-                    <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-token-ink-3">{stat.label}</span>
-                    <span className="font-mono text-xl tabular-nums text-token-ink">{stat.value}</span>
-                    {stat.sub && <span className="font-mono text-xs text-token-ink-3">{stat.sub}</span>}
-                  </div>
-                ))}
-              </div>
+              <StatStrip stats={stats} className="order-[-1] lg:col-span-12" />
             )}
             {visibleWidgets.map(w => (
               <div key={w.id} className={`min-w-0 ${WIDGET_SPAN[w.size]} ${w.id === 'trend' ? 'order-first' : ''}`}>
@@ -460,8 +454,8 @@ function PeriodPickerSheet({ open, onClose, onApply }: { open: boolean; onClose:
 const TREND_SCOPES = ['Total', 'On-budget', 'Portfolio', 'Vehicles'] as const
 type TrendScope = typeof TREND_SCOPES[number]
 
-/** The dashboard's hero: the balance as one large figure, its 30-day change, and the trend
-    line full width under it — no card, per the design mockup. Portfolio/Vehicles scopes have
+/** The dashboard's hero: the balance as one large HeroValue figure, its 30-day change, and a
+    full-width AreaChart of the same balance history under it. Portfolio/Vehicles scopes have
     no data source yet and say so rather than faking a number. */
 function BalanceHero({ accounts, dashboardMonth, dashboardYear }: {
   accounts: AccountListItem[] | undefined
@@ -508,88 +502,81 @@ function BalanceHero({ accounts, dashboardMonth, dashboardYear }: {
       ? ((lastBalance - firstBalance) / Math.abs(firstBalance)) * 100
       : null
 
-  const lineData = {
-    series: [
-      {
-        label: 'Balance',
-        color: 'var(--accent)',
-        points: historyPoints.map(p => ({ x: p.date, y: p.balance })),
-      },
-    ],
-    empty_message: 'No balance history yet',
-  }
-
-  // Cents dimmed, as in the mockup: split the formatted amount at its decimal separator.
-  const formatted = amount != null ? formatCurrency(amount) : '—'
-  const cents = formatted.match(/([.,]\d{2})$/)
-  const whole = cents ? formatted.slice(0, -cents[1].length) : formatted
-
   return (
-    <section className="flex flex-col gap-1.5">
-      <div className="relative flex items-center gap-2">
-        <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-token-ink-3">
-          {scope === 'Total' ? 'Net balance' : scope} · today
-        </span>
-        <button
-          onClick={() => setMenuOpen(o => !o)}
-          className="inline-flex items-center rounded-full p-1 text-token-ink-3 hover:bg-token-surface-2 hover:text-token-ink"
-          aria-label="Change balance scope"
-        >
-          <ChevronDown size={13} />
-        </button>
-        {menuOpen && (
-          <div className="absolute left-0 top-full z-10 mt-1.5 min-w-[150px] rounded-xl border border-token-line-strong bg-token-surface-2 p-1.5 shadow-lg">
-            {TREND_SCOPES.map(s => (
-              <button
-                key={s}
-                onClick={() => { setScope(s); setMenuOpen(false) }}
-                className={`w-full rounded-lg px-2.5 py-2 text-left font-mono text-xs transition-colors ${
-                  scope === s ? 'text-token-ink' : 'text-token-ink-3 hover:bg-token-surface hover:text-token-ink'
-                }`}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+    <Card
+      label="Balance trend"
+      action={
+        <div className="relative flex items-center gap-2">
+          <button
+            onClick={() => setMenuOpen(o => !o)}
+            className="inline-flex items-center gap-1 rounded-full border border-token-line bg-token-surface px-2.5 py-1.5 font-mono text-xs text-token-ink hover:bg-token-surface-2"
+            aria-label="Change balance scope"
+          >
+            {scope}
+            <ChevronDown size={13} />
+          </button>
+          {menuOpen && (
+            <div className="absolute right-0 top-full z-10 mt-1.5 min-w-[150px] rounded-xl border border-token-line-strong bg-token-surface p-1.5 shadow-lg">
+              {TREND_SCOPES.map(s => (
+                <button
+                  key={s}
+                  onClick={() => { setScope(s); setMenuOpen(false) }}
+                  className={`w-full rounded-lg px-2.5 py-2 text-left font-mono text-xs transition-colors ${
+                    scope === s ? 'text-token-ink' : 'text-token-ink-3 hover:bg-token-surface-2 hover:text-token-ink'
+                  }`}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      }
+    >
       {hasSnapshot ? (
         <>
-          <p className="font-mono text-[34px] font-medium leading-none tracking-tight tabular-nums text-token-ink lg:text-[44px]">
-            {whole}
-            {cents && <span className="text-token-ink-3">{cents[1]}</span>}
-          </p>
           {/* Two points minimum — one snapshot has nothing to compare against,
-              so the change line must not render a fabricated +0% off one point. */}
-          {historyPoints.length >= 2 && periodDiff != null && periodPct != null && (
-            <p className="flex flex-wrap gap-x-3 font-mono text-[13px]">
-              <span className={periodDiff >= 0 ? 'text-token-gain' : 'text-token-loss'}>
-                {formatCurrency(periodDiff, { signDisplay: 'always' })}
-              </span>
-              <span className={periodDiff >= 0 ? 'text-token-gain' : 'text-token-loss'}>
-                {formatPercent(periodPct, { signDisplay: 'always' })}
-              </span>
-              <span className="text-token-ink-3">vs 30 days ago</span>
-            </p>
-          )}
+              so the delta line must not render a fabricated +0% off one point. */}
+          <HeroValue
+            label={`${scope === 'Total' ? 'Net balance' : scope} · today`}
+            value={amount != null ? formatCurrency(amount) : '—'}
+            sub={
+              historyPoints.length >= 2 && periodDiff != null && periodPct != null ? (
+                <span className="flex flex-wrap gap-x-3">
+                  <span className={periodDiff >= 0 ? 'text-token-gain' : 'text-token-loss'}>
+                    {formatCurrency(periodDiff, { signDisplay: 'always' })}
+                  </span>
+                  <span className={periodDiff >= 0 ? 'text-token-gain' : 'text-token-loss'}>
+                    {formatPercent(periodPct, { signDisplay: 'always' })}
+                  </span>
+                  <span className="text-token-ink-3">vs 30 days ago</span>
+                </span>
+              ) : undefined
+            }
+          />
           {balanceHistoryQuery.isLoading ? (
             <WidgetLoading label="Loading historical balance…" className="mt-3" />
           ) : balanceHistoryQuery.isError ? (
             <p className="mt-3 text-xs text-token-ink-3">Couldn't load balance history.</p>
           ) : historyPoints.length >= 2 ? (
             <div className="mt-3">
-              <Chart chart_type="line" title="Balance trend" data={lineData} bare />
+              <AreaChart
+                labels={historyPoints.map(p => p.date)}
+                series={[{ name: 'Balance', values: historyPoints.map(p => p.balance) }]}
+                formatValue={v => formatCurrency(v, { decimals: 0 })}
+                formatLabel={formatDate}
+              />
             </div>
           ) : (
             <p className="mt-3 text-xs text-token-ink-3">Not enough balance history yet.</p>
           )}
         </>
       ) : (
-        <p className="mt-2 text-sm text-token-ink-3">
+        <p className="text-sm text-token-ink-3">
           {scope === 'Portfolio' ? 'No portfolio data source yet.' : 'Needs vehicle-manager cost data.'}
         </p>
       )}
-    </section>
+    </Card>
   )
 }
 
@@ -650,17 +637,6 @@ function NetWorthWidget({ accounts, dashboardMonth, dashboardYear }: {
       ? ((endBalance - startBalance) / Math.abs(startBalance)) * 100
       : null
 
-  const lineData = {
-    series: [
-      {
-        label: 'Net Worth',
-        color: 'var(--brand)',
-        points: historyPoints.map(p => ({ x: p.date, y: p.balance })),
-      },
-    ],
-    empty_message: 'No net worth history yet',
-  }
-
   function toggleInclude(category: 'Loan' | 'Vehicle' | 'Rental') {
     const next = { ...includePrefs, [category]: !includePrefs[category] }
     setIncludePrefs(next)
@@ -668,9 +644,9 @@ function NetWorthWidget({ accounts, dashboardMonth, dashboardYear }: {
   }
 
   return (
-    <div className="bg-gradient-to-br from-token-surface to-token-surface-2 border border-token-line rounded-xl p-5">
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-token-ink-3">Net Worth</span>
+    <Card
+      label="Net Worth"
+      action={
         <div className="relative flex items-center gap-1">
           <button
             onClick={() => navigate('/analytics')}
@@ -681,13 +657,13 @@ function NetWorthWidget({ accounts, dashboardMonth, dashboardYear }: {
           </button>
           <button
             onClick={() => setMenuOpen(o => !o)}
-            className="inline-flex items-center gap-1.5 bg-token-surface-2 border border-token-line text-token-ink text-xs font-semibold px-2.5 py-1.5 rounded-lg"
+            className="inline-flex items-center gap-1.5 rounded-lg border border-token-line bg-token-surface-2 px-2.5 py-1.5 font-mono text-xs text-token-ink"
           >
             Include
             <ChevronDown size={12} />
           </button>
           {menuOpen && (
-            <div className="absolute top-full right-0 mt-1.5 bg-token-surface-2 border border-token-line-strong rounded-xl p-2.5 min-w-[190px] shadow-lg z-10">
+            <div className="absolute top-full right-0 z-10 mt-1.5 min-w-[190px] rounded-xl border border-token-line-strong bg-token-surface-2 p-2.5 shadow-lg">
               {(['Loan', 'Vehicle', 'Rental'] as const).map(cat => (
                 <label key={cat} className="flex items-center gap-2 py-1.5 text-sm text-token-ink cursor-pointer">
                   <input
@@ -702,11 +678,9 @@ function NetWorthWidget({ accounts, dashboardMonth, dashboardYear }: {
             </div>
           )}
         </div>
-      </div>
-
-      <p className="font-plex-mono font-medium text-3xl mt-2 tabular-nums">
-        {formatCurrency(currentTotal, { decimals: 0 })}
-      </p>
+      }
+    >
+      <HeroValue value={formatCurrency(currentTotal, { decimals: 0 })} />
 
       {balanceHistoryQuery.isLoading ? (
         <WidgetLoading label="Loading historical balance…" className="mt-3" />
@@ -715,21 +689,26 @@ function NetWorthWidget({ accounts, dashboardMonth, dashboardYear }: {
       ) : historyPoints.length >= 2 ? (
         <>
           <div className="mt-3">
-            <Chart chart_type="line" title="Net Worth" data={lineData} bare />
+            <AreaChart
+              labels={historyPoints.map(p => p.date)}
+              series={[{ name: 'Net Worth', values: historyPoints.map(p => p.balance) }]}
+              formatValue={v => formatCurrency(v, { decimals: 0 })}
+              formatLabel={formatDate}
+            />
           </div>
           {startBalance != null && endBalance != null && (
-            <div className="grid grid-cols-3 gap-2 mt-3">
+            <div className="mt-3 grid grid-cols-3 gap-2 font-mono tabular-nums">
               <div>
-                <p className="font-plex-mono text-[10px] tracking-widest uppercase text-token-ink-3">Start</p>
-                <p className="text-sm text-token-ink tabular-nums mt-0.5">{formatCurrency(startBalance)}</p>
+                <p className="text-[10px] uppercase tracking-[0.12em] text-token-ink-3">Start</p>
+                <p className="mt-0.5 text-sm text-token-ink">{formatCurrency(startBalance)}</p>
               </div>
               <div>
-                <p className="font-plex-mono text-[10px] tracking-widest uppercase text-token-ink-3">Now</p>
-                <p className="text-sm text-token-ink tabular-nums mt-0.5">{formatCurrency(endBalance)}</p>
+                <p className="text-[10px] uppercase tracking-[0.12em] text-token-ink-3">Now</p>
+                <p className="mt-0.5 text-sm text-token-ink">{formatCurrency(endBalance)}</p>
               </div>
               <div>
-                <p className="font-plex-mono text-[10px] tracking-widest uppercase text-token-ink-3">Growth</p>
-                <p className={`text-sm tabular-nums mt-0.5 ${growthDiff != null && growthDiff >= 0 ? 'text-token-gain' : 'text-token-loss'}`}>
+                <p className="text-[10px] uppercase tracking-[0.12em] text-token-ink-3">Growth</p>
+                <p className={`mt-0.5 text-sm ${growthDiff != null && growthDiff >= 0 ? 'text-token-gain' : 'text-token-loss'}`}>
                   {growthDiff != null ? formatCurrency(growthDiff, { signDisplay: 'always' }) : '—'}
                   {growthPct != null ? ` · ${formatPercent(growthPct, { signDisplay: 'always' })}` : ''}
                 </p>
@@ -740,37 +719,41 @@ function NetWorthWidget({ accounts, dashboardMonth, dashboardYear }: {
       ) : (
         <p className="text-token-ink-3 text-xs mt-3">Not enough net worth history yet.</p>
       )}
-    </div>
+    </Card>
   )
 }
 
 function LatestTransactionsWidget({ transactions, navigate, isLoading }: { transactions: Transaction[] | undefined; navigate: NavigateFn; isLoading?: boolean }) {
   return (
-    <div className="bg-token-surface border border-token-line rounded-xl px-4 pt-4 pb-1.5">
-      <div className="flex items-center justify-between mb-1.5">
-        <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-token-ink-3">Latest Transactions</span>
+    <Card
+      label="Latest Transactions"
+      action={
         <button onClick={() => navigate('/transactions')} className="text-token-ink-3 hover:text-token-ink transition-colors" aria-label="See all transactions">
           <ArrowUpRight size={16} />
         </button>
-      </div>
+      }
+    >
       {isLoading ? (
         <WidgetLoading label="Loading transactions…" />
       ) : !transactions || transactions.length === 0 ? (
         <p className="text-token-ink-3 text-xs py-3">No transactions yet.</p>
       ) : (
-        transactions.slice(0, 5).map(tx => (
-          <div key={tx.id} className="flex items-center gap-2.5 py-2.5 border-b border-token-line last:border-b-0">
-            <div className="flex-1 min-w-0">
-              <p className="text-[13.5px] font-medium truncate">{tx.merchant}</p>
-              <p className="text-[11.5px] text-token-ink-3 truncate">{tx.category ?? 'Uncategorized'}</p>
-            </div>
-            <p className={`font-plex-mono text-[13.5px] tabular-nums flex-shrink-0 ${!tx.is_expense ? 'text-token-gain' : ''}`}>
-              {formatCurrency(tx.is_expense ? -Math.abs(tx.amount) : Math.abs(tx.amount), { signDisplay: 'always' })}
-            </p>
-          </div>
-        ))
+        <div className="divide-y divide-token-line">
+          {transactions.slice(0, 5).map(tx => {
+            const signed = tx.is_expense ? -Math.abs(tx.amount) : Math.abs(tx.amount)
+            return (
+              <ListRow
+                key={tx.id}
+                title={tx.merchant}
+                subtitle={tx.category ?? 'Uncategorized'}
+                value={formatCurrency(signed, { signDisplay: 'always' })}
+                tone={toneOf(signed)}
+              />
+            )
+          })}
+        </div>
       )}
-    </div>
+    </Card>
   )
 }
 
@@ -817,20 +800,18 @@ function VehicleCostsWidget({ dashboardMonth, dashboardYear }: {
   let content: ReactNode
 
   if (isLoading) {
-    content = <WidgetLoading label="Loading vehicle costs…" className="mt-2" />
+    content = <WidgetLoading label="Loading vehicle costs…" />
   } else if (isError) {
-    content = <p className="text-token-ink-3 text-xs mt-2">Couldn't load vehicle cost data.</p>
+    content = <p className="text-token-ink-3 text-xs">Couldn't load vehicle cost data.</p>
   } else if (data && data.available === false) {
-    content = <p className="text-token-ink-3 text-xs mt-2">{data.error || 'Vehicle data temporarily unavailable.'}</p>
+    content = <p className="text-token-ink-3 text-xs">{data.error || 'Vehicle data temporarily unavailable.'}</p>
   } else if (data && data.available === true) {
     const totalCost = data.total_cost ?? 0
     const vehicleCount = data.vehicle_count ?? 0
     content = (
       <>
-        <p className="font-plex-mono font-medium text-3xl mt-1 tabular-nums">
-          {formatCurrency(totalCost, { decimals: 0 })}
-        </p>
-        <p className="text-token-ink-3 text-xs mt-2">
+        <HeroValue value={formatCurrency(totalCost, { decimals: 0 })} />
+        <p className="mt-2 font-mono text-xs tabular-nums text-token-ink-3">
           {vehicleCount} vehicle{vehicleCount !== 1 ? 's' : ''}
           {data.cost_per_km != null && (
             <> · {formatCurrency(data.cost_per_km)}/km</>
@@ -839,14 +820,13 @@ function VehicleCostsWidget({ dashboardMonth, dashboardYear }: {
       </>
     )
   } else {
-    content = <p className="text-token-ink-3 text-xs mt-2">No vehicle data available.</p>
+    content = <p className="text-token-ink-3 text-xs">No vehicle data available.</p>
   }
 
   return (
-    <div className="bg-token-surface border border-token-line rounded-xl px-4 py-4">
-      <p className="font-mono text-[11px] uppercase tracking-[0.12em] text-token-ink-3">Vehicle costs</p>
+    <Card label="Vehicle costs">
       {content}
-    </div>
+    </Card>
   )
 }
 
@@ -871,20 +851,20 @@ function BudgetPeriodCard({
   const queryClient = useQueryClient()
 
   return (
-    <div className="bg-token-surface border border-token-line rounded-xl overflow-hidden">
-      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-token-line">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-token-ink-3">Categories Watchlist</span>
-          <button
-            onClick={() => setEditingGroups(o => !o)}
-            className={`text-token-ink-3 hover:text-token-ink transition-colors p-2.5 ${editingGroups ? 'text-token-brand-ink' : ''}`}
-            aria-label={editingGroups ? 'Exit group edit mode' : 'Edit groups'}
-            title={editingGroups ? 'Exit group edit mode' : 'Edit groups'}
-          >
-            <Pencil size={15} />
-          </button>
-        </div>
-      </div>
+    <Card
+      label="Categories Watchlist"
+      padded={false}
+      action={
+        <button
+          onClick={() => setEditingGroups(o => !o)}
+          className={`p-2.5 text-token-ink-3 transition-colors hover:text-token-ink ${editingGroups ? 'text-token-brand-ink' : ''}`}
+          aria-label={editingGroups ? 'Exit group edit mode' : 'Edit groups'}
+          title={editingGroups ? 'Exit group edit mode' : 'Edit groups'}
+        >
+          <Pencil size={15} />
+        </button>
+      }
+    >
       <BudgetDashboard
         categories={categories}
         editing={editingGroups}
@@ -892,6 +872,6 @@ function BudgetPeriodCard({
           queryClient.invalidateQueries({ queryKey: ['budget-period', dashboardMonth, dashboardYear] })
         }}
       />
-    </div>
+    </Card>
   )
 }
