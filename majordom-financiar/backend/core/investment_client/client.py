@@ -20,6 +20,7 @@ from backend.core.config import settings
 logger = logging.getLogger(__name__)
 
 BASE_TIMEOUT = httpx.Timeout(10.0)  # internal service on same Docker network
+HEALTH_TIMEOUT = httpx.Timeout(5.0)  # status checks must not stall the Settings page
 
 
 class InvestmentClient:
@@ -70,3 +71,36 @@ class InvestmentClient:
         unavailable", never as zero.
         """
         return await self._get("/portfolio/value")
+
+    async def health(self) -> bool:
+        """Whether investment-manager's unauthenticated ``GET /health`` answers 200.
+
+        Backs ``GET /api/investment/status`` so Settings → Connections can show a
+        real state for Invest instead of echoing a URL. No auth header: that
+        route is deliberately unauthenticated (it is the Docker healthcheck's
+        entry point), so False here means unreachable, never unauthorized.
+        """
+        url = f"{self.base_url}/health"
+        try:
+            async with httpx.AsyncClient(timeout=HEALTH_TIMEOUT) as client:
+                resp = await client.get(url)
+            if resp.status_code != 200:
+                logger.warning(
+                    "investment-manager health check returned %s for %s",
+                    resp.status_code,
+                    url,
+                )
+                return False
+            return True
+        except httpx.TimeoutException:
+            logger.warning("investment-manager health check timed out connecting to %s", url)
+            return False
+        except httpx.ConnectError:
+            logger.warning(
+                "Could not connect to investment-manager at %s — is the service running?",
+                self.base_url,
+            )
+            return False
+        except httpx.HTTPError as e:
+            logger.warning("investment-manager health check failed for %s: %s", url, e)
+            return False

@@ -12,12 +12,14 @@ import type { LucideIcon } from 'lucide-react'
 import {
   syncAccounts, getPayees, getSchedules, getBackupStatus, getCategories, getCategoryGroups,
   getBudgetPacingConfig, saveBudgetPacingConfig, getSetupStatus, getVehicleCostsSummary,
+  getInvestmentStatus,
   getFireExcludedAccounts, saveFireExcludedAccounts, getAccountList,
   type PayeeItem, type ScheduleItem,
 } from '../lib/api'
 import { isAbDown, subscribeAbDown } from '../lib/abConnectionStatus'
 import { clearAuth } from '../lib/auth'
 import { requestAndSubscribe } from '../lib/push'
+import { APP_LINKS } from '../components/shell/appLinks'
 import PageHeader from '../components/PageHeader'
 import IconButton from '../components/IconButton'
 import StandardHeaderActions from '../components/StandardHeaderActions'
@@ -519,14 +521,16 @@ function AiIntegrationsPage() {
 function ConnectionsPage() {
   const origin = `${window.location.protocol}//${window.location.hostname}`
   const actualBudgetUrl = import.meta.env.VITE_ACTUAL_BUDGET_URL || `${origin}:5006`
-  const vehicleAppUrl = import.meta.env.VITE_VEHICLE_APP_URL?.replace(/\/+$/, '') || `${origin}:3010`
-  const investmentUrl = `${origin}:3020`
+  // Vehicle and Invest are separate deployables on their own origins. APP_LINKS
+  // resolves the same VITE_* variables as the app-shell nav, so this link can't
+  // drift from the rail's.
+  const vehicleAppUrl = APP_LINKS.transport.url
+  const investmentUrl = APP_LINKS.invest.url
 
-  // Honest status only (audit finding 79): Actual Budget has a real health
-  // chain (credentials configured via setup/status + the #254 reactive AB-down
-  // flag); Vehicle Manager via the costs-summary proxy's `available` field.
-  // Investment Manager has no reachable health endpoint, so it shows its URL
-  // instead of a state the app doesn't know.
+  // Honest status only (audit finding 79): every row has a real health chain —
+  // Actual Budget via setup/status + the #254 reactive AB-down flag, Vehicle
+  // Manager via the costs-summary proxy's `available` field, Investment Manager
+  // via /investment/status (its unauthenticated GET /health).
   const { data: setup, isLoading: setupLoading } = useQuery({
     queryKey: ['setup-status', 'connections'],
     queryFn: () => getSetupStatus(),
@@ -538,6 +542,16 @@ function ConnectionsPage() {
     queryKey: ['vehicle-costs-summary', 'connections'],
     queryFn: () => getVehicleCostsSummary(),
     staleTime: 60_000,
+  })
+  const {
+    data: investmentData, isLoading: investmentLoading, isError: investmentError,
+  } = useQuery({
+    queryKey: ['investment-status', 'connections'],
+    queryFn: () => getInvestmentStatus(),
+    staleTime: 60_000,
+    // A deliberate "not available" is a normal answer, not an error, so don't
+    // let the global retry/poll default hammer an optional service (#208).
+    retry: false,
   })
   const [abDown, setAbDown] = useState(isAbDown())
   useEffect(() => subscribeAbDown(setAbDown), [])
@@ -556,6 +570,14 @@ function ConnectionsPage() {
     : vehicleError
       ? 'Status unknown'
       : vehicleConnected
+        ? 'Connected'
+        : 'Unreachable'
+  const investmentConnected = !investmentLoading && !investmentError && investmentData?.available === true
+  const investmentStatus = investmentLoading
+    ? 'Checking…'
+    : investmentError
+      ? 'Status unknown'
+      : investmentConnected
         ? 'Connected'
         : 'Unreachable'
 
@@ -595,7 +617,9 @@ function ConnectionsPage() {
       >
         <LineChart size={16} className="text-token-ink-3 flex-shrink-0" />
         <span className="flex-1 text-sm font-semibold text-token-ink">Investment Manager</span>
-        <span className="text-xs text-token-ink-3 flex-shrink-0">{investmentUrl}</span>
+        <span className={`text-xs flex-shrink-0 ${investmentConnected ? 'text-token-gain' : investmentStatus === 'Unreachable' ? 'text-token-loss' : 'text-token-ink-3'}`}>
+          {investmentStatus}
+        </span>
         <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
       </a>
       {/* Majordom's own SQLite debug viewer — loopback-only since the tailscale-serve
