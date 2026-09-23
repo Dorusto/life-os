@@ -24,6 +24,7 @@ import { getChatHistory } from './lib/api'
 import AbConnectionBanner from './components/AbConnectionBanner'
 import NotificationBell from './components/NotificationBell'
 import { AppShell, type ShellNavItem } from './components/shell/AppShell'
+import { Page } from './components/shell/Page'
 
 /**
  * ProtectedRoute: redirects to /login if the user is not authenticated.
@@ -100,15 +101,17 @@ const NAV: ShellNavItem[] = [
  * The shared shell, mounted exactly once around every protected route via a
  * pathless layout route + <Outlet/> (not one <AppShell> per page). The shell
  * owns the rail / floating tab bar, scrolling, notifications, Settings and
- * Log out — this wrapper only caps content width: 1600px for pages, 1040px for
- * Settings' narrower form column. `h-full` is required: pages use
- * `min-h-full`, which needs a parent with a definite height (the shell's <main>
- * is `h-dvh` and renders its children directly).
+ * Log out — this wrapper only picks the content width (`wide` for pages,
+ * `narrow` for Settings' form column) through the shared <Page>, which also
+ * supplies the page padding, so pages no longer add their own px-* gutters.
+ * `h-full` is required: Chat fills the available height, which needs a parent
+ * with a definite height (the shell's <main> is `h-dvh` and renders its
+ * children directly).
  */
 function ShellLayout() {
   const location = useLocation()
   const navigate = useNavigate()
-  const maxWidth = location.pathname.startsWith('/settings') ? 'max-w-[1040px]' : 'max-w-[1600px]'
+  const isSettings = location.pathname.startsWith('/settings')
 
   return (
     <AppShell
@@ -123,9 +126,9 @@ function ShellLayout() {
         navigate('/login', { replace: true })
       }}
     >
-      <div className={`mx-auto h-full w-full ${maxWidth}`}>
+      <Page width={isSettings ? 'narrow' : 'wide'} className="h-full">
         <Outlet />
-      </div>
+      </Page>
     </AppShell>
   )
 }

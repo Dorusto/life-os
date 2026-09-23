@@ -2,7 +2,7 @@ import { Fragment, useCallback, useEffect, useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { CheckSquare, Filter, List, Loader2, MessageCircle, Table2, X } from 'lucide-react'
-import PageHeader from '../components/PageHeader'
+import PageHeader from '../components/shell/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import BottomSheet from '../components/BottomSheet'
 import CategoryFilterTree from '../components/CategoryFilterTree'
@@ -282,10 +282,12 @@ export default function TransactionsPage() {
   )
 
   return (
-    <div className="min-h-full bg-token-paper flex flex-col">
-      <PageHeader label="All transactions" title="Transactions" actions={<StandardHeaderActions />} bordered />
+    <div className="flex flex-col">
+      <PageHeader eyebrow="All transactions" title="Transactions" actions={<StandardHeaderActions />} />
 
-      <section className="flex-1 px-5 pb-40">
+      {/* pb-40 stays: it clears this page's own fixed bulk-action bar
+          (bottom-16 lg:bottom-0), not the shell's bottom nav. */}
+      <section className="flex-1 pb-40">
         {/* Toolbar: list/table toggle + filters */}
         <div className="flex items-center justify-between py-3">
           <div className="flex items-center gap-1 bg-token-surface border border-token-line rounded-lg p-1">
@@ -449,7 +451,10 @@ export default function TransactionsPage() {
         )}
 
         {transactions.length > 0 && view === 'table' && (
-          <div className="overflow-x-auto -mx-5 px-5">
+          {/* Bleeds the scroll container out to the Page's own gutter, so the
+              table stays aligned with the rows above without letting it spill
+              past the viewport. */}
+          <div className="overflow-x-auto -mx-4 px-4 lg:-mx-10 lg:px-10">
             <table className="w-full text-sm border-collapse min-w-[540px]">
               <thead>
                 <tr className="text-left text-token-ink-3 text-xs">

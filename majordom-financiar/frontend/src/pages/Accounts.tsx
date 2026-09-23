@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { Wallet, Plus, Car, TrendingUp, Landmark, Home } from 'lucide-react'
 import { getAccountList, type AccountListItem } from '../lib/api'
 import { listVehicles, type Vehicle } from '../lib/vehicleValueApi'
-import PageHeader from '../components/PageHeader'
+import PageHeader from '../components/shell/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import EditVehicleModal from '../components/vehicles/EditVehicleModal'
 import LinkVehicleSheet from '../components/vehicles/LinkVehicleSheet'
@@ -56,13 +56,13 @@ export default function Accounts() {
   }
 
   return (
-    <div className="min-h-full bg-token-paper flex flex-col">
+    <div className="flex flex-col">
       <PageHeader
-        label={accounts ? `${accounts.length} account${accounts.length !== 1 ? 's' : ''} · Actual Budget` : 'Actual Budget'}
+        eyebrow={accounts ? `${accounts.length} account${accounts.length !== 1 ? 's' : ''} · Actual Budget` : 'Actual Budget'}
         title="Accounts"
         actions={<StandardHeaderActions />}
       />
-      <section className="px-5 pt-2 pb-24">
+      <section className="pt-2">
         <p className="font-plex-mono text-[11px] uppercase tracking-wide text-token-ink-3">Total</p>
         {/* €0 while loading/error reads as a real (wrong) total — show a dash
             until the accounts query succeeded, and the failure explicitly. */}
