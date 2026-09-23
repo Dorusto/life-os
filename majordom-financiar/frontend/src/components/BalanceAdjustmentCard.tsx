@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { confirmBalanceAdjustment, cancelBalanceAdjustment, type BalanceAdjustmentData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
 import { formatCurrency } from '../lib/formatCurrency'
-import { Card } from './ui/Card'
+import { Card } from './kit/Card'
 
 interface Props {
   data: BalanceAdjustmentData
@@ -43,30 +43,32 @@ export default function BalanceAdjustmentCard({ data, onConfirmed, onCancelled }
   const diffColor = diff > 0 ? 'text-token-gain' : diff < 0 ? 'text-token-loss' : 'text-token-ink-3'
 
   return (
-    <Card variant="bubble" className="max-w-[80%]">
-      <div>
-        <p className="text-token-ink font-medium">{data.account_name}</p>
-        <p className="text-token-ink-3 text-sm flex items-center gap-2">
-          {formatCurrency(data.current_balance)} →
-          <input
-            type="number"
-            step="0.01"
-            value={realBalance}
-            onChange={e => setRealBalance(e.target.value)}
-            disabled={loading}
-            className="bg-token-surface-2 border border-token-line rounded-lg px-2 py-1 text-token-ink text-sm focus:outline-none focus:border-token-brand disabled:opacity-50 w-28"
-          />
-        </p>
-        <p className={`text-sm font-medium mt-1 ${diffColor}`}>
-          {diff === 0
-            ? 'Already in sync'
-            : formatCurrency(diff, { signDisplay: 'always' })}
-        </p>
+    <Card label="Adjust balance" className="max-w-[85%] rounded-bl-sm">
+      <div className="space-y-3">
+        <div>
+          <p className="text-token-ink font-medium">{data.account_name}</p>
+          <p className="text-token-ink-3 text-sm flex items-center gap-2">
+            <span className="font-mono tabular-nums">{formatCurrency(data.current_balance)}</span> →
+            <input
+              type="number"
+              step="0.01"
+              value={realBalance}
+              onChange={e => setRealBalance(e.target.value)}
+              disabled={loading}
+              className="bg-token-surface-2 border border-token-line rounded-lg px-2 py-1 text-token-ink text-sm focus:outline-none focus:border-token-brand disabled:opacity-50 w-28"
+            />
+          </p>
+          <p className={`text-sm font-medium mt-1 ${diffColor}`}>
+            {diff === 0
+              ? 'Already in sync'
+              : <span className="font-mono tabular-nums">{formatCurrency(diff, { signDisplay: 'always' })}</span>}
+          </p>
+        </div>
+
+        {error && <p className="text-token-loss text-xs">{error}</p>}
+
+        <ActionCardButtons onConfirm={handleConfirm} onCancel={handleCancel} loading={loading} confirmDisabled={!valid} />
       </div>
-
-      {error && <p className="text-token-loss text-xs">{error}</p>}
-
-      <ActionCardButtons onConfirm={handleConfirm} onCancel={handleCancel} loading={loading} confirmDisabled={!valid} />
     </Card>
   )
 }
