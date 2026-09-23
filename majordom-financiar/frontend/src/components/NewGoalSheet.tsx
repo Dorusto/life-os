@@ -177,7 +177,7 @@ export default function NewGoalSheet({ open, onClose, onCreated }: Props) {
           <button
             type="submit"
             disabled={loading || !accountName || !target}
-            className="w-full bg-token-brand hover:bg-token-brand-2 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors"
+            className="w-full bg-token-brand hover:bg-token-brand-2 disabled:opacity-50 text-token-on-brand font-semibold text-sm py-2.5 rounded-xl transition-colors"
           >
             {loading ? 'Setting up…' : 'Continue'}
           </button>

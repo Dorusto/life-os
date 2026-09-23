@@ -671,7 +671,7 @@ export default function ReceiptFlow({ mode, file, onSaved, onClose }: ReceiptFlo
                   <button
                     onClick={() => doConfirm({ attachTo: possibleMatch.financial_id })}
                     disabled={flowState === 'confirming'}
-                    className="flex-1 py-1.5 rounded-lg bg-token-brand hover:bg-token-brand-2 text-white text-xs font-medium transition-colors disabled:opacity-40"
+                    className="flex-1 py-1.5 rounded-lg bg-token-brand hover:bg-token-brand-2 text-token-on-brand text-xs font-medium transition-colors disabled:opacity-40"
                   >
                     Attach to this
                   </button>
@@ -686,7 +686,7 @@ export default function ReceiptFlow({ mode, file, onSaved, onClose }: ReceiptFlo
                 disabled={flowState === 'confirming' || !canConfirm}
                 className="
                   mt-2 w-full py-4 rounded-2xl bg-token-brand hover:bg-token-brand-2
-                  text-white font-medium text-base
+                  text-token-on-brand font-medium text-base
                   disabled:opacity-40 disabled:cursor-not-allowed
                   active:scale-[0.98] transition-all duration-150
                   flex items-center justify-center gap-2
@@ -694,7 +694,7 @@ export default function ReceiptFlow({ mode, file, onSaved, onClose }: ReceiptFlo
               >
                 {flowState === 'confirming' ? (
                   <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    <div className="w-4 h-4 border-2 border-token-on-brand border-t-transparent rounded-full animate-spin" />
                     Saving…
                   </>
                 ) : (

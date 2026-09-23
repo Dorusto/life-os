@@ -24,7 +24,7 @@ export default function AddButton() {
       <button
         onClick={() => setOpen(true)}
         aria-label="Add transaction"
-        className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-token-brand hover:bg-token-brand-2 transition-colors text-white font-semibold text-sm"
+        className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-token-brand hover:bg-token-brand-2 transition-colors text-token-on-brand font-semibold text-sm"
       >
         <Plus size={16} />
         Add

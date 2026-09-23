@@ -476,7 +476,7 @@ function MonthRangePicker({
         type="button"
         disabled={loading}
         onClick={apply}
-        className="bg-token-brand hover:bg-token-brand-2 disabled:opacity-50 text-white rounded-full px-3 py-1 text-[10px] transition-colors"
+        className="bg-token-brand hover:bg-token-brand-2 disabled:opacity-50 text-token-on-brand rounded-full px-3 py-1 text-[10px] transition-colors"
       >
         Apply
       </button>
@@ -667,7 +667,7 @@ function PeriodSwitcher({
           onClick={() => onSelect(p.value)}
           className={`text-[10px] px-2 py-0.5 rounded-full transition-colors disabled:opacity-50 ${
             p.value === refetch.current
-              ? 'bg-token-brand text-white'
+              ? 'bg-token-brand text-token-on-brand'
               : 'bg-token-paper text-token-ink-3 hover:text-token-ink'
           }`}
         >
@@ -719,7 +719,7 @@ function DateRangePicker({
         type="button"
         disabled={loading}
         onClick={apply}
-        className="bg-token-brand hover:bg-token-brand-2 disabled:opacity-50 text-white rounded-full px-3 py-1 text-[10px] transition-colors"
+        className="bg-token-brand hover:bg-token-brand-2 disabled:opacity-50 text-token-on-brand rounded-full px-3 py-1 text-[10px] transition-colors"
       >
         Apply
       </button>

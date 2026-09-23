@@ -292,7 +292,7 @@ export default function TransactionsPage() {
             <button
               onClick={() => changeView('list')}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                view === 'list' ? 'bg-token-brand text-white' : 'text-token-ink-3 hover:text-token-ink'
+                view === 'list' ? 'bg-token-brand text-token-on-brand' : 'text-token-ink-3 hover:text-token-ink'
               }`}
             >
               <List size={14} /> List
@@ -300,7 +300,7 @@ export default function TransactionsPage() {
             <button
               onClick={() => changeView('table')}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                view === 'table' ? 'bg-token-brand text-white' : 'text-token-ink-3 hover:text-token-ink'
+                view === 'table' ? 'bg-token-brand text-token-on-brand' : 'text-token-ink-3 hover:text-token-ink'
               }`}
             >
               <Table2 size={14} /> Table
@@ -308,7 +308,7 @@ export default function TransactionsPage() {
             <button
               onClick={toggleSelectionMode}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                selectionMode ? 'bg-token-brand text-white' : 'text-token-ink-3 hover:text-token-ink'
+                selectionMode ? 'bg-token-brand text-token-on-brand' : 'text-token-ink-3 hover:text-token-ink'
               }`}
             >
               <CheckSquare size={14} /> Select
@@ -328,7 +328,7 @@ export default function TransactionsPage() {
             onClick={() => setUncategorizedOnly(v => !v)}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
               uncategorizedOnly
-                ? 'bg-token-brand border-token-brand text-white'
+                ? 'bg-token-brand border-token-brand text-token-on-brand'
                 : 'bg-token-surface border-token-line text-token-ink-3 hover:text-token-ink'
             }`}
           >
@@ -633,7 +633,7 @@ export default function TransactionsPage() {
             </button>
             <button
               onClick={applyFilters}
-              className="flex-1 py-2.5 rounded-xl bg-token-brand hover:bg-token-brand-2 text-white text-sm font-semibold transition-colors"
+              className="flex-1 py-2.5 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-on-brand text-sm font-semibold transition-colors"
             >
               Apply
             </button>
@@ -673,7 +673,7 @@ export default function TransactionsPage() {
             <button
               onClick={applyBulk}
               disabled={!bulkCategoryId || bulkSaving}
-              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-token-brand hover:bg-token-brand-2 text-white text-sm font-semibold transition-colors disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-on-brand text-sm font-semibold transition-colors disabled:opacity-50"
             >
               {bulkSaving && <Loader2 size={14} className="animate-spin" />}
               Apply

@@ -28,8 +28,10 @@ export default function ActionCardButtons({
       key="confirm"
       onClick={onConfirm}
       disabled={loading || confirmDisabled}
-      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-white text-sm font-medium transition-colors active:scale-95 disabled:opacity-40 whitespace-nowrap ${
-        variant === 'danger' ? 'bg-token-loss hover:brightness-90' : 'bg-token-brand hover:bg-token-brand-2'
+      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium transition-colors active:scale-95 disabled:opacity-40 whitespace-nowrap ${
+        variant === 'danger'
+          ? 'bg-token-loss hover:brightness-90 text-white'
+          : 'bg-token-brand hover:bg-token-brand-2 text-token-on-brand'
       }`}
     >
       <ConfirmIcon size={14} />
