@@ -189,7 +189,7 @@ export default function LinkVehicleSheet({
         <button
           type="submit"
           disabled={submitting || (!selected && !newProfile.name.trim())}
-          className="w-full bg-token-brand hover:bg-token-brand-2 disabled:opacity-50 text-white rounded-full py-2.5 text-sm font-semibold transition-colors"
+          className="w-full bg-token-brand hover:bg-token-brand-2 disabled:opacity-50 text-token-on-brand rounded-full py-2.5 text-sm font-semibold transition-colors"
         >
           {submitting ? (selected ? 'Linking…' : 'Creating…') : selected ? 'Link vehicle' : 'Create & link'}
         </button>

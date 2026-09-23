@@ -246,7 +246,7 @@ export default function EditVehicleModal({
 
         <button
           type="submit"
-          className="w-full bg-token-brand hover:bg-token-brand-2 disabled:opacity-50 text-white rounded-full py-2.5 text-sm font-semibold transition-colors"
+          className="w-full bg-token-brand hover:bg-token-brand-2 disabled:opacity-50 text-token-on-brand rounded-full py-2.5 text-sm font-semibold transition-colors"
         >
           {vehicleId ? 'Save changes' : 'Create vehicle'}
         </button>
