@@ -182,7 +182,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
       <div className={`flex flex-col max-w-[80%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
         <div
           className={`
-            px-4 py-3 text-sm leading-relaxed rounded-2xl
+            px-4 py-3 text-sm leading-relaxed rounded-2xl max-w-full min-w-0 [overflow-wrap:anywhere]
             ${msg.role === 'user'
               ? 'bg-token-brand text-token-on-brand rounded-br-sm'
               : 'bg-token-surface border border-token-line text-token-ink rounded-bl-sm'
@@ -210,7 +210,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
   // BESPOKE branches reproduce their exact existing behaviour.
   const CARD_RENDER: Record<string, (msg: Message, idx: number) => React.ReactNode | null> = {
     status: (msg) => (
-      <p className="text-xs text-token-ink-3 italic px-1">{msg.content}</p>
+      <p className="text-xs text-token-ink-3 italic px-1 [overflow-wrap:anywhere]">{msg.content}</p>
     ),
     budget_rebalance: (msg, idx) => {
       if (!msg.budgetRebalance) return null
@@ -1126,7 +1126,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
       </BottomSheet>
 
       {/* Message list */}
-      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+      <div ref={messagesContainerRef} className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 space-y-3">
         {messages.map((msg, idx) => (
           <div
             key={idx}
@@ -1169,7 +1169,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
       {/* Input bar */}
       <form
         onSubmit={handleSend}
-        className="flex-shrink-0 bg-token-paper border-t border-token-line px-4 py-3 flex gap-2 items-end"
+        className="flex-shrink-0 px-0 pt-3 pb-0 flex gap-2 items-end"
       >
         {/* + media button */}
         <div className="relative flex-shrink-0" ref={mediaMenuRef}>
@@ -1177,7 +1177,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
             type="button"
             onClick={() => setShowMediaMenu(v => !v)}
             className={`
-              w-10 h-10 rounded-xl border flex items-center justify-center transition-all
+              w-10 h-10 rounded-full border flex items-center justify-center transition-all
               ${showMediaMenu
                 ? 'bg-token-brand border-token-brand text-token-on-brand'
                 : 'bg-token-surface border-token-line text-token-ink-3 hover:border-token-brand hover:text-token-ink'}
@@ -1216,7 +1216,7 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
           placeholder="Ask about your spending…"
           rows={1}
           className="
-            flex-1 bg-token-surface border border-token-line rounded-xl px-4 py-3
+            flex-1 bg-token-surface border border-token-line rounded-2xl px-4 py-3
             text-token-ink text-sm placeholder:text-token-ink-3
             focus:outline-none focus:border-token-brand focus:ring-1 focus:ring-token-brand
             resize-none transition-colors
@@ -1227,14 +1227,14 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
           type="submit"
           disabled={!input.trim() || loading}
           className="
-            w-10 h-10 rounded-xl bg-token-brand hover:bg-token-brand-2
+            w-10 h-10 rounded-full bg-token-brand hover:bg-token-brand-2
             flex items-center justify-center flex-shrink-0
             disabled:opacity-40 disabled:cursor-not-allowed
             active:scale-95 transition-all duration-150
           "
           aria-label="Send"
         >
-          <Send size={16} className="text-token-ink" />
+          <Send size={16} className="text-token-on-brand" />
         </button>
       </form>
 
