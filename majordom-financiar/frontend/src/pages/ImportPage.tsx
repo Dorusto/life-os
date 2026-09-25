@@ -9,6 +9,7 @@ import {
   type ImportResult,
 } from '../lib/api'
 import { matchAccountBySource } from '../lib/csvImportUtils'
+import { Button } from '../components/kit/Button'
 import { PageHeader } from '../components/shell/PageHeader'
 import StandardHeaderActions from '../components/StandardHeaderActions'
 import { formatDate } from '../lib/formatDate'
@@ -332,15 +333,11 @@ function Step1Upload({ file, fileInputRef, loading, onDrop, onFileChange, onPick
         Supported: ING, Rabobank, crypto.com
       </p>
 
-      <button
+      <Button
+        variant="primary"
         onClick={onNext}
         disabled={!file || loading}
-        className="
-          w-full py-4 rounded-2xl bg-token-brand hover:bg-token-brand-2
-          text-token-ink font-medium text-base
-          disabled:opacity-40 disabled:cursor-not-allowed
-          flex items-center justify-center gap-2 transition-all
-        "
+        className="w-full h-12 text-base"
       >
         {loading ? (
           <>
@@ -352,7 +349,7 @@ function Step1Upload({ file, fileInputRef, loading, onDrop, onFileChange, onPick
             Preview transactions <ChevronRight size={18} />
           </>
         )}
-      </button>
+      </Button>
     </div>
   )
 }
@@ -504,16 +501,12 @@ function Step2Preview({ rows, abCategories, accounts, accountId, sourceName, onA
 
       {/* Actions */}
       <div className="flex gap-3 pt-2">
-        <button onClick={onBack} className="flex-1 py-3 rounded-xl border border-token-line text-token-ink hover:bg-token-surface transition-colors text-sm flex items-center justify-center gap-1">
+        <Button variant="secondary" onClick={onBack} className="flex-1">
           <ChevronLeft size={16} /> Back
-        </button>
-        <button
-          onClick={onNext}
-          disabled={!accountId}
-          className="flex-1 py-3 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-on-brand font-medium text-sm flex items-center justify-center gap-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
+        </Button>
+        <Button variant="primary" onClick={onNext} disabled={!accountId} className="flex-1">
           Continue <ChevronRight size={16} />
-        </button>
+        </Button>
       </div>
     </div>
   )
@@ -579,24 +572,16 @@ function Step3Confirm({ activeCount, duplicateCount, transferCandidateCount, nee
       </p>
 
       <div className="flex gap-3 mt-auto">
-        <button
-          onClick={onBack}
-          disabled={loading}
-          className="flex-1 py-3 rounded-xl border border-token-line text-token-ink hover:bg-token-surface transition-colors text-sm flex items-center justify-center gap-1 disabled:opacity-40"
-        >
+        <Button variant="secondary" onClick={onBack} disabled={loading} className="flex-1">
           <ChevronLeft size={16} /> Back
-        </button>
-        <button
-          onClick={onImport}
-          disabled={loading}
-          className="flex-1 py-3 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-on-brand font-medium text-sm flex items-center justify-center gap-2 transition-colors disabled:opacity-40"
-        >
+        </Button>
+        <Button variant="primary" onClick={onImport} disabled={loading} className="flex-1">
           {loading ? (
             <><Loader2 size={16} className="animate-spin" /> Importing...</>
           ) : (
             <><Check size={16} /> Import</>
           )}
-        </button>
+        </Button>
       </div>
     </div>
   )

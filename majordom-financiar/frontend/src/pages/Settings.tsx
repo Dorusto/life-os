@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import type { ReactNode } from 'react'
 import {
   ChevronRight, LogOut, RefreshCw, Wallet, Database, Car, LineChart,
-  Palette, Languages, Settings2, ShieldCheck, Coins, Tags, Users, CalendarClock,
+  Languages, Settings2, ShieldCheck, Coins, Tags, Users, CalendarClock,
   ArrowRightLeft, Sparkles, Plug, Link2, Bell, Info, Monitor, Check,
   Lock, Unplug, Hash, TrendingUp, EyeOff, X,
 } from 'lucide-react'
@@ -22,10 +22,10 @@ import { requestAndSubscribe } from '../lib/push'
 import { APP_LINKS } from '../components/shell/appLinks'
 import { PageHeader } from '../components/shell/PageHeader'
 import { AppearanceSettings } from '../components/shell/AppearanceSettings'
+import { Button } from '../components/kit/Button'
 
 type PageKey =
   | 'menu'
-  | 'appearance'
   | 'language'
   | 'general'
   | 'security-backup'
@@ -45,7 +45,6 @@ type PageKey =
 type SubPageKey = Exclude<PageKey, 'menu'>
 
 const SUBPAGE_TITLES: Record<SubPageKey, string> = {
-  appearance: 'Appearance',
   language: 'Language',
   general: 'General',
   'security-backup': 'Security & backup',
@@ -73,7 +72,6 @@ const MENU_GROUPS: { label: string; items: MenuItem[] }[] = [
   {
     label: 'Personal',
     items: [
-      { key: 'appearance', label: 'Appearance', icon: Palette },
       { key: 'language', label: 'Language', icon: Languages },
       { key: 'general', label: 'General', icon: Settings2 },
       { key: 'security-backup', label: 'Security & backup', icon: ShieldCheck },
@@ -151,16 +149,17 @@ function MenuScreen({ onNavigate }: { onNavigate: (page: SubPageKey) => void }) 
           <AppearanceSettings appDefault="sage" />
         </div>
 
-        <button
+        <Button
+          variant="secondary"
           onClick={handleSync}
           disabled={syncState === 'syncing'}
-          className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5 disabled:opacity-60 hover:border-token-line-strong transition-colors"
+          className="w-full h-12 justify-start gap-3"
         >
           <RefreshCw size={16} className={`text-token-ink-3 flex-shrink-0 ${syncState === 'syncing' ? 'animate-spin' : ''}`} />
           <span className="flex-1 text-left text-sm font-semibold text-token-ink">
             {syncState === 'failed' ? 'Sync failed — tap to retry' : 'Sync accounts'}
           </span>
-        </button>
+        </Button>
 
         {MENU_GROUPS.map(group => (
           <div key={group.label}>
@@ -211,7 +210,6 @@ function SubPageShell({
 
 function PageBody({ page }: { page: SubPageKey }) {
   switch (page) {
-    case 'appearance': return <AppearancePage />
     case 'language': return <LanguagePage />
     case 'general': return <GeneralPage />
     case 'security-backup': return <SecurityBackupPage />
@@ -291,7 +289,7 @@ function Toggle({ on }: { on: boolean }) {
   return (
     <span className={`relative inline-flex h-6 w-10 rounded-full transition-colors flex-shrink-0 ${on ? 'bg-token-brand' : 'bg-token-line'}`}>
       <span
-        className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform ${on ? 'translate-x-4' : ''}`}
+        className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full transition-transform ${on ? 'translate-x-4 bg-token-on-brand' : 'bg-token-ink-3'}`}
       />
     </span>
   )
@@ -320,12 +318,6 @@ function SectionLabel({ children }: { children: ReactNode }) {
 }
 
 // ---------- Personal ----------
-
-function AppearancePage() {
-  // Same panel as the Settings menu's first section — the old Dark/Light/System
-  // rows claimed light mode wasn't built, which the shared panel makes false.
-  return <AppearanceSettings appDefault="sage" />
-}
 
 function LanguagePage() {
   return (
@@ -765,19 +757,15 @@ function BudgetPacingPage() {
       {saveError && <p className="text-token-loss text-sm text-center pt-2">{saveError}</p>}
       {saved && <p className="text-token-gain text-sm text-center pt-2">Saved.</p>}
 
-      <button
+      <Button
         type="button"
+        variant="secondary"
         disabled={saving}
         onClick={handleSave}
-        className="
-          mt-2 w-full py-3.5 rounded-xl bg-token-surface border border-token-line text-token-ink text-base font-medium
-          hover:bg-token-surface-2 active:scale-[0.98]
-          disabled:opacity-40 disabled:cursor-not-allowed
-          transition-all duration-150
-        "
+        className="mt-2 w-full h-12 text-base"
       >
         {saving ? 'Saving…' : 'Save'}
-      </button>
+      </Button>
     </>
   )
 }
@@ -896,13 +884,14 @@ function FireExclusionsPage() {
           placeholder="e.g. pension"
           className={inputClass}
         />
-        <button
+        <Button
           type="button"
+          variant="secondary"
           onClick={() => addTerm(newTerm)}
-          className="px-4 rounded-xl bg-token-surface border border-token-line text-token-ink text-sm font-medium hover:bg-token-surface-2 active:scale-[0.98] transition-all duration-150 flex-shrink-0"
+          className="flex-shrink-0"
         >
           Add
-        </button>
+        </Button>
       </div>
 
       {offBudgetAccounts.length > 0 && (
@@ -922,19 +911,15 @@ function FireExclusionsPage() {
       {saveError && <p className="text-token-loss text-sm text-center pt-2">{saveError}</p>}
       {saved && <p className="text-token-gain text-sm text-center pt-2">Saved.</p>}
 
-      <button
+      <Button
         type="button"
+        variant="secondary"
         disabled={saving || !dirty}
         onClick={handleSave}
-        className="
-          mt-2 w-full py-3.5 rounded-xl bg-token-surface border border-token-line text-token-ink text-base font-medium
-          hover:bg-token-surface-2 active:scale-[0.98]
-          disabled:opacity-40 disabled:cursor-not-allowed
-          transition-all duration-150
-        "
+        className="mt-2 w-full h-12 text-base"
       >
         {saving ? 'Saving…' : 'Save'}
-      </button>
+      </Button>
     </>
   )
 }

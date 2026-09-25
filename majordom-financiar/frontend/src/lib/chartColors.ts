@@ -1,3 +1,5 @@
+import { SERIES_COLORS } from '../components/kit/Charts'
+
 /**
  * Single source of truth for chart/list item colors — previously 4
  * independently hardcoded palettes (`SEGMENT_COLORS` in Chart.tsx,
@@ -6,21 +8,16 @@
  * different color depending on which widget rendered it, since each picked
  * colors by array position rather than by the item's own identity.
  * See docs/glm-5.3/ui-audit-2026-08-30.md §1.6.
+ *
+ * The palette is the shared series palette (`var(--c1)`…`var(--c6)`, `--c1`
+ * being the app accent), so charts follow the accent picked in
+ * Settings → Appearance and resolve correctly in light and dark.
  */
-export const CHART_PALETTE = [
-  '#6366F1', // indigo
-  '#22C55E', // green
-  '#F59E0B', // amber
-  '#EC4899', // pink
-  '#14B8A6', // teal
-  '#8B5CF6', // violet
-  '#F97316', // orange
-  '#06B6D4', // cyan
-]
+export const CHART_PALETTE = SERIES_COLORS
 
 // Fixed semantic color for income — distinct from the expense palette,
 // deliberately not hashed (income isn't "a category" competing for a slot).
-export const INCOME_COLOR = '#EAB308'
+export const INCOME_COLOR = 'var(--gain)'
 
 /**
  * Deterministic hash so the same key (category/group/goal name or id)
