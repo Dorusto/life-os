@@ -1,7 +1,7 @@
 import { useState, FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { BrandMark } from '../components/BrandMark'
-import { Button } from '../components/Button'
+import { Button } from '../components/kit/Button'
 import { Field, TextInput } from '../components/Form'
 import { login } from '../lib/api'
 import { saveAuth } from '../lib/auth'

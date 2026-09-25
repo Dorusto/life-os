@@ -4,7 +4,7 @@ import { useMutation } from '@tanstack/react-query'
 import { login } from '../lib/api'
 import { isAuthenticated, saveAuth } from '../lib/auth'
 import { BrandMark } from '../components/BrandMark'
-import { Button } from '../components/Button'
+import { Button } from '../components/kit/Button'
 import { Field, TextInput } from '../components/Form'
 
 export default function Login() {

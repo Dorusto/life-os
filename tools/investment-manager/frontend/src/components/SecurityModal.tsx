@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createSecurity, type AssetType } from '../lib/api'
 import { Modal } from './Modal'
-import { Button } from './Button'
+import { Button } from './kit/Button'
 import { Field, Select, TextInput } from './Form'
 
 const ASSET_TYPES: AssetType[] = ['stock', 'etf', 'crypto', 'bond', 'fund', 'other']

@@ -1,0 +1,48 @@
+// GENERATED FILE — do not edit directly. Source: packages/frontend-shared/src/kit/Button.tsx.
+// Run python3 scripts/sync_shared_frontend.py after editing the source, then commit both.
+
+import type { ButtonHTMLAttributes } from 'react'
+import { cx } from '../shell/cx'
+
+export type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
+export type Size = 'sm' | 'md'
+
+/** Exported with the maps below so `ButtonLink` cannot drift from `Button`. */
+export const BUTTON_BASE =
+  'inline-flex items-center justify-center gap-2 rounded-full font-medium transition-colors'
+
+export const VARIANT_CLASSES: Record<Variant, string> = {
+  primary: 'bg-brand text-on-brand hover:bg-brand-2 border border-transparent',
+  secondary: 'bg-surface text-ink border border-line-strong hover:bg-surface-2',
+  ghost: 'bg-transparent text-ink-2 border border-transparent hover:bg-surface-2 hover:text-ink',
+  danger: 'bg-surface text-loss border border-loss hover:bg-loss-soft',
+}
+
+export const SIZE_CLASSES: Record<Size, string> = {
+  sm: 'h-8 px-3 text-[13px]',
+  md: 'h-10 px-4 text-sm',
+}
+
+interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: Variant
+  size?: Size
+}
+
+/**
+ * Shared button — primary (light pill on dark per the unified UI), secondary, ghost, danger.
+ * Text on the primary fill is text-on-brand, never text-ink/text-white.
+ */
+export function Button({ variant = 'secondary', size = 'md', className, ...props }: ButtonProps) {
+  return (
+    <button
+      {...props}
+      className={cx(
+        BUTTON_BASE,
+        'disabled:cursor-not-allowed disabled:opacity-50',
+        VARIANT_CLASSES[variant],
+        SIZE_CLASSES[size],
+        className,
+      )}
+    />
+  )
+}
