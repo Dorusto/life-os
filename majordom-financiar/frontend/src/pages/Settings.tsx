@@ -1,14 +1,15 @@
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import type { ReactNode } from 'react'
 import {
-  ChevronRight, LogOut, RefreshCw, Wallet, Database, Car, LineChart,
-  Palette, Languages, Settings2, ShieldCheck, Coins, Tags, Users, CalendarClock,
+  ChevronRight, ChevronDown, LogOut, RefreshCw, Wallet, Database, Car, LineChart,
+  Languages, Settings2, ShieldCheck, Coins, Tags, Users, CalendarClock,
   ArrowRightLeft, Sparkles, Plug, Link2, Bell, Info, Monitor, Check,
-  Lock, Unplug, Hash, TrendingUp, EyeOff, X,
+  Lock, Hash, TrendingUp, EyeOff, X,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
   syncAccounts, getPayees, getSchedules, getBackupStatus, getCategories, getCategoryGroups,
   getBudgetPacingConfig, saveBudgetPacingConfig, getSetupStatus, getVehicleCostsSummary,
@@ -22,10 +23,10 @@ import { requestAndSubscribe } from '../lib/push'
 import { APP_LINKS } from '../components/shell/appLinks'
 import { PageHeader } from '../components/shell/PageHeader'
 import { AppearanceSettings } from '../components/shell/AppearanceSettings'
+import { Button } from '../components/kit/Button'
 
 type PageKey =
   | 'menu'
-  | 'appearance'
   | 'language'
   | 'general'
   | 'security-backup'
@@ -45,7 +46,6 @@ type PageKey =
 type SubPageKey = Exclude<PageKey, 'menu'>
 
 const SUBPAGE_TITLES: Record<SubPageKey, string> = {
-  appearance: 'Appearance',
   language: 'Language',
   general: 'General',
   'security-backup': 'Security & backup',
@@ -67,35 +67,36 @@ interface MenuItem {
   key: SubPageKey
   label: string
   icon: LucideIcon
+  /** Inline sections expand under their row; page sections open a sub-page. */
+  kind: 'inline' | 'page'
 }
 
 const MENU_GROUPS: { label: string; items: MenuItem[] }[] = [
   {
     label: 'Personal',
     items: [
-      { key: 'appearance', label: 'Appearance', icon: Palette },
-      { key: 'language', label: 'Language', icon: Languages },
-      { key: 'general', label: 'General', icon: Settings2 },
-      { key: 'security-backup', label: 'Security & backup', icon: ShieldCheck },
+      { key: 'language', label: 'Language', icon: Languages, kind: 'inline' },
+      { key: 'general', label: 'General', icon: Settings2, kind: 'inline' },
+      { key: 'security-backup', label: 'Security & backup', icon: ShieldCheck, kind: 'inline' },
     ],
   },
   {
     label: 'Workspace',
     items: [
-      { key: 'currencies', label: 'Currencies', icon: Coins },
-      { key: 'categories', label: 'Categories', icon: Tags },
-      { key: 'payees', label: 'Payees', icon: Users },
-      { key: 'schedules', label: 'Scheduled payments', icon: CalendarClock },
-      { key: 'import-export', label: 'Import & Export', icon: ArrowRightLeft },
-      { key: 'ai', label: 'AI', icon: Sparkles },
-      { key: 'ai-integrations', label: 'AI Integrations', icon: Plug },
-      { key: 'budget-pacing', label: 'Annual budget pacing', icon: TrendingUp },
-      { key: 'fire-exclusions', label: 'FIRE excluded accounts', icon: EyeOff },
+      { key: 'currencies', label: 'Currencies', icon: Coins, kind: 'inline' },
+      { key: 'categories', label: 'Categories', icon: Tags, kind: 'page' },
+      { key: 'payees', label: 'Payees', icon: Users, kind: 'page' },
+      { key: 'schedules', label: 'Scheduled payments', icon: CalendarClock, kind: 'page' },
+      { key: 'import-export', label: 'Import & Export', icon: ArrowRightLeft, kind: 'page' },
+      { key: 'ai', label: 'AI', icon: Sparkles, kind: 'inline' },
+      { key: 'ai-integrations', label: 'AI Integrations', icon: Plug, kind: 'inline' },
+      { key: 'budget-pacing', label: 'Annual budget pacing', icon: TrendingUp, kind: 'inline' },
+      { key: 'fire-exclusions', label: 'FIRE excluded accounts', icon: EyeOff, kind: 'inline' },
     ],
   },
-  { label: 'Connections', items: [{ key: 'connections', label: 'Connections', icon: Link2 }] },
-  { label: 'Notifications', items: [{ key: 'notifications', label: 'Notifications', icon: Bell }] },
-  { label: 'About', items: [{ key: 'about', label: 'About', icon: Info }] },
+  { label: 'Connections', items: [{ key: 'connections', label: 'Connections', icon: Link2, kind: 'page' }] },
+  { label: 'Notifications', items: [{ key: 'notifications', label: 'Notifications', icon: Bell, kind: 'inline' }] },
+  { label: 'About', items: [{ key: 'about', label: 'About', icon: Info, kind: 'inline' }] },
 ]
 
 export default function Settings() {
@@ -118,6 +119,19 @@ function MenuScreen({ onNavigate }: { onNavigate: (page: SubPageKey) => void }) 
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [syncState, setSyncState] = useState<'idle' | 'syncing' | 'failed'>('idle')
+  // One inline section open at a time; page sections never set this.
+  const [openKey, setOpenKey] = useState<SubPageKey | null>(null)
+  const rowRefs = useRef<Partial<Record<SubPageKey, HTMLButtonElement | null>>>({})
+
+  // Bring the freshly opened row into view once its body has rendered.
+  useEffect(() => {
+    if (!openKey) return
+    rowRefs.current[openKey]?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [openKey])
+
+  function toggleInline(key: SubPageKey) {
+    setOpenKey(prev => (prev === key ? null : key))
+  }
 
   async function handleSync() {
     setSyncState('syncing')
@@ -151,6 +165,7 @@ function MenuScreen({ onNavigate }: { onNavigate: (page: SubPageKey) => void }) 
           <AppearanceSettings appDefault="sage" />
         </div>
 
+        {/* A menu row like the cards below, not an action pill — so no kit Button. */}
         <button
           onClick={handleSync}
           disabled={syncState === 'syncing'}
@@ -166,18 +181,48 @@ function MenuScreen({ onNavigate }: { onNavigate: (page: SubPageKey) => void }) 
           <div key={group.label}>
             <p className="text-xs tracking-[0.2em] uppercase text-token-ink-3 mb-2.5">{group.label}</p>
             <div className="space-y-2">
-              {group.items.map(item => (
-                <button
-                  key={item.key}
-                  onClick={() => onNavigate(item.key)}
-                  aria-label={item.label}
-                  className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5 hover:border-token-line-strong transition-colors"
-                >
-                  <item.icon size={16} className="text-token-ink-3 flex-shrink-0" />
-                  <span className="flex-1 text-left text-sm font-semibold text-token-ink">{item.label}</span>
-                  <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
-                </button>
-              ))}
+              {group.items.map(item => {
+                const isInline = item.kind === 'inline'
+                const isOpen = isInline && openKey === item.key
+                return (
+                  <div key={item.key}>
+                    <button
+                      ref={isInline ? el => { rowRefs.current[item.key] = el } : undefined}
+                      onClick={() => (isInline ? toggleInline(item.key) : onNavigate(item.key))}
+                      aria-label={item.label}
+                      aria-expanded={isInline ? isOpen : undefined}
+                      className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5 hover:border-token-line-strong transition-colors"
+                    >
+                      <item.icon size={16} className="text-token-ink-3 flex-shrink-0" />
+                      <span className="flex-1 text-left text-sm font-semibold text-token-ink">{item.label}</span>
+                      {isInline ? (
+                        <ChevronDown
+                          size={14}
+                          className={`text-token-ink-3 flex-shrink-0 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                        />
+                      ) : (
+                        <ChevronRight size={14} className="text-token-ink-3 flex-shrink-0" />
+                      )}
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {isOpen && (
+                        <motion.div
+                          key="body"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="pt-2 px-4 space-y-2.5">
+                            <PageBody page={item.key} />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )
+              })}
             </div>
           </div>
         ))}
@@ -211,7 +256,6 @@ function SubPageShell({
 
 function PageBody({ page }: { page: SubPageKey }) {
   switch (page) {
-    case 'appearance': return <AppearancePage />
     case 'language': return <LanguagePage />
     case 'general': return <GeneralPage />
     case 'security-backup': return <SecurityBackupPage />
@@ -291,7 +335,7 @@ function Toggle({ on }: { on: boolean }) {
   return (
     <span className={`relative inline-flex h-6 w-10 rounded-full transition-colors flex-shrink-0 ${on ? 'bg-token-brand' : 'bg-token-line'}`}>
       <span
-        className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full bg-white transition-transform ${on ? 'translate-x-4' : ''}`}
+        className={`absolute top-0.5 left-0.5 h-5 w-5 rounded-full transition-transform ${on ? 'translate-x-4 bg-token-on-brand' : 'bg-token-ink-3'}`}
       />
     </span>
   )
@@ -320,12 +364,6 @@ function SectionLabel({ children }: { children: ReactNode }) {
 }
 
 // ---------- Personal ----------
-
-function AppearancePage() {
-  // Same panel as the Settings menu's first section — the old Dark/Light/System
-  // rows claimed light mode wasn't built, which the shared panel makes false.
-  return <AppearanceSettings appDefault="sage" />
-}
 
 function LanguagePage() {
   return (
@@ -765,19 +803,15 @@ function BudgetPacingPage() {
       {saveError && <p className="text-token-loss text-sm text-center pt-2">{saveError}</p>}
       {saved && <p className="text-token-gain text-sm text-center pt-2">Saved.</p>}
 
-      <button
+      <Button
         type="button"
+        variant="secondary"
         disabled={saving}
         onClick={handleSave}
-        className="
-          mt-2 w-full py-3.5 rounded-xl bg-token-surface border border-token-line text-token-ink text-base font-medium
-          hover:bg-token-surface-2 active:scale-[0.98]
-          disabled:opacity-40 disabled:cursor-not-allowed
-          transition-all duration-150
-        "
+        className="mt-2 w-full h-12 text-base"
       >
         {saving ? 'Saving…' : 'Save'}
-      </button>
+      </Button>
     </>
   )
 }
@@ -896,13 +930,14 @@ function FireExclusionsPage() {
           placeholder="e.g. pension"
           className={inputClass}
         />
-        <button
+        <Button
           type="button"
+          variant="secondary"
           onClick={() => addTerm(newTerm)}
-          className="px-4 rounded-xl bg-token-surface border border-token-line text-token-ink text-sm font-medium hover:bg-token-surface-2 active:scale-[0.98] transition-all duration-150 flex-shrink-0"
+          className="flex-shrink-0"
         >
           Add
-        </button>
+        </Button>
       </div>
 
       {offBudgetAccounts.length > 0 && (
@@ -922,19 +957,15 @@ function FireExclusionsPage() {
       {saveError && <p className="text-token-loss text-sm text-center pt-2">{saveError}</p>}
       {saved && <p className="text-token-gain text-sm text-center pt-2">Saved.</p>}
 
-      <button
+      <Button
         type="button"
+        variant="secondary"
         disabled={saving || !dirty}
         onClick={handleSave}
-        className="
-          mt-2 w-full py-3.5 rounded-xl bg-token-surface border border-token-line text-token-ink text-base font-medium
-          hover:bg-token-surface-2 active:scale-[0.98]
-          disabled:opacity-40 disabled:cursor-not-allowed
-          transition-all duration-150
-        "
+        className="mt-2 w-full h-12 text-base"
       >
         {saving ? 'Saving…' : 'Save'}
-      </button>
+      </Button>
     </>
   )
 }
@@ -980,10 +1011,5 @@ function NotificationsPage() {
 // ---------- About ----------
 
 function AboutPage() {
-  return (
-    <>
-      <StatusRow title="Version" value={__APP_VERSION__} icon={Hash} />
-      <InertRow title="Disconnect Actual Budget" icon={Unplug} />
-    </>
-  )
+  return <StatusRow title="Version" value={__APP_VERSION__} icon={Hash} />
 }
