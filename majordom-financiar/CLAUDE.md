@@ -62,6 +62,9 @@ Full details in `docs/architecture.md`.
   change and after reviewing any delegated (Aider) diff. Show its output as evidence rather than
   asserting success. `--no-frontend` skips the typecheck.
 - UI changes: also check the real page in the browser (screenshot), not just the typecheck.
+  Prefer the delegation pipeline's visual check (`pages:`/`flow:` in the spec — GLM reads the
+  screenshots) and read its verdict, instead of driving Chrome from Claude — saves tokens. Drive
+  the browser directly only for what the pipeline can't reach (e.g. a flow that needs a file upload).
 - The local stack is **fixture data**; the LXC is the only real-data environment. Don't infer this
   from how the data looks — check `.env`'s `ACTUAL_BUDGET_URL` points at the local `actual-budget`
   container (the smoke test refuses to run otherwise).
