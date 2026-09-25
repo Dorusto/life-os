@@ -1,5 +1,5 @@
 import { Loader2, AlertTriangle } from 'lucide-react'
-import { Button } from './Button'
+import { Button } from './kit/Button'
 
 export function Loading({ label = 'Loading' }: { label?: string }) {
   return (

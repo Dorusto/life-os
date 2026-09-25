@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { ArrowUpRight, LogOut } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { Button } from '../components/Button'
+import { Button } from '../components/kit/Button'
 import { Card } from '../components/kit/Card'
 import { AppearanceSettings } from '../components/shell/AppearanceSettings'
 import { PageHeader } from '../components/shell/PageHeader'

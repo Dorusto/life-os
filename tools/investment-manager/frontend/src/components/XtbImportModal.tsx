@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { UploadCloud } from 'lucide-react'
 import { importXtb, type XtbImportResult } from '../lib/api'
 import { Modal } from './Modal'
-import { Button } from './Button'
+import { Button } from './kit/Button'
 
 export function XtbImportModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const queryClient = useQueryClient()

@@ -26,6 +26,7 @@ import { Card } from '../components/kit/Card'
 import { HeroValue, ListRow, StatStrip, toneOf, type Stat } from '../components/kit/Stats'
 import { AreaChart } from '../components/kit/Charts'
 import { DomainTabs } from '../components/shell/DomainTabs'
+import { Button } from '../components/kit/Button'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -300,12 +301,9 @@ export default function Dashboard() {
                 Just ask a question — "How much did I spend on groceries?"
               </li>
             </ul>
-            <button
-              onClick={() => navigate('/chat')}
-              className="w-full py-3 rounded-xl bg-token-brand text-token-on-brand font-semibold hover:opacity-90 transition-opacity"
-            >
+            <Button onClick={() => navigate('/chat')} variant="primary" size="md" className="w-full">
               Go to Chat
-            </button>
+            </Button>
           </div>
         </section>
       ) : (
@@ -355,18 +353,12 @@ export default function Dashboard() {
                 </div>
               )}
               <div className="flex justify-end gap-2.5">
-                <button
-                  onClick={cancelEdit}
-                  className="text-token-ink-3 border border-token-line bg-token-surface font-semibold text-xs px-4 py-2 rounded-full hover:text-token-ink transition-colors"
-                >
+                <Button onClick={cancelEdit} variant="secondary" size="sm">
                   Cancel
-                </button>
-                <button
-                  onClick={doneEdit}
-                  className="bg-token-brand hover:bg-token-brand-2 text-token-on-brand font-semibold text-xs px-4 py-2 rounded-full transition-colors"
-                >
+                </Button>
+                <Button onClick={doneEdit} variant="primary" size="sm">
                   Done
-                </button>
+                </Button>
               </div>
             </>
           )}

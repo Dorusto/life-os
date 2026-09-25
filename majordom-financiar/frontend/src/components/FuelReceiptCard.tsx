@@ -3,6 +3,7 @@ import { Loader2, Check } from 'lucide-react'
 import { confirmFuelReceipt, type ReceiptDraft, type FuelConfirmResponse, type VehicleOption, type AccountOption, type Category, type NearDuplicateMatch } from '../lib/api'
 import { authFetch, ApiError } from '../lib/auth'
 import { formatCurrency, formatNumber } from '../lib/formatCurrency'
+import { Button } from './kit/Button'
 
 // Helper: get base URL for API calls
 const BASE = '/api'
@@ -417,20 +418,24 @@ export default function FuelReceiptCard({
               {formatCurrency(possibleMatch.amount)} on {possibleMatch.date}. Attach these details to it instead of creating a new transaction?
             </p>
             <div className="flex gap-2">
-              <button
+              <Button
                 onClick={() => handleConfirm({ forceNew: true })}
                 disabled={saving}
-                className="flex-1 py-1.5 rounded-lg border border-token-line text-token-ink-3 hover:text-token-ink text-xs transition-colors disabled:opacity-40"
+                variant="secondary"
+                size="sm"
+                className="flex-1"
               >
                 Create new anyway
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={() => handleConfirm({ attachTo: possibleMatch.financial_id })}
                 disabled={saving}
-                className="flex-1 py-1.5 rounded-lg bg-token-brand hover:bg-token-brand-2 text-token-on-brand text-xs font-medium transition-colors disabled:opacity-40"
+                variant="primary"
+                size="sm"
+                className="flex-1"
               >
                 Attach to this
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -438,24 +443,22 @@ export default function FuelReceiptCard({
         {/* Buttons */}
         {!possibleMatch && (
           <div className="flex gap-2 pt-1">
-            <button
-              onClick={onCancelled}
-              disabled={saving}
-              className="flex-1 py-2 rounded-xl border border-token-line text-token-ink-3 hover:text-token-ink hover:bg-token-surface-2 text-sm transition-colors disabled:opacity-40"
-            >
+            <Button onClick={onCancelled} disabled={saving} variant="secondary" size="sm" className="flex-1">
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               onClick={() => handleConfirm()}
               disabled={saving || !liters || !total || !vehicle || !accountId}
-              className="flex-1 py-2 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-on-brand text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+              variant="primary"
+              size="sm"
+              className="flex-1"
             >
               {saving ? (
                 <><Loader2 size={14} className="animate-spin" /> Saving…</>
               ) : (
                 <><Check size={14} /> Confirm & Save</>
               )}
-            </button>
+            </Button>
           </div>
         )}
       </div>

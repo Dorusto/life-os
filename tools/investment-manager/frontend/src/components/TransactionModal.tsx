@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { createTransaction, type Security, type TransactionType } from '../lib/api'
 import { Modal } from './Modal'
-import { Button } from './Button'
+import { Button } from './kit/Button'
 import { Field, Select, TextInput, Textarea } from './Form'
 import { todayIso } from '../lib/format'
 

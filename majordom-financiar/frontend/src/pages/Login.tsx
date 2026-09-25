@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { login } from '../lib/api'
 import { saveAuth } from '../lib/auth'
 import { BrandMark } from '../components/BrandMark'
+import { Button } from '../components/kit/Button'
 
 /**
  * Only ever follow an in-app path as the post-login destination — a `next`
@@ -111,18 +112,15 @@ export default function Login() {
           <p className="text-token-loss text-sm text-center">{error}</p>
         )}
 
-        <button
+        <Button
           type="submit"
           disabled={loading || !username || !password}
-          className="
-            mt-2 w-full py-3.5 rounded-xl bg-token-brand text-token-on-brand text-base font-medium
-            hover:bg-token-brand-2 active:scale-[0.98]
-            disabled:opacity-40 disabled:cursor-not-allowed
-            transition-all duration-150
-          "
+          variant="primary"
+          size="md"
+          className="mt-2 w-full"
         >
           {loading ? 'Signing in…' : 'Sign in'}
-        </button>
+        </Button>
       </form>
 
       {/* Footer */}

@@ -1,12 +1,12 @@
 import type { ButtonHTMLAttributes } from 'react'
-import { cn } from '../lib/ui'
+import { cx } from '../shell/cx'
 
 export type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 export type Size = 'sm' | 'md'
 
 /** Exported with the maps below so `ButtonLink` cannot drift from `Button`. */
 export const BUTTON_BASE =
-  'inline-flex items-center justify-center gap-2 rounded font-medium transition-colors'
+  'inline-flex items-center justify-center gap-2 rounded-full font-medium transition-colors'
 
 export const VARIANT_CLASSES: Record<Variant, string> = {
   primary: 'bg-brand text-on-brand hover:bg-brand-2 border border-transparent',
@@ -25,11 +25,15 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   size?: Size
 }
 
+/**
+ * Shared button — primary (light pill on dark per the unified UI), secondary, ghost, danger.
+ * Text on the primary fill is text-on-brand, never text-ink/text-white.
+ */
 export function Button({ variant = 'secondary', size = 'md', className, ...props }: ButtonProps) {
   return (
     <button
       {...props}
-      className={cn(
+      className={cx(
         BUTTON_BASE,
         'disabled:cursor-not-allowed disabled:opacity-50',
         VARIANT_CLASSES[variant],

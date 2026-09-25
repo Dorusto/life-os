@@ -18,6 +18,7 @@ import {
 import { formatCurrency } from '../lib/formatCurrency'
 import { formatDate } from '../lib/formatDate'
 import { groupByMonth } from '../lib/groupByMonth'
+import { Button } from '../components/kit/Button'
 
 const LIMIT = 50
 const VIEW_STORAGE_KEY = 'majordom_transactions_view_v1'
@@ -361,12 +362,9 @@ export default function TransactionsPage() {
               <CheckSquare size={14} /> Select
             </button>
           </div>
-          <button
-            onClick={openFilters}
-            className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-token-surface border border-token-line text-token-ink font-semibold text-sm hover:bg-token-surface-2 transition-colors"
-          >
+          <Button onClick={openFilters} variant="secondary" size="sm">
             <Filter size={14} /> Filters
-          </button>
+          </Button>
         </div>
 
         {/* Uncategorized chip — the primary #178 use case, one tap */}
@@ -568,13 +566,15 @@ export default function TransactionsPage() {
         )}
 
         {transactions.length > 0 && hasMore && (
-          <button
+          <Button
             onClick={() => load(true)}
             disabled={loadingMore}
-            className="mt-4 w-full py-3 rounded-xl bg-token-surface border border-token-line text-token-ink text-sm font-semibold hover:bg-token-surface-2 transition-colors disabled:opacity-50"
+            variant="secondary"
+            size="md"
+            className="mt-4 w-full"
           >
             {loadingMore ? 'Loading…' : 'Load more'}
-          </button>
+          </Button>
         )}
       </section>
 
@@ -675,18 +675,12 @@ export default function TransactionsPage() {
           </label>
 
           <div className="flex gap-2 pt-2">
-            <button
-              onClick={clearFilters}
-              className="flex-1 py-2.5 rounded-xl bg-token-surface-2 border border-token-line text-token-ink text-sm font-semibold hover:bg-white/5 transition-colors"
-            >
+            <Button onClick={clearFilters} variant="secondary" size="md" className="flex-1">
               Clear
-            </button>
-            <button
-              onClick={applyFilters}
-              className="flex-1 py-2.5 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-on-brand text-sm font-semibold transition-colors"
-            >
+            </Button>
+            <Button onClick={applyFilters} variant="primary" size="md" className="flex-1">
               Apply
-            </button>
+            </Button>
           </div>
         </div>
       </BottomSheet>
@@ -721,23 +715,26 @@ export default function TransactionsPage() {
               ))}
             </select>
             {selected.size === 1 && (
-              <button
+              <Button
                 onClick={handleSuggestCategory}
                 disabled={suggestingCategory}
-                className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl bg-token-surface-2 border border-token-line text-token-ink text-sm font-semibold hover:border-token-brand transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+                variant="secondary"
+                size="sm"
+                className="flex-shrink-0"
               >
                 {suggestingCategory && <Loader2 size={14} className="animate-spin" />}
                 Suggest
-              </button>
+              </Button>
             )}
-            <button
+            <Button
               onClick={applyBulk}
               disabled={!bulkCategoryId || bulkSaving}
-              className="inline-flex items-center gap-1.5 h-9 px-4 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-on-brand text-sm font-semibold transition-colors disabled:opacity-50"
+              variant="primary"
+              size="sm"
             >
               {bulkSaving && <Loader2 size={14} className="animate-spin" />}
               Apply
-            </button>
+            </Button>
           </div>
           {bulkError && <p className="text-token-loss text-xs mt-1.5">{bulkError}</p>}
           {suggestNotice && <p className="text-token-ink-3 text-xs mt-1.5">{suggestNotice}</p>}

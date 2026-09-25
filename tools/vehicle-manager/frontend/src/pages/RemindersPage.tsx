@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import VehicleSwitcher from '../components/VehicleSwitcher'
-import { Button } from '../components/Button'
+import { Button } from '../components/kit/Button'
 import { Card } from '../components/kit/Card'
 import { Field, TextInput } from '../components/Form'
 import { PageHeader } from '../components/shell/PageHeader'

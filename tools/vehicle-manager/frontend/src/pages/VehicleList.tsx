@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { Car, Upload } from 'lucide-react'
-import { Button } from '../components/Button'
+import { Button } from '../components/kit/Button'
 import { ErrorState, Loading } from '../components/Feedback'
 import { PageHeader } from '../components/shell/PageHeader'
 import { getVehicles } from '../lib/api'

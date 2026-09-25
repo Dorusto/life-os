@@ -1,5 +1,5 @@
 import { Link, type LinkProps } from 'react-router-dom'
-import { BUTTON_BASE, SIZE_CLASSES, VARIANT_CLASSES, type Size, type Variant } from './Button'
+import { BUTTON_BASE, SIZE_CLASSES, VARIANT_CLASSES, type Size, type Variant } from './kit/Button'
 import { cn } from '../lib/ui'
 
 interface ButtonLinkProps extends Omit<LinkProps, 'className'> {
