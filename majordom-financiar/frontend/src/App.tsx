@@ -105,14 +105,18 @@ const NAV: ShellNavItem[] = [
  * Log out — this wrapper only picks the content width (`wide` for pages,
  * `narrow` for Settings' form column) through the shared <Page>, which also
  * supplies the page padding, so pages no longer add their own px-* gutters.
- * `h-full` is required: Chat fills the available height, which needs a parent
+ * `h-full` is Chat-only: Chat fills the available height, which needs a parent
  * with a definite height (the shell's <main> is `h-dvh` and renders its
- * children directly).
+ * children directly). Every other page must NOT get a height class — capping
+ * the page box to the shell's content height makes long pages overflow that
+ * box, so <main>'s pb-28 (room for the tab bar) lands before the real end of
+ * the content and the last lines hide under the tab bar.
  */
 function ShellLayout() {
   const location = useLocation()
   const navigate = useNavigate()
   const isSettings = location.pathname.startsWith('/settings')
+  const isChat = location.pathname.startsWith('/chat')
 
   return (
     <AppShell
@@ -127,7 +131,7 @@ function ShellLayout() {
         navigate('/login', { replace: true })
       }}
     >
-      <Page width={isSettings ? 'narrow' : 'wide'} className="h-full">
+      <Page width={isSettings ? 'narrow' : 'wide'} className={isChat ? 'h-full pb-0 lg:pb-8' : undefined}>
         <AbConnectionBanner />
         <Outlet />
       </Page>
