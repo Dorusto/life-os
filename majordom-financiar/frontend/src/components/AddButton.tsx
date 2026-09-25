@@ -34,10 +34,11 @@ export default function AddButton() {
       <button
         onClick={() => setOpen(true)}
         aria-label="Add transaction"
-        className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-xl bg-token-brand hover:bg-token-brand-2 transition-colors text-token-on-brand font-semibold text-sm"
+        className="inline-flex items-center justify-center gap-1.5 h-9 w-9 sm:w-auto sm:px-3.5 rounded-full bg-token-brand hover:bg-token-brand-2 transition-colors text-token-on-brand font-semibold text-sm flex-shrink-0"
       >
         <Plus size={16} />
-        Add
+        {/* Icon-only on phones so it stays on the same row as the page's other header actions. */}
+        <span className="hidden sm:inline">Add</span>
       </button>
       <BottomSheet open={open} onClose={() => setOpen(false)} title="Add Transaction">
         <div className="flex flex-col gap-2">

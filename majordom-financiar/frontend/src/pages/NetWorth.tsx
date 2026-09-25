@@ -261,9 +261,7 @@ export default function NetWorthPage() {
 
   return (
     <div className="flex flex-col">
-      <div className="mb-4">
-        <DomainTabs app="finance" active="net-worth" />
-      </div>
+      <DomainTabs app="finance" active="net-worth" />
 
       <PageHeader
         eyebrow="Net worth"

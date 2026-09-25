@@ -78,9 +78,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <div className="mb-6">
-        <DomainTabs app="invest" active="investments" />
-      </div>
+      <DomainTabs app="invest" active="investments" />
 
       <PageHeader
         title="Dashboard"
