@@ -38,8 +38,10 @@ export function PageHeader({
   title, eyebrow, description, back, tabs, tab, onTabChange, actions, className,
 }: PageHeaderProps) {
   return (
-    <header className={cx('mb-6 flex flex-wrap items-start justify-between gap-x-6 gap-y-4 pr-20 lg:pr-0', className)}>
-      <div className="flex min-w-0 items-start gap-3">
+    <header className={cx('mb-6 flex flex-wrap items-start justify-between gap-x-6 gap-y-4', className)}>
+      {/* Only the title row reserves room for the shell's top-right cluster on phones; the
+          actions take a full row of their own there, so they don't wrap for lack of 80px. */}
+      <div className="flex min-w-0 items-start gap-3 pr-20 lg:pr-0">
         {back && ('to' in back ? (
           <Link to={back.to} aria-label="Back" className={backClass}>
             <ArrowLeft className="h-4 w-4" aria-hidden />
@@ -59,7 +61,7 @@ export function PageHeader({
       </div>
 
       {(tabs || actions) && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex basis-full flex-wrap items-center gap-2 sm:basis-auto">
           {tabs && (
             <div role="tablist" className="flex gap-0.5 rounded-full border border-line bg-surface p-[3px]">
               {tabs.map(({ value, label, icon: Icon }) => {
