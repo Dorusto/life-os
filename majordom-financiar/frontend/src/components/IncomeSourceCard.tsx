@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Loader2, Check } from 'lucide-react'
 import { createIncomeSource, getAccountList, AccountListItem } from '../lib/api'
 import { formatCurrency } from '../lib/formatCurrency'
+import { Button } from './kit/Button'
 
 interface IncomeSourceCardProps {
   payee: string
@@ -142,13 +143,15 @@ export default function IncomeSourceCard({ payee, amount, date, onConfirmed }: I
       {error && <p className="text-token-loss text-xs">{error}</p>}
 
       {/* Save button */}
-      <button
+      <Button
         onClick={handleSave}
         disabled={loading || !editedPayee.trim() || (mode === 'income' ? !incomeName.trim() : !accountId)}
-        className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-on-brand text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        variant="primary"
+        size="sm"
+        className="w-full"
       >
         {loading ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : <><Check size={14} /> Save</>}
-      </button>
+      </Button>
     </div>
   )
 }

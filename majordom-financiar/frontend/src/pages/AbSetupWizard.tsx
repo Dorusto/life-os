@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { testAbConnection, saveAbCredentials, type AbBudgetFile } from '../lib/api'
 import { BrandMark } from '../components/BrandMark'
+import { Button } from '../components/kit/Button'
 
 /**
  * AB setup wizard (#190) — the one-time technical connection to Actual Budget,
@@ -101,15 +102,14 @@ export default function AbSetupWizard() {
         </div>
         <h1 className="text-token-ink text-xl font-semibold tracking-tight">Connected to Actual Budget</h1>
         <p className="text-token-ink-3 text-sm mt-1.5">{connectedBudgetName}</p>
-        <button
+        <Button
           onClick={() => navigate('/', { replace: true })}
-          className="
-            mt-8 px-6 py-3 rounded-xl bg-token-brand text-token-on-brand text-base font-medium
-            hover:bg-token-brand-2 active:scale-[0.98] transition-all duration-150
-          "
+          variant="primary"
+          size="md"
+          className="mt-8"
         >
           Continue to Home
-        </button>
+        </Button>
       </div>
     )
   }
@@ -204,32 +204,26 @@ export default function AbSetupWizard() {
         )}
         {saveError && <p className="text-token-loss text-sm text-center">{saveError}</p>}
 
-        <button
+        <Button
           type="submit"
           disabled={testing || saving || !baseUrl || !password}
-          className="
-            mt-2 w-full py-3.5 rounded-xl bg-token-surface border border-token-line text-token-ink text-base font-medium
-            hover:bg-token-surface-2 active:scale-[0.98]
-            disabled:opacity-40 disabled:cursor-not-allowed
-            transition-all duration-150
-          "
+          variant="secondary"
+          size="md"
+          className="mt-2 w-full"
         >
           {testing ? 'Testing…' : 'Test connection'}
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
           onClick={handleSave}
           disabled={!tested || !file || saving}
-          className="
-            w-full py-3.5 rounded-xl bg-token-brand text-token-on-brand text-base font-medium
-            hover:bg-token-brand-2 active:scale-[0.98]
-            disabled:opacity-40 disabled:cursor-not-allowed
-            transition-all duration-150
-          "
+          variant="primary"
+          size="md"
+          className="w-full"
         >
           {saving ? 'Saving…' : 'Save & connect'}
-        </button>
+        </Button>
       </form>
 
       <p className="mt-10 text-token-ink-2 text-xs">

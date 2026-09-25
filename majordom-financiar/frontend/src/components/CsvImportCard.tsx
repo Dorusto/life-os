@@ -9,6 +9,7 @@ import {
 } from '../lib/api'
 import { matchAccountBySource, tokenizeName } from '../lib/csvImportUtils'
 import { formatCurrency, formatNumber } from '../lib/formatCurrency'
+import { Button } from './kit/Button'
 
 // --- Local types (mirrors ImportRow from api.ts with local UI additions) ---
 
@@ -142,12 +143,9 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
           <AlertCircle size={16} className="text-token-loss flex-shrink-0 mt-0.5" />
           <p className="text-token-loss text-sm">{data.error || 'Failed to parse CSV'}</p>
         </div>
-        <button
-          onClick={onCancelled}
-          className="text-sm text-token-ink-3 hover:text-token-ink transition-colors"
-        >
+        <Button onClick={onCancelled} variant="ghost" size="sm">
           Dismiss
-        </button>
+        </Button>
       </div>
     )
   }
@@ -584,24 +582,22 @@ export default function CsvImportCard({ data, onConfirmed, onCancelled }: CsvImp
 
       {/* Buttons */}
       <div className="flex gap-2 pt-1">
-        <button
-          onClick={onCancelled}
-          disabled={importing}
-          className="flex-1 py-2 rounded-xl border border-token-line text-token-ink-3 hover:text-token-ink hover:bg-token-surface-2 text-sm transition-colors disabled:opacity-40"
-        >
+        <Button onClick={onCancelled} disabled={importing} variant="secondary" size="sm" className="flex-1">
           Cancel
-        </button>
-        <button
+        </Button>
+        <Button
           onClick={handleImport}
           disabled={(creatingAccount ? !newAccountName.trim() : !accountId) || importing}
-          className="flex-1 py-2 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-on-brand text-sm font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+          variant="primary"
+          size="sm"
+          className="flex-1"
         >
           {importing ? (
             <><Loader2 size={14} className="animate-spin" /> Importing...</>
           ) : (
             <><Check size={14} /> Import</>
           )}
-        </button>
+        </Button>
       </div>
     </div>
   )

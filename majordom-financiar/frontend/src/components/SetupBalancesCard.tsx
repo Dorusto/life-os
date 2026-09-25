@@ -3,6 +3,7 @@ import { Loader2, Plus, X } from 'lucide-react'
 import { completeSetup, type SetupAccount } from '../lib/api'
 import { formatCurrency } from '../lib/formatCurrency'
 import { Card } from './kit/Card'
+import { Button } from './kit/Button'
 
 interface Props {
   accounts: SetupAccount[]
@@ -151,23 +152,16 @@ export default function SetupBalancesCard({ accounts, onComplete }: Props) {
           ))}
         </div>
 
-        <button
-          onClick={addExtra}
-          className="flex items-center gap-1.5 text-token-ink-3 hover:text-token-ink transition-colors text-xs"
-        >
+        <Button onClick={addExtra} variant="ghost" size="sm">
           <Plus size={14} />
           Add account
-        </button>
+        </Button>
 
         {error && <p className="text-token-loss text-xs">{error}</p>}
 
-        <button
-          onClick={handleSubmit}
-          disabled={loading}
-          className="w-full py-2 rounded-xl bg-token-brand hover:bg-token-brand-2 text-token-on-brand text-sm font-medium transition-colors disabled:opacity-40 flex items-center justify-center gap-2 active:scale-95"
-        >
+        <Button onClick={handleSubmit} disabled={loading} variant="primary" size="sm" className="w-full">
           {loading ? <Loader2 className="animate-spin" size={14} /> : 'Confirm balances'}
-        </button>
+        </Button>
       </div>
     </Card>
   )
