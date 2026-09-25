@@ -149,17 +149,17 @@ function MenuScreen({ onNavigate }: { onNavigate: (page: SubPageKey) => void }) 
           <AppearanceSettings appDefault="sage" />
         </div>
 
-        <Button
-          variant="secondary"
+        {/* A menu row like the cards below, not an action pill — so no kit Button. */}
+        <button
           onClick={handleSync}
           disabled={syncState === 'syncing'}
-          className="w-full h-12 justify-start gap-3"
+          className="w-full flex items-center gap-3 bg-token-surface border border-token-line rounded-2xl px-4 py-3.5 disabled:opacity-60 hover:border-token-line-strong transition-colors"
         >
           <RefreshCw size={16} className={`text-token-ink-3 flex-shrink-0 ${syncState === 'syncing' ? 'animate-spin' : ''}`} />
           <span className="flex-1 text-left text-sm font-semibold text-token-ink">
             {syncState === 'failed' ? 'Sync failed — tap to retry' : 'Sync accounts'}
           </span>
-        </Button>
+        </button>
 
         {MENU_GROUPS.map(group => (
           <div key={group.label}>
