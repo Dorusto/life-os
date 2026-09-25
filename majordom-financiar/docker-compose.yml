@@ -245,6 +245,10 @@ services:
         # vehicle-linked-account handoff. Leave empty to keep the local
         # (empty) account detail view instead of redirecting.
         VITE_VEHICLE_APP_URL: ${VEHICLE_APP_PUBLIC_URL:-}
+        # Build identity shown in Settings → About (#314). The deploy workflow
+        # exports both; a local build shows "dev".
+        BUILD_SHA: ${BUILD_SHA:-}
+        BUILD_DATE: ${BUILD_DATE:-}
     container_name: majordom-web
     restart: unless-stopped
     ports:

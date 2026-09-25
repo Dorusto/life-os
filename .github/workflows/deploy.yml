@@ -28,6 +28,9 @@ jobs:
           COMPOSE_PROFILES: vehicle-manager,investment-manager
         run: |
           cd "$MAJORDOM_PATH/majordom-financiar"
+          # Build identity for Settings → About (#314).
+          export BUILD_SHA="$(git -C "$MAJORDOM_PATH" rev-parse --short HEAD)"
+          export BUILD_DATE="$(date -u +%Y-%m-%d)"
           docker compose build --no-cache majordom-api majordom-web \
             vehicle-manager vehicle-manager-web \
             investment-manager investment-manager-web

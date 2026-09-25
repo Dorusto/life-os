@@ -23,6 +23,11 @@ ENV VITE_ACTUAL_BUDGET_URL=$VITE_ACTUAL_BUDGET_URL
 # transaction list. Leave empty to keep the local fallback view.
 ARG VITE_VEHICLE_APP_URL
 ENV VITE_VEHICLE_APP_URL=$VITE_VEHICLE_APP_URL
+# Commit + date of this build, shown in Settings → About (#314). There is no
+# .git inside the build context, so the deploy workflow passes them in.
+ARG BUILD_SHA
+ARG BUILD_DATE
+ENV BUILD_SHA=$BUILD_SHA BUILD_DATE=$BUILD_DATE
 RUN npm run build
 # Output: /app/dist/ (Vite default)
 
