@@ -365,6 +365,12 @@ export default function ReceiptFlow({ mode, file, onSaved, onClose }: ReceiptFlo
   // Portal to body: a backdrop-filter/transform ancestor (e.g. PageHeader's
   // backdrop-blur) becomes the containing block for position:fixed children,
   // which would trap this overlay inside the header box instead of the viewport.
+  //
+  // This outer div is the popup's ONLY scroll container (#311): the photo block
+  // and the form are flex-shrink-0 children that grow to their content, so the
+  // whole popup (photo + form) scrolls as one page. A nested overflow-y-auto on
+  // the form would reset its min-height to 0 and shrink it into a tiny inner
+  // scroll strip under the photo — unreachable once the keyboard opens.
   return createPortal(
     <div className="fixed inset-0 z-[70] h-dvh overflow-y-auto bg-token-paper flex flex-col">
       {/* Back button */}
@@ -376,9 +382,10 @@ export default function ReceiptFlow({ mode, file, onSaved, onClose }: ReceiptFlo
         <ChevronLeft size={24} />
       </button>
 
-      {/* Receipt image — photo mode only, takes up top portion of screen */}
+      {/* Receipt image — photo mode only, takes up top portion of screen.
+          flex-shrink-0 so it keeps its height while the outer popup scrolls. */}
       {!isManual && (
-        <div className="relative w-full bg-token-surface" style={{ height: '45vh' }}>
+        <div className="relative w-full bg-token-surface flex-shrink-0" style={{ height: '35dvh' }}>
           {imageUrl && (
             <img
               src={imageUrl}
@@ -413,7 +420,7 @@ export default function ReceiptFlow({ mode, file, onSaved, onClose }: ReceiptFlo
             initial={{ y: 40, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.3, ease: 'easeOut' }}
-            className="flex-1 flex flex-col px-5 pt-5 pb-8 gap-4 overflow-y-auto"
+            className="flex-1 flex-shrink-0 flex flex-col px-5 pt-5 pb-8 gap-4"
           >
             {draft?.receipt_type === 'fuel' && activeTab === 'fuel' ? (
               /* Fuel receipt: reuse the fuel form component as-is. No imageUrl
