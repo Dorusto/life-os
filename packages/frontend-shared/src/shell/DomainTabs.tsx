@@ -26,10 +26,12 @@ const DOMAINS: Domain[] = [
  * Spending row). Rendered at the top of each app's home page, so the three apps read as one:
  * a tab in the current app is a router link, a tab in another app is a real page load.
  * On phones only the active tab shows its label; the others are icons.
+ * Sized to its content (never full width) and owns its bottom margin, so every home page
+ * gets the same row; on phones it stops short of the shell's top-right privacy/bell cluster.
  */
 export function DomainTabs({ app, active }: { app: AppId; active: DomainId }) {
   return (
-    <nav aria-label="Dashboards" className="flex gap-0.5 rounded-full border border-line bg-surface p-[3px]">
+    <nav aria-label="Dashboards" className="mb-5 flex w-fit max-w-[calc(100%-5.5rem)] gap-0.5 rounded-full border border-line bg-surface p-[3px] lg:max-w-full">
       {DOMAINS.map(({ id, label, icon: Icon, app: target, path }) => {
         const isActive = id === active
         const cls = cx(

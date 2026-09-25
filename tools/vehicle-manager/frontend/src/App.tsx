@@ -50,7 +50,7 @@ function Protected({ children, width = 'wide' }: { children: React.ReactNode; wi
         nav={NAV_TABS}
         chat={{ href: `${APP_LINKS.finance.url}/chat` }}
         settingsTo="/settings"
-        notifications={<NotificationBell />}
+        notifications={<NotificationBell className="rounded-xl p-2 hover:bg-surface-2" />}
         username={getUsername()}
         onLogout={logout}
       >

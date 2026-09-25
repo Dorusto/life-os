@@ -265,9 +265,7 @@ export default function Dashboard() {
 
   return (
     <div className="flex flex-col">
-      <div className="mb-5 flex">
-        <DomainTabs app="finance" active="spending" />
-      </div>
+      <DomainTabs app="finance" active="spending" />
       <PageHeader eyebrow={dateLabel} title="Dashboard" actions={headerActions} />
 
       {notifState === 'default' && (
