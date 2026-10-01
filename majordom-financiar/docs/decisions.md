@@ -1536,3 +1536,50 @@ judged clearly preferable to the 17 live false positives.
 **Rejected:** a hand-synced copy per app (that is what had diverged: three AppShells, three chat icons, three NotificationBells); MoneyMatter's layout as the reference (the user preferred Wealthfolio after comparing).
 
 **Consequences / rules:** never edit a generated copy; a component needed by two apps goes into the kit at its second occurrence; text on a `bg-brand` fill uses `text-on-brand`; the shell owns scrolling (`main` is `h-dvh overflow-y-auto`), so pages never add their own `h-dvh`/`min-h-dvh` scroll wrapper or bottom-nav padding.
+
+<a id="build-or-reuse-gate"></a>
+### Build-or-reuse gate — Majordom is the finance operator, not a rebuild of existing apps; two front doors, one set of services (2026-10-01)
+
+**Context:** an external agent (Hermes, on Telegram) now runs next to the Majordom chat, and mature self-hosted apps exist for most domains Majordom was building itself (Wealthfolio for investments and net worth, with broker sync; LubeLogger/Hammond for vehicles; Grafana for charts). The user asked the crucial question: is this reinventing the wheel or adding value?
+
+**Decision — the gate, applied before any new Majordom work:**
+1. **Does a mature self-hosted tool already do this?** → use it, Majordom only connects to it.
+2. **Nothing equivalent exists, or the user prefers their own** → build it, the fastest way possible.
+Current verdicts: budgeting = Actual Budget (reuse); vehicles = keep `vehicle-manager` (no self-hosted equivalent the user prefers); investments = re-evaluate `investment-manager` against Wealthfolio with the user's real broker before more work; charts = check Grafana / existing reports before building new chart code.
+
+**What is genuinely Majordom's (the value, not available off the shelf):** the **finance operator** described in #224: the intelligence layer between any agent and whatever engine holds the financial data. It suggests categories, rules and budget calibrations, operates the budgeting app on the user's behalf, and never writes without the user's confirmation. The tool registry holds the judgement; `FinanceProvider` (#222) makes it engine-agnostic (Actual Budget today, hledger/beancount/others later). Checked against existing tools on 2026-10-01: `actual-ai` auto-categorizes Actual Budget transactions with an LLM but writes without confirmation and does nothing else; Accountant24 is an AI finance agent on its own plain-text files, not an operator over the user's existing budgeting app. Nothing found does "confirmed operator over any budgeting engine". The glue between apps is part of this operator:
+- receipt photo → Actual Budget transaction, confirmed by the user;
+- "sync wealth": current AB tracking-account balances next to values from the investment/vehicle apps, per-item diff, the user selects what to import, then confirms. No exceptions to the confirmation rule;
+- all of it reachable from the Majordom chat and from Hermes on Telegram.
+
+**Two front doors, one set of services:** both chats are clients of the same services over REST; business logic and confirmation flows live in the services, never in either chat. The Majordom chat stays (inline charts, proposal cards).
+
+**Simplest implementation / packaging:** for the finance operator, MCP (#58) is the natural door for Hermes: the tool registry is already a list of described tools, which is exactly an MCP server's shape, so Hermes gets every operator tool and its confirmation flow without a hand-written description. For the simple apps (vehicles, read-only lookups), a Hermes skill (plain markdown, describes the REST calls, built from each FastAPI app's auto-generated `/openapi.json`) is enough; MCP for those (#263) stays optional. Packaging for others (CasaOS / Coolify app = a docker-compose bundle) only after the glue works for the user. Receipt reading stays in the finance service; once the stack runs on local models, receipts go through a dedicated bot straight to the service so the photo never reaches a cloud model.
+
+**Rejected:** retiring the Majordom chat in favor of Hermes only; an automatic daily balance update without confirmation; building new standalone apps where a mature self-hosted tool already covers the need.
+
+<a id="shared-judgement"></a>
+### Shared judgement — Hermes coordinates, Majordom holds the financial judgement, both doors behave the same (2026-10-01)
+
+**Context:** follows `#build-or-reuse-gate` the same day. Hermes (Telegram) already takes complicated work off the user's shoulders across many domains, so the question became: does Majordom still need to be a hub/orchestrator (#263), and could the user's financial intelligence simply live in a Hermes skill? The user's requirement: doing the same thing from the Majordom chat and from Hermes must give the same behaviour, the same judgement in both places.
+
+**Decision:**
+- **Hermes is the coordinator** across all apps. Majordom does not become an orchestrator; #263 is superseded.
+- **Majordom is the finance specialist and holds all financial judgement**, shared by both doors. A Hermes skill is only a pointer ("for money use Majordom; every write is a proposal the user confirms"), never the place where judgement lives: a skill is a manual, not the tested code (transfer safety, duplicates, reconciliation), Actual Budget has no REST API of its own, and the cloud model behind Hermes should see results, not raw ledgers.
+- **Three layers make "same judgement" true:**
+  1. *Rules in code* (no write without confirmation, validation, transfer-safe operations) — enforced by the service, identical for any caller.
+  2. *Suggestions computed by Majordom tools* (e.g. category suggestion), not left to each door's model — identical answers even though the two doors run different models.
+  3. *Conversation style* per door (Telegram text vs. PWA cards and charts) — allowed to differ; it never decides anything.
+- **Working rule:** any new financial judgement is added as a tool or a server-side rule in Majordom, never as prompt text in only one door.
+
+**Long-term goal:** Majordom as a standalone app anyone can put on top of their own finance tool — Actual Budget, another engine, or even a spreadsheet (#320) — through `FinanceProvider`, usable from its own chat or from any agent (#224).
+
+**How to continue (order):**
+1. #316 — write the service boundaries, the rules above and the capability catalogue (#224). No code.
+2. #317 — confirmation flow server-side, proposals with an id any door can confirm.
+3. #318 — MCP read-only + Hermes; test: same questions from both doors, same numbers.
+4. #319 — category suggestion as a Majordom tool.
+5. Then writes over MCP with confirmation, receipts from Telegram (#186), wealth sync preview, the investment app vs. Wealthfolio evaluation (#262) — each as its own slice, tested on its own before being combined.
+Each app keeps working standalone; each step is tested before the next one starts.
+
+**Rejected:** the financial intelligence as a Hermes skill (judgement would split between doors and the tested code would have to be rewritten as skill scripts); Majordom as a separate hub/orchestrator (#263), now Hermes' role.
