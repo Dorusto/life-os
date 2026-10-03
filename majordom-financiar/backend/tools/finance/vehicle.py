@@ -81,21 +81,36 @@ async def log_refuel(
         if extracted.get("date"):
             today = extracted["date"]
 
-    # Resolve vehicle from name, the receipt's suggestion, or ODO proximity
+    # Resolve vehicle from name, then odometer proximity, then the receipt's
+    # suggestion, then the single active vehicle. The receipt's suggestion is
+    # only a guess (vision can't read the odometer), so it must never outrank
+    # what the user actually said or the odometer they entered.
     vehicles = await client.list_vehicles(active_only=True)
     vehicle_id = None
     display_name = vehicle_name
+    odo_no_match = False
 
     suggested_vehicle_id = extracted.get("suggested_vehicle_id") if extracted else None
 
     if vehicle_name:
         matched = next((v for v in vehicles if vehicle_name.lower() in v["name"].lower()), None)
+    elif odo_km is not None:
+        # Only a vehicle whose last reading is at or below the entered odometer
+        # can be the one being refuelled; among those, the closest below it.
+        # A vehicle with no last_odo counts as distance odo_km.
+        candidates = [
+            v for v in vehicles
+            if v.get("last_odo") is None or v["last_odo"] <= odo_km
+        ]
+        matched = min(
+            candidates,
+            key=lambda v: odo_km - (v["last_odo"] if v.get("last_odo") is not None else 0),
+            default=None,
+        )
+        if matched is None:
+            odo_no_match = True
     elif suggested_vehicle_id is not None:
         matched = next((v for v in vehicles if v["id"] == suggested_vehicle_id), None)
-    elif odo_km is not None:
-        # Pick vehicle whose last_odo is closest to odo_km
-        active = [v for v in vehicles if v.get("active", 1)]
-        matched = min(active, key=lambda v: abs((v.get("last_odo") or 0) - odo_km), default=None)
     else:
         active = [v for v in vehicles if v.get("active", 1)]
         matched = active[0] if len(active) == 1 else None
@@ -145,6 +160,26 @@ async def log_refuel(
     if not vehicle_id:
         missing.append("vehicle_name")
 
+    # An odometer below the chosen vehicle's last reading is impossible — the
+    # user either mistyped the km or named the wrong vehicle. Never build a
+    # proposal from it (it would produce a negative km_since_last).
+    if (
+        matched
+        and matched.get("last_odo") is not None
+        and odo_km is not None
+        and odo_km < matched["last_odo"]
+    ):
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["odo_km"],
+            "message": (
+                f"Odometer {odo_km:.0f} km is lower than the last recorded "
+                f"{matched['last_odo']:.0f} km for {matched['name']}. Ask the user "
+                "to check the km or name the vehicle, then call "
+                "vehicle__log_refuel again."
+            ),
+        })
+
     if missing:
         human = {
             "odo_km": "odometer km",
@@ -163,6 +198,8 @@ async def log_refuel(
                 read_parts.append(extracted["merchant"])
             if read_parts:
                 message += " Read from the receipt: " + ", ".join(read_parts) + "."
+        if odo_no_match:
+            message += f" No vehicle has a last odometer at or below {odo_km:.0f} km."
         message += (
             " Ask the user, then call vehicle__log_refuel again with the same "
             "arguments plus the missing ones."
