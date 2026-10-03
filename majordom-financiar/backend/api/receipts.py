@@ -237,6 +237,7 @@ async def get_extraction(receipt_id: str) -> dict | None:
     try:
         uuid.UUID(receipt_id)
     except (ValueError, AttributeError, TypeError):
+        logger.debug("Rejected non-UUID receipt_id in get_extraction")
         return None
 
     _purge_extractions()

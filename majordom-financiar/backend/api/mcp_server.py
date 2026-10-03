@@ -70,7 +70,7 @@ def _registry_tool_names() -> set[str]:
 _missing = MCP_TOOLS - _registry_tool_names()
 if _missing:
     raise RuntimeError(
-        "MCP_READ_TOOLS references tools missing from registry.TOOLS: "
+        "MCP_TOOLS references tools missing from registry.TOOLS: "
         + ", ".join(sorted(_missing))
     )
 

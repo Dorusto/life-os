@@ -206,6 +206,18 @@ _PROPOSAL_TOOLS = {"propose_transaction", "propose_budget_rebalance", ...}
 
 If a tool is missing from `_PROPOSAL_TOOLS` in `backend/api/chat.py`, the JSON goes to the LLM instead of the frontend — the card never appears.
 
+**Shared proposal store (#322).** New and migrated proposal types go through
+`backend/core/pending_proposals.py`: `create(type, payload)` records the creator from
+`backend/core/actor.py` (PWA username or MCP member — set by `chat.py` and `mcp_server.py`),
+expires after 24h, and `confirm`/`reject` only succeed for that same creator. The write lives in a
+handler registered per type (`register_handler`, e.g. `services/refuel_service.py`), never inside a
+FastAPI route, so the PWA card, `POST /api/pending-proposals/{id}/confirm` and MCP
+`system__confirm_proposal` all run the same code. In memory on purpose (rule 5); a restart drops
+pending proposals. MCP members come from `MCP_TOKENS` (`member:token,...`) — name members like
+their PWA usernames so one person can confirm from either door. A `propose` tool that lacks a
+required value returns `{"type": "needs_input", "missing": [...]}` instead of a proposal; the chat
+loop feeds it back to the LLM rather than rendering it as a card.
+
 ### 7. Transaction deduplication
 Majordom generates `SHA256(date + merchant + amount)[:16]` and passes it to Actual Budget as `imported_id`. Actual Budget owns deduplication — Majordom does not query duplicates itself.
 
@@ -464,15 +476,19 @@ User uploads photo
 
 **Key rule:** last ODO must be read BEFORE inserting the new entry — otherwise `km_since_last = 0`.
 
-### Fuel refuel (text — log_refuel tool)
+### Fuel refuel (text or Telegram photo — log_refuel tool, #322/#328)
 ```
-User: "I refueled 40L at Shell for €90, odo 51500"
-  → LLM calls log_refuel(liters, total_eur, location, odo_km)
-  → pending proposal in vehicle_proposals (in-memory dict)
-  → "log_refuel" in _PROPOSAL_TOOLS → yield JSON to frontend
-  → FuelReceiptCard (no image, no Grocery tab)
-  → confirm → POST /api/vehicle/proposals/{id}/confirm
-  → reads last_odo BEFORE insert → AB transaction + vehicle_log INSERT
+PWA chat: "I refueled 40L at Shell for €90, odo 51500"
+  → LLM calls vehicle__log_refuel(liters, total_eur, location, odo_km)
+Hermes (Telegram photo): POST /api/mcp/receipts (member's MCP token, same vision path as the PWA)
+  → receipt_id → MCP vehicle__log_refuel(receipt_id, odo_km)
+Both:
+  → server rules: odo_km required; vehicle = name, else closest last_odo at or below odo_km;
+    odo_km below the vehicle's last reading → {"type": "needs_input", ...}, no proposal
+  → pending_proposals.create("refuel", payload, creator) → proposal_id + summary
+  → PWA: FuelReceiptCard → POST /api/vehicle/proposals/{id}/confirm
+    Hermes: MCP system__confirm_proposal(proposal_id) after the user's explicit yes
+  → refuel_service.confirm_refuel(): reads last_odo BEFORE insert → AB transaction + vehicle_log INSERT
 ```
 
 ### Chat with tool calling
@@ -621,18 +637,19 @@ clarifying question.
 A door **must always delegate to `majordom-finance`:** any number (totals, balances, remaining
 budget — never computed from raw transactions in the door), any suggestion or classification,
 and every write. A write is always a proposal the user confirms; today the proposal lives in the
-PWA card, after #322 it has a server-side id any door can confirm.
+shared store (`backend/core/pending_proposals.py`, #322) with a server-side id any door can confirm.
 
 ### MCP exposure (#323, first slice of #58)
 
-Tools are classified by what they return, not by name. Only the first group goes over MCP until
-#322 lands.
+Tools are classified by what they return, not by name. The read/text group goes over MCP, plus
+write tools one at a time as each moves onto the shared proposal store (#322).
 
 | Group | Tools | MCP |
 |---|---|---|
 | **Read, text result** | `finance__get_accounts`, `get_monthly_stats`, `get_budget_status`, `get_transactions`, `get_untagged_transactions`, `get_transactions_by_tag`, `get_spending_history`, `get_budget_pacing_status`, `get_tag_goal_progress`, `get_unprotected_goals`, `get_reached_goals`, `get_recurring_schedules_summary`, `get_income_classifications`, `get_expense_coverage`, `get_reconciliation_suspects`, `get_uncategorized_groups`; `vehicle__list_vehicles`, `get_vehicle_stats`, `get_vehicle_log`; `system__get_backup_status` | **Yes** (#323) |
 | **Read, PWA card/chart result** | `finance__list_transactions`, `list_categories`, `get_budget_overview`, all `*_chart` tools, `get_spending_trend`; `vehicle__get_vehicle_*_chart` | Not yet — the result is card JSON for the PWA; the text-result tools above already answer the same questions |
-| **Write, proposal card** | every `*propose_*`, `create/rename/delete_category`, `set_account_goal`, `vehicle__log_refuel`, `vehicle__set_*`, `vehicle__delete_vehicle_log_entry`, `system__set_notification_time` | After #322 (proposal id confirmable from any door) |
+| **Write, proposal (shared store)** | `vehicle__log_refuel`; MCP-only `system__confirm_proposal` / `system__reject_proposal` | **Yes** (#322/#328) |
+| **Write, proposal card (own store)** | every `*propose_*`, `create/rename/delete_category`, `set_account_goal`, `vehicle__set_*`, `vehicle__delete_vehicle_log_entry`, `system__set_notification_time` | After it moves onto the shared store |
 | **Write, no card** | `finance__sync_accounts` (bank re-sync, same as the Home sync icon) | No — exception to critical rule 5 kept for the PWA only |
 
 The MCP layer wraps the existing registry (`backend/tools/registry.py`): tool descriptions are
