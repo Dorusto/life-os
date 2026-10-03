@@ -148,8 +148,10 @@ class MCPEndpoint:
             return
 
         headers = dict(scope.get("headers") or [])
-        auth = headers.get(b"authorization", b"").decode("latin-1")
-        expected = f"Bearer {settings.mcp_token}"
+        auth = headers.get(b"authorization", b"")
+        expected = f"Bearer {settings.mcp_token}".encode()
+        # Bytes, not str: compare_digest raises TypeError on non-ASCII str,
+        # turning a malformed Authorization header into a 500 instead of a 401.
         if not hmac.compare_digest(auth, expected):
             response = JSONResponse({"detail": "Unauthorized"}, status_code=401)
             await response(scope, receive, send)
