@@ -2,9 +2,12 @@ from __future__ import annotations
 """
 Centralized configuration — reads from environment variables.
 """
+import logging
 import os
 from pathlib import Path
 from dataclasses import dataclass, field
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -149,6 +152,10 @@ class Settings:
     # Bearer token for the read-only MCP server (#323). Empty disables the
     # /api/mcp endpoint entirely.
     mcp_token: str = ""
+    # Per-member MCP tokens: {token: member name} (env-backed, read by
+    # backend/core/mcp_auth.py). Each token identifies one household member,
+    # so a proposal created over MCP can only be confirmed by that member.
+    mcp_tokens: dict[str, str] = field(default_factory=dict)
 
     def __post_init__(self):
         self.default_currency = os.getenv("DEFAULT_CURRENCY", "EUR")
@@ -160,6 +167,7 @@ class Settings:
         self.vapid_contact = os.getenv("VAPID_CONTACT", "")
         self.finance_backend = os.getenv("FINANCE_BACKEND", "actual_budget")
         self.mcp_token = os.getenv("MCP_TOKEN", "")
+        self.mcp_tokens = self._parse_mcp_tokens()
         # Ensure the DB directory exists
         Path(self.memory.db_path).parent.mkdir(parents=True, exist_ok=True)
 
@@ -169,6 +177,38 @@ class Settings:
         if not self.actual.password:
             errors.append("ACTUAL_BUDGET_PASSWORD is missing")
         return errors
+
+    def _parse_mcp_tokens(self) -> dict[str, str]:
+        """Parse MCP_TOKENS (member:token,member:token) into {token: member}.
+
+        Malformed pairs are skipped with a warning naming the pair index only —
+        never the token value. The legacy single MCP_TOKEN is added as member
+        "mcp" when it isn't already present, keeping old setups working.
+        """
+        tokens: dict[str, str] = {}
+        raw = os.getenv("MCP_TOKENS", "")
+        for i, pair in enumerate(raw.split(",")):
+            pair = pair.strip()
+            if not pair:
+                continue
+            if ":" not in pair:
+                logger.warning(
+                    "MCP_TOKENS entry %d is malformed (expected member:token), skipping", i
+                )
+                continue
+            member, _, token = pair.partition(":")
+            member = member.strip()
+            token = token.strip()
+            if not member or not token:
+                logger.warning(
+                    "MCP_TOKENS entry %d is malformed (empty member or token), skipping", i
+                )
+                continue
+            tokens[token] = member
+
+        if self.mcp_token and self.mcp_token not in tokens:
+            tokens[self.mcp_token] = "mcp"
+        return tokens
 
 
 # Global singleton

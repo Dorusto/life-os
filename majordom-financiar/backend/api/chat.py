@@ -17,6 +17,7 @@ from pydantic import BaseModel
 import httpx
 
 from backend.api.auth import get_current_user
+from backend.core.actor import set_actor
 from backend.core.config import settings, build_llm_headers
 from backend.tools.registry import TOOLS, execute_tool
 
@@ -406,6 +407,9 @@ async def chat_stream(
     }
 
     async def response_generator():
+        # Must run inside the generator — the streaming body executes here, so
+        # setting the actor in the outer function is not guaranteed to propagate.
+        set_actor(current_user)
         try:
             async for chunk in _stream_with_tools(messages, llm_url, model):
                 yield chunk

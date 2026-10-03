@@ -51,7 +51,7 @@ async def log_refuel(
     Create a pending refuel proposal. Returns JSON with type='fuel_log'.
     Does NOT write to DB — only stores a pending proposal for frontend confirmation.
     """
-    from backend.tools import vehicle_proposals
+    from backend.core import pending_proposals
 
     today = _date.today().isoformat()
     client = _get_client()
@@ -104,26 +104,52 @@ async def log_refuel(
         preferred,
     )
 
-    proposal_id = vehicle_proposals.create(
-        vehicle_id=vehicle_id,
-        vehicle_name=display_name,
-        liters=liters,
-        total_eur=total_eur,
-        odo_km=odo_km,
-        location=location,
-        full_tank=full_tank,
-        missed_fill=False,
-        date=today,
-        account_id=account_id,
-        account_name=account_name,
-        category_name=category_name,
+    proposal_id = pending_proposals.create(
+        "refuel",
+        {
+            "vehicle_id": vehicle_id,
+            "vehicle_name": display_name,
+            "liters": liters,
+            "total_eur": total_eur,
+            "odo_km": odo_km,
+            "location": location,
+            "full_tank": full_tank,
+            "missed_fill": False,
+            "date": today,
+            "account_id": account_id,
+            "account_name": account_name,
+            "category_name": category_name,
+        },
+        created_by=None,
     )
 
     price_per_liter = round(total_eur / liters, 3) if liters else None
 
+    # One plain-English line a text-only door (MCP) can show the user.
+    details = []
+    if liters:
+        details.append(f"{liters:.1f} L")
+    if total_eur:
+        details.append(f"€{total_eur:.2f}")
+    if odo_km:
+        details.append(f"odometer {odo_km:.0f} km")
+    if location:
+        details.append(location)
+    if account_name:
+        details.append(f"account {account_name}")
+    if category_name:
+        details.append(f"category {category_name}")
+    if today:
+        details.append(today)
+    summary = f"Refuel: {display_name}"
+    if details:
+        summary += " — " + ", ".join(details)
+
     return json.dumps({
         "type": "fuel_log",
         "receipt_id": proposal_id,
+        "proposal_id": proposal_id,
+        "summary": summary,
         "receipt_type": "fuel",
         "merchant": location,
         "amount": total_eur,
