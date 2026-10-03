@@ -149,7 +149,7 @@ class Settings:
     # Which FinanceProvider backend get_provider() instantiates (env-backed,
     # read by backend/core/finance/provider.py).
     finance_backend: str = "actual_budget"
-    # Bearer token for the read-only MCP server (#323). Empty disables the
+    # Bearer token for the MCP server (#323). Empty disables the
     # /api/mcp endpoint entirely.
     mcp_token: str = ""
     # Per-member MCP tokens: {token: member name} (env-backed, read by
