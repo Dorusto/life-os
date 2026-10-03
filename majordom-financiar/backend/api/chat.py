@@ -205,6 +205,8 @@ Use `vehicle__*` tools when the user mentions car, fuel, APK, ITP, insurance, mi
   - "I refueled 31L at Shell for €70, odo 51000" → vehicle__log_refuel(liters=31, total_eur=70, location="Shell", odo_km=51000)
   - "am alimentat 40L cu €80 din Tango" → vehicle__log_refuel(liters=40, total_eur=80, location="Tango")
   - "tanked up MyBike, 12L €22" → vehicle__log_refuel(liters=12, total_eur=22, vehicle_name="MyBike")
+- If vehicle__log_refuel returns needs_input, ask the user only for the listed missing values (e.g. the odometer km), then call vehicle__log_refuel again with all previous arguments plus the new ones. Never invent an odometer value.
+  - "am alimentat 40L cu €80" → vehicle__log_refuel(liters=40, total_eur=80) → needs_input odo_km → ask "Câți km arată bordul?"
 - When the user asks to see refuel history or recent fill-ups for a vehicle — call vehicle__get_vehicle_log immediately. Never answer from memory.
   - "show my last fill-ups for MyCar" → vehicle__get_vehicle_log(vehicle_name="MyCar")
 - When the user asks to delete or remove a specific refuel/log entry — call vehicle__delete_vehicle_log_entry immediately with the entry's ID ("ID #N" in vehicle__get_vehicle_log output). If you don't already have the id from earlier in the conversation, call vehicle__get_vehicle_log first — never guess an id. A confirmation card appears — nothing is deleted until the user confirms.
@@ -376,8 +378,17 @@ async def _stream_with_tools(
                 )
 
             if name in _PROPOSAL_TOOLS:
-                yield result
-                return
+                # A needs_input result is not a card — hand it back to the model
+                # as a normal tool result so it asks the user in plain language.
+                needs_input = False
+                try:
+                    parsed = json.loads(result)
+                    needs_input = isinstance(parsed, dict) and parsed.get("type") == "needs_input"
+                except (json.JSONDecodeError, ValueError):
+                    needs_input = False
+                if not needs_input:
+                    yield result
+                    return
 
             current_messages.append({
                 "role": "tool",

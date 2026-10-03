@@ -40,29 +40,58 @@ async def _resolve_vehicle(client: VehicleClient, vehicle_name: str = "") -> tup
 
 
 async def log_refuel(
-    liters: float,
-    total_eur: float,
+    liters: float | None = None,
+    total_eur: float | None = None,
     vehicle_name: str = "",
     odo_km: float | None = None,
     location: str = "",
     full_tank: bool = True,
+    receipt_id: str = "",
+    account_name: str = "",
 ) -> str:
     """
     Create a pending refuel proposal. Returns JSON with type='fuel_log'.
     Does NOT write to DB — only stores a pending proposal for frontend confirmation.
+
+    Odometer km is required: without it the tool returns needs_input — ask the
+    user and call again.
     """
     from backend.core import pending_proposals
 
     today = _date.today().isoformat()
     client = _get_client()
 
-    # Resolve vehicle from name or ODO proximity
+    # A receipt photo was uploaded first — reuse what Majordom already read
+    # (same vision path as the PWA). Explicit arguments win over extracted
+    # values, since the user may correct them.
+    extracted: dict | None = None
+    if receipt_id:
+        from backend.api.receipts import get_extraction
+        extracted = await get_extraction(receipt_id)
+        if extracted is None:
+            return json.dumps({"type": "error", "message": "Receipt not found or expired — upload it again."})
+        if extracted.get("receipt_type") != "fuel":
+            return json.dumps({"type": "error", "message": "Not a fuel receipt"})
+        if liters is None:
+            liters = extracted.get("liters")
+        if total_eur is None:
+            total_eur = extracted.get("amount")
+        if not location:
+            location = extracted.get("merchant") or ""
+        if extracted.get("date"):
+            today = extracted["date"]
+
+    # Resolve vehicle from name, the receipt's suggestion, or ODO proximity
     vehicles = await client.list_vehicles(active_only=True)
     vehicle_id = None
     display_name = vehicle_name
 
+    suggested_vehicle_id = extracted.get("suggested_vehicle_id") if extracted else None
+
     if vehicle_name:
         matched = next((v for v in vehicles if vehicle_name.lower() in v["name"].lower()), None)
+    elif suggested_vehicle_id is not None:
+        matched = next((v for v in vehicles if v["id"] == suggested_vehicle_id), None)
     elif odo_km is not None:
         # Pick vehicle whose last_odo is closest to odo_km
         active = [v for v in vehicles if v.get("active", 1)]
@@ -76,7 +105,7 @@ async def log_refuel(
         display_name = matched["name"]
 
     # Resolve account + categories from AB
-    account_id, account_name = "", ""
+    account_id, account_display_name = "", ""
     accounts_list = []
     categories_list = []
     ab_cats = []
@@ -88,12 +117,57 @@ async def log_refuel(
             actual.get_categories(),
         )
         if accounts:
-            account_id = accounts[0].id
-            account_name = accounts[0].name
+            if account_name:
+                chosen = next(
+                    (a for a in accounts if account_name.lower() in a.name.lower()),
+                    None,
+                )
+                if chosen is None:
+                    return json.dumps({"type": "error", "message": f"No account matching '{account_name}'."})
+            else:
+                chosen = accounts[0]
+            account_id = chosen.id
+            account_display_name = chosen.name
             accounts_list = [{"id": a.id, "name": a.name} for a in accounts]
         categories_list = [{"id": c.name, "name": c.name, "emoji": "📦"} for c in ab_cats]
     except Exception as e:
         logger.debug("AB accounts/categories fetch failed for refuel proposal dropdowns, using empty fallback lists: %s", e)
+
+    # Server rule, identical for every door: the odometer is mandatory, and
+    # litres/amount/vehicle must be known before a proposal can be created.
+    missing: list[str] = []
+    if odo_km is None:
+        missing.append("odo_km")
+    if liters is None:
+        missing.append("liters")
+    if total_eur is None:
+        missing.append("total_eur")
+    if not vehicle_id:
+        missing.append("vehicle_name")
+
+    if missing:
+        human = {
+            "odo_km": "odometer km",
+            "liters": "litres",
+            "total_eur": "total amount",
+            "vehicle_name": "vehicle",
+        }
+        message = "Missing: " + ", ".join(human[m] for m in missing) + "."
+        if extracted:
+            read_parts = []
+            if extracted.get("liters") is not None:
+                read_parts.append(f"{extracted['liters']} L")
+            if extracted.get("amount") is not None:
+                read_parts.append(f"€{extracted['amount']:.2f}")
+            if extracted.get("merchant"):
+                read_parts.append(extracted["merchant"])
+            if read_parts:
+                message += " Read from the receipt: " + ", ".join(read_parts) + "."
+        message += (
+            " Ask the user, then call vehicle__log_refuel again with the same "
+            "arguments plus the missing ones."
+        )
+        return json.dumps({"type": "needs_input", "missing": missing, "message": message})
 
     # Default category: pick transport-related from AB, or fallback by vehicle type
     is_moto = bool(matched and matched.get("vehicle_type") == "motorcycle")
@@ -117,8 +191,10 @@ async def log_refuel(
             "missed_fill": False,
             "date": today,
             "account_id": account_id,
-            "account_name": account_name,
+            "account_name": account_display_name,
             "category_name": category_name,
+            "receipt_id": receipt_id,
+            "source": "receipt_photo" if receipt_id else "chat_text",
         },
         created_by=None,
     )
@@ -135,8 +211,8 @@ async def log_refuel(
         details.append(f"odometer {odo_km:.0f} km")
     if location:
         details.append(location)
-    if account_name:
-        details.append(f"account {account_name}")
+    if account_display_name:
+        details.append(f"account {account_display_name}")
     if category_name:
         details.append(f"category {category_name}")
     if today:

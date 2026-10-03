@@ -31,10 +31,10 @@ from backend.tools.registry import execute_tool
 logger = logging.getLogger(__name__)
 
 
-# The "Read, text result" group from docs/architecture.md#mcp-exposure.
-# Exactly these tools are visible and callable over MCP; everything else is
-# invisible and refused.
-MCP_READ_TOOLS: frozenset[str] = frozenset({
+# The "Read, text result" group from docs/architecture.md#mcp-exposure, plus
+# the one proposal tool (#322). Exactly these tools are visible and callable
+# over MCP; everything else is invisible and refused.
+MCP_TOOLS: frozenset[str] = frozenset({
     "finance__get_accounts",
     "finance__get_monthly_stats",
     "finance__get_budget_status",
@@ -55,6 +55,8 @@ MCP_READ_TOOLS: frozenset[str] = frozenset({
     "vehicle__get_vehicle_stats",
     "vehicle__get_vehicle_log",
     "system__get_backup_status",
+    # Write, proposal (#322): creates a proposal only; the write happens on system__confirm_proposal
+    "vehicle__log_refuel",
 })
 
 
@@ -65,7 +67,7 @@ def _registry_tool_names() -> set[str]:
 
 # Fail loudly at import time if a name drifts out of the registry — never
 # silently expose fewer tools than intended.
-_missing = MCP_READ_TOOLS - _registry_tool_names()
+_missing = MCP_TOOLS - _registry_tool_names()
 if _missing:
     raise RuntimeError(
         "MCP_READ_TOOLS references tools missing from registry.TOOLS: "
@@ -126,7 +128,7 @@ def _build_tool_list() -> list[types.Tool]:
     tools: list[types.Tool] = []
     for t in registry.TOOLS:
         fn = t["function"]
-        if fn["name"] in MCP_READ_TOOLS:
+        if fn["name"] in MCP_TOOLS:
             tools.append(
                 types.Tool(
                     name=fn["name"],
@@ -204,7 +206,7 @@ def _reject_proposal(arguments: dict, member: str) -> str:
 
 @server.call_tool()
 async def _call_tool(name: str, arguments: dict) -> list[types.TextContent]:
-    if name not in MCP_READ_TOOLS and name not in MCP_WRITE_TOOLS:
+    if name not in MCP_TOOLS and name not in MCP_WRITE_TOOLS:
         raise ValueError(f"Tool not available over MCP: {name}")
 
     member = _current_member()

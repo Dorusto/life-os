@@ -17,6 +17,7 @@ from starlette.responses import JSONResponse
 # middleware's pre-parse check and the handlers' post-stream re-check.
 UPLOAD_LIMITS: dict[str, tuple[int, str]] = {
     "/api/receipts": (20 * 1024 * 1024, "Image too large. Maximum 20MB."),
+    "/api/mcp/receipts": (20 * 1024 * 1024, "Image too large. Maximum 20MB."),
     "/api/import/csv": (5 * 1024 * 1024, "CSV file too large (max 5 MB)"),
     "/api/import/fuelio": (2 * 1024 * 1024, "File too large (max 2MB)"),
 }

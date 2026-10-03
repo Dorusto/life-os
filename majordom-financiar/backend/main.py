@@ -16,7 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from backend.api import auth, receipts, transactions, chat, chat_history, csv_import, proposals, pending_proposals, budget, accounts, setup, balance_adjustments, close_account, push, income_sources, category_actions, fuelio_import, vehicle_proposals, vehicle_log_actions, vehicle_reminder_actions, vehicle_status_actions, vehicle_charts, investment_status, vehicle_value, finance_charts, home, transfer_conversion, vehicle_accounts_internal, notification_actions, budget_pacing, fire_settings, mcp_server
+from backend.api import auth, receipts, transactions, chat, chat_history, csv_import, proposals, pending_proposals, budget, accounts, setup, balance_adjustments, close_account, push, income_sources, category_actions, fuelio_import, vehicle_proposals, vehicle_log_actions, vehicle_reminder_actions, vehicle_status_actions, vehicle_charts, investment_status, vehicle_value, finance_charts, home, transfer_conversion, vehicle_accounts_internal, notification_actions, budget_pacing, fire_settings, mcp_server, mcp_receipts
 from backend.api.upload_guards import UploadSizeGuardMiddleware
 
 from backend.core.actual_client.client import ActualBudgetUnavailableError
@@ -253,6 +253,7 @@ app.include_router(home.router, prefix="/api")
 app.include_router(notification_actions.router, prefix="/api")
 app.include_router(budget_pacing.router, prefix="/api")
 app.include_router(fire_settings.router, prefix="/api")
+app.include_router(mcp_receipts.router, prefix="/api")
 
 # Read-only MCP endpoint for external agents (#323). Registered as an exact
 # route, not a mount — a mount would redirect /api/mcp -> /api/mcp/.

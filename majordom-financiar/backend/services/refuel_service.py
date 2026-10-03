@@ -103,7 +103,7 @@ async def confirm_refuel(payload: dict, overrides: dict, confirmed_by: str) -> d
         "cost_currency": "EUR",
         "fuel_grade": fuel_grade,
         "location": station,
-        "source": "chat_text",
+        "source": payload.get("source", "chat_text"),
         "financial_id": transaction_id,
     }
 

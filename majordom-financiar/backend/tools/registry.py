@@ -994,6 +994,7 @@ TOOLS: list[dict] = [
             "description": (
                 "Log a vehicle refuel when the user mentions filling up with fuel. "
                 "Use when user says: 'filled up', 'tanked', 'put fuel', 'alimentat', 'getankt'. "
+                "Odometer km is required: without it the tool returns needs_input — ask the user and call again. "
                 "A confirmation card appears — nothing is saved until the user confirms."
             ),
             "parameters": {
@@ -1005,8 +1006,10 @@ TOOLS: list[dict] = [
                     "odo_km": {"type": "number", "description": "Odometer in km if mentioned"},
                     "location": {"type": "string", "description": "Station name or city if mentioned"},
                     "full_tank": {"type": "boolean", "description": "True if filled to full (default), False if partial"},
+                    "receipt_id": {"type": "string", "description": "Id returned by the receipt upload, when the user sent a receipt photo"},
+                    "account_name": {"type": "string", "description": "Account to pay from, partial name; omit for the default"},
                 },
-                "required": ["liters", "total_eur"],
+                "required": [],
             },
         },
     },

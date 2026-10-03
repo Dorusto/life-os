@@ -22,6 +22,7 @@ so they survive container restarts.
 """
 import logging
 import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -48,6 +49,24 @@ ALLOWED_MIME_TYPES = {
 }
 # Shared with UploadSizeGuardMiddleware's pre-parse check (upload_guards.py)
 RECEIPT_MAX_BYTES, RECEIPT_SIZE_DETAIL = UPLOAD_LIMITS["/api/receipts"]
+
+# In-memory extraction cache: receipt_id → (created_at, OCR result).
+# Lets a later MCP call (vehicle__log_refuel) reuse what the upload already
+# read, without re-running the vision model. No financial data in SQLite
+# (architecture rule 5) — losing it on restart is accepted; get_extraction()
+# re-runs OCR from the stored image in that case.
+_EXTRACTION_TTL = timedelta(hours=24)
+_extraction_cache: dict[str, tuple[datetime, dict]] = {}
+
+
+def _purge_extractions() -> None:
+    now = datetime.now(timezone.utc)
+    expired = [
+        rid for rid, (created, _) in _extraction_cache.items()
+        if now - created > _EXTRACTION_TTL
+    ]
+    for rid in expired:
+        _extraction_cache.pop(rid, None)
 
 
 # --- Response/request models ---
@@ -154,20 +173,14 @@ class FuelConfirmResponse(BaseModel):
 
 # --- Routes ---
 
-@router.post("/receipts", response_model=ReceiptDraft)
-async def upload_receipt(
-    file: UploadFile = File(...),
-    current_user: str = Depends(get_current_user),
-):
+async def save_and_extract(file: UploadFile) -> tuple[str, dict]:
     """
-    Upload a receipt image (from camera or gallery), run vision LLM OCR,
-    and return the extracted data for the user to review.
+    Validate, store and OCR a receipt image. Returns (receipt_id, result).
 
-    Oversized requests are already rejected by UploadSizeGuardMiddleware
-    before the body is buffered; the byte count is re-checked here because
-    chunked uploads carry no trustworthy Content-Length header.
+    Shared by the PWA upload (POST /receipts) and the MCP upload
+    (POST /mcp/receipts) so the checks and the vision path exist once.
+    Raises the same HTTPExceptions the PWA endpoint always did.
     """
-
     if file.content_type not in ALLOWED_MIME_TYPES:
         raise HTTPException(
             status_code=400,
@@ -206,9 +219,61 @@ async def upload_receipt(
         raise HTTPException(
             status_code=500,
             detail="Failed to process image. Make sure the LLM provider is reachable and the vision model is loaded.",
-
-
         )
+
+    _purge_extractions()
+    _extraction_cache[receipt_id] = (datetime.now(timezone.utc), result)
+    return receipt_id, result
+
+
+async def get_extraction(receipt_id: str) -> dict | None:
+    """
+    Return the OCR result for a previously uploaded receipt, or None.
+
+    Cache hit → the stored result. Miss but the image is still on disk (e.g.
+    after a restart) → re-run OCR on the file and cache it. No file → None.
+    """
+    # Validate before building any filesystem path (path traversal).
+    try:
+        uuid.UUID(receipt_id)
+    except (ValueError, AttributeError, TypeError):
+        return None
+
+    _purge_extractions()
+    cached = _extraction_cache.get(receipt_id)
+    if cached is not None:
+        return cached[1]
+
+    image_path = UPLOADS_DIR / f"{receipt_id}.jpg"
+    if not image_path.exists():
+        return None
+
+    try:
+        async with aiofiles.open(image_path, "rb") as f:
+            image_bytes = await f.read()
+        result = await ReceiptService().process_image(image_bytes)
+    except Exception as e:
+        logger.error("Re-extraction failed for receipt %s: %s", receipt_id, e)
+        return None
+
+    _extraction_cache[receipt_id] = (datetime.now(timezone.utc), result)
+    return result
+
+
+@router.post("/receipts", response_model=ReceiptDraft)
+async def upload_receipt(
+    file: UploadFile = File(...),
+    current_user: str = Depends(get_current_user),
+):
+    """
+    Upload a receipt image (from camera or gallery), run vision LLM OCR,
+    and return the extracted data for the user to review.
+
+    Oversized requests are already rejected by UploadSizeGuardMiddleware
+    before the body is buffered; the byte count is re-checked here because
+    chunked uploads carry no trustworthy Content-Length header.
+    """
+    receipt_id, result = await save_and_extract(file)
 
     logger.info(
         "Receipt processed by %s: %s, %.2f %s",
