@@ -146,6 +146,9 @@ class Settings:
     # Which FinanceProvider backend get_provider() instantiates (env-backed,
     # read by backend/core/finance/provider.py).
     finance_backend: str = "actual_budget"
+    # Bearer token for the read-only MCP server (#323). Empty disables the
+    # /api/mcp endpoint entirely.
+    mcp_token: str = ""
 
     def __post_init__(self):
         self.default_currency = os.getenv("DEFAULT_CURRENCY", "EUR")
@@ -156,6 +159,7 @@ class Settings:
         self.jwt_secret = os.getenv("JWT_SECRET", "")
         self.vapid_contact = os.getenv("VAPID_CONTACT", "")
         self.finance_backend = os.getenv("FINANCE_BACKEND", "actual_budget")
+        self.mcp_token = os.getenv("MCP_TOKEN", "")
         # Ensure the DB directory exists
         Path(self.memory.db_path).parent.mkdir(parents=True, exist_ok=True)
 
