@@ -31,6 +31,7 @@ list` + the latest `docs/sessions/` file — not this file.
 | New feature | `docs/roadmap.md` + GitHub labels (`.claude/rules/priority-tracking.md`) + `docs/architecture.md#main-flows` |
 | Refactor | `docs/decisions.md` + `docs/architecture.md` |
 | Chat / tool calling | `docs/learn/10-chat-tools.md` + `docs/architecture.md#critical-technical-rules` |
+| MCP, Hermes, a new door, or any new financial judgement | `docs/architecture.md#service-boundaries--shared-judgement` (service map, judgement rule, door contract, MCP exposure, capability catalogue) |
 | CSV import | `docs/learn/07-csv-import.md` |
 | Actual Budget integration | `docs/learn/04-actual-budget.md` + `docs/architecture.md#critical-technical-rules` |
 | Account structure / create_account | `PRIVATE_context.md` |

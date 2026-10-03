@@ -562,119 +562,137 @@ The hook blocks `PASSWORD=<value>` unless the value starts with a whitelisted pr
 
 ---
 
-## MCP Server (planned)
+## Service Boundaries & Shared Judgement
 
-Majordom will expose its tool registry through MCP standard. Any MCP-compatible agent (OpenClaw, Hermes, Claude) can call Majordom's tools directly. Implementation scheduled after M2 — tracked in issue #58.
+The checklist every new step is checked against (#321). The *why* lives in
+`decisions.md#build-or-reuse-gate` and `decisions.md#shared-judgement`; this section is the
+resulting contract.
+
+### Service map
+
+```
+            User
+     ┌───────┴────────┐
+     ▼                ▼
+ Majordom PWA     Hermes (Telegram)        ← doors: talk, format, coordinate
+ (own chat)            │
+     │                 │ MCP
+     ▼                 ▼
+ ┌───────────────────────────────┐
+ │ majordom-finance              │          ← the finance operator: all financial judgement
+ │ tool registry · proposals ·   │
+ │ FinanceProvider · receipts ·  │
+ │ CSV import · digest           │
+ └──────┬──────────────┬─────────┘
+        │ FinanceProvider   │ REST
+        ▼                   ▼
+  Actual Budget      vehicle-manager        investment app (#262 / Wealthfolio, pending)
+```
+
+| Service | Owns | Must not | Reached by | Standalone |
+|---|---|---|---|---|
+| `majordom-finance` | Tool registry, proposal/confirmation flow, every financial rule and suggestion, `FinanceProvider`, receipts, CSV import, digest, its own chat/PWA | Store financial data in SQLite; talk to an engine except through `FinanceProvider` | PWA (REST), external agents (MCP) | Yes |
+| Actual Budget | The ledger — the only source of financial truth | — (third-party engine) | `FinanceProvider` only | Yes |
+| `vehicle-manager` | Vehicles, fuel log, reminders, its own frontend | Know about budgets or categories | REST (`X-Service-Token`) | Yes |
+| Investment app | Holdings, prices, portfolio history | Duplicate budgeting | REST (once chosen) | Yes |
+| Hermes | Coordination across services, Telegram conversation | Decide anything financial; write anything without a Majordom proposal | User via Telegram | Yes |
+
+### The judgement rule
+
+**Any new financial judgement becomes a tool or a server-side rule in `majordom-finance`, never
+text in one door's prompt.** Three layers:
+
+1. **Rules in code** — invariants (confirmation before writes, AB rules as the only
+   merchant→category mechanism, excluded categories). Server-side, identical for every door.
+2. **Suggestions computed by tools** — "which category", "is this budget realistic", "is this
+   goal at risk". A tool returns the suggestion; a door only presents it.
+3. **Conversation style per door** — Telegram text vs. PWA cards and charts. Allowed to differ;
+   never decides anything.
+
+Test for any change: *would the other door give a different number or a different
+recommendation?* If yes, the logic is in the wrong layer.
+
+### Door contract
+
+A door (Majordom chat, Hermes, any future MCP client) **may on its own:** choose wording, tone,
+language, formatting; pick which tool to call; summarize a tool's result; ask the user a
+clarifying question.
+
+A door **must always delegate to `majordom-finance`:** any number (totals, balances, remaining
+budget — never computed from raw transactions in the door), any suggestion or classification,
+and every write. A write is always a proposal the user confirms; today the proposal lives in the
+PWA card, after #322 it has a server-side id any door can confirm.
+
+### MCP exposure (#323, first slice of #58)
+
+Tools are classified by what they return, not by name. Only the first group goes over MCP until
+#322 lands.
+
+| Group | Tools | MCP |
+|---|---|---|
+| **Read, text result** | `finance__get_accounts`, `get_monthly_stats`, `get_budget_status`, `get_transactions`, `get_untagged_transactions`, `get_transactions_by_tag`, `get_spending_history`, `get_budget_pacing_status`, `get_tag_goal_progress`, `get_unprotected_goals`, `get_reached_goals`, `get_recurring_schedules_summary`, `get_income_classifications`, `get_expense_coverage`, `get_reconciliation_suspects`, `get_uncategorized_groups`; `vehicle__list_vehicles`, `get_vehicle_stats`, `get_vehicle_log`; `system__get_backup_status` | **Yes** (#323) |
+| **Read, PWA card/chart result** | `finance__list_transactions`, `list_categories`, `get_budget_overview`, all `*_chart` tools, `get_spending_trend`; `vehicle__get_vehicle_*_chart` | Not yet — the result is card JSON for the PWA; the text-result tools above already answer the same questions |
+| **Write, proposal card** | every `*propose_*`, `create/rename/delete_category`, `set_account_goal`, `vehicle__log_refuel`, `vehicle__set_*`, `vehicle__delete_vehicle_log_entry`, `system__set_notification_time` | After #322 (proposal id confirmable from any door) |
+| **Write, no card** | `finance__sync_accounts` (bank re-sync, same as the Home sync icon) | No — exception to critical rule 5 kept for the PWA only |
+
+The MCP layer wraps the existing registry (`backend/tools/registry.py`): tool descriptions are
+written once there, never re-described for MCP or in a door's prompt.
+
+### Capability catalogue
+
+What the operator notices and proposes, in plain language (#224 point 2). Source:
+`intelligence-cluster` label plus the digest checks in `services/notification_service.py`.
+Status lives on GitHub; this list only names the capability.
+
+**Notices on its own (digest / alerts):**
+- Daily financial summary; budget alert when a category crosses its limit
+- Uncategorized transactions waiting, with grouped suggestions; transactions pending review
+- Import nudge when no bank data arrived for a while; budget-copy nudge at month start
+- Income that differs from the usual amount
+- Savings goals at risk, goals without budget protection, goals already reached
+- Annual liability-balance reminders (loans/mortgage)
+- Vehicle reminders (service, inspection, insurance) via `vehicle-manager`
+- Month-end report: uncategorized + unreconciled transactions (#116)
+
+**Proposes when asked or as a follow-up (always a confirmation):**
+- Transactions from text or receipt photo; transfers; balance adjustments; closing an account
+- Category + AB rule for a merchant; tagging trips; transfer conversion
+- Budget amounts, rebalancing between categories, copying last month, carryover
+- Goals (category, tag, account), income classification, FIRE model inputs
+- Budget pacing over the year (#112), sinking funds for large predictable expenses (#111),
+  realism check per category (#110), recurring-expense audit (#41)
+
+**Planned:** category suggestion as a shared tool for both doors (#324), budget configuration via
+chat (#124), recurring schedules + goal impact (#153), plan-file cross-check (#114), market
+correction alert (#42, blocked on the market-data source).
 
 ---
 
 ---
 
-## Target Architecture (incremental migration — June 2026+)
+## FinanceProvider & Tool Routing
 
-> This is the direction, not the current state. Each service is extracted when work happens on it anyway. No big-bang rewrites.
+### FinanceProvider
 
-### Life-OS structure (target)
-
-```
-life-os/
-├── majordom/              ← orchestrator + conversational UI + daily digest + MCP server
-│
-├── finance/
-│   ├── sure/              ← budget + investments + bank sync (target platform)
-│   ├── actual-budget/     ← current platform, stays until Sure reaches parity
-│   └── portfolio-bridge/  ← Bitvavo/XTB → Sure (first M5 task)
-│
-├── tools/
-│   ├── receipt-scanner/   ← OCR receipt → transaction (extracted from Majordom)
-│   ├── csv-importer/      ← smart bank CSV import (extracted from Majordom)
-│   └── vehicle-manager/   ← Fuelio replacement (extracted from Majordom)
-│
-├── home/
-│   ├── home-assistant/
-│   ├── immich/
-│   └── nextcloud/
-│
-└── docker-compose.yml     ← single stack
-```
-
-### Majordom roles (target)
-- Conversational UI with cards and charts
-- Proactive daily digest
-- MCP server — external agents (OpenClaw, Claude API, Hermes) call Majordom's tools
-- REST client — Majordom calls each service via its REST API (no MCP client internally)
-
-### Abstractization vs extraction — two different mechanisms
-
-The codebase has two layers that couple to Actual Budget, resolved differently:
-
-**Tool layer** — what the LLM calls conversationally (`tools/finance/actual_budget.py`, `api/category_actions.py`, `services/notification_service.py`):
-→ **M5.2 FinanceProvider Protocol** — stays in Majordom, calls an abstract interface. Switch provider = one env var.
-
-**API layer** — PWA-specific endpoints (`api/transactions.py`, `api/accounts.py`, `api/csv_import.py`, `api/receipts.py`, etc.):
-→ **M6 physical extraction** — these files disappear from Majordom. Logic moves to independent services (`csv-importer/`, `receipt-scanner/`, `finance/`). Majordom makes HTTP calls instead.
-
-Do NOT try to wrap the API layer with FinanceProvider — it will be extracted entirely in M6, not abstracted in place.
-
-### FinanceProvider abstraction (M5.2 — tool layer only)
-
-Majordom's tool registry calls a `FinanceProvider` protocol, not AB/Sure directly:
-
-```python
-class FinanceProvider(Protocol):
-    async def get_accounts(self) -> list[Account]: ...
-    async def get_transactions(self, ...) -> list[Transaction]: ...
-    async def create_transaction(self, ...) -> str: ...
-    async def get_budget_status(self) -> BudgetStatus: ...
-    # ~15 methods total — exactly what tools/finance/actual_budget.py calls
-
-class ActualBudgetProvider:   # current — wraps actualpy
-    ...
-
-class SureProvider:           # future — Sure REST API
-    ...
-```
-
-Config: `FINANCE_BACKEND=actual_budget` (default) or `sure`. Switching backends requires no code changes in the tool layer.
+Every caller — tools, `backend/api/*.py` routes, the digest — reaches the finance engine through
+`get_provider()` (`backend/core/finance/provider.py`), never by constructing `ActualBudgetClient`
+directly (#222). `FINANCE_BACKEND` (default `actual_budget`, read via the settings singleton)
+selects the implementation; `ActualBudgetProvider` is the only one today. A new engine (another
+budgeting app, a spreadsheet — #325) is a new provider class, no tool changes. Wiring gotchas:
+critical rule 29. Why: `decisions.md#financeprovider-abstraction`.
 
 ### Tool domain routing
 
-Tools are prefixed by domain. A single LLM sees all tools and routes based on prefix + structured system prompt.
+Tools are prefixed by domain; a single LLM sees all tools and routes on prefix + a structured
+system prompt (`decisions.md#tool-domain-routing`).
 
-**Domains:**
-
-| Prefix | Domain | Services |
-|--------|--------|----------|
-| `finance__` | Budget, transactions, investments, bank sync | Actual Budget, Sure |
-| `vehicle__` | Vehicle log, fuel, reminders | SQLite vehicle_log |
+| Prefix | Domain | Backed by |
+|--------|--------|-----------|
+| `finance__` | Budget, transactions, accounts, goals, bank sync | `FinanceProvider` (Actual Budget) |
+| `vehicle__` | Vehicle log, fuel, reminders | `vehicle-manager` over REST |
 | `system__` | Cross-cutting app settings/ops (notification time, backup status) | Majordom backend |
-| `home__` | Lights, climate, automations | Home Assistant |
-| `media__` | Photos, documents, files | Immich, Nextcloud |
 
-**Tool naming:** `{domain}__{action}` — e.g. `finance__propose_transaction`, `vehicle__log_refuel`
+**Tool naming:** `{domain}__{action}` — e.g. `finance__propose_transaction`, `vehicle__log_refuel`.
 
-**System prompt structure:**
-```
-## Finance tools
-Use finance__ tools when the user mentions money, budget, transactions, accounts, investments.
-  - finance__propose_transaction: spending or receiving money
-  - finance__propose_set_category_budget: set a budget amount for a category
-  ...
-
-## Vehicle tools
-Use vehicle__ tools when the user mentions car, fuel, APK, insurance, mileage.
-  ...
-```
-
-**Migration to Option B (hierarchical routing):**
-When local inference becomes primary and tool count grows, add a router LLM layer on top of `chat_service.py`. Tool definitions stay unchanged — the router just picks the domain and delegates. Triggered by hardware upgrade (AMD iGPU mini PC) or >30 tools per domain.
-
-### Incremental migration strategy
-
-- **Never stop current development** for structural migration
-- **Extract a service** when working on that feature anyway (e.g., extract `vehicle-manager/` during next vehicle feature sprint)
-- **Each extracted service** gets its own repo, Docker image, REST API, and README
-- **Audit after each migration step** — verify existing functionality before moving on
-- `majordom-financiar/` → `majordom/` rename happens when folder restructure is triggered by other work
-
-*Last updated: 2026-07-03*
+If tool count outgrows a single prompt, add a router layer that picks the domain first; tool
+definitions stay unchanged.

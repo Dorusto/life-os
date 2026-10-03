@@ -1572,13 +1572,13 @@ Current verdicts: budgeting = Actual Budget (reuse); vehicles = keep `vehicle-ma
   3. *Conversation style* per door (Telegram text vs. PWA cards and charts) — allowed to differ; it never decides anything.
 - **Working rule:** any new financial judgement is added as a tool or a server-side rule in Majordom, never as prompt text in only one door.
 
-**Long-term goal:** Majordom as a standalone app anyone can put on top of their own finance tool — Actual Budget, another engine, or even a spreadsheet (#320) — through `FinanceProvider`, usable from its own chat or from any agent (#224).
+**Long-term goal:** Majordom as a standalone app anyone can put on top of their own finance tool — Actual Budget, another engine, or even a spreadsheet (#325) — through `FinanceProvider`, usable from its own chat or from any agent (#224).
 
 **How to continue (order):**
-1. #316 — write the service boundaries, the rules above and the capability catalogue (#224). No code.
-2. #317 — confirmation flow server-side, proposals with an id any door can confirm.
-3. #318 — MCP read-only + Hermes; test: same questions from both doors, same numbers.
-4. #319 — category suggestion as a Majordom tool.
+1. #321 — write the service boundaries, the rules above and the capability catalogue (#224). No code.
+2. #322 — confirmation flow server-side, proposals with an id any door can confirm.
+3. #323 — MCP read-only + Hermes; test: same questions from both doors, same numbers.
+4. #324 — category suggestion as a Majordom tool.
 5. Then writes over MCP with confirmation, receipts from Telegram (#186), wealth sync preview, the investment app vs. Wealthfolio evaluation (#262) — each as its own slice, tested on its own before being combined.
 Each app keeps working standalone; each step is tested before the next one starts.
 
