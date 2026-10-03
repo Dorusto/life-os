@@ -194,7 +194,7 @@ def _reject_proposal(arguments: dict, member: str) -> str:
         return json.dumps({"error": "Proposal not found or expired"})
     except pending_proposals.ProposalForbidden:
         return json.dumps(
-            {"error": "Only the household member who created this proposal can confirm it"}
+            {"error": "Only the household member who created this proposal can reject it"}
         )
     except Exception as e:
         logger.warning("MCP reject_proposal failed for %s: %s", proposal_id, e)
