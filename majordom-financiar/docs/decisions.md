@@ -1583,3 +1583,19 @@ Current verdicts: budgeting = Actual Budget (reuse); vehicles = keep `vehicle-ma
 Each app keeps working standalone; each step is tested before the next one starts.
 
 **Rejected:** the financial intelligence as a Hermes skill (judgement would split between doors and the tested code would have to be rewritten as skill scripts); Majordom as a separate hub/orchestrator (#263), now Hermes' role.
+
+<a id="server-side-proposals"></a>
+### Server-side proposals and the first write over MCP — Telegram fuel receipts (#322, #328, 2026-10-04)
+
+**Context:** step 2 of `#shared-judgement`. Audit: proposals already lived on the server, but in ~10 separate in-memory dicts, each with its own confirm route and the write logic inside the FastAPI handler, so no door other than the PWA could confirm anything. Both household Hermes profiles shared one MCP token.
+
+**Decision:**
+- **One shared store** (`backend/core/pending_proposals.py`): id, type, payload, creator, **24h expiry**, a confirm handler registered per type. **In memory** — a pending proposal holds amounts/payees, so SQLite would bend rule 5; a restart dropping it costs one re-send.
+- **Only the creator can confirm or reject.** The creator comes from a request-scoped actor (PWA username or MCP member). MCP members are named like PWA usernames, so one person can confirm from either door.
+- **One MCP token per household member** (`MCP_TOKENS=member:token,...`; the old `MCP_TOKEN` keeps working as member `mcp`). A token can't be spoofed by a model the way a "member" argument could.
+- **Confirm/reject are MCP-only tools** (`system__confirm_proposal` / `system__reject_proposal`), not registry tools — the PWA chat LLM must never confirm its own proposals; the PWA confirms through its card.
+- **Photos reach Majordom through an upload endpoint** (`POST /api/mcp/receipts`, member token) returning a `receipt_id`, not base64 in a tool argument (the door's model would have to generate the whole image as text). Hermes may also read the receipt itself and pass litres/amount directly — `log_refuel` accepts both; upload is the default so both doors read receipts the same way.
+- **Odometer rules live in `log_refuel`:** km required (else `needs_input`), vehicle chosen by name, then by the closest last odometer at or below the reading (the receipt's vehicle guess is only a fallback), and a reading below the vehicle's last one is refused.
+- Only the refuel proposal moved now; the other types move one at a time as each is exposed over MCP.
+
+**Accepted risk:** the server cannot prove the user said yes in Telegram — mitigated by the tool description, creator-only confirmation and per-member logging.

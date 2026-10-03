@@ -34,7 +34,11 @@ STAGED=$(git diff --cached -U0 -- . "${LOCKFILE_PATHSPECS[@]}" | grep '^+' | gre
 # fall back to the unstaged working-tree diff plus any untracked files
 # (via git add -N, cleaned up after) so this is runnable mid-session,
 # right after editing a tracked doc, before it's ever staged or committed.
-if [[ -z "$STAGED" ]]; then
+# Keyed on "is anything staged at all", not on "$STAGED" being empty: a commit of
+# only renames/deletions stages no '+' lines, and falling back then scanned
+# unrelated untracked files (a pipeline worktree's node_modules symlink, whose
+# target is a personal path) and blocked a clean commit (2026-10-04).
+if git diff --cached --quiet; then
     # Collect untracked file paths (respect .gitignore)
     UNTRACKED=()
     while IFS= read -r -d '' f; do
