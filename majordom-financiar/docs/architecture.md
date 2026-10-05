@@ -631,8 +631,9 @@ recommendation?* If yes, the logic is in the wrong layer.
 ### Door contract
 
 A door (Majordom chat, Hermes, any future MCP client) **may on its own:** choose wording, tone,
-language, formatting; pick which tool to call; summarize a tool's result; ask the user a
-clarifying question.
+language, formatting; pick which tool to call; summarize a tool's result (a summary may group or
+reword items but never drop items from a list result — what the user gets to see is not the
+door's choice, #326); ask the user a clarifying question.
 
 A door **must always delegate to `majordom-finance`:** any number (totals, balances, remaining
 budget — never computed from raw transactions in the door), any suggestion or classification,
