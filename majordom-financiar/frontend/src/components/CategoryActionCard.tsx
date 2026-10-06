@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Loader2 } from 'lucide-react'
-import { confirmCategoryAction, cancelCategoryAction, suggestCategory, type CategoryActionData } from '../lib/api'
+import { confirmCategoryAction, cancelCategoryAction, SUGGEST_SOURCE_LABELS, suggestCategory, type CategoryActionData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
 import OwnAccountPanel from './OwnAccountPanel'
 import { formatCurrency } from '../lib/formatCurrency'
@@ -10,15 +10,6 @@ interface Props {
   data: CategoryActionData
   onConfirmed: (message: string) => void
   onCancelled: () => void
-}
-
-// Where a category suggestion came from (#324) — shown as the muted notice
-// under the category select so the user knows whether to trust it.
-const SUGGEST_SOURCE_LABELS: Record<string, string> = {
-  rule: 'From a rule',
-  history: 'Used before for this payee',
-  notes: 'From your notes',
-  ai: 'AI suggestion — check it',
 }
 
 export default function CategoryActionCard({ data, onConfirmed, onCancelled }: Props) {
@@ -522,7 +513,10 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
               <input
                 type="text"
                 value={selectedCategory}
-                onChange={e => setSelectedCategory(e.target.value)}
+                onChange={e => {
+                  setSelectedCategory(e.target.value)
+                  setSuggestNotice(null)
+                }}
                 className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
               />
             )}
@@ -544,10 +538,13 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
                     ? <><Loader2 size={12} className="animate-spin" /> Suggesting…</>
                     : 'Suggest category'}
                 </button>
-                {suggestNotice && <p className="text-token-ink-3 text-xs">{suggestNotice}</p>}
                 {suggestError && <p className="text-token-loss text-xs">{suggestError}</p>}
               </div>
             )}
+            {/* Outside the !selectedCategory gate above: a successful suggestion
+                fills the select and unmounts that block, which would hide the
+                notice exactly when it matters (#324). */}
+            {suggestNotice && <p className="text-token-ink-3 text-xs">{suggestNotice}</p>}
           </div>
           <div className="space-y-1">
             <label className="flex items-start gap-2 cursor-pointer">

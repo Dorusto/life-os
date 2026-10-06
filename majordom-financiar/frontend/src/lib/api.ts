@@ -1122,6 +1122,17 @@ export async function suggestCategory(params: {
   })
 }
 
+// Where a category suggestion came from (#324) — shown as the muted notice
+// under the category select so the user knows whether to trust it. Shared by
+// every suggestCategory caller (Transactions bulk bar, CategoryActionCard)
+// so the labels can't drift apart.
+export const SUGGEST_SOURCE_LABELS: Record<string, string> = {
+  rule: 'From a rule',
+  history: 'Used before for this payee',
+  notes: 'From your notes',
+  ai: 'AI suggestion — check it',
+}
+
 // --- Balance Adjustment ---
 
 export interface BalanceAdjustmentData {

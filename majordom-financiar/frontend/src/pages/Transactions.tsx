@@ -11,6 +11,7 @@ import {
   getAccountList,
   getCategories,
   getTransactionsFiltered,
+  SUGGEST_SOURCE_LABELS,
   suggestCategory,
   type Transaction,
   type TransactionFilters,
@@ -49,15 +50,6 @@ const EMPTY_FILTERS: FiltersState = {
 
 const INPUT_CLS =
   'w-full bg-token-surface-2 border border-token-line rounded-lg px-3 py-2 text-token-ink text-sm focus:outline-none focus:border-token-brand disabled:opacity-50'
-
-// Where a category suggestion came from (#324) — shown as the muted notice
-// under the category select so the user knows whether to trust it.
-const SUGGEST_SOURCE_LABELS: Record<string, string> = {
-  rule: 'From a rule',
-  history: 'Used before for this payee',
-  notes: 'From your notes',
-  ai: 'AI suggestion — check it',
-}
 
 function loadViewPref(): View {
   try {
