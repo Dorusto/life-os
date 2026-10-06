@@ -1114,8 +1114,8 @@ export async function createIncomeSource(params: {
 export async function suggestCategory(params: {
   payee: string
   notes: string
-}): Promise<{ category_name: string | null }> {
-  return abRequest<{ category_name: string | null }>('/home/uncategorized/suggest-category', {
+}): Promise<{ category_name: string | null; source?: 'rule' | 'history' | 'notes' | 'ai' | null }> {
+  return abRequest<{ category_name: string | null; source?: 'rule' | 'history' | 'notes' | 'ai' | null }>('/home/uncategorized/suggest-category', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),

@@ -12,6 +12,15 @@ interface Props {
   onCancelled: () => void
 }
 
+// Where a category suggestion came from (#324) — shown as the muted notice
+// under the category select so the user knows whether to trust it.
+const SUGGEST_SOURCE_LABELS: Record<string, string> = {
+  rule: 'From a rule',
+  history: 'Used before for this payee',
+  notes: 'From your notes',
+  ai: 'AI suggestion — check it',
+}
+
 export default function CategoryActionCard({ data, onConfirmed, onCancelled }: Props) {
   const [categoryName, setCategoryName] = useState(data.action === 'create' ? data.category_name : '')
   const [groupName, setGroupName] = useState(data.group_name ?? '')
@@ -147,6 +156,7 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
       })
       if (result.category_name) {
         setSelectedCategory(result.category_name)
+        setSuggestNotice(SUGGEST_SOURCE_LABELS[result.source ?? ''] ?? null)
       } else {
         // A valid "no category fits" answer, not a failure — the button stays
         // available so the user can retry or just pick one by hand.
@@ -493,7 +503,10 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
             {data.available_categories && data.available_categories.length > 0 ? (
               <select
                 value={selectedCategory}
-                onChange={e => setSelectedCategory(e.target.value)}
+                onChange={e => {
+                  setSelectedCategory(e.target.value)
+                  setSuggestNotice(null)
+                }}
                 className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
               >
                 {/* No suggested category (Inbox groups without AB history) leaves
