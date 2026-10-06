@@ -9,10 +9,14 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
+from backend.core import pending_proposals
 from backend.tools import category_actions as action_store
 from backend.core.config import settings
 from backend.core.memory.database import MemoryDB
 from backend.core.finance.provider import get_provider
+# Imported for its side effect: registers the "categorize_with_rule" handler
+# on the shared pending-proposal store.
+from backend.services import category_rule_service  # noqa: F401
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -56,6 +60,28 @@ async def confirm_category_action(
     override: GoalOverride = GoalOverride(),
     current_user: str = Depends(get_current_user),
 ):
+    # categorize_with_rule proposals live on the shared pending-proposal store
+    # (so MCP can confirm the same id) — route them there first.
+    if pending_proposals.get(action_id) is not None:
+        try:
+            return await pending_proposals.confirm(
+                action_id,
+                overrides=override.model_dump(exclude_none=True),
+                confirmed_by=current_user,
+            )
+        except pending_proposals.ProposalNotFound:
+            raise HTTPException(status_code=404, detail="Action not found or already completed")
+        except pending_proposals.ProposalForbidden:
+            raise HTTPException(
+                status_code=403,
+                detail="Only the household member who created this proposal can confirm it",
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        except Exception as e:
+            logger.error("Failed to confirm category action %s: %s", action_id, e)
+            raise HTTPException(status_code=500, detail="Failed to execute category action")
+
     action = action_store.get(action_id)
     if not action:
         raise HTTPException(status_code=404, detail="Action not found or already completed")
@@ -107,48 +133,6 @@ async def confirm_category_action(
             message = (
                 f"Budget updated: {result['category_name']} "
                 f"€{result['old_amount']:.2f} → €{result['new_amount']:.2f}"
-            )
-        elif action["action"] == "categorize_with_rule":
-            payee = override.payee or action["payee"]
-            # Resolve category_id from override name if user changed it
-            cat_id = action["category_id"]
-            cat_name = action["category_name"]
-            if override.category_name and override.category_name != action["category_name"]:
-                id_by_name = {v: k for k, v in action.get("categories_map", {}).items()}
-                cat_id = id_by_name.get(override.category_name, cat_id)
-                cat_name = override.category_name
-            count = await client.update_uncategorized_by_payee(
-                payee=payee,
-                category_id=cat_id,
-                notes_contains=action.get("notes_contains", ""),
-            )
-            # Decide whether to create rule
-            should_create_rule = override.create_rule
-            if should_create_rule is None:
-                # Default: create rule if consistent
-                should_create_rule = action.get("is_consistent", False)
-            rule_created = False
-            # Override preferred over the stored proposal (#309) — same shape as
-            # the payee/category_name merges above: the user may have edited the
-            # AB rule's match text on the card before confirming.
-            rule_prefix = override.rule_prefix or action.get("rule_prefix", payee)
-            if should_create_rule:
-                await client.create_payee_rule(
-                    payee_name_prefix=rule_prefix,
-                    category_id=cat_id,
-                )
-                rule_created = True
-                logger.info(
-                    "AB rule created: '%s' → category '%s'",
-                    rule_prefix, cat_name,
-                )
-            message = (
-                f"Categorized {count} transaction(s) for '{payee}' → '{cat_name}'."
-                + (
-                    f" AB rule created: future '{rule_prefix}' transactions will auto-categorize."
-                    if rule_created
-                    else " No rule created — payee history is inconsistent (same payee was categorized differently before)."
-                )
             )
         elif action["action"] == "budget_copy":
             from datetime import date as _date
@@ -594,8 +578,19 @@ async def cancel_category_action(
     action_id: str,
     current_user: str = Depends(get_current_user),
 ):
+    # categorize_with_rule proposals live on the shared pending-proposal store.
+    if pending_proposals.get(action_id) is not None:
+        try:
+            await pending_proposals.reject(action_id, rejected_by=current_user)
+        except pending_proposals.ProposalForbidden:
+            raise HTTPException(
+                status_code=403,
+                detail="Only the household member who created this proposal can reject it",
+            )
+        return {"cancelled": True}
+
     action = action_store.get(action_id)
-    if action and action["action"] in ("merge_duplicate", "resolve_transfer_duplicate", "categorize_with_rule", "mark_reconciled", "mark_budget_outlier", "create_schedule"):
+    if action and action["action"] in ("merge_duplicate", "resolve_transfer_duplicate", "mark_reconciled", "mark_budget_outlier", "create_schedule"):
         if action["action"] == "merge_duplicate":
             finding_key = f"{action['manual_id']}:{action['synced_id']}"
             finding_type = "duplicate_pair"
@@ -611,12 +606,6 @@ async def cancel_category_action(
         elif action["action"] == "create_schedule":
             finding_key = f"{action.get('payee_id')}:{action.get('account_id')}"
             finding_type = "recurring_candidate"
-        else:
-            # payee_id is only present on categorize_with_rule actions built from
-            # the uncategorized-groups Inbox endpoint — a chat-originated one
-            # without it (old proposals still in flight) just skips the dismiss.
-            finding_key = action.get("payee_id")
-            finding_type = "uncategorized_payee"
         if finding_key:
             MemoryDB(settings.memory.db_path).dismiss_finding(finding_type, finding_key)
     action_store.delete(action_id)

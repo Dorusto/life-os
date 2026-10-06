@@ -1313,7 +1313,9 @@ TOOLS: list[dict] = [
                 "transactions that don't match. "
                 "A confirmation card appears showing payee, count, category, a preview of the "
                 "actual affected transactions, and a rule checkbox the user can toggle — nothing "
-                "is written until the user confirms."
+                "is written until the user confirms. "
+                "If the user does not choose, the rule is created only when the result's "
+                "is_consistent is true — say which before asking for confirmation."
             ),
             "parameters": {
                 "type": "object",

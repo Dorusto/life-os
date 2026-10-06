@@ -66,7 +66,7 @@ async def cancel_proposal(
     current_user: str = Depends(get_current_user),
 ):
     try:
-        pending_proposals.reject(proposal_id, rejected_by=current_user)
+        await pending_proposals.reject(proposal_id, rejected_by=current_user)
     except pending_proposals.ProposalNotFound:
         # Idempotent, as before — cancelling an unknown/expired id is a no-op.
         logger.debug("Cancel for unknown/expired proposal %s — idempotent", proposal_id)

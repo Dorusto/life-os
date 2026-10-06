@@ -60,7 +60,7 @@ async def reject_pending_proposal(
 ):
     """Discard a pending proposal without executing it."""
     try:
-        pending_proposals.reject(proposal_id, rejected_by=current_user)
+        await pending_proposals.reject(proposal_id, rejected_by=current_user)
     except pending_proposals.ProposalNotFound:
         raise HTTPException(status_code=404, detail="Proposal not found")
     except pending_proposals.ProposalForbidden:

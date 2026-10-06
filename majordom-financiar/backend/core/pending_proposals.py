@@ -21,6 +21,7 @@ PROPOSAL_TTL = timedelta(hours=24)
 
 _proposals: dict[str, dict] = {}
 _handlers: dict[str, Callable[[dict, dict, str], Awaitable[dict]]] = {}
+_reject_handlers: dict[str, Callable[[dict, str], Awaitable[None]]] = {}
 
 
 class ProposalNotFound(Exception):
@@ -67,9 +68,19 @@ def get(proposal_id: str) -> dict | None:
     return _proposals.get(proposal_id)
 
 
-def register_handler(type: str, fn: Callable[[dict, dict, str], Awaitable[dict]]) -> None:
-    """Register the async confirm handler for a proposal type."""
+def register_handler(
+    type: str,
+    fn: Callable[[dict, dict, str], Awaitable[dict]],
+    on_reject: Callable[[dict, str], Awaitable[None]] | None = None,
+) -> None:
+    """Register the async confirm handler for a proposal type.
+
+    `on_reject` is an optional async hook run after a proposal of this type is
+    discarded — e.g. to dismiss the Inbox finding that created it.
+    """
     _handlers[type] = fn
+    if on_reject is not None:
+        _reject_handlers[type] = on_reject
 
 
 async def confirm(proposal_id: str, overrides: dict | None, confirmed_by: str) -> dict:
@@ -100,8 +111,12 @@ async def confirm(proposal_id: str, overrides: dict | None, confirmed_by: str) -
     return result
 
 
-def reject(proposal_id: str, rejected_by: str) -> None:
-    """Discard a proposal without executing it."""
+async def reject(proposal_id: str, rejected_by: str) -> None:
+    """Discard a proposal without executing it.
+
+    Runs the type's optional on_reject hook after the proposal is removed. A
+    hook failure is logged, not re-raised — the proposal is already discarded.
+    """
     proposal = get(proposal_id)
     if proposal is None:
         raise ProposalNotFound(proposal_id)
@@ -111,3 +126,12 @@ def reject(proposal_id: str, rejected_by: str) -> None:
     logger.info(
         "Proposal %s (%s) rejected by %s", proposal_id, proposal["type"], rejected_by
     )
+    on_reject = _reject_handlers.get(proposal["type"])
+    if on_reject is not None:
+        try:
+            await on_reject(proposal["payload"], rejected_by)
+        except Exception as e:
+            logger.warning(
+                "on_reject hook failed for proposal %s (%s): %s",
+                proposal_id, proposal["type"], e,
+            )

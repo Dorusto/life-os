@@ -2042,22 +2042,20 @@ async def propose_categorize_with_rule(payee: str, category_name: str, notes_con
     by an Omschrijving code in notes) — without it, ALL uncategorized
     transactions for the payee get bulk-categorized regardless of notes.
     """
-    import uuid
     from difflib import get_close_matches
-    from backend.tools import category_actions as action_store
+    from backend.core import pending_proposals
 
     client = get_provider()
 
     cats = await client.get_categories()
     cat_names = [c.name for c in cats]
+    # Exact case-insensitive name match only — never a fuzzy guess
+    # (decisions.md#operator-not-brain). No match → ask the user.
     exact = next((c for c in cats if c.name.lower() == category_name.lower()), None)
     if not exact:
-        close = get_close_matches(category_name, cat_names, n=1, cutoff=0.6)
-        if close:
-            exact = next((c for c in cats if c.name == close[0]), None)
-    if not exact:
         return json.dumps({
-            "type": "error",
+            "type": "needs_input",
+            "missing": ["category"],
             "message": f"Category not found: {category_name!r}. Available: {', '.join(cat_names)}",
         })
 
@@ -2076,7 +2074,7 @@ async def propose_categorize_with_rule(payee: str, category_name: str, notes_con
         message = f"No uncategorized transactions found for payee matching '{payee}'."
         if close:
             message += f" Did you mean: {', '.join(name_lower_map[c] for c in close)}?"
-        return json.dumps({"type": "error", "message": message})
+        return json.dumps({"type": "needs_input", "missing": ["payee"], "message": message})
 
     from backend.core.finance.transaction_utils import rule_match_prefix
     rule_prefix = rule_match_prefix(payee)
@@ -2100,9 +2098,7 @@ async def propose_categorize_with_rule(payee: str, category_name: str, notes_con
     categories_map = {c.id: c.name for c in cats}
     available_categories = [c.name for c in cats]
 
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {
-        "action": "categorize_with_rule",
+    action_id = pending_proposals.create("categorize_with_rule", {
         "payee": payee,
         "payee_id": payee_id,
         "category_id": exact.id,
@@ -2112,7 +2108,7 @@ async def propose_categorize_with_rule(payee: str, category_name: str, notes_con
         "is_consistent": is_consistent,
         "categories_map": categories_map,
         "notes_contains": notes_contains,
-    })
+    }, created_by=None)
     return json.dumps({
         "type": "category_action",
         "id": action_id,

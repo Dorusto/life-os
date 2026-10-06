@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
+from backend.core import pending_proposals
 from backend.core.config import settings
 from backend.core.memory.database import MemoryDB
 from backend.core.finance.fire import calc_fire
@@ -232,8 +233,6 @@ async def get_uncategorized_group_actions(current_user: str = Depends(get_curren
     proposal — the Inbox's second finding type (Phase B, docs/product-plan.md). Mirrors
     /home/duplicates/months+/{month} but flat: no natural month grouping for payees.
     """
-    from backend.tools import category_actions as action_store
-
     client = get_provider()
     try:
         groups = await client.get_uncategorized_groups()
@@ -256,9 +255,7 @@ async def get_uncategorized_group_actions(current_user: str = Depends(get_curren
         except Exception as e:
             logger.warning("Preview fetch failed for payee '%s': %s", g["payee_name"], e)
             preview = []
-        action_id = uuid4().hex[:8]
-        action_store.store(action_id, {
-            "action": "categorize_with_rule",
+        action_id = pending_proposals.create("categorize_with_rule", {
             "payee": g["payee_name"],
             "payee_id": g["payee_id"],
             "category_id": name_to_id.get(g["suggested_category"]),
@@ -268,7 +265,7 @@ async def get_uncategorized_group_actions(current_user: str = Depends(get_curren
             "is_consistent": g["is_consistent"],
             "categories_map": categories_map,
             "notes_contains": "",
-        })
+        }, created_by=current_user)
         items.append({
             "type": "category_action",
             "id": action_id,

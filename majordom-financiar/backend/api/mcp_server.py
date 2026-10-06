@@ -60,6 +60,7 @@ MCP_TOOLS: frozenset[str] = frozenset({
     # system__confirm_proposal
     "vehicle__log_refuel",
     "finance__propose_transaction",
+    "finance__propose_categorize_with_rule",
 })
 
 
@@ -191,10 +192,10 @@ async def _confirm_proposal(arguments: dict, member: str) -> str:
     return json.dumps(result)
 
 
-def _reject_proposal(arguments: dict, member: str) -> str:
+async def _reject_proposal(arguments: dict, member: str) -> str:
     proposal_id = arguments.get("proposal_id", "")
     try:
-        pending_proposals.reject(proposal_id, rejected_by=member)
+        await pending_proposals.reject(proposal_id, rejected_by=member)
     except pending_proposals.ProposalNotFound:
         return json.dumps({"error": "Proposal not found or expired"})
     except pending_proposals.ProposalForbidden:
@@ -223,7 +224,7 @@ async def _call_tool(name: str, arguments: dict) -> list[types.TextContent]:
     if name == "system__confirm_proposal":
         return [types.TextContent(type="text", text=await _confirm_proposal(arguments or {}, member))]
     if name == "system__reject_proposal":
-        return [types.TextContent(type="text", text=_reject_proposal(arguments or {}, member))]
+        return [types.TextContent(type="text", text=await _reject_proposal(arguments or {}, member))]
 
     result = await execute_tool(name, arguments or {})
     return [types.TextContent(type="text", text=result)]
