@@ -732,6 +732,45 @@ def _compute_expense_coverage(session, txs, all_cats) -> dict:
     }
 
 
+def _payee_category_history(session, payee_id) -> tuple[str | None, bool]:
+    """Most-common non-tombstoned category for a payee, and whether the payee
+    was ever categorized consistently.
+
+    Returns (category_name, is_consistent): category_name is the most common
+    category name used for this payee's transactions, or None when the payee
+    has no categorized history. is_consistent is False when the payee's past
+    transactions were categorized differently (more than one distinct
+    category), True otherwise (including when there is no history at all).
+
+    Shared by get_uncategorized_groups() and suggest_category() (#324) so the
+    Inbox review page and the shared suggestion can't drift.
+    """
+    from actual.database import Transactions, Categories
+
+    history = (
+        session.query(Transactions.category_id)
+        .filter(
+            Transactions.payee_id == payee_id,
+            Transactions.category_id != None,
+            Transactions.tombstone == 0,
+        )
+        .all()
+    )
+    cat_ids = [h.category_id for h in history]
+    unique_cats = set(cat_ids)
+    if not unique_cats:
+        return None, True
+    is_consistent = len(unique_cats) == 1
+    most_common_id = max(set(cat_ids), key=cat_ids.count)
+    cat = session.query(Categories).filter(
+        Categories.id == most_common_id,
+        Categories.tombstone == 0,
+    ).first()
+    if cat:
+        return cat.name, is_consistent
+    return None, is_consistent
+
+
 # Timeout for the on-demand LLM category-suggestion call (#309) — invoked from
 # the review card's explicit "Suggest category" button, one request per click,
 # so no per-request call cap is needed any more.
@@ -3869,30 +3908,10 @@ class ActualBudgetClient:
                 groups = []
                 for row in rows:
                     rule_prefix = rule_match_prefix(row.payee_name or "")
-                    history = (
-                        actual.session.query(Transactions.category_id)
-                        .filter(
-                            Transactions.payee_id == row.payee_id,
-                            Transactions.category_id != None,
-                            Transactions.tombstone == 0,
-                        )
-                        .all()
+                    suggested_category, is_consistent = _payee_category_history(
+                        actual.session, row.payee_id
                     )
-                    cat_ids = [h.category_id for h in history]
-                    unique_cats = set(cat_ids)
-                    suggested_category = None
-                    suggested_category_source = None
-                    is_consistent = True
-                    if unique_cats:
-                        is_consistent = len(unique_cats) == 1
-                        most_common_id = max(set(cat_ids), key=cat_ids.count)
-                        cat = actual.session.query(Categories).filter(
-                            Categories.id == most_common_id,
-                            Categories.tombstone == 0,
-                        ).first()
-                        if cat:
-                            suggested_category = cat.name
-                            suggested_category_source = "history"
+                    suggested_category_source = "history" if suggested_category else None
 
                     # No usable payee history (e.g. a person's name paid for
                     # varying purposes — groceries vs. gift vs. allowance) —
@@ -3984,6 +4003,93 @@ class ActualBudgetClient:
                 }
 
         return groups
+
+    async def suggest_category(
+        self, payee: str, notes: str = "", match_notes: bool = True
+    ) -> dict:
+        """Deterministic category suggestion for a payee (#324).
+
+        One shared answer to "which category for this payee?" — used by the
+        chat tool, the PWA's explicit "Suggest category" button, and receipt
+        processing. Order: an existing AB rule, then the payee's own
+        categorized history, then (optionally) a category name appearing in
+        the notes. Never a keyword guess (decisions.md#operator-not-brain) —
+        when there is no real signal, category_name/source are None and the
+        caller (a door's LLM, or the user) picks from `categories`.
+
+        Returns:
+          {"category_name": str | None,
+           "source": "rule" | "history" | "notes" | None,
+           "is_consistent": bool,
+           "categories": [all non-tombstoned category names]}
+        """
+        category_name: str | None = None
+        source: str | None = None
+        is_consistent = True
+
+        # 1. Existing AB rule — most authoritative. A transfer rule is not a
+        #    category suggestion, so it is skipped here.
+        try:
+            matches = await self.match_existing_rules([{"payee": payee, "notes": notes}])
+            match = matches[0] if matches else None
+            if match and match.get("category_name") and not match.get("is_transfer"):
+                category_name = match["category_name"]
+                source = "rule"
+        except Exception as e:
+            logger.debug("rule lookup failed, falling through to payee history: %s", e)
+
+        def _fetch():
+            from actual.database import Payees, Categories
+            from sqlalchemy import func
+
+            with self._get_actual() as actual:
+                categories = [
+                    c.name for c in actual.session.query(Categories)
+                    .filter(Categories.tombstone == 0, Categories.name != None)
+                    .all()
+                ]
+                payee_row = (
+                    actual.session.query(Payees)
+                    .filter(
+                        func.lower(Payees.name) == payee.lower(),
+                        Payees.tombstone == 0,
+                    )
+                    .first()
+                )
+                history_name = None
+                history_consistent = True
+                if payee_row:
+                    history_name, history_consistent = _payee_category_history(
+                        actual.session, payee_row.id
+                    )
+                return categories, history_name, history_consistent
+
+        categories, history_name, history_consistent = await self._run(_fetch)
+
+        # 2. Payee's own categorized history.
+        if category_name is None and history_name:
+            category_name = history_name
+            source = "history"
+            is_consistent = history_consistent
+
+        # 3. Notes fallback — only when explicitly allowed (OCR text is too
+        #    noisy for this; a user-typed note is not).
+        if category_name is None and match_notes and notes:
+            notes_lower = notes.lower()
+            notes_match = next(
+                (c for c in categories if c.lower() in notes_lower),
+                None,
+            )
+            if notes_match:
+                category_name = notes_match
+                source = "notes"
+
+        return {
+            "category_name": category_name,
+            "source": source,
+            "is_consistent": is_consistent,
+            "categories": categories,
+        }
 
     async def suggest_category_for_payee(self, payee: str, notes: str) -> str | None:
         """Ask the LLM for one category suggestion, for the review card's

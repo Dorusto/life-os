@@ -1235,6 +1235,21 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__suggest_category",
+            "description": "Suggest a budget category for a payee from the user's own rules and history. Returns source=null with the category list when there is no signal — then choose from the list yourself and say it is your guess.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "payee": {"type": "string", "description": "The payee/merchant name to suggest a category for."},
+                    "notes": {"type": "string", "description": "Optional transaction notes/description, used only as a last-resort match against category names."},
+                },
+                "required": ["payee"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "finance__get_transactions_by_tag",
             "description": (
                 "Get all transactions containing a #tag in their notes, with an income/cost/net "
@@ -1576,6 +1591,10 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "finance__get_uncategorized_groups":
         from backend.tools.finance.actual_budget import get_uncategorized_groups
         return await get_uncategorized_groups()
+
+    if name == "finance__suggest_category":
+        from backend.tools.finance.actual_budget import suggest_category
+        return await suggest_category(**arguments)
 
     if name == "finance__get_transactions_by_tag":
         from backend.tools.finance.actual_budget import get_transactions_by_tag

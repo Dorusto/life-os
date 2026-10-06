@@ -26,7 +26,6 @@ from typing import Optional
 
 from backend.core.config import settings
 from backend.core.finance.provider import get_provider
-from backend.core.memory import MemoryDB, SmartCategorizer
 from backend.core.ocr.vision_engine import VisionEngine
 from backend.core.vehicle_client import VehicleClient
 from backend.services.refuel_rules import vehicle_refuel_context
@@ -80,8 +79,6 @@ class ReceiptService:
             model=settings.ollama.model,
             api_key=settings.ollama.api_key,
         )
-        self._db = MemoryDB(db_path=settings.memory.db_path)
-        self._categorizer = SmartCategorizer(db=self._db)
         self._provider = get_provider()
         self._vehicle_client = VehicleClient(base_url=settings.vehicle_manager.url)
 
@@ -102,20 +99,18 @@ class ReceiptService:
 
         merchant = receipt.merchant or ""
 
-        # Check Actual Budget's own rules first (payee or receipt-text based) —
-        # only fall back to the local keyword categorizer if no rule matches (#99).
-        rule_matches = await self._provider.match_existing_rules(
-            [{"payee": merchant, "notes": receipt.raw_text}]
+        # One shared deterministic suggestion (#324) — an existing AB rule, then
+        # the payee's own categorized history. match_notes=False: OCR text is too
+        # noisy to match category names against, but rules may still match on it.
+        suggestion = await self._provider.suggest_category(
+            merchant, receipt.raw_text or "", match_notes=False
         )
-        rule_match = rule_matches[0] if rule_matches else None
-
-        if rule_match and rule_match.get("category_name"):
-            suggested_category_id = rule_match["category_name"]
+        if suggestion["category_name"]:
+            suggested_category_id = suggestion["category_name"]
             source = "history"
         else:
-            prediction = self._categorizer.predict(merchant=merchant, ocr_text=receipt.raw_text)
-            suggested_category_id = prediction.category_id if prediction.confidence > 0 else None
-            source = "keywords" if prediction.confidence >= 0.7 else "none"
+            suggested_category_id = None
+            source = "none"
 
         # Format date as ISO string for JSON serialization
         tx_date = receipt.date
@@ -155,13 +150,13 @@ class ReceiptService:
             "suggested_vehicle_id": None,
         }
 
-        # For fuel receipts: suggested category = the AB rule match already
-        # computed above, else none. Never a keyword guess (decisions.md
-        # #operator-not-brain) — the card fills it from the vehicle's own
-        # last refuel category instead.
+        # For fuel receipts: suggested category = the same rule/history
+        # suggestion computed above, else none. Never a keyword guess
+        # (decisions.md #operator-not-brain) — the card fills it from the
+        # vehicle's own last refuel category instead.
         if receipt.receipt_type == "fuel":
-            if rule_match and rule_match.get("category_name"):
-                result["suggested_category_id"] = rule_match["category_name"]
+            if suggestion["category_name"]:
+                result["suggested_category_id"] = suggestion["category_name"]
                 result["category_source"] = "history"
             else:
                 result["suggested_category_id"] = None

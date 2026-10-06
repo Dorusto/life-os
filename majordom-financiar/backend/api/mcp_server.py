@@ -51,6 +51,7 @@ MCP_TOOLS: frozenset[str] = frozenset({
     "finance__get_expense_coverage",
     "finance__get_reconciliation_suspects",
     "finance__get_uncategorized_groups",
+    "finance__suggest_category",
     "vehicle__list_vehicles",
     "vehicle__get_vehicle_stats",
     "vehicle__get_vehicle_log",

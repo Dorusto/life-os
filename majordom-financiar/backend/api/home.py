@@ -298,18 +298,34 @@ async def suggest_uncategorized_category(
     current_user: str = Depends(get_current_user),
 ):
     """
-    On-demand LLM category suggestion for one uncategorized payee (#309) — the
-    review card's "Suggest category" button. Replaces the previous automatic
-    bulk call, which fired one LLM request per group on every page load and, on
-    a transient empty LLM response, showed the user nothing at all (no error,
-    no retry, just an empty category select).
+    On-demand category suggestion for one uncategorized payee (#309, #324) —
+    the review card's "Suggest category" button.
 
-    A 200 with {"category_name": None} is a valid answer ("the LLM found no
-    matching category"), not an error — only a real failure (timeout, bad
-    status, unparseable response, AB unreachable) turns into a retryable
-    HTTP 503.
+    Deterministic first: an existing AB rule or the payee's own categorized
+    history answers instantly, with no LLM call. Only when there is no real
+    signal does this fall through to the LLM — the button is an explicit user
+    request, so asking the model here is fine, unlike the old automatic bulk
+    call which fired one LLM request per group on every page load and, on a
+    transient empty response, showed the user nothing at all.
+
+    A 200 with {"category_name": None} is a valid answer ("nothing fits"), not
+    an error — only a real LLM failure (timeout, bad status, unparseable
+    response) turns into a retryable HTTP 503.
     """
     client = get_provider()
+    try:
+        suggestion = await client.suggest_category(body.payee, body.notes)
+    except Exception as e:
+        # Never silent (architecture.md rules 12/14/15/17/21/22) — but a
+        # deterministic-step failure is not fatal: fall through to the LLM.
+        logger.warning(
+            "Deterministic category suggestion failed for payee '%s': %s", body.payee, e,
+        )
+        suggestion = {"category_name": None, "source": None}
+
+    if suggestion.get("category_name"):
+        return {"category_name": suggestion["category_name"], "source": suggestion["source"]}
+
     try:
         category_name = await client.suggest_category_for_payee(body.payee, body.notes)
     except Exception as e:
@@ -320,7 +336,7 @@ async def suggest_uncategorized_category(
             "Category suggestion failed for payee '%s': %s", body.payee, e, exc_info=True,
         )
         raise HTTPException(status_code=503, detail="Couldn't get a suggestion — try again.")
-    return {"category_name": category_name}
+    return {"category_name": category_name, "source": "ai" if category_name else None}
 
 
 @router.get("/home/unreconciled/groups")

@@ -92,56 +92,27 @@ async def propose_transaction(
         from datetime import date as _date
         date = _date.today().isoformat()
 
-    # Check Actual Budget's own rules first — the most authoritative source
-    # (either created by the user directly in AB, or via a previous "save as
-    # rule" checkbox on this card). A rule scoped to notes (create_payee_notes_rule)
-    # already only fires when both payee AND notes match, so it naturally
-    # handles the "same payee, different purpose" case (a family member's name
-    # can mean groceries one time and a gift the next) without needing the
-    # payee-only guess below to be deprioritized by hand (#99).
+    # One shared deterministic suggestion (#324) — an existing AB rule, then
+    # the payee's own categorized history, then a category name in the notes.
+    # Never a keyword guess (decisions.md#operator-not-brain): when there is
+    # no real signal the category stays empty and the card's select is the
+    # user's to fill.
     notes_category_match = False
     category_source: str | None = None
     if not category_name:
         try:
-            rule_matches = await get_provider().match_existing_rules(
-                [{"payee": payee, "notes": notes}]
-            )
-            if rule_matches and rule_matches[0] and rule_matches[0].get("category_name"):
-                category_name = rule_matches[0]["category_name"]
-                category_source = "rule"
+            suggestion = await get_provider().suggest_category(payee, notes)
+            if suggestion["category_name"]:
+                category_name = suggestion["category_name"]
+                if suggestion["source"] == "rule":
+                    category_source = "rule"
+                elif suggestion["source"] == "history":
+                    category_source = "history"
+                elif suggestion["source"] == "notes":
+                    category_source = "notes_match"
+                    notes_category_match = True
         except Exception as e:
-            logger.debug("payee-rule category lookup failed, falling through to notes-based match: %s", e)
-
-    # Notes-based category match — the description the user actually typed
-    # for THIS transaction mentions a real category name (e.g. "electricity
-    # bill" → "Electricity"). Still just a suggestion — the card is editable,
-    # nothing is set without confirmation.
-    if not category_name and notes:
-        try:
-            cats = await get_provider().get_categories()
-            notes_lower = notes.lower()
-            match = next(
-                (c for c in cats if c.name.lower() in notes_lower or notes_lower in c.name.lower()),
-                None,
-            )
-            if match:
-                category_name = match.name
-                notes_category_match = True
-                category_source = "notes_match"
-        except Exception as e:
-            logger.debug("notes-based category match failed, falling through to SmartCategorizer guess: %s", e)
-
-    if not category_name:
-        try:
-            from backend.core.memory.categorizer import SmartCategorizer
-            from backend.core.memory.database import MemoryDB
-            db = MemoryDB(db_path=settings.memory.db_path)
-            prediction = SmartCategorizer(db=db).predict(payee, amount=amount)
-            if prediction.category_name:
-                category_name = prediction.category_name
-                category_source = "guess"
-        except Exception as e:
-            logger.debug("SmartCategorizer guess failed, category stays unset: %s", e)
+            logger.debug("category suggestion failed, category stays unset: %s", e)
 
     if not account_id or not _looks_like_uuid(account_id):
         try:
@@ -1894,6 +1865,34 @@ async def get_uncategorized_groups() -> str:
         "groups": groups,
         "total": sum(g["count"] for g in groups),
     })
+
+
+async def suggest_category(payee: str, notes: str = "") -> str:
+    """
+    Suggest a budget category for a payee from the user's own AB rules and
+    categorized history (#324). Read-only — no card, no write.
+
+    Deterministic only: a rule or the payee's own history answers instantly;
+    when there is no real signal, source is null and the caller (the chat
+    model, or the user) picks from the returned categories list. Never a
+    keyword guess (decisions.md#operator-not-brain).
+    """
+    client = get_provider()
+    result = await client.suggest_category(payee, notes)
+
+    if result["category_name"]:
+        if result["source"] == "rule":
+            message = f"{result['category_name']} (from an existing rule)"
+        elif result["source"] == "history":
+            message = f"{result['category_name']} (used before for this payee)"
+        else:
+            message = f"{result['category_name']} (from your notes)"
+        if not result["is_consistent"]:
+            message += " — this payee was categorized differently before"
+    else:
+        message = "No rule or history for this payee — choose from the categories list."
+
+    return json.dumps({**result, "message": message})
 
 
 async def get_transactions_by_tag(tag: str) -> str:
