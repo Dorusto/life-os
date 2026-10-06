@@ -140,25 +140,31 @@ async def propose_transaction(
         logger.debug("account lookup failed, account stays unresolved: %s", e)
         accounts = []
 
+    name_hint = account_name or ""
     if account_id and _looks_like_uuid(account_id):
         matched = next((a for a in accounts if str(a.id) == account_id), None)
         if matched:
             account_id = matched.id
             account_name = matched.name
             account_source = "explicit"
+            name_hint = ""
         else:
             account_id = ""
-    if not account_id:
-        name_hint = account_id or account_name or ""
-        if name_hint:
-            hint = name_hint.lower()
-            matched = next((a for a in accounts if a.name.lower() == hint), None)
-            if not matched:
-                matched = next((a for a in accounts if hint in a.name.lower()), None)
-            if matched:
-                account_id = matched.id
-                account_name = matched.name
-                account_source = "explicit"
+    elif account_id:
+        # A non-UUID account_id is a name hint (the LLM often passes the
+        # account name there) — clear it so an unmatched hint falls through
+        # to the history fallback and the missing-account check below.
+        name_hint = account_id
+        account_id = ""
+    if name_hint:
+        hint = name_hint.lower()
+        matched = next((a for a in accounts if a.name.lower() == hint), None)
+        if not matched:
+            matched = next((a for a in accounts if hint in a.name.lower()), None)
+        if matched:
+            account_id = matched.id
+            account_name = matched.name
+            account_source = "explicit"
     if not account_id:
         try:
             suggestion = await provider.suggest_account(payee)
