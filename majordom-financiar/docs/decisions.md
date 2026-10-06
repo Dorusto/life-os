@@ -1561,6 +1561,8 @@ Current verdicts: budgeting = Actual Budget (reuse); vehicles = keep `vehicle-ma
 <a id="shared-judgement"></a>
 ### Shared judgement — Hermes coordinates, Majordom holds the financial judgement, both doors behave the same (2026-10-01)
 
+**Superseded in part by:** [operator-not-brain](#operator-not-brain) (layer 2 narrowed to deterministic, history-based suggestions)
+
 **Context:** follows `#build-or-reuse-gate` the same day. Hermes (Telegram) already takes complicated work off the user's shoulders across many domains, so the question became: does Majordom still need to be a hub/orchestrator (#263), and could the user's financial intelligence simply live in a Hermes skill? The user's requirement: doing the same thing from the Majordom chat and from Hermes must give the same behaviour, the same judgement in both places.
 
 **Decision:**
@@ -1587,6 +1589,8 @@ Each app keeps working standalone; each step is tested before the next one start
 <a id="server-side-proposals"></a>
 ### Server-side proposals and the first write over MCP — Telegram fuel receipts (#322, #328, 2026-10-04)
 
+**Superseded in part by:** [operator-not-brain](#operator-not-brain) (odometer-proximity vehicle choice removed)
+
 **Context:** step 2 of `#shared-judgement`. Audit: proposals already lived on the server, but in ~10 separate in-memory dicts, each with its own confirm route and the write logic inside the FastAPI handler, so no door other than the PWA could confirm anything. Both household Hermes profiles shared one MCP token.
 
 **Decision:**
@@ -1599,3 +1603,25 @@ Each app keeps working standalone; each step is tested before the next one start
 - Only the refuel proposal moved now; the other types move one at a time as each is exposed over MCP.
 
 **Accepted risk:** the server cannot prove the user said yes in Telegram — mitigated by the tool description, creator-only confirmation and per-member logging.
+
+<a id="operator-not-brain"></a>
+### Majordom is the operator, not the brain — server rules are invariants and history lookups, never weak-signal guesses (#330, 2026-10-06)
+
+**Context:** first end-to-end Telegram refuel test after #328. `log_refuel` picked the wrong vehicle by odometer proximity (a motorcycle with a 14 L tank for a 31 L refuel); Hermes' model spotted the mismatch, the server rule did not. The default fuel category came from a substring match (`"car"` also matches e.g. "Healthcare", "Card fees"), the default account was silently the first account, and the receipt's vehicle guess was "highest odometer" — no real signal. The user's question: if the door's LLM judges better, does Majordom's judgement layer still have a reason to exist?
+
+**Decision:**
+- **Majordom's value is being the trusted operator of the finance engine, not a brain:** the engine adapter (AB has no REST API), safe writes (proposals, confirmation, duplicate detection, transfer-safe operations, reconciliation — tested code), exact numbers (remaining budget, pacing, goals — never recomputed by a model from raw transactions, never a raw ledger sent to a cloud model), and its own PWA. An agent given raw data access would have to rebuild exactly this, untested and tied to one door.
+- **The brain is each door's LLM** — the PWA chat's own model as much as Hermes. It interprets, picks between options, asks the user. The confirmation card/step is the safety net for its guesses.
+- **Server-side rules are only two kinds:** (1) *invariants* that reject impossible or unsafe data (odometer below the last reading, litres above the tank), and (2) *deterministic lookups in the user's own history* ("same category/account as this vehicle's last refuel"). The server never guesses from a weak signal; when it isn't sure it returns `needs_input` with the options, and the door asks.
+- This narrows layer 2 of `#shared-judgement`: "suggestions computed by tools" means history-based, deterministic suggestions — identical for both doors because the data is identical. Weak-signal guessing is not judgement Majordom should hold.
+
+**Applied to the refuel flow (rule by rule):**
+- Kept: confirmation, creator-only confirm, per-member tokens, AB as source of truth, mandatory odometer, odometer-below-last refused — now also re-checked at confirm time (the card's fields are editable).
+- Removed: vehicle choice by odometer proximity, and the receipt's "highest odometer" vehicle guess. Vehicle comes from the name only; several active vehicles and no name → `needs_input` listing name + last odometer, the door asks.
+- Added invariant: litres above tank capacity (+~5%) is refused; with no declared capacity, the largest fill in the vehicle's history +10%; no history → no check.
+- Replaced: default category and account come from the vehicle's previous refuel (its `financial_id` transaction); otherwise an AB rule on the station for the category; otherwise the user picks. vehicle-manager still knows nothing about categories. In the PWA card, picking a vehicle switches category/account to that vehicle's defaults and shows its last odometer as the field hint.
+- Untouched for now: the keyword categorizer for non-fuel receipts — #324 applies the same principle.
+
+**Not a priority change:** connecting Majordom to engines other than AB (#224, #325) stays where the 2026-09-12 sequencing put it — after personal completeness.
+
+**Rejected:** dropping Majordom's tool layer for an agent with direct data access (would rebuild the adapter and the safe-write code as untested, per-door scripts, and send raw ledgers to a cloud model); keeping weak-signal heuristics and tuning them (each new edge case needs a new rule, while the door's model already sees the context).

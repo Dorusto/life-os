@@ -621,9 +621,17 @@ text in one door's prompt.** Three layers:
 1. **Rules in code** — invariants (confirmation before writes, AB rules as the only
    merchant→category mechanism, excluded categories). Server-side, identical for every door.
 2. **Suggestions computed by tools** — "which category", "is this budget realistic", "is this
-   goal at risk". A tool returns the suggestion; a door only presents it.
+   goal at risk". A tool returns the suggestion; a door only presents it. Only deterministic,
+   history-based suggestions ("same as this vehicle's last refuel"); never a guess from a weak
+   signal (keyword substring, "closest odometer") — when unsure, return `needs_input` with the
+   options and let the door ask (`decisions.md#operator-not-brain`).
 3. **Conversation style per door** — Telegram text vs. PWA cards and charts. Allowed to differ;
    never decides anything.
+
+Majordom is the operator, not the brain: interpreting the user and choosing between options is
+the door's LLM's job (the PWA chat's model as much as Hermes); the confirmation step is the
+safety net for its guesses. Server-side rules are invariants (reject impossible data) and
+history lookups.
 
 Test for any change: *would the other door give a different number or a different
 recommendation?* If yes, the logic is in the wrong layer.
