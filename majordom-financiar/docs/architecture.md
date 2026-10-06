@@ -655,7 +655,7 @@ write tools one at a time as each moves onto the shared proposal store (#322).
 
 | Group | Tools | MCP |
 |---|---|---|
-| **Read, text result** | `finance__get_accounts`, `get_monthly_stats`, `get_budget_status`, `get_transactions`, `get_untagged_transactions`, `get_transactions_by_tag`, `get_spending_history`, `get_budget_pacing_status`, `get_tag_goal_progress`, `get_unprotected_goals`, `get_reached_goals`, `get_recurring_schedules_summary`, `get_income_classifications`, `get_expense_coverage`, `get_reconciliation_suspects`, `get_uncategorized_groups`; `vehicle__list_vehicles`, `get_vehicle_stats`, `get_vehicle_log`; `system__get_backup_status` | **Yes** (#323) |
+| **Read, text result** | `finance__get_accounts`, `get_monthly_stats`, `get_budget_status`, `get_transactions`, `get_untagged_transactions`, `get_transactions_by_tag`, `get_spending_history`, `get_budget_pacing_status`, `get_tag_goal_progress`, `get_unprotected_goals`, `get_reached_goals`, `get_recurring_schedules_summary`, `get_income_classifications`, `get_expense_coverage`, `get_reconciliation_suspects`, `get_uncategorized_groups`, `suggest_category` (#324); `vehicle__list_vehicles`, `get_vehicle_stats`, `get_vehicle_log`; `system__get_backup_status` | **Yes** (#323) |
 | **Read, PWA card/chart result** | `finance__list_transactions`, `list_categories`, `get_budget_overview`, all `*_chart` tools, `get_spending_trend`; `vehicle__get_vehicle_*_chart` | Not yet — the result is card JSON for the PWA; the text-result tools above already answer the same questions |
 | **Write, proposal (shared store)** | `vehicle__log_refuel`; MCP-only `system__confirm_proposal` / `system__reject_proposal` | **Yes** (#322/#328) |
 | **Write, proposal card (own store)** | every `*propose_*`, `create/rename/delete_category`, `set_account_goal`, `vehicle__set_*`, `vehicle__delete_vehicle_log_entry`, `system__set_notification_time` | After it moves onto the shared store |
@@ -683,12 +683,16 @@ Status lives on GitHub; this list only names the capability.
 **Proposes when asked or as a follow-up (always a confirmation):**
 - Transactions from text or receipt photo; transfers; balance adjustments; closing an account
 - Category + AB rule for a merchant; tagging trips; transfer conversion
+- Category for a payee (`suggest_category`, #324): AB rule → payee history → notes → none + category
+  list. One function for chat, Hermes, the PWA button, receipts and `propose_transaction`; only
+  the PWA button (an explicit user click) falls through to the LLM when there is no signal. CSV
+  import keeps its own suggestions
 - Budget amounts, rebalancing between categories, copying last month, carryover
 - Goals (category, tag, account), income classification, FIRE model inputs
 - Budget pacing over the year (#112), sinking funds for large predictable expenses (#111),
   realism check per category (#110), recurring-expense audit (#41)
 
-**Planned:** category suggestion as a shared tool for both doors (#324), budget configuration via
+**Planned:** budget configuration via
 chat (#124), recurring schedules + goal impact (#153), plan-file cross-check (#114), market
 correction alert (#42, blocked on the market-data source).
 

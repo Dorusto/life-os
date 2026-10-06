@@ -189,3 +189,4 @@
 | [W41](2026-W41.md) | 2026-10-05 | #326 chat shows every item of a list-type tool result (concise rule scoped to prose) | backend/api/chat.py, docs/architecture.md |
 | [W41](2026-W41.md) | 2026-10-06 | #330 decision: Majordom is the operator, not the brain — server rules = invariants + history lookups; follow-up #331 | docs/decisions.md, docs/architecture.md |
 | [W41](2026-W41.md) | 2026-10-06 | #331 refuel flow: no guesses, history-based defaults, tank/odometer invariants at create + confirm | backend/services/refuel_rules.py, backend/tools/finance/vehicle.py, FuelReceiptCard.tsx |
+| [W41](2026-W41.md) | 2026-10-06 | #324 shared deterministic category suggestion (rule → history → notes → none); PWA button uses LLM only without signal | backend/core/actual_client/client.py, backend/tools/finance/actual_budget.py, backend/api/home.py |
