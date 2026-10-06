@@ -4091,6 +4091,69 @@ class ActualBudgetClient:
             "categories": categories,
         }
 
+    async def suggest_account(self, payee: str) -> dict | None:
+        """Deterministic default-account lookup for a new transaction (#329).
+
+        The account a payee's transactions were most often recorded in, among
+        the user's open accounts. Used as the default account for a new
+        transaction proposal when the user didn't name one — never a guess
+        (decisions.md#operator-not-brain): an unknown payee, or one with no
+        transactions in an open account, returns None and the caller asks the
+        user instead of silently picking the first account.
+
+        Returns {"account_id": str, "account_name": str} or None.
+        """
+        def _fetch():
+            from actual.database import Payees, Transactions, Accounts
+            from sqlalchemy import func
+
+            with self._get_actual() as actual:
+                payee_row = (
+                    actual.session.query(Payees)
+                    .filter(
+                        func.lower(Payees.name) == payee.lower(),
+                        Payees.tombstone == 0,
+                    )
+                    .first()
+                )
+                if not payee_row:
+                    return None
+
+                open_accounts = {
+                    str(a.id): a.name
+                    for a in actual.session.query(Accounts)
+                    .filter(Accounts.tombstone == 0)
+                    .all()
+                    if not a.closed
+                }
+                if not open_accounts:
+                    return None
+
+                rows = (
+                    actual.session.query(Transactions.acct, func.count(Transactions.id))
+                    .filter(
+                        Transactions.payee_id == payee_row.id,
+                        Transactions.tombstone == 0,
+                        Transactions.acct != None,
+                    )
+                    .group_by(Transactions.acct)
+                    .all()
+                )
+                best_id = None
+                best_count = 0
+                for acct_id, count in rows:
+                    acct_id_str = str(acct_id)
+                    if acct_id_str not in open_accounts:
+                        continue
+                    if count > best_count:
+                        best_id = acct_id_str
+                        best_count = count
+                if best_id is None:
+                    return None
+                return {"account_id": best_id, "account_name": open_accounts[best_id]}
+
+        return await self._run(_fetch)
+
     async def suggest_category_for_payee(self, payee: str, notes: str) -> str | None:
         """Ask the LLM for one category suggestion, for the review card's
         on-demand "Suggest category" button (#309).

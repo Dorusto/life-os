@@ -288,6 +288,9 @@ class ActualBudgetProvider:
     async def suggest_category(self, payee: str, notes: str = "", match_notes: bool = True) -> dict:
         return await self._client().suggest_category(payee, notes, match_notes)
 
+    async def suggest_account(self, payee: str) -> dict | None:
+        return await self._client().suggest_account(payee)
+
     async def suggest_category_for_payee(self, payee: str, notes: str) -> str | None:
         return await self._client().suggest_category_for_payee(payee, notes)
 

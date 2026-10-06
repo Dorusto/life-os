@@ -109,6 +109,8 @@ Use `finance__*` tools when the user mentions money, budget, transactions, accou
   - "spent 50 euro at Lidl" → finance__propose_transaction(payee="Lidl", amount=50)
   - "received 330 euro from Ana for photo services" → finance__propose_transaction(payee="Ana", amount=330, is_expense=false)
   - "paid electricity bill 120 euro" → finance__propose_transaction(payee="Electricity", amount=120)
+  - If finance__propose_transaction returns needs_input, ask the user only for the listed missing values (category and/or account, from the lists in the message), then call finance__propose_transaction again with all previous arguments plus the new ones. Never pick an account or category yourself.
+    - "spent 50 at Lidl" → finance__propose_transaction(payee="Lidl", amount=50) → needs_input account → ask "Which account?"
 - To move budget between categories: call finance__propose_budget_rebalance. Never describe it as text.
 - To set a category budget to a specific euro amount: call finance__propose_set_category_budget. Use this when the user mentions a number + category (e.g. "set Transport to €110", "put €300 in Groceries"). NEVER call finance__rename_category for this — rename is only for changing a category's name, not its amount.
 - To set up a whole month's budget in one go (e.g. "copy last month's budget", "set up this month like last month") — call finance__propose_budget_copy. Pass month (YYYY-MM) only if the user named one — it defaults to the current month. The card pre-fills every expense category from the previous month with editable amounts; goal-template categories are excluded automatically. A confirmation card appears — nothing is written until the user confirms.

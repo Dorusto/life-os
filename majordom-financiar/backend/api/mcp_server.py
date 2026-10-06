@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 
 # The "Read, text result" group from docs/architecture.md#mcp-exposure, plus
-# the one proposal tool (#322). Exactly these tools are visible and callable
+# the proposal tools (#322). Exactly these tools are visible and callable
 # over MCP; everything else is invisible and refused.
 MCP_TOOLS: frozenset[str] = frozenset({
     "finance__get_accounts",
@@ -56,8 +56,10 @@ MCP_TOOLS: frozenset[str] = frozenset({
     "vehicle__get_vehicle_stats",
     "vehicle__get_vehicle_log",
     "system__get_backup_status",
-    # Write, proposal (#322): creates a proposal only; the write happens on system__confirm_proposal
+    # Write, proposal (#322): these create a proposal only; the write happens on
+    # system__confirm_proposal
     "vehicle__log_refuel",
+    "finance__propose_transaction",
 })
 
 

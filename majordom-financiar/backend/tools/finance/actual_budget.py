@@ -81,27 +81,44 @@ async def propose_transaction(
     is_expense: bool = True,
 ) -> str:
     """
-    Create a pending proposal (does NOT add to Actual Budget yet).
+    Create a pending transaction proposal (does NOT add to Actual Budget yet).
     Returns a JSON string with type='proposal' for the frontend to render as a card.
-    If account_id is missing, falls back to the first available account.
+
+    The account is never silently guessed: an explicit account (id or name), or
+    the payee's own transaction history, or the tool returns needs_input and
+    asks the user. Same for the category.
     """
     import json
-    from backend.tools import proposals as proposal_store
+    from backend.core import pending_proposals
 
     if not date:
         from datetime import date as _date
         date = _date.today().isoformat()
 
-    # One shared deterministic suggestion (#324) — an existing AB rule, then
-    # the payee's own categorized history, then a category name in the notes.
-    # Never a keyword guess (decisions.md#operator-not-brain): when there is
-    # no real signal the category stays empty and the card's select is the
-    # user's to fill.
+    provider = get_provider()
+
+    # Category: an explicit name is validated against the real category list
+    # (case-insensitive, corrected case); otherwise the shared deterministic
+    # suggestion (#324) — an existing AB rule, then the payee's own categorized
+    # history, then a category name in the notes. Never a keyword guess
+    # (decisions.md#operator-not-brain): when there is no real signal the
+    # category stays empty and the caller asks the user.
     notes_category_match = False
     category_source: str | None = None
+    if category_name:
+        try:
+            cats = await provider.get_categories()
+            matched_cat = next(
+                (c for c in cats if c.name.lower() == category_name.lower()),
+                None,
+            )
+            category_name = matched_cat.name if matched_cat else ""
+        except Exception as e:
+            logger.debug("category validation failed, category stays unset: %s", e)
+            category_name = ""
     if not category_name:
         try:
-            suggestion = await get_provider().suggest_category(payee, notes)
+            suggestion = await provider.suggest_category(payee, notes)
             if suggestion["category_name"]:
                 category_name = suggestion["category_name"]
                 if suggestion["source"] == "rule":
@@ -114,35 +131,97 @@ async def propose_transaction(
         except Exception as e:
             logger.debug("category suggestion failed, category stays unset: %s", e)
 
-    if not account_id or not _looks_like_uuid(account_id):
-        try:
-            accounts = await get_provider().get_accounts()
-            # Try to match by name first (LLM may pass account name instead of ID)
-            name_hint = account_id or account_name or ""
-            matched = next((a for a in accounts if a.name.lower() == name_hint.lower()), None)
-            chosen = matched or (accounts[0] if accounts else None)
-            if chosen:
-                account_id = chosen.id
-                account_name = chosen.name
-        except Exception as e:
-            logger.debug("account-name-hint lookup failed, account stays unresolved: %s", e)
+    # Account: explicit (id or name hint) → the payee's own history → missing.
+    # Never the first account (decisions.md#operator-not-brain).
+    account_source: str | None = None
+    try:
+        accounts = await provider.get_accounts()
+    except Exception as e:
+        logger.debug("account lookup failed, account stays unresolved: %s", e)
+        accounts = []
 
-    proposal_id = proposal_store.create(
-        payee=payee,
-        amount=amount,
-        date=date,
-        category_name=category_name,
-        account_id=account_id,
-        account_name=account_name,
-        notes=notes,
-        is_expense=is_expense,
-        notes_category_match=notes_category_match,
-        category_source=category_source,
+    if account_id and _looks_like_uuid(account_id):
+        matched = next((a for a in accounts if str(a.id) == account_id), None)
+        if matched:
+            account_id = matched.id
+            account_name = matched.name
+            account_source = "explicit"
+        else:
+            account_id = ""
+    if not account_id:
+        name_hint = account_id or account_name or ""
+        if name_hint:
+            hint = name_hint.lower()
+            matched = next((a for a in accounts if a.name.lower() == hint), None)
+            if not matched:
+                matched = next((a for a in accounts if hint in a.name.lower()), None)
+            if matched:
+                account_id = matched.id
+                account_name = matched.name
+                account_source = "explicit"
+    if not account_id:
+        try:
+            suggestion = await provider.suggest_account(payee)
+            if suggestion:
+                account_id = suggestion["account_id"]
+                account_name = suggestion["account_name"]
+                account_source = "history"
+        except Exception as e:
+            logger.debug("account suggestion failed, account stays unresolved: %s", e)
+
+    missing: list[str] = []
+    if not category_name:
+        missing.append("category_name")
+    if not account_id:
+        missing.append("account_name")
+
+    if missing:
+        human = {"category_name": "category", "account_name": "account"}
+        message = "Missing: " + ", ".join(human[m] for m in missing) + "."
+        if "category_name" in missing:
+            try:
+                cats = await provider.get_categories()
+                if cats:
+                    message += " Categories: " + ", ".join(c.name for c in cats) + "."
+            except Exception as e:
+                logger.debug("category list fetch failed for needs_input message: %s", e)
+        if "account_name" in missing and accounts:
+            message += " Accounts: " + ", ".join(a.name for a in accounts) + "."
+        message += (
+            " Ask the user, then call finance__propose_transaction again with the "
+            "same arguments plus the missing ones."
+        )
+        return json.dumps({"type": "needs_input", "missing": missing, "message": message})
+
+    proposal_id = pending_proposals.create(
+        "transaction",
+        {
+            "payee": payee,
+            "amount": amount,
+            "date": date,
+            "category_name": category_name,
+            "account_id": account_id,
+            "account_name": account_name,
+            "notes": notes,
+            "is_expense": is_expense,
+            "notes_category_match": notes_category_match,
+            "category_source": category_source,
+        },
+        created_by=None,
     )
+
+    kind = "Expense" if is_expense else "Income"
+    details = [f"€{amount:.2f}", date]
+    if account_name:
+        details.append(f"account {account_name}")
+    if category_name:
+        details.append(f"category {category_name}")
+    summary = f"{kind}: {payee} — " + ", ".join(details)
 
     return json.dumps({
         "type": "proposal",
         "id": proposal_id,
+        "proposal_id": proposal_id,
         "payee": payee,
         "amount": amount,
         "date": date,
@@ -153,6 +232,8 @@ async def propose_transaction(
         "is_expense": is_expense,
         "notes_category_match": notes_category_match,
         "category_source": category_source,
+        "account_source": account_source,
+        "summary": summary,
     })
 
 
