@@ -48,6 +48,7 @@ async def log_refuel(
     full_tank: bool = True,
     receipt_id: str = "",
     account_name: str = "",
+    category_name: str = "",
 ) -> str:
     """
     Create a pending refuel proposal. Returns JSON with type='fuel_log'.
@@ -57,6 +58,10 @@ async def log_refuel(
     user and call again.
     """
     from backend.core import pending_proposals
+    from backend.services.refuel_rules import (
+        refuel_invariant_error,
+        vehicle_refuel_context,
+    )
 
     today = _date.today().isoformat()
     client = _get_client()
@@ -81,36 +86,17 @@ async def log_refuel(
         if extracted.get("date"):
             today = extracted["date"]
 
-    # Resolve vehicle from name, then odometer proximity, then the receipt's
-    # suggestion, then the single active vehicle. The receipt's suggestion is
-    # only a guess (vision can't read the odometer), so it must never outrank
-    # what the user actually said or the odometer they entered.
+    # Resolve the vehicle from what the user actually said, or the single
+    # active vehicle. Never guessed from the odometer or the receipt — with
+    # several active vehicles the user is asked which one (decisions.md
+    # #operator-not-brain).
     vehicles = await client.list_vehicles(active_only=True)
     vehicle_id = None
     display_name = vehicle_name
-    odo_no_match = False
-
-    suggested_vehicle_id = extracted.get("suggested_vehicle_id") if extracted else None
+    matched = None
 
     if vehicle_name:
         matched = next((v for v in vehicles if vehicle_name.lower() in v["name"].lower()), None)
-    elif odo_km is not None:
-        # Only a vehicle whose last reading is at or below the entered odometer
-        # can be the one being refuelled; among those, the closest below it.
-        # A vehicle with no last_odo counts as distance odo_km.
-        candidates = [
-            v for v in vehicles
-            if v.get("last_odo") is None or v["last_odo"] <= odo_km
-        ]
-        matched = min(
-            candidates,
-            key=lambda v: odo_km - (v["last_odo"] if v.get("last_odo") is not None else 0),
-            default=None,
-        )
-        if matched is None:
-            odo_no_match = True
-    elif suggested_vehicle_id is not None:
-        matched = next((v for v in vehicles if v["id"] == suggested_vehicle_id), None)
     else:
         active = [v for v in vehicles if v.get("active", 1)]
         matched = active[0] if len(active) == 1 else None
@@ -119,8 +105,16 @@ async def log_refuel(
         vehicle_id = matched["id"]
         display_name = matched["name"]
 
-    # Resolve account + categories from AB
-    account_id, account_display_name = "", ""
+    # Enrich the active vehicles with history-based defaults (max litres, last
+    # category/account) once — the card gets the same list back.
+    vehicles_ctx = await vehicle_refuel_context(client, vehicles)
+    matched_ctx = (
+        next((v for v in vehicles_ctx if v["id"] == vehicle_id), None)
+        if vehicle_id else None
+    )
+
+    # Fetch accounts + categories from AB (for the card's dropdowns and for
+    # resolving the explicit/default category and account below).
     accounts_list = []
     categories_list = []
     ab_cats = []
@@ -131,19 +125,7 @@ async def log_refuel(
             actual.get_accounts(),
             actual.get_categories(),
         )
-        if accounts:
-            if account_name:
-                chosen = next(
-                    (a for a in accounts if account_name.lower() in a.name.lower()),
-                    None,
-                )
-                if chosen is None:
-                    return json.dumps({"type": "error", "message": f"No account matching '{account_name}'."})
-            else:
-                chosen = accounts[0]
-            account_id = chosen.id
-            account_display_name = chosen.name
-            accounts_list = [{"id": a.id, "name": a.name} for a in accounts]
+        accounts_list = [{"id": a.id, "name": a.name} for a in accounts]
         categories_list = [{"id": c.name, "name": c.name, "emoji": "📦"} for c in ab_cats]
     except Exception as e:
         logger.debug("AB accounts/categories fetch failed for refuel proposal dropdowns, using empty fallback lists: %s", e)
@@ -160,25 +142,68 @@ async def log_refuel(
     if not vehicle_id:
         missing.append("vehicle_name")
 
-    # An odometer below the chosen vehicle's last reading is impossible — the
-    # user either mistyped the km or named the wrong vehicle. Never build a
-    # proposal from it (it would produce a negative km_since_last).
-    if (
-        matched
-        and matched.get("last_odo") is not None
-        and odo_km is not None
-        and odo_km < matched["last_odo"]
-    ):
-        return json.dumps({
-            "type": "needs_input",
-            "missing": ["odo_km"],
-            "message": (
-                f"Odometer {odo_km:.0f} km is lower than the last recorded "
-                f"{matched['last_odo']:.0f} km for {matched['name']}. Ask the user "
-                "to check the km or name the vehicle, then call "
-                "vehicle__log_refuel again."
-            ),
-        })
+    # Invariants that reject impossible data (decisions.md#operator-not-brain):
+    # an odometer below the vehicle's last reading, or more litres than the
+    # tank holds. Never build a proposal from either.
+    if matched_ctx:
+        err = refuel_invariant_error(matched_ctx, liters, odo_km)
+        if err:
+            last_odo = matched_ctx.get("last_odo")
+            if odo_km is not None and last_odo is not None and odo_km < last_odo:
+                missing_field = "odo_km"
+            else:
+                missing_field = "liters"
+            return json.dumps({
+                "type": "needs_input",
+                "missing": [missing_field],
+                "message": err + " Ask the user to check, then call vehicle__log_refuel again.",
+            })
+
+    # Category: explicit → the vehicle's own last refuel category → an existing
+    # AB rule for this station → none. Never a keyword guess.
+    resolved_category = ""
+    if category_name:
+        chosen_cat = next(
+            (c for c in ab_cats if category_name.lower() in c.name.lower()),
+            None,
+        )
+        if chosen_cat is None:
+            return json.dumps({"type": "error", "message": f"No category matching '{category_name}'."})
+        resolved_category = chosen_cat.name
+    elif matched_ctx and matched_ctx.get("default_category_name"):
+        resolved_category = matched_ctx["default_category_name"]
+    elif location:
+        try:
+            matches = await get_provider().match_existing_rules([{"payee": location, "notes": ""}])
+            rule_match = matches[0] if matches else None
+            if rule_match and rule_match.get("category_name"):
+                resolved_category = rule_match["category_name"]
+        except Exception as e:
+            logger.debug("AB rule match failed for refuel station '%s': %s", location, e)
+
+    # Account: explicit → the vehicle's own last refuel account → none.
+    resolved_account_id = ""
+    resolved_account_name = ""
+    if account_name:
+        chosen = next(
+            (a for a in accounts_list if account_name.lower() in a["name"].lower()),
+            None,
+        )
+        if chosen is None:
+            return json.dumps({"type": "error", "message": f"No account matching '{account_name}'."})
+        resolved_account_id = chosen["id"]
+        resolved_account_name = chosen["name"]
+    elif matched_ctx and matched_ctx.get("default_account_id"):
+        default_id = matched_ctx["default_account_id"]
+        chosen = next((a for a in accounts_list if a["id"] == default_id), None)
+        if chosen:
+            resolved_account_id = chosen["id"]
+            resolved_account_name = chosen["name"]
+
+    if not resolved_category:
+        missing.append("category_name")
+    if not resolved_account_id:
+        missing.append("account_name")
 
     if missing:
         human = {
@@ -186,6 +211,8 @@ async def log_refuel(
             "liters": "litres",
             "total_eur": "total amount",
             "vehicle_name": "vehicle",
+            "category_name": "category",
+            "account_name": "account",
         }
         message = "Missing: " + ", ".join(human[m] for m in missing) + "."
         if extracted:
@@ -198,22 +225,22 @@ async def log_refuel(
                 read_parts.append(extracted["merchant"])
             if read_parts:
                 message += " Read from the receipt: " + ", ".join(read_parts) + "."
-        if odo_no_match:
-            message += f" No vehicle has a last odometer at or below {odo_km:.0f} km."
+        if "vehicle_name" in missing and len(vehicles) > 1:
+            listed = ", ".join(
+                f"{v['name']} (last odometer {v['last_odo']:.0f} km)"
+                if v.get("last_odo") is not None else v["name"]
+                for v in vehicles
+            )
+            message += f" Vehicles: {listed}."
+        if "category_name" in missing and ab_cats:
+            message += " Categories: " + ", ".join(c.name for c in ab_cats) + "."
+        if "account_name" in missing and accounts_list:
+            message += " Accounts: " + ", ".join(a["name"] for a in accounts_list) + "."
         message += (
             " Ask the user, then call vehicle__log_refuel again with the same "
             "arguments plus the missing ones."
         )
         return json.dumps({"type": "needs_input", "missing": missing, "message": message})
-
-    # Default category: pick transport-related from AB, or fallback by vehicle type
-    is_moto = bool(matched and matched.get("vehicle_type") == "motorcycle")
-    preferred = "Motorbike Costs" if is_moto else "Car Costs"
-    transport_keywords = ("motorbike", "car", "transport", "fuel") if is_moto else ("car", "transport", "fuel", "motorbike")
-    category_name = next(
-        (c.name for c in ab_cats if any(k in c.name.lower() for k in transport_keywords)),
-        preferred,
-    )
 
     proposal_id = pending_proposals.create(
         "refuel",
@@ -227,9 +254,9 @@ async def log_refuel(
             "full_tank": full_tank,
             "missed_fill": False,
             "date": today,
-            "account_id": account_id,
-            "account_name": account_display_name,
-            "category_name": category_name,
+            "account_id": resolved_account_id,
+            "account_name": resolved_account_name,
+            "category_name": resolved_category,
             "receipt_id": receipt_id,
             "source": "receipt_photo" if receipt_id else "chat_text",
         },
@@ -248,10 +275,10 @@ async def log_refuel(
         details.append(f"odometer {odo_km:.0f} km")
     if location:
         details.append(location)
-    if account_display_name:
-        details.append(f"account {account_display_name}")
-    if category_name:
-        details.append(f"category {category_name}")
+    if resolved_account_name:
+        details.append(f"account {resolved_account_name}")
+    if resolved_category:
+        details.append(f"category {resolved_category}")
     if today:
         details.append(today)
     summary = f"Refuel: {display_name}"
@@ -267,14 +294,15 @@ async def log_refuel(
         "merchant": location,
         "amount": total_eur,
         "date": today,
-        "suggested_category_id": category_name,
-        "category_source": "keywords",
+        "suggested_category_id": resolved_category,
+        "suggested_account_id": resolved_account_id,
+        "category_source": "history" if resolved_category else "none",
         "categories": categories_list,
         "accounts": accounts_list,
         "liters": liters,
         "price_per_liter": price_per_liter,
         "fuel_grade": None,
-        "vehicles": vehicles,
+        "vehicles": vehicles_ctx,
         "suggested_vehicle_id": vehicle_id,
         "odo_km": odo_km,
     })

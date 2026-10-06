@@ -94,6 +94,7 @@ export interface ReceiptDraft {
   fuel_grade: string | null
   vehicles: VehicleOption[]
   suggested_vehicle_id: number | null
+  suggested_account_id?: string | null
   odo_km?: number | null
 }
 
@@ -101,6 +102,9 @@ export interface VehicleOption {
   id: number
   name: string
   last_odo: number | null
+  max_liters?: number | null
+  default_category_name?: string | null
+  default_account_id?: string | null
 }
 
 export interface NearDuplicateMatch {

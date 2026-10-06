@@ -3025,6 +3025,7 @@ class ActualBudgetClient:
                     "merchant": tx.payee.name if tx.payee else "",
                     "account_id": str(tx.acct) if tx.acct else "",
                     "account_name": tx.account.name if tx.account else "",
+                    "category_name": tx.category.name if tx.category else "",
                 }
         return await self._run(_get)
 

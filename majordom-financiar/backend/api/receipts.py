@@ -36,6 +36,7 @@ from backend.core.config import settings
 from backend.core.finance.provider import get_provider
 from backend.core.vehicle_client import VehicleClient, VehicleClientError
 from backend.services.receipt_service import ReceiptService
+from backend.services.refuel_rules import check_refuel_for_confirm
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -102,7 +103,7 @@ class ReceiptDraft(BaseModel):
     price_per_liter: Optional[float] = None
     fuel_grade: Optional[str] = None
     vehicles: list[dict] = []              # [{id, name, last_odo}] for vehicle selector
-    suggested_vehicle_id: Optional[int] = None  # pre-selected from ODO proximity
+    suggested_vehicle_id: Optional[int] = None  # pre-selected only when there is a single active vehicle
 
 
 class ConfirmRequest(BaseModel):
@@ -428,6 +429,14 @@ async def confirm_fuel_receipt(
 
     vehicle_client = VehicleClient(base_url=settings.vehicle_manager.url)
     service = ReceiptService()
+
+    # Invariants that reject impossible data (decisions.md#operator-not-brain):
+    # the card's fields are editable, so re-check at confirm time.
+    err = await check_refuel_for_confirm(
+        vehicle_client, request.vehicle_id, request.liters, request.odo_km,
+    )
+    if err:
+        raise HTTPException(status_code=400, detail=err)
 
     # Step 1: Get last fuel entry BEFORE inserting the new one (for stats)
     last_entry = await vehicle_client.get_last_fuel_entry(request.vehicle_id)

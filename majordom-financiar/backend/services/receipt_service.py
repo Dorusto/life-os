@@ -29,6 +29,7 @@ from backend.core.finance.provider import get_provider
 from backend.core.memory import MemoryDB, SmartCategorizer
 from backend.core.ocr.vision_engine import VisionEngine
 from backend.core.vehicle_client import VehicleClient
+from backend.services.refuel_rules import vehicle_refuel_context
 
 logger = logging.getLogger(__name__)
 
@@ -154,38 +155,27 @@ class ReceiptService:
             "suggested_vehicle_id": None,
         }
 
-        # For fuel receipts: override category to a transport default
+        # For fuel receipts: suggested category = the AB rule match already
+        # computed above, else none. Never a keyword guess (decisions.md
+        # #operator-not-brain) — the card fills it from the vehicle's own
+        # last refuel category instead.
         if receipt.receipt_type == "fuel":
-            category_names = [cat.name for cat in ab_categories]
-            fuel_default = next(
-                (n for n in category_names if any(k in n.lower() for k in ("car", "transport", "fuel", "motorbike"))),
-                None,
-            )
-            if fuel_default:
-                result["suggested_category_id"] = fuel_default
-                result["category_source"] = "keywords"
+            if rule_match and rule_match.get("category_name"):
+                result["suggested_category_id"] = rule_match["category_name"]
+                result["category_source"] = "history"
+            else:
+                result["suggested_category_id"] = None
+                result["category_source"] = "none"
 
-        # If this is a fuel receipt, detect closest vehicle by ODO
+        # Fuel receipts: enrich the active vehicles with history-based defaults
+        # (max litres, last category/account). Never guess a vehicle — the card
+        # pre-selects one only when there is exactly one active vehicle.
         if receipt.receipt_type == "fuel":
             try:
                 vehicles = await self._vehicle_client.list_vehicles(active_only=True)
-                result["vehicles"] = [
-                    {"id": v["id"], "name": v["name"], "last_odo": v["last_odo"]}
-                    for v in vehicles if v["active"]
-                ]
-
-                # If user entered an ODO and we have vehicles, pick closest
-                if receipt.liters is not None and result["vehicles"]:
-                    # We don't have user-entered ODO at this stage (OCR can't read ODO),
-                    # but we pre-select the vehicle with the highest last_odo as a reasonable guess
-                    # (user can override in the frontend)
-                    sorted_vehicles = sorted(
-                        result["vehicles"],
-                        key=lambda v: v["last_odo"] if v["last_odo"] is not None else 0,
-                        reverse=True,
-                    )
-                    if sorted_vehicles:
-                        result["suggested_vehicle_id"] = sorted_vehicles[0]["id"]
+                active = [v for v in vehicles if v.get("active", 1)]
+                result["vehicles"] = await vehicle_refuel_context(self._vehicle_client, active)
+                result["suggested_vehicle_id"] = active[0]["id"] if len(active) == 1 else None
             except Exception as e:
                 logger.warning("Vehicle detection failed: %s", e)
 

@@ -31,7 +31,35 @@ export default function FuelReceiptCard({
   const vehicles = draft.vehicles ?? []
   const suggestedVehicleId = draft.suggested_vehicle_id ?? null
 
-  const [vehicle, setVehicle] = useState<number | ''>(suggestedVehicleId ?? vehicles[0]?.id ?? '')
+  // Derive accounts + categories list
+  const accounts: AccountOption[] = draft.accounts ?? []
+  const categories: Category[] = draft.categories ?? []
+
+  // Initial vehicle: the draft's suggestion, else the only vehicle, else none
+  // (the user must pick — never guessed, decisions.md#operator-not-brain).
+  const initialVehicle: number | '' =
+    suggestedVehicleId ?? (vehicles.length === 1 ? vehicles[0].id : '')
+  const initialVehicleOption = vehicles.find(v => v.id === initialVehicle)
+
+  // Initial account: the draft's suggestion, else the initial vehicle's own
+  // last refuel account (if it still exists), else none.
+  const initialAccountId: string =
+    draft.suggested_account_id
+    || (initialVehicleOption?.default_account_id
+        && accounts.some(a => a.id === initialVehicleOption.default_account_id)
+        ? initialVehicleOption.default_account_id
+        : '')
+
+  // Initial category: the draft's suggestion, else the initial vehicle's own
+  // last refuel category (matched by name — the id differs per path, gotcha 1),
+  // else none.
+  const initialCategory: string =
+    draft.suggested_category_id
+    || (initialVehicleOption?.default_category_name
+        ? categories.find(c => c.name === initialVehicleOption.default_category_name)?.id ?? ''
+        : '')
+
+  const [vehicle, setVehicle] = useState<number | ''>(initialVehicle)
   const [liters, setLiters] = useState(draft.liters?.toString() ?? '')
   const [pricePerL, setPricePerL] = useState(draft.price_per_liter?.toString() ?? '')
   const [total, setTotal] = useState(draft.amount?.toString() ?? '')
@@ -40,14 +68,10 @@ export default function FuelReceiptCard({
   const [missedFill, setMissedFill] = useState(false)
   const [station, setStation] = useState(draft.merchant ?? '')
   const [date, setDate] = useState(draft.date ?? new Date().toISOString().split('T')[0])
-  const [accountId, setAccountId] = useState(draft.accounts[0]?.id ?? '')
-  const [category, setCategory] = useState(draft.suggested_category_id ?? 'Car Costs')
+  const [accountId, setAccountId] = useState(initialAccountId)
+  const [category, setCategory] = useState(initialCategory)
   const [saving, setSaving] = useState(false)
   const [possibleMatch, setPossibleMatch] = useState<NearDuplicateMatch | null>(null)
-
-  // Derive accounts + categories list
-  const accounts: AccountOption[] = draft.accounts ?? []
-  const categories: Category[] = draft.categories ?? []
 
   // ODO validation
   const selectedVehicle = vehicles.find((v: VehicleOption) => v.id === vehicle)
@@ -63,6 +87,10 @@ export default function FuelReceiptCard({
   const litersNum = liters ? parseFloat(liters) : null
   const priceNum = pricePerL ? parseFloat(pricePerL) : null
   const totalNum = total ? parseFloat(total) : null
+
+  // Tank-capacity guard — the same invariant the server enforces at confirm.
+  const maxLiters = selectedVehicle?.max_liters ?? null
+  const litersOverTank = litersNum != null && maxLiters != null && litersNum > maxLiters
 
   // Auto-fill: any two fields → third is calculated
   function handleLitersChange(val: string) {
@@ -90,8 +118,24 @@ export default function FuelReceiptCard({
     }
   }
 
+  // Switching vehicle pulls that vehicle's own last refuel category/account
+  // in as the new defaults; anything it has no history for is left as-is.
+  function handleVehicleChange(value: string) {
+    const id = value === '' ? '' : Number(value)
+    setVehicle(id)
+    const v = vehicles.find(x => x.id === id)
+    if (!v) return
+    if (v.default_category_name) {
+      const match = categories.find(c => c.name === v.default_category_name)
+      if (match) setCategory(match.id)
+    }
+    if (v.default_account_id && accounts.some(a => a.id === v.default_account_id)) {
+      setAccountId(v.default_account_id)
+    }
+  }
+
   async function handleConfirm(opts?: { forceNew?: boolean; attachTo?: string }) {
-    if (!litersNum || !totalNum || !vehicle || !accountId) return
+    if (!litersNum || !totalNum || !vehicle || !accountId || !category || odoBackwards || litersOverTank) return
     // The confirm contract (FuelConfirmRequest.category_name) is the AB display
     // NAME, not the category id — resolve the selected id to its name here.
     const categoryName = categories.find(c => c.id === category)?.name ?? category
@@ -227,9 +271,10 @@ export default function FuelReceiptCard({
             <label className={labelCls}>Vehicle</label>
             <select
               value={vehicle}
-              onChange={e => setVehicle(Number(e.target.value))}
+              onChange={e => handleVehicleChange(e.target.value)}
               className={inputCls}
             >
+              <option value="">Choose vehicle…</option>
               {vehicles.map((v: VehicleOption) => (
                 <option key={v.id} value={v.id}>
                   {v.name}{v.last_odo ? ` (${formatNumber(v.last_odo)} km)` : ''}
@@ -253,6 +298,11 @@ export default function FuelReceiptCard({
               step="0.01"
               min="0"
             />
+            {litersOverTank && (
+              <span className="text-xs text-token-loss">
+                More than the tank holds (~{formatNumber(Math.round(maxLiters!))} L)
+              </span>
+            )}
           </div>
           <div className="flex flex-col gap-1 flex-1">
             <label className={labelCls}>Price/L</label>
@@ -291,7 +341,7 @@ export default function FuelReceiptCard({
             value={odo}
             onChange={e => setOdo(e.target.value)}
             className={inputCls}
-            placeholder="49453"
+            placeholder={selectedVehicle?.last_odo != null ? `last ${formatNumber(selectedVehicle.last_odo)} km` : 'Odometer km'}
           />
           {odoBackwards && (
             <span className="text-xs text-token-loss">
@@ -362,6 +412,7 @@ export default function FuelReceiptCard({
               onChange={e => setAccountId(e.target.value)}
               className={inputCls}
             >
+              <option value="">Choose account…</option>
               {accounts.length > 0 ? (
                 accounts.map((acc: AccountOption) => (
                   <option key={acc.id} value={acc.id}>{acc.name}</option>
@@ -382,6 +433,7 @@ export default function FuelReceiptCard({
               onChange={e => setCategory(e.target.value)}
               className={inputCls}
             >
+              <option value="">Choose category…</option>
               {Object.entries(
                 categories.reduce((groups, cat: Category) => {
                   const g = cat.group_name || 'Other'
@@ -448,7 +500,7 @@ export default function FuelReceiptCard({
             </Button>
             <Button
               onClick={() => handleConfirm()}
-              disabled={saving || !liters || !total || !vehicle || !accountId}
+              disabled={saving || !liters || !total || !vehicle || !accountId || !category || odoBackwards || litersOverTank}
               variant="primary"
               size="sm"
               className="flex-1"

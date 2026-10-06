@@ -13,6 +13,7 @@ from backend.core import pending_proposals
 from backend.core.config import settings
 from backend.core.vehicle_client import VehicleClient, VehicleClientError
 from backend.services.receipt_service import ReceiptService
+from backend.services.refuel_rules import check_refuel_for_confirm
 from backend.tools.finance.actual_budget import fire_budget_alert_check
 
 logger = logging.getLogger(__name__)
@@ -36,8 +37,8 @@ async def confirm_refuel(payload: dict, overrides: dict, confirmed_by: str) -> d
     client = VehicleClient(base_url=settings.vehicle_manager.url)
     service = ReceiptService()
 
-    category_name = pick("category_name", "category_name", "Car Costs")
-    account_id = pick("account_id", "account_id", "")
+    category_name = pick("category_name", "category_name")
+    account_id = pick("account_id", "account_id")
     station = pick("station", "location", "Refuel")
     tx_date = pick("date", "date", _date.today().isoformat())
     vehicle_name = payload.get("vehicle_name", station)
@@ -53,6 +54,18 @@ async def confirm_refuel(payload: dict, overrides: dict, confirmed_by: str) -> d
 
     if not vehicle_id:
         raise ValueError("No vehicle selected")
+    if not category_name:
+        raise ValueError("No category selected")
+    if not account_id:
+        raise ValueError("No account selected")
+
+    # Invariants that reject impossible data (decisions.md#operator-not-brain):
+    # the card's fields are editable, so re-check at confirm time. Raising here
+    # keeps the proposal alive (pending_proposals.confirm only deletes on
+    # success) so the user can correct the card and retry.
+    err = await check_refuel_for_confirm(client, vehicle_id, liters, odo_km)
+    if err:
+        raise ValueError(err)
 
     notes = f"[fuel] {liters}L — {vehicle_name}"
 
