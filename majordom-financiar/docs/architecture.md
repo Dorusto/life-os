@@ -97,6 +97,7 @@ majordom-financiar/
 │   │   ├── chat.py                      ← Chat endpoint + Ollama streaming + _PROPOSAL_TOOLS
 │   │   ├── transactions.py              ← GET /transactions, /accounts, /stats
 │   │   ├── receipts.py                  ← Receipt photo flow (grocery + fuel)
+│   │   ├── proposals.py                 ← POST /proposals/{id}/confirm|cancel (thin wrapper, shared store)
 │   │   ├── vehicle_proposals.py         ← POST /vehicle/proposals/{id}/confirm
 │   │   ├── vehicle_log_actions.py       ← POST /vehicle-log-actions/{id}/confirm|cancel
 │   │   ├── vehicle_reminder_actions.py  ← POST /vehicle-reminder-actions/{id}/confirm|cancel
@@ -104,7 +105,6 @@ majordom-financiar/
 │   ├── tools/
 │   │   ├── registry.py                  ← TOOLS list + execute_tool dispatcher
 │   │   ├── category_actions.py          ← In-memory store for pending category proposals
-│   │   ├── vehicle_proposals.py         ← In-memory store for pending refuel proposals
 │   │   ├── vehicle_log_actions.py       ← In-memory store for pending log deletes
 │   │   ├── vehicle_reminder_actions.py  ← In-memory store for pending reminder proposals
 │   │   └── finance/
@@ -210,7 +210,8 @@ If a tool is missing from `_PROPOSAL_TOOLS` in `backend/api/chat.py`, the JSON g
 `backend/core/pending_proposals.py`: `create(type, payload)` records the creator from
 `backend/core/actor.py` (PWA username or MCP member — set by `chat.py` and `mcp_server.py`),
 expires after 24h, and `confirm`/`reject` only succeed for that same creator. The write lives in a
-handler registered per type (`register_handler`, e.g. `services/refuel_service.py`), never inside a
+handler registered per type (`register_handler`, e.g. `services/refuel_service.py`,
+`services/transaction_service.py`), never inside a
 FastAPI route, so the PWA card, `POST /api/pending-proposals/{id}/confirm` and MCP
 `system__confirm_proposal` all run the same code. In memory on purpose (rule 5); a restart drops
 pending proposals. MCP members come from `MCP_TOKENS` (`member:token,...`) — name members like
@@ -657,7 +658,7 @@ write tools one at a time as each moves onto the shared proposal store (#322).
 |---|---|---|
 | **Read, text result** | `finance__get_accounts`, `get_monthly_stats`, `get_budget_status`, `get_transactions`, `get_untagged_transactions`, `get_transactions_by_tag`, `get_spending_history`, `get_budget_pacing_status`, `get_tag_goal_progress`, `get_unprotected_goals`, `get_reached_goals`, `get_recurring_schedules_summary`, `get_income_classifications`, `get_expense_coverage`, `get_reconciliation_suspects`, `get_uncategorized_groups`, `suggest_category` (#324); `vehicle__list_vehicles`, `get_vehicle_stats`, `get_vehicle_log`; `system__get_backup_status` | **Yes** (#323) |
 | **Read, PWA card/chart result** | `finance__list_transactions`, `list_categories`, `get_budget_overview`, all `*_chart` tools, `get_spending_trend`; `vehicle__get_vehicle_*_chart` | Not yet — the result is card JSON for the PWA; the text-result tools above already answer the same questions |
-| **Write, proposal (shared store)** | `vehicle__log_refuel`; MCP-only `system__confirm_proposal` / `system__reject_proposal` | **Yes** (#322/#328) |
+| **Write, proposal (shared store)** | `vehicle__log_refuel`, `finance__propose_transaction` (#329); MCP-only `system__confirm_proposal` / `system__reject_proposal` | **Yes** (#322/#328) |
 | **Write, proposal card (own store)** | every `*propose_*`, `create/rename/delete_category`, `set_account_goal`, `vehicle__set_*`, `vehicle__delete_vehicle_log_entry`, `system__set_notification_time` | After it moves onto the shared store |
 | **Write, no card** | `finance__sync_accounts` (bank re-sync, same as the Home sync icon) | No — exception to critical rule 5 kept for the PWA only |
 
