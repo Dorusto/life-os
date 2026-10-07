@@ -61,6 +61,7 @@ MCP_TOOLS: frozenset[str] = frozenset({
     "vehicle__log_refuel",
     "finance__propose_transaction",
     "finance__propose_categorize_with_rule",
+    "finance__propose_set_category_budget",
 })
 
 

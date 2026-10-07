@@ -17,6 +17,9 @@ from backend.core.finance.provider import get_provider
 # Imported for its side effect: registers the "categorize_with_rule" handler
 # on the shared pending-proposal store.
 from backend.services import category_rule_service  # noqa: F401
+# Imported for its side effect: registers the "set_budget" handler on the
+# shared pending-proposal store.
+from backend.services import budget_service  # noqa: F401
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -60,8 +63,9 @@ async def confirm_category_action(
     override: GoalOverride = GoalOverride(),
     current_user: str = Depends(get_current_user),
 ):
-    # categorize_with_rule proposals live on the shared pending-proposal store
-    # (so MCP can confirm the same id) — route them there first.
+    # Proposals on the shared pending-proposal store (categorize_with_rule,
+    # set_budget) carry their own id so MCP can confirm the same one — route
+    # them there first.
     if pending_proposals.get(action_id) is not None:
         try:
             return await pending_proposals.confirm(
@@ -120,20 +124,6 @@ async def confirm_category_action(
             monthly_needed = calc_monthly_needed(target, balance, deadline)
             action_store.delete(action_id)
             return {"message": message, "monthly_needed": monthly_needed}
-        elif action["action"] == "set_budget":
-            from datetime import date as _date
-            new_amount = override.amount if override.amount is not None else action["new_amount"]
-            month_str = action.get("month")
-            month = _date.fromisoformat(month_str).replace(day=1) if month_str else None
-            result = await client.set_budget_amount(
-                category_name=action["category_name"],
-                new_amount=new_amount,
-                month=month,
-            )
-            message = (
-                f"Budget updated: {result['category_name']} "
-                f"€{result['old_amount']:.2f} → €{result['new_amount']:.2f}"
-            )
         elif action["action"] == "budget_copy":
             from datetime import date as _date
             target_month_str = action["target_month"]
@@ -444,14 +434,26 @@ async def propose_savings_budget(
     """Chained follow-up after a savings goal is set — reuses propose_set_category_budget
     against the "Savings" category (see #76: offer to top up the budget by monthly_needed)."""
     import json
+    from backend.core.actor import set_actor
     from backend.tools.finance.actual_budget import propose_set_category_budget
 
-    result = await propose_set_category_budget(
+    # propose_set_category_budget stores the proposal with created_by=None, so
+    # the request-scoped creator must be set here (the chat endpoint sets it
+    # itself; this route is called directly by the frontend).
+    set_actor(current_user)
+    result = json.loads(await propose_set_category_budget(
         category_name="Savings",
         amount=body.amount,
         month=body.month or "",
-    )
-    return json.loads(result)
+    ))
+    # needs_input is not a card — the frontend caller (proposeSavingsBudget)
+    # only knows "error" vs a card.
+    if result.get("type") == "needs_input":
+        return {
+            "type": "error",
+            "message": result.get("message", "Savings category not found."),
+        }
+    return result
 
 
 class CategoryOverviewApply(BaseModel):
@@ -578,7 +580,8 @@ async def cancel_category_action(
     action_id: str,
     current_user: str = Depends(get_current_user),
 ):
-    # categorize_with_rule proposals live on the shared pending-proposal store.
+    # Proposals on the shared pending-proposal store (categorize_with_rule,
+    # set_budget) — reject through the store so the same id works from MCP.
     if pending_proposals.get(action_id) is not None:
         try:
             await pending_proposals.reject(action_id, rejected_by=current_user)

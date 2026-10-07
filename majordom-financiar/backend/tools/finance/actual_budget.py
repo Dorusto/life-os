@@ -1299,10 +1299,8 @@ async def propose_set_category_budget(
     Does NOT write to Actual Budget yet.
     """
     import json
-    import uuid
-    from difflib import get_close_matches
     from datetime import date as _date
-    from backend.tools import category_actions as action_store
+    from backend.core import pending_proposals
 
     today = _date.today()
     if month:
@@ -1310,7 +1308,13 @@ async def propose_set_category_budget(
             year, m = int(month[:4]), int(month[5:7])
             target_month = _date(year, m, 1)
         except (ValueError, IndexError):
-            target_month = today.replace(day=1)
+            # Never silently fall back to the current month — a budget set for
+            # the wrong month is worse than asking (decisions.md#operator-not-brain).
+            return json.dumps({
+                "type": "needs_input",
+                "missing": ["month"],
+                "message": f"Invalid month {month!r} — expected YYYY-MM.",
+            })
     else:
         target_month = today.replace(day=1)
 
@@ -1320,13 +1324,15 @@ async def propose_set_category_budget(
         year=target_month.year,
     )
 
+    # Exact case-insensitive match against the real category names only — never
+    # a fuzzy guess (decisions.md#operator-not-brain). No match → ask the user.
     all_names = [item["category_name"] for item in budget_status]
-    exact = next((n for n in all_names if n.lower() == category_name.lower()), None)
-    resolved = exact or (get_close_matches(category_name, all_names, n=1, cutoff=0.6) or [None])[0]
+    resolved = next((n for n in all_names if n.lower() == category_name.lower()), None)
 
     if not resolved:
         return json.dumps({
-            "type": "error",
+            "type": "needs_input",
+            "missing": ["category"],
             "message": f"Category not found: {category_name!r}. Available: {', '.join(all_names)}",
         })
 
@@ -1335,14 +1341,12 @@ async def propose_set_category_budget(
         0.0,
     )
 
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {
-        "action": "set_budget",
+    action_id = pending_proposals.create("set_budget", {
         "category_name": resolved,
         "new_amount": amount,
         "current_amount": current_amount,
         "month": target_month.isoformat(),
-    })
+    }, created_by=None)
 
     return json.dumps({
         "type": "category_action",
