@@ -21,13 +21,26 @@ from backend.services import category_rule_service  # noqa: F401
 # "budget_rebalance" and "set_budget_carryover" handlers on the shared
 # pending-proposal store.
 from backend.services import budget_service  # noqa: F401
-# Imported for its side effect: registers the "set_category_goal" and "set_goal"
-# handlers on the shared pending-proposal store.
+# Imported for its side effect: registers the "set_category_goal", "set_goal",
+# "set_tag_goal" and "clear_reached_goals" handlers on the shared
+# pending-proposal store.
 from backend.services import goal_service  # noqa: F401
 # Imported for its side effect: registers the "category_create",
 # "category_rename" and "category_delete" handlers on the shared
 # pending-proposal store.
 from backend.services import category_structure_service  # noqa: F401
+# Imported for its side effect: registers the "set_fire_model" handler on the
+# shared pending-proposal store.
+from backend.services import fire_service  # noqa: F401
+# Imported for its side effect: registers the "classify_income" handler on the
+# shared pending-proposal store.
+from backend.services import income_classification_service  # noqa: F401
+# Imported for its side effect: registers the "tag_transaction" handler on the
+# shared pending-proposal store.
+from backend.services import transaction_tag_service  # noqa: F401
+# Imported for its side effect: registers the "bank_resync" handler on the
+# shared pending-proposal store.
+from backend.services import bank_sync_service  # noqa: F401
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -73,9 +86,10 @@ async def confirm_category_action(
 ):
     # Proposals on the shared pending-proposal store (categorize_with_rule,
     # set_budget, budget_copy, budget_rebalance, set_budget_carryover,
-    # set_category_goal, set_goal, category_create, category_rename,
-    # category_delete) carry their own id so MCP can confirm the same one —
-    # route them there first.
+    # set_category_goal, set_goal, set_tag_goal, clear_reached_goals,
+    # set_fire_model, classify_income, tag_transaction, bank_resync,
+    # category_create, category_rename, category_delete) carry their own id so
+    # MCP can confirm the same one — route them there first.
     if pending_proposals.get(action_id) is not None:
         try:
             return await pending_proposals.confirm(
@@ -103,107 +117,7 @@ async def confirm_category_action(
     client = get_provider()
     errors: list[str] = []
     try:
-        if action["action"] == "classify_income":
-            cat_name = override.category_name or action["category_name"]
-            income_type = override.income_type or action["income_type"]
-            await client.set_income_classification(cat_name, income_type)
-            message = f"'{cat_name}' classified as {income_type} income."
-        elif action["action"] == "set_tag_goal":
-            # Aliased local import: `set_fire_model` below also locally imports
-            # MemoryDB/settings (unaliased), which makes those names local to
-            # the whole function — a bare `MemoryDB`/`settings` reference here
-            # would raise UnboundLocalError since this branch runs first.
-            import json as _json
-            from backend.core.memory.database import MemoryDB as _MemoryDB
-            from backend.core.config import settings as _settings
-
-            tag_name = override.tag or action["tag"]
-            total_amount = override.amount if override.amount is not None else action["total_amount"]
-            by_month = override.by_month if override.by_month is not None else action["by_month"]
-            db = _MemoryDB(_settings.memory.db_path)
-            db.set_preference(
-                f"tag_goal:{tag_name.lower()}",
-                _json.dumps({"total_amount": total_amount, "by_month": by_month}),
-            )
-            message = f"Goal set for #{tag_name}: €{total_amount:.2f} by {by_month}."
-        elif action["action"] == "clear_reached_goals":
-            # Constrain any override to the already-verified reached-goal names
-            # stored at propose time (propose_clear_reached_goals re-checks
-            # each name against get_reached_goal_categories() before storing
-            # them) — don't let the confirm step re-open that check to an
-            # unverified name.
-            valid_names = set(action["category_names"])
-            names = (
-                [n for n in override.selected_category_names if n in valid_names]
-                if override.selected_category_names is not None
-                else action["category_names"]
-            )
-            cleared = []
-            errors = []
-            for name in names:
-                try:
-                    await client.clear_category_goal_template(name)
-                    cleared.append(name)
-                except Exception as e:
-                    logger.warning("Failed to clear goal template for '%s': %s", name, e)
-                    errors.append(name)
-            if cleared:
-                message = f"Goal template cleared for: {', '.join(cleared)}."
-                if errors:
-                    message += f" Failed for: {', '.join(errors)}."
-            else:
-                message = "No categories selected." if not names else f"Failed to clear: {', '.join(errors)}."
-        elif action["action"] == "bank_resync":
-            acc_name = action["account_name"]
-            count = await client.run_bank_resync(acc_name)
-            message = f"Resynced '{acc_name}' — {count} new transaction{'s' if count != 1 else ''} imported."
-        elif action["action"] == "set_fire_model":
-            import json
-            from backend.core.config import settings
-            from backend.core.memory.database import MemoryDB
-
-            # Merge override values onto the proposed "new" values
-            merged = dict(action["new"])
-            if override.years_to_transition is not None:
-                merged["years_to_transition"] = override.years_to_transition
-            if override.years_in_retirement is not None:
-                merged["years_in_retirement"] = override.years_in_retirement
-            if override.monthly_contribution is not None:
-                merged["monthly_contribution"] = override.monthly_contribution
-            if override.accumulation_return is not None:
-                merged["accumulation_return"] = override.accumulation_return
-            if override.decumulation_return is not None:
-                merged["decumulation_return"] = override.decumulation_return
-            if override.desired_monthly_spend is not None:
-                merged["desired_monthly_spend"] = override.desired_monthly_spend
-
-            db = MemoryDB(settings.memory.db_path)
-            db.set_preference("fire_model", json.dumps(merged))
-
-            # Build a summary of what changed
-            current = action["current"]
-            changed_parts = []
-            for key in ("years_to_transition", "years_in_retirement", "monthly_contribution",
-                        "accumulation_return", "decumulation_return", "desired_monthly_spend"):
-                old_val = current.get(key)
-                new_val = merged[key]
-                if old_val != new_val:
-                    if key in ("accumulation_return", "decumulation_return"):
-                        changed_parts.append(f"{key.replace('_', ' ')} {old_val*100:.0f}% → {new_val*100:.0f}%")
-                    elif key == "desired_monthly_spend":
-                        changed_parts.append(f"desired monthly spend €{old_val:.0f} → €{new_val:.0f}")
-                    elif key == "monthly_contribution":
-                        changed_parts.append(f"monthly contribution €{old_val:.0f} → €{new_val:.0f}")
-                    elif key == "years_to_transition":
-                        changed_parts.append(f"horizon {old_val:.0f}y → {new_val:.0f}y")
-                    elif key == "years_in_retirement":
-                        changed_parts.append(f"retirement {old_val:.0f}y → {new_val:.0f}y")
-
-            if changed_parts:
-                message = "FIRE assumptions updated: " + ", ".join(changed_parts) + "."
-            else:
-                message = "No changes made."
-        elif action["action"] == "merge_duplicate":
+        if action["action"] == "merge_duplicate":
             payee_id = None
             category_id = None
             if override.duplicate_payee:
@@ -273,10 +187,6 @@ async def confirm_category_action(
                 f"bank-sync entry, kept the linked transfer. {result['account_name']} balance: "
                 f"€{result['balance_before']:.2f} → €{result['balance_after']:.2f}."
             )
-        elif action["action"] == "tag_transaction":
-            tag = override.tag or action["tag"]
-            await client.add_transaction_tag(action["transaction_id"], tag)
-            message = f"Tagged transaction with '{tag}'."
         elif action["action"] == "mark_reconciled":
             count = await client.mark_account_reconciled(action["account_id"])
             message = f"Marked {count} transaction(s) reconciled for '{action['account_name']}'."
@@ -509,8 +419,10 @@ async def cancel_category_action(
 ):
     # Proposals on the shared pending-proposal store (categorize_with_rule,
     # set_budget, budget_copy, budget_rebalance, set_budget_carryover,
-    # set_category_goal, set_goal, category_create, category_rename,
-    # category_delete) — reject through the store so the same id works from MCP.
+    # set_category_goal, set_goal, set_tag_goal, clear_reached_goals,
+    # set_fire_model, classify_income, tag_transaction, bank_resync,
+    # category_create, category_rename, category_delete) — reject through the
+    # store so the same id works from MCP.
     if pending_proposals.get(action_id) is not None:
         try:
             await pending_proposals.reject(action_id, rejected_by=current_user)

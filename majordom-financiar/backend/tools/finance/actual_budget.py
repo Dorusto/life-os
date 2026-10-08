@@ -1636,9 +1636,7 @@ async def propose_classify_income(category_name: str, income_type: str) -> str:
     (decisions.md#coach-not-consultant).
     """
     import json
-    import uuid
-    from difflib import get_close_matches
-    from backend.tools import category_actions as action_store
+    from backend.core import pending_proposals
 
     canonical = None
     for t in ("passive", "semi-passive", "active"):
@@ -1647,7 +1645,8 @@ async def propose_classify_income(category_name: str, income_type: str) -> str:
             break
     if canonical is None:
         return json.dumps({
-            "type": "error",
+            "type": "needs_input",
+            "missing": ["income_type"],
             "message": f"Invalid income_type: {income_type!r}. Must be one of passive, semi-passive, active.",
         })
 
@@ -1655,23 +1654,23 @@ async def propose_classify_income(category_name: str, income_type: str) -> str:
     cats = await client.get_categories()
     income_cats = [c for c in cats if c.is_income]
     cat_names = [c.name for c in income_cats]
-    exact = next((n for n in cat_names if n.lower() == category_name.lower()), None)
-    resolved = exact or (get_close_matches(category_name, cat_names, n=1, cutoff=0.6) or [None])[0]
+    # Exact case-insensitive match only — never a fuzzy guess
+    # (decisions.md#operator-not-brain). No match → ask the user.
+    resolved = next((n for n in cat_names if n.lower() == category_name.lower()), None)
     if not resolved:
         return json.dumps({
-            "type": "error",
+            "type": "needs_input",
+            "missing": ["category_name"],
             "message": f"Income category not found: {category_name!r}. Available income categories: {', '.join(cat_names) or 'none'}.",
         })
 
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {
-        "action": "classify_income",
+    proposal_id = pending_proposals.create("classify_income", {
         "category_name": resolved,
         "income_type": canonical,
-    })
+    }, created_by=None)
     return json.dumps({
         "type": "category_action",
-        "id": action_id,
+        "id": proposal_id,
         "action": "classify_income",
         "category_name": resolved,
         "income_type": canonical,
@@ -1782,30 +1781,37 @@ async def propose_set_tag_goal(tag: str, total_amount: float, by_month: str) -> 
     Budget remains the source of truth for the transactions themselves).
     """
     import json as _json
-    import uuid
-    from backend.tools import category_actions as action_store
+    from backend.core import pending_proposals
     from backend.core.config import settings
     from backend.core.memory.database import MemoryDB
 
     clean_tag = tag.lstrip("#").strip()
     if not clean_tag:
-        return json.dumps({"type": "error", "message": "A tag name is required."})
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["tag"],
+            "message": "A tag name is required.",
+        })
+    if total_amount <= 0:
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["total_amount"],
+            "message": "The goal amount must be positive.",
+        })
 
     db = MemoryDB(settings.memory.db_path)
     existing_raw = db.get_preference(f"tag_goal:{clean_tag.lower()}")
     current = _json.loads(existing_raw) if existing_raw else None
 
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {
-        "action": "set_tag_goal",
+    proposal_id = pending_proposals.create("set_tag_goal", {
         "tag": clean_tag,
         "total_amount": total_amount,
         "by_month": by_month,
-    })
+    }, created_by=None)
 
     return json.dumps({
         "type": "category_action",
-        "id": action_id,
+        "id": proposal_id,
         "action": "set_tag_goal",
         "tag": clean_tag,
         "amount": total_amount,
@@ -1906,12 +1912,12 @@ async def propose_clear_reached_goals(category_names: list[str]) -> str:
     that no longer show up as reached (e.g. already cleaned up) are silently
     skipped rather than erroring.
     """
-    import uuid
-    from backend.tools import category_actions as action_store
+    from backend.core import pending_proposals
 
     if not category_names:
         return json.dumps({
-            "type": "error",
+            "type": "needs_input",
+            "missing": ["category_names"],
             "message": "No category names provided to clean up.",
         })
 
@@ -1928,20 +1934,22 @@ async def propose_clear_reached_goals(category_names: list[str]) -> str:
             names_to_clear.append(match["category_name"])
 
     if not names_to_clear:
+        message = "None of the given categories currently have a reached goal to clean up."
+        if reached:
+            message += f" Currently reached: {', '.join(r['category_name'] for r in reached)}."
         return json.dumps({
-            "type": "error",
-            "message": "None of the given categories currently have a reached goal to clean up.",
+            "type": "needs_input",
+            "missing": ["category_names"],
+            "message": message,
         })
 
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {
-        "action": "clear_reached_goals",
+    proposal_id = pending_proposals.create("clear_reached_goals", {
         "category_names": names_to_clear,
-    })
+    }, created_by=None)
 
     return json.dumps({
         "type": "category_action",
-        "id": action_id,
+        "id": proposal_id,
         "action": "clear_reached_goals",
         "reached_categories": reached_categories,
     })
@@ -1962,8 +1970,7 @@ async def propose_set_fire_model(
     all 6 current values and the proposed new values — does NOT write yet.
     """
     import json
-    import uuid
-    from backend.tools import category_actions as action_store
+    from backend.core import pending_proposals
     from backend.core.finance.fire import load_fire_model
 
     current = load_fire_model()
@@ -1984,17 +1991,15 @@ async def propose_set_fire_model(
     if desired_monthly_spend is not None:
         new["desired_monthly_spend"] = desired_monthly_spend
 
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {
-        "action": "set_fire_model",
+    proposal_id = pending_proposals.create("set_fire_model", {
         "current": current,
         "new": new,
-    })
+    }, created_by=None)
 
     return json.dumps({
         "type": "category_action",
         "action": "set_fire_model",
-        "id": action_id,
+        "id": proposal_id,
         "current": current,
         "new": new,
     })
@@ -2007,20 +2012,18 @@ async def propose_bank_resync(account_name: str) -> str:
     bank. Returns a confirmation card — does NOT sync yet.
     """
     import json
-    import uuid
-    from difflib import get_close_matches
-    from backend.tools import category_actions as action_store
+    from backend.core import pending_proposals
 
     client = get_provider()
     accounts = await client.get_account_sync_status()
     names = [a["name"] for a in accounts]
+    # Exact case-insensitive match only — never a fuzzy guess
+    # (decisions.md#operator-not-brain). No match → ask the user.
     exact = next((a for a in accounts if a["name"].lower() == account_name.lower()), None)
     if not exact:
-        close = get_close_matches(account_name, names, n=1, cutoff=0.6)
-        exact = next((a for a in accounts if a["name"] == close[0]), None) if close else None
-    if not exact:
         return json.dumps({
-            "type": "error",
+            "type": "needs_input",
+            "missing": ["account_name"],
             "message": f"Account not found: {account_name!r}. Available: {', '.join(names)}",
         })
     if not exact["sync_source"]:
@@ -2029,14 +2032,12 @@ async def propose_bank_resync(account_name: str) -> str:
             "message": f"'{exact['name']}' has no live bank link — it's a manual/CSV account, re-sync doesn't apply.",
         })
 
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {
-        "action": "bank_resync",
+    proposal_id = pending_proposals.create("bank_resync", {
         "account_name": exact["name"],
-    })
+    }, created_by=None)
     return json.dumps({
         "type": "category_action",
-        "id": action_id,
+        "id": proposal_id,
         "action": "bank_resync",
         "account_name": exact["name"],
         "last_sync": exact["last_sync"],
@@ -2236,25 +2237,26 @@ async def propose_tag_transaction(transaction_id: str, tag: str) -> str:
     transaction_id is the row `id` shown by finance__get_transactions or
     finance__get_untagged_transactions (e.g. "id: 3f9a2..."), not financial_id.
     """
-    import uuid
-    from backend.tools import category_actions as action_store
+    from backend.core import pending_proposals
 
     client = get_provider()
     tx = await client.get_transaction_by_id(transaction_id)
     if not tx:
-        return json.dumps({"type": "error", "message": f"Transaction not found: {transaction_id!r}"})
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["transaction_id"],
+            "message": f"Transaction not found: {transaction_id!r}",
+        })
 
     tag_pattern = tag if tag.startswith("#") else f"#{tag}"
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {
-        "action": "tag_transaction",
+    proposal_id = pending_proposals.create("tag_transaction", {
         "transaction_id": transaction_id,
         "tag": tag_pattern,
-    })
+    }, created_by=None)
     return json.dumps({
         "type": "category_action",
         "action": "tag_transaction",
-        "id": action_id,
+        "id": proposal_id,
         "transaction_id": transaction_id,
         "tag": tag_pattern,
         "date": tx["date"],
