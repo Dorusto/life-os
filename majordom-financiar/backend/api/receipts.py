@@ -37,6 +37,7 @@ from backend.core.finance.provider import get_provider
 from backend.core.vehicle_client import VehicleClient, VehicleClientError
 from backend.services.receipt_service import ReceiptService
 from backend.services.refuel_rules import check_refuel_for_confirm
+from backend.services.refuel_service import interval_consumption
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -524,7 +525,6 @@ async def confirm_fuel_receipt(
 
     # Step 4: Calculate post-confirm stats
     km_since_last = None
-    consumption_l100km = None
     cost_per_km = None
     odo_warning = False
 
@@ -536,16 +536,14 @@ async def confirm_fuel_receipt(
         if km_since_last > 0:
             cost_per_km = round(request.total_eur / km_since_last, 4)
 
-        # Consumption only if both entries are full_tank and not missed_fill
-        if (
-            request.full_tank
-            and not request.missed_fill
-            and last_entry
-            and last_entry.get("fuel_full_tank")
-            and not last_entry.get("fuel_missed")
-            and km_since_last > 0
-        ):
-            consumption_l100km = round(request.liters / km_since_last * 100, 1)
+    # Consumption comes from vehicle-manager's full-tank-to-full-tank interval
+    # (partial fills counted, missed fills skipped) so the reply matches the
+    # stats and charts. None for a partial or missed fill. The log entry was
+    # inserted in Step 3, so the interval exists by now.
+    consumption_l100km = await interval_consumption(
+        vehicle_client, request.vehicle_id, request.date,
+        request.full_tank, request.missed_fill,
+    )
 
     # Cleanup the image after successful processing
     try:

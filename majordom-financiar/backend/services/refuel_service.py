@@ -19,6 +19,47 @@ from backend.tools.finance.actual_budget import fire_budget_alert_check
 logger = logging.getLogger(__name__)
 
 
+async def interval_consumption(
+    client: VehicleClient,
+    vehicle_id: int,
+    fill_date: str,
+    full_tank: bool,
+    missed_fill: bool,
+) -> float | None:
+    """Return the L/100km vehicle-manager computed for the interval this fill
+    closes, or None when this fill doesn't close one (partial/missed fill) or
+    the chart can't be read.
+
+    vehicle-manager owns the full-tank-to-full-tank formula (partial fills
+    between two full tanks are counted, missed fills skip the interval), so
+    the reply must read its number instead of recomputing one here — otherwise
+    the reply can disagree with the stats and charts.
+    """
+    if not full_tank or missed_fill:
+        return None
+    day = fill_date[:10]
+    try:
+        chart = await client.get_consumption_chart(
+            vehicle_id, months=0, start_date=day, end_date=day
+        )
+        points = chart["data"]["series"][0]["points"]
+        if not points:
+            return None
+        return points[-1].get("y")
+    except VehicleClientError as e:
+        logger.warning(
+            "consumption chart lookup failed for vehicle %s on %s: %s",
+            vehicle_id, day, e,
+        )
+        return None
+    except (KeyError, IndexError, TypeError, AttributeError) as e:
+        logger.warning(
+            "unexpected consumption chart shape for vehicle %s on %s: %s",
+            vehicle_id, day, e,
+        )
+        return None
+
+
 async def confirm_refuel(payload: dict, overrides: dict, confirmed_by: str) -> dict:
     """Execute a confirmed refuel proposal.
 
@@ -143,14 +184,18 @@ async def confirm_refuel(payload: dict, overrides: dict, confirmed_by: str) -> d
         }
 
     km_since_last = None
-    consumption_l100km = None
     cost_per_km = None
 
     if vehicle_id and odo_km and last_odo is not None:
         km_since_last = odo_km - last_odo
         if km_since_last > 0:
-            consumption_l100km = round((liters / km_since_last) * 100, 1)
             cost_per_km = round(total_eur / km_since_last, 3)
+
+    # Consumption comes from vehicle-manager's interval (the entry is already
+    # inserted above), so the reply matches the stats and charts.
+    consumption_l100km = await interval_consumption(
+        client, vehicle_id, tx_date, full_tank, missed_fill
+    )
 
     return {
         "success": True,
