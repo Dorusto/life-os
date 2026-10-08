@@ -357,9 +357,65 @@ def get_last_fuel_entry(vehicle_id: int, db_path: str | None = None) -> dict | N
 # Stats
 # ---------------------------------------------------------------------------
 
+def fuel_intervals_from_rows(rows: list[dict]) -> list[dict]:
+    """Full-tank-to-full-tank fuel intervals from already-loaded fuel rows.
+
+    Standard full-tank method (as Fuelio): for each pair of consecutive
+    full-tank fills, litres = sum of ``fuel_liters`` of every fuel entry
+    after the earlier full fill up to and including the later full fill
+    (partial fills in between included); distance = odometer difference of
+    the two full fills. An interval containing a missed fill-up is skipped
+    (its litres are unknown), but the closing fill still starts the next
+    interval.
+
+    ``rows`` are fuel entries; only those with an ``odo_km`` are considered.
+    Returns dicts with ``date``, ``distance_km``, ``liters`` and
+    ``consumption`` (L/100km). Shared by the stats endpoint and the charts.
+    """
+    ordered = sorted(
+        (r for r in rows if r.get("odo_km") is not None),
+        key=lambda r: (r.get("date") or "", r.get("odo_km") or 0),
+    )
+
+    intervals: list[dict] = []
+    prev_full: dict | None = None
+    liters_since = 0.0
+    missed_since = False
+
+    for row in ordered:
+        liters_since += float(row.get("fuel_liters") or 0)
+        if row.get("fuel_missed"):
+            missed_since = True
+
+        is_full = bool(row.get("fuel_full_tank")) and row.get("fuel_liters") is not None
+        if not is_full:
+            continue
+
+        if prev_full is not None:
+            distance = float(row["odo_km"]) - float(prev_full["odo_km"])
+            if distance > 0 and not missed_since:
+                intervals.append({
+                    "date": (row.get("date") or "")[:10],
+                    "distance_km": distance,
+                    "liters": liters_since,
+                    "consumption": liters_since / distance * 100,
+                })
+
+        prev_full = row
+        liters_since = 0.0
+        missed_since = False
+
+    return intervals
+
+
 def get_vehicle_stats_data(vehicle_id: int, period: str = "",
                            db_path: str | None = None) -> dict:
     """Compute vehicle stats. Mirrors `get_vehicle_stats` logic from vehicle.py.
+
+    Fuel totals count every fuel entry in the period (full and partial);
+    ``avg_consumption`` follows the full-tank-to-full-tank method via
+    ``fuel_intervals_from_rows`` (partial fills between two full tanks are
+    included in the interval's litres).
 
     Returns structured JSON (not formatted text):
         profile, fill_count, total_liters, total_fuel_cost, total_distance,
@@ -375,42 +431,40 @@ def get_vehicle_stats_data(vehicle_id: int, period: str = "",
             return {}
         profile_dict = dict(profile)
 
-        # Period filter
-        period_clause = ""
-        params: list = [vehicle_id]
-        if period:
-            if len(period) == 7:  # YYYY-MM
-                period_clause = "AND substr(date, 1, 7) = ?"
-                params.append(period)
-            elif len(period) == 4:  # YYYY
-                period_clause = "AND substr(date, 1, 4) = ?"
-                params.append(period)
+        # Every fuel entry (full and partial) so the interval walk sees the
+        # partial fills too; the period filter is applied in Python below.
+        fuel_rows = [
+            dict(r) for r in conn.execute("""
+                SELECT date, odo_km, fuel_liters, fuel_full_tank, fuel_missed, cost_total
+                FROM vehicle_log
+                WHERE entry_type = 'fuel'
+                  AND vehicle_id = ?
+                ORDER BY date, odo_km
+            """, (vehicle_id,)).fetchall()
+        ]
 
-        # Fuel stats
-        fuel_rows = conn.execute(f"""
-            SELECT
-                COUNT(*) as fill_count,
-                SUM(fuel_liters) as total_liters,
-                SUM(cost_total) as total_fuel_cost,
-                MAX(odo_km) as max_odo,
-                MIN(odo_km) as min_odo
-            FROM vehicle_log
-            WHERE entry_type = 'fuel'
-              AND fuel_full_tank = 1
-              AND fuel_missed = 0
-              AND fuel_liters IS NOT NULL
-              AND vehicle_id = ?
-              {period_clause}
-        """, params).fetchone()
+        def _in_period(date_str: str | None) -> bool:
+            return not period or (date_str or "").startswith(period)
 
-        fill_count = fuel_rows["fill_count"] or 0
-        total_liters = float(fuel_rows["total_liters"] or 0.0)
-        total_fuel_cost = float(fuel_rows["total_fuel_cost"] or 0.0)
-        max_odo = fuel_rows["max_odo"] or 0
-        min_odo = fuel_rows["min_odo"] or 0
-        total_distance = max_odo - min_odo if max_odo > min_odo else 0
+        period_fuel = [r for r in fuel_rows if _in_period(r.get("date"))]
 
-        avg_consumption = round(total_liters / total_distance * 100, 1) if total_distance > 0 else None
+        fill_count = len(period_fuel)
+        total_liters = sum(float(r.get("fuel_liters") or 0) for r in period_fuel)
+        total_fuel_cost = sum(float(r.get("cost_total") or 0) for r in period_fuel)
+
+        odos = [float(r["odo_km"]) for r in period_fuel if r.get("odo_km") is not None]
+        total_distance = max(odos) - min(odos) if len(odos) >= 2 and max(odos) > min(odos) else 0
+
+        intervals = [
+            iv for iv in fuel_intervals_from_rows(fuel_rows)
+            if _in_period(iv["date"])
+        ]
+        interval_liters = sum(iv["liters"] for iv in intervals)
+        interval_distance = sum(iv["distance_km"] for iv in intervals)
+        avg_consumption = (
+            round(interval_liters / interval_distance * 100, 1)
+            if interval_distance > 0 else None
+        )
         cost_per_km = round(total_fuel_cost / total_distance, 3) if total_distance > 0 else None
 
         # Other costs

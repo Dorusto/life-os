@@ -21,8 +21,9 @@ def get_fuel_intervals(
 ) -> list[dict]:
     """Return one entry per full-tank-to-full-tank fill-up interval.
 
-    Same algorithm as the original ``_get_fuel_intervals`` in
-    majordom-financiar, but reads from the local database instead of via HTTP.
+    The interval walk lives in ``database.fuel_intervals_from_rows`` so the
+    stats endpoint and the charts share one implementation; partial fill-ups
+    between two full tanks are included in the interval's litres.
 
     Each returned dict:
         {"date": iso date of the later fill-up, "distance_km": float,
@@ -31,44 +32,30 @@ def get_fuel_intervals(
     rows = database.get_vehicle_log(
         vehicle_id, limit=500, entry_type="fuel", db_path=db_path
     )
-    full_tank_rows = sorted(
-        (
-            r
-            for r in rows
-            if r.get("fuel_full_tank") and r.get("odo_km") and r.get("fuel_liters")
-        ),
-        key=lambda r: r.get("date") or "",
-    )
+    intervals = database.fuel_intervals_from_rows(rows)
+
     if start_date or end_date:
         cutoff_start, cutoff_end = start_date, end_date
     else:
         cutoff_start, cutoff_end = None, None
-        if months > 0 and full_tank_rows:
-            latest = (full_tank_rows[-1].get("date") or "")[:10]
-            if latest:
-                cutoff_start = (
-                    date.fromisoformat(latest) - timedelta(days=months * 30)
-                ).isoformat()
+        if months > 0:
+            full_tank_dates = [
+                (r.get("date") or "")[:10]
+                for r in rows
+                if r.get("fuel_full_tank") and r.get("odo_km") and r.get("fuel_liters")
+            ]
+            if full_tank_dates:
+                latest = max(full_tank_dates)
+                if latest:
+                    cutoff_start = (
+                        date.fromisoformat(latest) - timedelta(days=months * 30)
+                    ).isoformat()
 
-    intervals = []
-    for prev, curr in zip(full_tank_rows, full_tank_rows[1:]):
-        distance = curr["odo_km"] - prev["odo_km"]
-        if distance <= 0:
-            continue
-        x = (curr.get("date") or "")[:10]
-        if cutoff_start and x < cutoff_start:
-            continue
-        if cutoff_end and x > cutoff_end:
-            continue
-        intervals.append(
-            {
-                "date": x,
-                "distance_km": distance,
-                "liters": curr["fuel_liters"],
-                "consumption": curr["fuel_liters"] / distance * 100,
-            }
-        )
-    return intervals
+    return [
+        iv for iv in intervals
+        if not (cutoff_start and iv["date"] < cutoff_start)
+        and not (cutoff_end and iv["date"] > cutoff_end)
+    ]
 
 
 def _monthly_range(vehicle_id: int, months: int, db_path: str | None = None) -> list[dict]:
