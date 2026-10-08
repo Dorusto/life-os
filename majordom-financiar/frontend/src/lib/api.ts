@@ -1153,15 +1153,14 @@ export async function confirmBalanceAdjustment(
   id: string,
   override?: { real_balance?: number }
 ): Promise<{ message: string }> {
-  return abRequest(`/balance-adjustments/${id}/confirm`, {
+  return abRequest(`/pending-proposals/${id}/confirm`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(override ?? {}),
+    body: JSON.stringify({ overrides: override ?? {} }),
   })
 }
 
-export async function cancelBalanceAdjustment(id: string): Promise<void> {
-  return request<void>(`/balance-adjustments/${id}/cancel`, { method: 'POST' })
+export async function rejectBalanceAdjustment(id: string): Promise<void> {
+  return request<void>(`/pending-proposals/${id}/reject`, { method: 'POST' })
 }
 
 // --- Transfer Conversion ---

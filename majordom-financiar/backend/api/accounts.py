@@ -8,7 +8,10 @@ from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
 from backend.core.finance.provider import get_provider
+# Side-effect imports: each registers its proposal type's confirm handler on
+# the shared pending-proposal store at import time.
 from backend.services import account_transfer_service  # noqa: F401
+from backend.services import balance_adjustment_service  # noqa: F401
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { confirmBalanceAdjustment, cancelBalanceAdjustment, type BalanceAdjustmentData } from '../lib/api'
+import { confirmBalanceAdjustment, rejectBalanceAdjustment, type BalanceAdjustmentData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
 import { formatCurrency } from '../lib/formatCurrency'
 import { Card } from './kit/Card'
@@ -34,8 +34,10 @@ export default function BalanceAdjustmentCard({ data, onConfirmed, onCancelled }
   async function handleCancel() {
     setLoading(true)
     try {
-      await cancelBalanceAdjustment(data.id)
-    } catch {}
+      await rejectBalanceAdjustment(data.id)
+    } catch (err) {
+      console.warn('Failed to reject balance adjustment proposal', err)
+    }
     onCancelled()
   }
 

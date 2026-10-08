@@ -1050,10 +1050,12 @@ async def propose_account_transfer(
 
 def _match_account(accounts: list, account_name: str):
     """
-    Resolve a user-provided account name to an Account: exact (case-insensitive)
-    first, then partial substring. Retries after stripping a trailing " account"
-    word — LLMs often pass the whole phrase ("test account") when the account is
-    just named "test". Returns the matched Account or None.
+    Resolve a user-provided account name to an Account by exact
+    (case-insensitive) match only — never a partial substring guess
+    (decisions.md#operator-not-brain). Retries after stripping a trailing
+    " account" word — LLMs often pass the whole phrase ("test account") when
+    the account is just named "test"; that is deterministic normalisation, not
+    a guess. Returns the matched Account or None.
     """
     queries = [account_name.lower().strip()]
     if queries[0].endswith(" account"):
@@ -1062,9 +1064,6 @@ def _match_account(accounts: list, account_name: str):
         if not q:
             continue
         matched = next((a for a in accounts if a.name.lower() == q), None)
-        if matched:
-            return matched
-        matched = next((a for a in accounts if q in a.name.lower()), None)
         if matched:
             return matched
     return None
@@ -1076,8 +1075,7 @@ async def propose_balance_adjustment(account_name: str, real_balance: float) -> 
     Returns a JSON string with type='balance_adjustment' for the frontend to render as a card.
     """
     import json
-    import uuid
-    from backend.tools import balance_adjustments as adj_store
+    from backend.core import pending_proposals
 
     client = get_provider()
     accounts = await client.get_accounts()
@@ -1085,15 +1083,18 @@ async def propose_balance_adjustment(account_name: str, real_balance: float) -> 
     matched = _match_account(accounts, account_name)
     if not matched:
         names = ", ".join(a.name for a in accounts)
-        return json.dumps({"type": "error", "message": f"Account '{account_name}' not found. Available: {names}"})
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["account_name"],
+            "message": f"Account '{account_name}' not found. Available: {names}",
+        })
 
-    proposal_id = uuid.uuid4().hex[:8]
-    adj_store.store(proposal_id, {
+    proposal_id = pending_proposals.create("balance_adjustment", {
         "account_id": matched.id,
         "account_name": matched.name,
         "current_balance": matched.balance,
         "real_balance": real_balance,
-    })
+    }, created_by=None)
 
     return json.dumps({
         "type": "balance_adjustment",
