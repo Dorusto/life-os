@@ -17,8 +17,8 @@ from backend.core.finance.provider import get_provider
 # Imported for its side effect: registers the "categorize_with_rule" handler
 # on the shared pending-proposal store.
 from backend.services import category_rule_service  # noqa: F401
-# Imported for its side effect: registers the "set_budget" and "budget_copy"
-# handlers on the shared pending-proposal store.
+# Imported for its side effect: registers the "set_budget", "budget_copy" and
+# "budget_rebalance" handlers on the shared pending-proposal store.
 from backend.services import budget_service  # noqa: F401
 
 logger = logging.getLogger(__name__)

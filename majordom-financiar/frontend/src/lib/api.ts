@@ -1019,6 +1019,7 @@ export async function cancelProposal(id: string): Promise<void> {
 
 export interface BudgetRebalanceData {
   type: 'budget_rebalance'
+  id: string
   source_category: string
   destination_category: string
   amount: number
@@ -1030,18 +1031,18 @@ export interface BudgetRebalanceData {
   categories?: { name: string; budgeted: number }[]
 }
 
-export async function confirmBudgetRebalance(data: BudgetRebalanceData): Promise<{ message: string }> {
-  return abRequest('/budget/rebalance', {
+export async function confirmBudgetRebalance(
+  id: string,
+  overrides: { source_category: string; destination_category: string; amount: number }
+): Promise<{ message: string }> {
+  return abRequest(`/pending-proposals/${id}/confirm`, {
     method: 'POST',
-    body: JSON.stringify({
-      source_category: data.source_category,
-      destination_category: data.destination_category,
-      amount: data.amount,
-      month: data.month,
-      new_source_budget: data.new_source_budget,
-      new_destination_budget: data.new_destination_budget,
-    }),
+    body: JSON.stringify({ overrides }),
   })
+}
+
+export async function rejectBudgetRebalance(id: string): Promise<void> {
+  return request<void>(`/pending-proposals/${id}/reject`, { method: 'POST' })
 }
 
 // --- Clarification ---

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { confirmBudgetRebalance, type BudgetRebalanceData } from '../lib/api'
+import { confirmBudgetRebalance, rejectBudgetRebalance, type BudgetRebalanceData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
 import { formatCurrency } from '../lib/formatCurrency'
 import { Card, SectionLabel } from './kit/Card'
@@ -38,15 +38,10 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
     setLoading(true)
     setError(null)
     try {
-      const result = await confirmBudgetRebalance({
-        ...data,
-        amount,
+      const result = await confirmBudgetRebalance(data.id, {
         source_category: selectedSource,
         destination_category: selectedDest,
-        current_source_budget: sourceBudgeted,
-        current_destination_budget: destBudgeted,
-        new_source_budget: newSource,
-        new_destination_budget: newDest,
+        amount,
       })
       onConfirmed(result.message)
     } catch (err) {
@@ -55,6 +50,17 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleCancel() {
+    try {
+      await rejectBudgetRebalance(data.id)
+    } catch (err) {
+      // The proposal expires on its own in 24h — a failed reject must not
+      // block the user from dismissing the card.
+      console.warn('Failed to reject budget rebalance proposal:', err)
+    }
+    onCancelled()
   }
 
   const selectClass = `
@@ -125,9 +131,9 @@ export default function BudgetRebalanceCard({ data, onConfirmed, onCancelled }: 
 
         <ActionCardButtons
           onConfirm={handleConfirm}
-          onCancel={onCancelled}
+          onCancel={handleCancel}
           loading={loading}
-          confirmDisabled={selectedSource === selectedDest}
+          confirmDisabled={selectedSource === selectedDest || amount <= 0}
           confirmLabel={loading ? 'Saving…' : 'Confirm'}
         />
       </div>

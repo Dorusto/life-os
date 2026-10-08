@@ -253,20 +253,38 @@ async def propose_budget_rebalance(
     Create a pending budget rebalance proposal (does NOT modify Actual Budget yet).
     Fetches current budget allocations for both categories, then returns a JSON
     string with type='budget_rebalance' for the frontend to render as a card.
+
+    The new allocations are computed on the server at confirm time from the
+    month's real allocation — the card only sends the edited source/destination/
+    amount as overrides, never the resulting numbers.
     """
     import json
     from datetime import date as _date
+    from backend.core import pending_proposals
 
     today = _date.today()
-    # month param is "YYYY-MM" or empty (defaults to current month)
+    # month param is "YYYY-MM" or empty (defaults to current month). An invalid
+    # month is never silently replaced with the current one — a budget moved in
+    # the wrong month is worse than asking (decisions.md#operator-not-brain).
     if month:
         try:
             year, m = int(month[:4]), int(month[5:7])
             target_month = _date(year, m, 1)
         except (ValueError, IndexError):
-            target_month = today.replace(day=1)
+            return json.dumps({
+                "type": "needs_input",
+                "missing": ["month"],
+                "message": f"Invalid month {month!r} — expected YYYY-MM.",
+            })
     else:
         target_month = today.replace(day=1)
+
+    if amount <= 0:
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["amount"],
+            "message": "The amount to move must be positive.",
+        })
 
     client = get_provider()
 
@@ -279,23 +297,43 @@ async def propose_budget_rebalance(
     all_category_names = [item["category_name"] for item in budget_status]
 
     def _resolve_category(name: str) -> str | None:
-        """Return exact AB category name matching `name`, with fuzzy fallback."""
-        from difflib import get_close_matches
-        # Exact case-insensitive match first
+        """Return the exact AB category name matching `name` (case-insensitive),
+        or None. Never a fuzzy guess (decisions.md#operator-not-brain)."""
         for cat in all_category_names:
             if cat.lower() == name.lower():
                 return cat
-        # Fuzzy match (cutoff 0.6 catches "Restaurante" → "Restaurants")
-        matches = get_close_matches(name, all_category_names, n=1, cutoff=0.6)
-        return matches[0] if matches else None
+        return None
 
     resolved_source = _resolve_category(source_category)
     resolved_dest = _resolve_category(destination_category)
 
+    missing: list[str] = []
+    unknown: list[str] = []
     if not resolved_source:
-        raise ValueError(f"Category not found: {source_category}")
+        missing.append("source_category")
+        unknown.append(source_category)
     if not resolved_dest:
-        raise ValueError(f"Category not found: {destination_category}")
+        missing.append("destination_category")
+        unknown.append(destination_category)
+    if missing:
+        return json.dumps({
+            "type": "needs_input",
+            "missing": missing,
+            "message": (
+                f"Category not found: {', '.join(unknown)}. "
+                f"Available: {', '.join(all_category_names)}"
+            ),
+        })
+
+    if resolved_source == resolved_dest:
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["destination_category"],
+            "message": (
+                f"Source and destination are the same category ({resolved_source}) — "
+                "pick a different destination."
+            ),
+        })
 
     source_category = resolved_source
     destination_category = resolved_dest
@@ -317,8 +355,16 @@ async def propose_budget_rebalance(
         key=lambda x: x["name"],
     )
 
+    proposal_id = pending_proposals.create("budget_rebalance", {
+        "source_category": source_category,
+        "destination_category": destination_category,
+        "amount": amount,
+        "month": target_month.strftime("%Y-%m"),
+    }, created_by=None)
+
     return json.dumps({
         "type": "budget_rebalance",
+        "id": proposal_id,
         "source_category": source_category,
         "destination_category": destination_category,
         "amount": amount,
