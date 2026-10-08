@@ -114,7 +114,7 @@ async def confirm_resolve_transfer_duplicate(payload: dict, overrides: dict, con
         "message": (
             f"Transfer to/from {result['account_name']} was already recorded — removed the duplicate "
             f"bank-sync entry, kept the linked transfer. {result['account_name']} balance: "
-            f"€{result['balance_before']:.2f} → {result['balance_after']:.2f}."
+            f"€{result['balance_before']:.2f} → €{result['balance_after']:.2f}."
         ),
         "errors": [],
     }
