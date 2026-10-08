@@ -305,15 +305,15 @@ async def propose_budget_rebalance(
     for item in budget_status:
         name = item["category_name"]
         if name == source_category:
-            source_budgeted = item["budgeted"]
+            source_budgeted = item["allocated"]
         elif name == destination_category:
-            dest_budgeted = item["budgeted"]
+            dest_budgeted = item["allocated"]
 
     new_source = round(source_budgeted - amount, 2)
     new_destination = round(dest_budgeted + amount, 2)
 
     all_categories = sorted(
-        [{"name": item["category_name"], "budgeted": item["budgeted"]} for item in budget_status],
+        [{"name": item["category_name"], "budgeted": item["allocated"]} for item in budget_status],
         key=lambda x: x["name"],
     )
 
@@ -1337,7 +1337,7 @@ async def propose_set_category_budget(
         })
 
     current_amount = next(
-        (item["budgeted"] for item in budget_status if item["category_name"] == resolved),
+        (item["allocated"] for item in budget_status if item["category_name"] == resolved),
         0.0,
     )
 

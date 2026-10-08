@@ -546,7 +546,13 @@ def _compute_budget_vs_spent(
         # Skip categories not in our name map (deleted, hidden, etc.)
         if cat_id not in cat_name_map:
             continue
-        budgeted = round(budget_by_category.get(cat_id, 0.0), 2)
+        # allocated = what was actually assigned to this category this month
+        # (the raw zero_budgets/reflect_budgets amount); budgeted = what is
+        # available, rollover-aware — the two differ for a rollover category
+        # with no fresh allocation this month. Captured before the fallback
+        # below reassigns `budgeted`.
+        allocated = round(budget_by_category.get(cat_id, 0.0), 2)
+        budgeted = allocated
         spent = round(spent_by_category.get(cat_id, 0.0), 2)
         # A category with rollover enabled that got no fresh allocation this
         # month (relying entirely on last month's carried-over balance) shows
@@ -570,6 +576,7 @@ def _compute_budget_vs_spent(
             "category_name": cat_name_map.get(cat_id, "Unknown"),
             "group_name": cat_group_map.get(cat_id, "Unexpected"),
             "budgeted": budgeted,
+            "allocated": allocated,
             "spent": spent,
             "percentage": percentage,
             "carryover": carryover_by_category.get(cat_id, False),
@@ -1867,7 +1874,8 @@ class ActualBudgetClient:
         Each item: {
             "category_id": str,
             "category_name": str,
-            "budgeted": float,   # amount allocated in budget (EUR)
+            "budgeted": float,   # amount available (EUR, rollover-aware)
+            "allocated": float,  # amount assigned this month (EUR, raw allocation)
             "spent": float,      # amount actually spent (EUR, always positive)
             "percentage": float, # spent / budgeted * 100 (0 if budgeted == 0)
         }
