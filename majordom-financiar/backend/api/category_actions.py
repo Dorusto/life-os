@@ -1,5 +1,8 @@
 """
-Category action endpoints — confirm or cancel a pending rename/delete proposal.
+Category action endpoints — confirm or cancel a pending category-action proposal.
+
+Every proposal lives on the shared pending-proposal store
+(backend/core/pending_proposals.py); these routes just forward to it.
 
 POST /api/category-actions/{id}/confirm
 POST /api/category-actions/{id}/cancel
@@ -10,9 +13,6 @@ from pydantic import BaseModel
 
 from backend.api.auth import get_current_user
 from backend.core import pending_proposals
-from backend.tools import category_actions as action_store
-from backend.core.config import settings
-from backend.core.memory.database import MemoryDB
 from backend.core.finance.provider import get_provider
 # Imported for its side effect: registers the "categorize_with_rule" handler
 # on the shared pending-proposal store.
@@ -41,6 +41,11 @@ from backend.services import transaction_tag_service  # noqa: F401
 # Imported for its side effect: registers the "bank_resync" handler on the
 # shared pending-proposal store.
 from backend.services import bank_sync_service  # noqa: F401
+# Imported for its side effect: registers the "merge_duplicate",
+# "resolve_transfer_duplicate", "mark_reconciled", "mark_budget_outlier",
+# "create_schedule" and "deactivate_schedule" handlers on the shared
+# pending-proposal store.
+from backend.services import inbox_action_service  # noqa: F401
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -84,31 +89,30 @@ async def confirm_category_action(
     override: GoalOverride = GoalOverride(),
     current_user: str = Depends(get_current_user),
 ):
-    # Proposals on the shared pending-proposal store (categorize_with_rule,
-    # set_budget, budget_copy, budget_rebalance, set_budget_carryover,
-    # set_category_goal, set_goal, set_tag_goal, clear_reached_goals,
-    # set_fire_model, classify_income, tag_transaction, bank_resync,
-    # category_create, category_rename, category_delete) carry their own id so
-    # MCP can confirm the same one — route them there first.
-    if pending_proposals.get(action_id) is not None:
-        try:
-            return await pending_proposals.confirm(
-                action_id,
-                overrides=override.model_dump(exclude_none=True),
-                confirmed_by=current_user,
-            )
-        except pending_proposals.ProposalNotFound:
-            raise HTTPException(status_code=404, detail="Action not found or already completed")
-        except pending_proposals.ProposalForbidden:
-            raise HTTPException(
-                status_code=403,
-                detail="Only the household member who created this proposal can confirm it",
-            )
-        except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
-        except Exception as e:
-            logger.error("Failed to confirm category action %s: %s", action_id, e)
-            raise HTTPException(status_code=500, detail="Failed to execute category action")
+    # Every category-action proposal lives on the shared pending-proposal store
+    # and carries its own id, so MCP can confirm the same one.
+    if pending_proposals.get(action_id) is None:
+        raise HTTPException(status_code=404, detail="Action not found or already completed")
+    try:
+        return await pending_proposals.confirm(
+            action_id,
+            overrides=override.model_dump(exclude_none=True),
+            confirmed_by=current_user,
+        )
+    except pending_proposals.ProposalNotFound:
+        raise HTTPException(status_code=404, detail="Action not found or already completed")
+    except pending_proposals.ProposalForbidden:
+        raise HTTPException(
+            status_code=403,
+            detail="Only the household member who created this proposal can confirm it",
+        )
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error("Failed to confirm category action %s: %s", action_id, e)
+        raise HTTPException(status_code=500, detail="Failed to execute category action")
 
     action = action_store.get(action_id)
     if not action:
@@ -417,12 +421,9 @@ async def cancel_category_action(
     action_id: str,
     current_user: str = Depends(get_current_user),
 ):
-    # Proposals on the shared pending-proposal store (categorize_with_rule,
-    # set_budget, budget_copy, budget_rebalance, set_budget_carryover,
-    # set_category_goal, set_goal, set_tag_goal, clear_reached_goals,
-    # set_fire_model, classify_income, tag_transaction, bank_resync,
-    # category_create, category_rename, category_delete) — reject through the
-    # store so the same id works from MCP.
+    # Every category-action proposal lives on the shared pending-proposal store —
+    # reject through it so the same id works from MCP. A missing proposal is
+    # treated as already cancelled (idempotent).
     if pending_proposals.get(action_id) is not None:
         try:
             await pending_proposals.reject(action_id, rejected_by=current_user)
@@ -431,26 +432,4 @@ async def cancel_category_action(
                 status_code=403,
                 detail="Only the household member who created this proposal can reject it",
             )
-        return {"cancelled": True}
-
-    action = action_store.get(action_id)
-    if action and action["action"] in ("merge_duplicate", "resolve_transfer_duplicate", "mark_reconciled", "mark_budget_outlier", "create_schedule"):
-        if action["action"] == "merge_duplicate":
-            finding_key = f"{action['manual_id']}:{action['synced_id']}"
-            finding_type = "duplicate_pair"
-        elif action["action"] == "resolve_transfer_duplicate":
-            finding_key = f"{action['transfer_leg_id']}:{action['synced_dup_id']}"
-            finding_type = "duplicate_pair"
-        elif action["action"] == "mark_reconciled":
-            finding_key = action.get("account_id")
-            finding_type = "unreconciled_account"
-        elif action["action"] == "mark_budget_outlier":
-            finding_key = action.get("outlier_transaction_id")
-            finding_type = "budget_outlier"
-        elif action["action"] == "create_schedule":
-            finding_key = f"{action.get('payee_id')}:{action.get('account_id')}"
-            finding_type = "recurring_candidate"
-        if finding_key:
-            MemoryDB(settings.memory.db_path).dismiss_finding(finding_type, finding_key)
-    action_store.delete(action_id)
     return {"cancelled": True}

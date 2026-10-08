@@ -2,7 +2,6 @@
 GET /api/home — all Home screen data in one AB session.
 """
 import logging
-from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -178,7 +177,6 @@ async def get_duplicate_pairs(month: str, current_user: str = Depends(get_curren
     /cancel endpoints can drive it — returns the `action_id` so the frontend can
     reference it without duplicating any proposal-store logic.
     """
-    from backend.tools import category_actions as action_store
     # Basic shape guard — keep it lightweight, matching the existing plain-dict
     # convention in category_actions' confirm dispatch (no Pydantic validation).
     if len(month) != 7 or month[4] != "-":
@@ -197,21 +195,18 @@ async def get_duplicate_pairs(month: str, current_user: str = Depends(get_curren
     ]
     result = []
     for pair in pairs:
-        action_id = uuid4().hex[:8]
         if pair.get("kind") == "transfer":
             # The "manual" side is a linked transfer leg (#229) — merging it away
             # like an ordinary duplicate would break the transfer link.
-            action_store.store(action_id, {
-                "action": "resolve_transfer_duplicate",
+            action_id = pending_proposals.create("resolve_transfer_duplicate", {
                 "transfer_leg_id": pair["manual"]["id"],
                 "synced_dup_id": pair["synced"]["id"],
-            })
+            }, created_by=current_user)
         else:
-            action_store.store(action_id, {
-                "action": "merge_duplicate",
+            action_id = pending_proposals.create("merge_duplicate", {
                 "manual_id": pair["manual"]["id"],
                 "synced_id": pair["synced"]["id"],
-            })
+            }, created_by=current_user)
         result.append({"action_id": action_id, **pair})
     result.sort(key=lambda p: p["synced"]["date"], reverse=True)
 
@@ -344,8 +339,6 @@ async def get_unreconciled_group_actions(current_user: str = Depends(get_current
     docs/product-plan.md). Mirrors /home/uncategorized/groups, grouped by
     account instead of payee.
     """
-    from backend.tools import category_actions as action_store
-
     client = get_provider()
     try:
         groups = await client.list_unreconciled_groups()
@@ -359,13 +352,11 @@ async def get_unreconciled_group_actions(current_user: str = Depends(get_current
     for g in groups:
         if g["account_id"] in dismissed_keys:
             continue
-        action_id = uuid4().hex[:8]
-        action_store.store(action_id, {
-            "action": "mark_reconciled",
+        action_id = pending_proposals.create("mark_reconciled", {
             "account_id": g["account_id"],
             "account_name": g["account_name"],
             "count": g["count"],
-        })
+        }, created_by=current_user)
         items.append({
             "type": "category_action",
             "id": action_id,
@@ -384,8 +375,6 @@ async def get_budget_realism_flags(current_user: str = Depends(get_current_user)
     a single one-off transaction rather than genuine recurring overspending —
     the Inbox's fourth finding type (Phase C, #110, docs/product-plan.md).
     """
-    from backend.tools import category_actions as action_store
-
     client = get_provider()
     try:
         flags = await client.list_budget_realism_flags()
@@ -399,9 +388,7 @@ async def get_budget_realism_flags(current_user: str = Depends(get_current_user)
     for f in flags:
         if f["outlier_transaction_id"] in dismissed_keys:
             continue
-        action_id = uuid4().hex[:8]
-        action_store.store(action_id, {
-            "action": "mark_budget_outlier",
+        action_id = pending_proposals.create("mark_budget_outlier", {
             "outlier_transaction_id": f["outlier_transaction_id"],
             "category_name": f["category_name"],
             "budgeted": f["budgeted"],
@@ -411,7 +398,7 @@ async def get_budget_realism_flags(current_user: str = Depends(get_current_user)
             "outlier_date": f["outlier_date"],
             "outlier_notes": f["outlier_notes"],
             "recurring_amount": f["recurring_amount"],
-        })
+        }, created_by=current_user)
         items.append({
             "type": "category_action",
             "id": action_id,
@@ -438,8 +425,6 @@ async def get_recurring_actions(current_user: str = Depends(get_current_user)):
     Same proposal-store + dismiss-key pattern as the other /home/* finding
     endpoints immediately above this one.
     """
-    from backend.tools import category_actions as action_store
-
     client = get_provider()
     try:
         candidates = await client.find_recurring_candidates()
@@ -460,9 +445,7 @@ async def get_recurring_actions(current_user: str = Depends(get_current_user)):
         key = f"{c['payee_id']}:{c['account_id']}"
         if key in dismissed_candidates:
             continue
-        action_id = uuid4().hex[:8]
-        action_store.store(action_id, {
-            "action": "create_schedule",
+        action_id = pending_proposals.create("create_schedule", {
             "payee_id": c["payee_id"],
             "payee_name": c["payee_name"],
             "account_id": c["account_id"],
@@ -471,7 +454,7 @@ async def get_recurring_actions(current_user: str = Depends(get_current_user)):
             "is_income": c["is_income"],
             "suggested_day_of_month": c["suggested_day_of_month"],
             "sample_transactions": c["sample_transactions"],
-        })
+        }, created_by=current_user)
         new_candidates.append({
             "type": "category_action",
             "id": action_id,
@@ -491,14 +474,12 @@ async def get_recurring_actions(current_user: str = Depends(get_current_user)):
     for s in stale_schedules:
         if s["schedule_id"] in dismissed_stale:
             continue
-        action_id = uuid4().hex[:8]
-        action_store.store(action_id, {
-            "action": "deactivate_schedule",
+        action_id = pending_proposals.create("deactivate_schedule", {
             "schedule_id": s["schedule_id"],
             "schedule_name": s["name"],
             "next_date": s["next_date"],
             "days_overdue": s["days_overdue"],
-        })
+        }, created_by=current_user)
         stale_items.append({
             "type": "category_action",
             "id": action_id,
