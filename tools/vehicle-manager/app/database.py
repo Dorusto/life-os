@@ -370,8 +370,8 @@ def fuel_intervals_from_rows(rows: list[dict]) -> list[dict]:
     interval.
 
     ``rows`` are fuel entries; only those with an ``odo_km`` are considered.
-    Returns dicts with ``date``, ``distance_km``, ``liters`` and
-    ``consumption`` (L/100km). Shared by the stats endpoint and the charts.
+    Returns dicts with ``date``, ``start_date``, ``distance_km``, ``liters``
+    and ``consumption`` (L/100km). Shared by the stats endpoint and the charts.
     """
     ordered = sorted(
         (r for r in rows if r.get("odo_km") is not None),
