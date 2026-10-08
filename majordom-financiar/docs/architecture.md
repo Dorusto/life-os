@@ -453,6 +453,16 @@ symptom beyond the account quietly falling behind. When a "did the sync actually
 comes up, don't trust the lack of an error — check the response's `failed` array, or more
 reliably, whether the account's most recent transaction date actually advanced.
 
+### 46. actualpy's `accumulated_balance` is the end-of-month balance, AFTER this month's spending — "available" is `accumulated_balance − balance` (+ allocation)
+
+`budget_history[-1].from_category(cat)` returns a `BudgetCategory` whose `balance` is this month's
+own `budgeted + spent` (spent negative) and whose `accumulated_balance` adds the carried-in balance
+on top. Using `accumulated_balance` as "money available this month" divides spending by money
+already spent (#333) and, as an editable allocation, shows money that was never assigned (#332).
+`_compute_budget_vs_spent` exposes all three meanings: `allocated` (raw allocation — use it for
+anything that edits or rebalances), `budgeted` (available this month: allocation, or carried-in
+for a rollover category with none) and `balance` (end-of-month, what Actual Budget shows).
+
 ---
 
 ## Main Flows
