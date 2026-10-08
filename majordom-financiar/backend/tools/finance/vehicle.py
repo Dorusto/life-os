@@ -620,6 +620,27 @@ async def get_vehicle_stats(vehicle_name: str = "", period: str = "") -> str:
         if cost_per_km:
             lines.append(f"- Fuel cost/km: €{cost_per_km:.3f}")
 
+    # Data-quality warning computed by vehicle-manager (fuel_intervals_from_rows):
+    # an interval longer than one tank can cover, or far below the usual
+    # consumption, means a refuel is probably missing from the log. Surfaced
+    # here so both doors (PWA chat and Hermes via MCP) show the same judgement.
+    warnings = stats.get("data_quality_warnings") or []
+    if warnings:
+        n = len(warnings)
+        lines.append(
+            f"- ⚠ Data quality: {n} fill-up interval(s) look like missing refuels — consumption may be understated."
+        )
+        for w in warnings[:3]:
+            line = (
+                f"  - {w['start_date']} → {w['end_date']}: {w['distance_km']} km "
+                f"at {w['consumption']} L/100km (typical {w['typical_consumption']})"
+            )
+            if w.get("max_range_km"):
+                line += f", over one tank's ~{w['max_range_km']} km"
+            lines.append(line)
+        if n > 3:
+            lines.append(f"  - …and {n - 3} more.")
+
     if cost_count > 0:
         lines.append(f"- Other costs ({cost_count} entries): €{total_other_cost:.2f}")
 
