@@ -400,7 +400,7 @@ async def check_budget_alert(category_name: str, db: MemoryDB) -> None:
 
         spent = entry["spent"]
         budgeted = entry["budgeted"]
-        percentage = round(spent / budgeted * 100, 1) if budgeted > 0 else 0.0
+        percentage = entry["percentage"]
 
         if spent < budgeted:
             return  # not over budget

@@ -689,7 +689,7 @@ async def get_budget_chart(month: int | None = None, year: int | None = None) ->
     for item in filtered:
         budgeted = item["budgeted"]
         spent = item["spent"]
-        pct = round(spent / budgeted * 100, 1) if budgeted > 0 else 0
+        pct = item["percentage"]
         result_items.append({
             "label": item["category_name"],
             "value": spent,
