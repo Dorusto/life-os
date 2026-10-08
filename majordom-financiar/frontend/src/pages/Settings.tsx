@@ -471,16 +471,18 @@ function PayeesPage() {
 
   return (
     <>
-      <div className="bg-token-surface border border-token-line rounded-2xl px-4 py-1.5">
-        {normalPayees.map((p: PayeeItem) => (
-          <div key={p.id} className="flex items-center justify-between gap-3 py-2.5 border-b border-token-line last:border-b-0">
-            <span className="text-sm font-medium text-token-ink truncate">{p.name}</span>
-            <span className="text-xs text-token-ink-3 flex-shrink-0">
-              {p.transaction_count} transaction{p.transaction_count !== 1 ? 's' : ''}
-            </span>
-          </div>
-        ))}
-      </div>
+      {normalPayees.length > 0 && (
+        <div className="bg-token-surface border border-token-line rounded-2xl px-4 py-1.5">
+          {normalPayees.map((p: PayeeItem) => (
+            <div key={p.id} className="flex items-center justify-between gap-3 py-2.5 border-b border-token-line last:border-b-0">
+              <span className="text-sm font-medium text-token-ink truncate">{p.name}</span>
+              <span className="text-xs text-token-ink-3 flex-shrink-0">
+                {p.transaction_count} transaction{p.transaction_count !== 1 ? 's' : ''}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
       {transferPayees.length > 0 && (
         <>
           <SectionLabel>Transfers</SectionLabel>
