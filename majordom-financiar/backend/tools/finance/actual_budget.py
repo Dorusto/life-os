@@ -1300,16 +1300,19 @@ async def set_account_goal(
     existing goal without restating the target. Returns a confirmation card —
     does NOT write yet.
     """
-    import uuid
-    from difflib import get_close_matches
-    from backend.tools import category_actions as action_store
+    from backend.core import pending_proposals
     client = get_provider()
     accounts = await client.get_accounts()
     all_names = [a.name for a in accounts]
-    exact = next((n for n in all_names if n.lower() == account_name.lower()), None)
-    resolved = exact or (get_close_matches(account_name, all_names, n=1, cutoff=0.6) or [None])[0]
+    # Exact case-insensitive match only — never a fuzzy guess
+    # (decisions.md#operator-not-brain). No match → ask the user.
+    resolved = next((n for n in all_names if n.lower() == account_name.lower()), None)
     if not resolved:
-        return json.dumps({"type": "error", "message": f"Account not found: {account_name!r}. Available: {', '.join(all_names)}"})
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["account_name"],
+            "message": f"Account not found: {account_name!r}. Available: {', '.join(all_names)}",
+        })
 
     # No target given (e.g. "just set the description") — fall back to the
     # existing goal's target/deadline/note for whichever fields weren't passed,
@@ -1320,7 +1323,8 @@ async def set_account_goal(
         existing = next((g for g in await client.get_goals() if g["name"] == resolved), None)
         if not existing:
             return json.dumps({
-                "type": "error",
+                "type": "needs_input",
+                "missing": ["target"],
                 "message": f"'{resolved}' has no goal set yet — a target amount is required to create one.",
             })
         target = existing["target"]
@@ -1331,8 +1335,12 @@ async def set_account_goal(
 
     balance = next(a.balance for a in accounts if a.name == resolved)
     monthly_needed = calc_monthly_needed(target, balance, deadline)
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {"action": "set_goal", "account_name": resolved, "target": target, "deadline": deadline, "note": note})
+    action_id = pending_proposals.create("set_goal", {
+        "account_name": resolved,
+        "target": target,
+        "deadline": deadline,
+        "note": note,
+    }, created_by=None)
     return json.dumps({
         "type": "goal_proposal", "id": action_id, "account_name": resolved,
         "target": target, "deadline": deadline, "monthly_needed": monthly_needed, "note": note,
@@ -1466,10 +1474,8 @@ async def propose_set_budget_carryover(category_name: str, enabled: bool, month:
     UI. Returns a confirmation card — does NOT write to Actual Budget yet.
     """
     import json
-    import uuid
-    from difflib import get_close_matches
     from datetime import date as _date
-    from backend.tools import category_actions as action_store
+    from backend.core import pending_proposals
 
     today = _date.today()
     if month:
@@ -1477,28 +1483,35 @@ async def propose_set_budget_carryover(category_name: str, enabled: bool, month:
             year, m = int(month[:4]), int(month[5:7])
             target_month = _date(year, m, 1)
         except (ValueError, IndexError):
-            target_month = today.replace(day=1)
+            # Never silently fall back to the current month — a rollover
+            # toggled in the wrong month is worse than asking
+            # (decisions.md#operator-not-brain).
+            return json.dumps({
+                "type": "needs_input",
+                "missing": ["month"],
+                "message": f"Invalid month {month!r} — expected YYYY-MM.",
+            })
     else:
         target_month = today.replace(day=1)
 
     client = get_provider()
     cats = await client.get_categories()
     cat_names = [c.name for c in cats]
-    exact = next((n for n in cat_names if n.lower() == category_name.lower()), None)
-    resolved = exact or (get_close_matches(category_name, cat_names, n=1, cutoff=0.6) or [None])[0]
+    # Exact case-insensitive match only — never a fuzzy guess
+    # (decisions.md#operator-not-brain). No match → ask the user.
+    resolved = next((n for n in cat_names if n.lower() == category_name.lower()), None)
     if not resolved:
         return json.dumps({
-            "type": "error",
+            "type": "needs_input",
+            "missing": ["category_name"],
             "message": f"Category not found: {category_name!r}. Available: {', '.join(cat_names)}",
         })
 
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {
-        "action": "set_budget_carryover",
+    action_id = pending_proposals.create("set_budget_carryover", {
         "category_name": resolved,
         "enabled": enabled,
         "month": target_month.isoformat(),
-    })
+    }, created_by=None)
     return json.dumps({
         "type": "category_action",
         "id": action_id,
@@ -1597,42 +1610,49 @@ async def propose_set_category_goal_template(
     `goal_type` is either ``"by"`` (fixed total by target month) or
     ``"simple"`` (fixed monthly amount, optionally capped at a cumulative total).
     """
-    import uuid
-    from difflib import get_close_matches
-    from backend.tools import category_actions as action_store
+    from backend.core import pending_proposals
 
     if goal_type not in ("by", "simple"):
         return json.dumps({
-            "type": "error",
+            "type": "needs_input",
+            "missing": ["goal_type"],
             "message": f"Invalid goal_type: {goal_type!r}. Must be 'by' or 'simple'.",
         })
 
     if goal_type == "by" and not by_month:
         return json.dumps({
-            "type": "error",
+            "type": "needs_input",
+            "missing": ["by_month"],
             "message": "A target month (by_month) is required for goal_type='by'.",
+        })
+
+    if amount <= 0:
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["amount"],
+            "message": "The goal amount must be positive.",
         })
 
     client = get_provider()
     cats = await client.get_categories()
     cat_names = [c.name for c in cats]
-    exact = next((n for n in cat_names if n.lower() == category_name.lower()), None)
-    resolved = exact or (get_close_matches(category_name, cat_names, n=1, cutoff=0.6) or [None])[0]
+    # Exact case-insensitive match only — never a fuzzy guess
+    # (decisions.md#operator-not-brain). No match → ask the user.
+    resolved = next((n for n in cat_names if n.lower() == category_name.lower()), None)
     if not resolved:
         return json.dumps({
-            "type": "error",
+            "type": "needs_input",
+            "missing": ["category_name"],
             "message": f"Category not found: {category_name!r}. Available: {', '.join(cat_names)}",
         })
 
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {
-        "action": "set_category_goal",
+    action_id = pending_proposals.create("set_category_goal", {
         "category_name": resolved,
         "goal_type": goal_type,
         "amount": amount,
         "by_month": by_month,
         "monthly_limit": monthly_limit,
-    })
+    }, created_by=None)
 
     return json.dumps({
         "type": "category_action",

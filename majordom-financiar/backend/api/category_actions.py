@@ -17,9 +17,13 @@ from backend.core.finance.provider import get_provider
 # Imported for its side effect: registers the "categorize_with_rule" handler
 # on the shared pending-proposal store.
 from backend.services import category_rule_service  # noqa: F401
-# Imported for its side effect: registers the "set_budget", "budget_copy" and
-# "budget_rebalance" handlers on the shared pending-proposal store.
+# Imported for its side effect: registers the "set_budget", "budget_copy",
+# "budget_rebalance" and "set_budget_carryover" handlers on the shared
+# pending-proposal store.
 from backend.services import budget_service  # noqa: F401
+# Imported for its side effect: registers the "set_category_goal" and "set_goal"
+# handlers on the shared pending-proposal store.
+from backend.services import goal_service  # noqa: F401
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -64,8 +68,9 @@ async def confirm_category_action(
     current_user: str = Depends(get_current_user),
 ):
     # Proposals on the shared pending-proposal store (categorize_with_rule,
-    # set_budget, budget_copy) carry their own id so MCP can confirm the same
-    # one — route them there first.
+    # set_budget, budget_copy, budget_rebalance, set_budget_carryover,
+    # set_category_goal, set_goal) carry their own id so MCP can confirm the
+    # same one — route them there first.
     if pending_proposals.get(action_id) is not None:
         try:
             return await pending_proposals.confirm(
@@ -104,57 +109,11 @@ async def confirm_category_action(
             grp_name = override.group_name or action["group_name"]
             await client.create_category(cat_name, grp_name)
             message = f"Category created: '{cat_name}' in group '{grp_name}'"
-        elif action["action"] == "set_goal":
-            from backend.tools.finance.actual_budget import calc_monthly_needed
-
-            target = override.target if override.target is not None else action["target"]
-            deadline = override.deadline if override.deadline is not None else action.get("deadline")
-            note = override.note if override.note is not None else action.get("note")
-            await client.set_account_goal(
-                account_name=action["account_name"],
-                target=target,
-                deadline=deadline,
-                goal_note=note,
-            )
-            message = f"Goal set: {action['account_name']} → €{target:,.0f}"
-            if deadline:
-                message += f" by {deadline}"
-            accounts = await client.get_accounts()
-            balance = next((a.balance for a in accounts if a.name == action["account_name"]), 0.0)
-            monthly_needed = calc_monthly_needed(target, balance, deadline)
-            action_store.delete(action_id)
-            return {"message": message, "monthly_needed": monthly_needed}
-        elif action["action"] == "set_budget_carryover":
-            from datetime import date as _date
-            cat_name = override.category_name or action["category_name"]
-            enabled = action["enabled"]
-            month_str = action["month"]
-            target_month = _date.fromisoformat(month_str)
-            await client.set_budget_carryover(cat_name, target_month, enabled)
-            message = f"Rollover overspending {'enabled' if enabled else 'disabled'} for '{cat_name}' ({month_str[:7]})."
         elif action["action"] == "classify_income":
             cat_name = override.category_name or action["category_name"]
             income_type = override.income_type or action["income_type"]
             await client.set_income_classification(cat_name, income_type)
             message = f"'{cat_name}' classified as {income_type} income."
-        elif action["action"] == "set_category_goal":
-            goal_type = override.goal_type if override.goal_type is not None else action["goal_type"]
-            by_month = override.by_month if override.by_month is not None else action.get("by_month", "")
-            monthly_limit = override.monthly_limit if override.monthly_limit is not None else action.get("monthly_limit")
-            amount = override.amount if override.amount is not None else action["amount"]
-            cat_name = override.category_name or action["category_name"]
-            await client.set_category_goal_template(
-                cat_name, goal_type, amount, by_month, monthly_limit,
-            )
-            if goal_type == "by":
-                target_month = by_month or "no target month"
-                message = f"Goal set for '{cat_name}': save €{amount:.2f} by {target_month}."
-            else:
-                message = f"Goal set for '{cat_name}': €{amount:.2f}/month"
-                if monthly_limit is not None:
-                    message += f" until €{monthly_limit:.2f} total."
-                else:
-                    message += "."
         elif action["action"] == "set_tag_goal":
             # Aliased local import: `set_fire_model` below also locally imports
             # MemoryDB/settings (unaliased), which makes those names local to
@@ -555,8 +514,9 @@ async def cancel_category_action(
     current_user: str = Depends(get_current_user),
 ):
     # Proposals on the shared pending-proposal store (categorize_with_rule,
-    # set_budget, budget_copy) — reject through the store so the same id works
-    # from MCP.
+    # set_budget, budget_copy, budget_rebalance, set_budget_carryover,
+    # set_category_goal, set_goal) — reject through the store so the same id
+    # works from MCP.
     if pending_proposals.get(action_id) is not None:
         try:
             await pending_proposals.reject(action_id, rejected_by=current_user)

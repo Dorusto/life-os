@@ -65,6 +65,9 @@ MCP_TOOLS: frozenset[str] = frozenset({
     "finance__propose_budget_copy",
     "finance__propose_budget_rebalance",
     "finance__propose_account_transfer",
+    "finance__propose_set_budget_carryover",
+    "finance__propose_set_category_goal",
+    "finance__set_account_goal",
 })
 
 

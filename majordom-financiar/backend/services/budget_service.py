@@ -1,11 +1,12 @@
 """
 BudgetService — the write logic for confirmed budget proposals (set_budget,
-budget_copy, budget_rebalance).
+budget_copy, budget_rebalance, set_budget_carryover).
 
 Moved out of the FastAPI handler in backend/api/category_actions.py so the same
 code runs whether the confirmation came from the PWA card, a plain HTTP call, or
-an MCP tool. Registered as the "set_budget", "budget_copy" and "budget_rebalance"
-handlers on the shared pending-proposal store at import time.
+an MCP tool. Registered as the "set_budget", "budget_copy", "budget_rebalance"
+and "set_budget_carryover" handlers on the shared pending-proposal store at
+import time.
 """
 import logging
 from datetime import date as _date
@@ -142,6 +143,32 @@ async def confirm_budget_rebalance(payload: dict, overrides: dict, confirmed_by:
     }
 
 
+async def confirm_set_budget_carryover(payload: dict, overrides: dict, confirmed_by: str) -> dict:
+    """Execute a confirmed set_budget_carryover proposal.
+
+    `overrides` (the PWA card's edited fields) win over `payload` (what
+    propose_set_budget_carryover stored). The category is only replaced when it
+    is not None — never on truthiness.
+
+    Returns {"message": <result text>, "errors": []}.
+    """
+    category_name = (
+        overrides["category_name"] if overrides.get("category_name") is not None
+        else payload["category_name"]
+    )
+    month_str = payload["month"]
+    target_month = _date.fromisoformat(month_str)
+    enabled = payload["enabled"]
+
+    await get_provider().set_budget_carryover(category_name, target_month, enabled)
+    message = (
+        f"Rollover overspending {'enabled' if enabled else 'disabled'} "
+        f"for '{category_name}' ({month_str[:7]})."
+    )
+    return {"message": message, "errors": []}
+
+
 pending_proposals.register_handler("set_budget", confirm_set_budget)
 pending_proposals.register_handler("budget_copy", confirm_budget_copy)
 pending_proposals.register_handler("budget_rebalance", confirm_budget_rebalance)
+pending_proposals.register_handler("set_budget_carryover", confirm_set_budget_carryover)
