@@ -80,6 +80,13 @@ MCP_TOOLS: frozenset[str] = frozenset({
     "finance__propose_set_fire_model",
     "finance__propose_tag_transaction",
     "finance__propose_bank_resync",
+    "vehicle__delete_vehicle_log_entry",
+    "vehicle__set_vehicle_reminder",
+    "vehicle__set_service_interval",
+    "vehicle__set_vehicle_apk_required",
+    "vehicle__set_vehicle_type",
+    "vehicle__propose_set_vehicle_active",
+    "system__set_notification_time",
 })
 
 

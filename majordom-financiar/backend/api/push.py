@@ -5,6 +5,9 @@ from backend.api.auth import get_current_user
 from backend.core.config import settings
 from backend.core.memory.database import MemoryDB
 from backend.services.push_service import get_push_service
+# Imported for its side effect: registers the "notification_time" handler on
+# the shared pending-proposal store.
+from backend.services import notification_settings_service  # noqa: F401
 
 router = APIRouter(prefix="/push", tags=["push"])
 

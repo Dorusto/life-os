@@ -9,6 +9,10 @@ from backend.api.receipts import FuelConfirmRequest, FuelConfirmResponse
 from backend.core import pending_proposals
 # Imported for its side effect: registers the "refuel" handler on the store.
 from backend.services import refuel_service  # noqa: F401
+# Imported for its side effect: registers the vehicle proposal handlers on the
+# store — vehicle_log_delete, vehicle_reminder_due, vehicle_service_interval,
+# vehicle_apk_required, vehicle_type, vehicle_status.
+from backend.services import vehicle_action_service  # noqa: F401
 
 logger = logging.getLogger(__name__)
 

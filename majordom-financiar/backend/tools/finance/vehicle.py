@@ -1,7 +1,6 @@
 """Vehicle-related chat tools (non-financial queries — operational data from vehicle-manager via HTTP)."""
 import json
 import logging
-import uuid
 from datetime import date as _date, timedelta
 
 from backend.core.config import settings
@@ -319,36 +318,52 @@ async def set_vehicle_reminder(
     due_date: ISO date string YYYY-MM-DD.
     Returns a confirmation card — does NOT write yet.
     """
-    from backend.tools import vehicle_reminder_actions as action_store
+    from backend.core import pending_proposals
 
     client = _get_client()
     vehicles = await client.list_vehicles(active_only=True)
 
-    matched = next((v for v in vehicles if vehicle_name.lower() in v["name"].lower()), None)
+    matched = next((v for v in vehicles if v["name"].lower() == vehicle_name.lower()), None)
     if not matched:
-        return json.dumps({"type": "error", "message": f"No vehicle found matching '{vehicle_name}'."})
+        names = ", ".join(v["name"] for v in vehicles)
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["vehicle_name"],
+            "message": f"No vehicle named {vehicle_name!r}. Available: {names}",
+        })
 
     rtype = reminder_type.lower().strip()
     if rtype not in ("apk", "insurance"):
-        return json.dumps({"type": "error", "message": f"Invalid reminder type '{reminder_type}'. Use 'apk' or 'insurance'."})
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["reminder_type"],
+            "message": f"Invalid reminder type '{reminder_type}'. Use 'apk' or 'insurance'.",
+        })
 
     try:
         due = _date.fromisoformat(due_date)
         days_remaining = (due - _date.today()).days
     except ValueError:
-        return json.dumps({"type": "error", "message": f"Invalid date format '{due_date}'. Use YYYY-MM-DD."})
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["due_date"],
+            "message": f"Invalid date format '{due_date}'. Use YYYY-MM-DD.",
+        })
 
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {
-        "vehicle_id": matched["id"],
-        "field": "apk_due" if rtype == "apk" else "insurance_due",
-        "due_date": due_date,
-    })
+    proposal_id = pending_proposals.create(
+        "vehicle_reminder_due",
+        {
+            "vehicle_id": matched["id"],
+            "field": "apk_due" if rtype == "apk" else "insurance_due",
+            "due_date": due_date,
+        },
+        created_by=None,
+    )
 
     label = "APK/ITP" if rtype == "apk" else "Insurance"
     return json.dumps({
         "type": "vehicle_reminder",
-        "id": action_id,
+        "id": proposal_id,
         "vehicle_id": matched["id"],
         "vehicle_name": matched["name"],
         "vehicles": vehicles,
@@ -374,28 +389,35 @@ async def set_service_interval(
     last_service_km: odometer at last service.
     last_service_date: date of last service, YYYY-MM-DD.
     """
-    from backend.tools import vehicle_reminder_actions as action_store
+    from backend.core import pending_proposals
 
     client = _get_client()
     vehicles = await client.list_vehicles(active_only=True)
-    matched = next((v for v in vehicles if vehicle_name.lower() in v["name"].lower()), None)
+    matched = next((v for v in vehicles if v["name"].lower() == vehicle_name.lower()), None)
 
     if not matched:
-        return json.dumps({"type": "error", "message": f"No vehicle found matching '{vehicle_name}'."})
+        names = ", ".join(v["name"] for v in vehicles)
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["vehicle_name"],
+            "message": f"No vehicle named {vehicle_name!r}. Available: {names}",
+        })
 
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {
-        "action": "set_service",
-        "vehicle_id": matched["id"],
-        "interval_km": interval_km,
-        "interval_months": interval_months,
-        "last_service_km": last_service_km,
-        "last_service_date": last_service_date,
-    })
+    proposal_id = pending_proposals.create(
+        "vehicle_service_interval",
+        {
+            "vehicle_id": matched["id"],
+            "interval_km": interval_km,
+            "interval_months": interval_months,
+            "last_service_km": last_service_km,
+            "last_service_date": last_service_date,
+        },
+        created_by=None,
+    )
 
     return json.dumps({
         "type": "vehicle_reminder",
-        "id": action_id,
+        "id": proposal_id,
         "vehicle_id": matched["id"],
         "vehicle_name": matched["name"],
         "vehicles": vehicles,
@@ -417,24 +439,28 @@ async def set_vehicle_apk_required(vehicle_name: str, required: bool) -> str:
     motorcycles are exempt in certain countries), or reverses that.
     Returns a confirmation card — does NOT write yet.
     """
-    from backend.tools import vehicle_reminder_actions as action_store
+    from backend.core import pending_proposals
 
     client = _get_client()
     vehicles = await client.list_vehicles(active_only=True)
-    matched = next((v for v in vehicles if vehicle_name.lower() in v["name"].lower()), None)
+    matched = next((v for v in vehicles if v["name"].lower() == vehicle_name.lower()), None)
     if not matched:
-        return json.dumps({"type": "error", "message": f"No vehicle found matching '{vehicle_name}'."})
+        names = ", ".join(v["name"] for v in vehicles)
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["vehicle_name"],
+            "message": f"No vehicle named {vehicle_name!r}. Available: {names}",
+        })
 
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {
-        "action": "set_apk_required",
-        "vehicle_id": matched["id"],
-        "required": required,
-    })
+    proposal_id = pending_proposals.create(
+        "vehicle_apk_required",
+        {"vehicle_id": matched["id"], "required": required},
+        created_by=None,
+    )
 
     return json.dumps({
         "type": "vehicle_reminder",
-        "id": action_id,
+        "id": proposal_id,
         "vehicle_id": matched["id"],
         "vehicle_name": matched["name"],
         "vehicles": vehicles,
@@ -479,20 +505,27 @@ async def delete_vehicle_log_entry(entry_id: int) -> str:
     Propose deleting a vehicle log entry. Returns a confirmation card — does NOT delete yet.
     Use the entry ID shown by get_vehicle_log.
     """
-    from backend.tools import vehicle_log_actions as action_store
+    from backend.core import pending_proposals
 
     client = _get_client()
     row = await client.get_log_entry(entry_id)
 
     if not row:
-        return f"No vehicle log entry found with ID #{entry_id}."
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["entry_id"],
+            "message": f"No vehicle log entry found with ID #{entry_id}.",
+        })
 
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {"entry_id": entry_id, "financial_id": row.get("financial_id")})
+    proposal_id = pending_proposals.create(
+        "vehicle_log_delete",
+        {"entry_id": entry_id, "financial_id": row.get("financial_id")},
+        created_by=None,
+    )
 
     return json.dumps({
         "type": "vehicle_log_action",
-        "id": action_id,
+        "id": proposal_id,
         "action": "delete",
         "entry_id": entry_id,
         "vehicle_name": row.get("vehicle_name", "Unknown"),
@@ -692,24 +725,35 @@ async def set_vehicle_type(vehicle_name: str, vehicle_type: str) -> str:
     Used to show the correct emoji in notifications.
     Returns a confirmation card — does NOT write yet.
     """
-    from backend.tools import vehicle_reminder_actions as action_store
+    from backend.core import pending_proposals
+
+    if vehicle_type not in ("car", "motorcycle", "other"):
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["vehicle_type"],
+            "message": f"Invalid vehicle type '{vehicle_type}'. Use 'car', 'motorcycle', or 'other'.",
+        })
 
     client = _get_client()
     vehicles = await client.list_vehicles(active_only=True)
-    matched = next((v for v in vehicles if vehicle_name.lower() in v["name"].lower()), None)
+    matched = next((v for v in vehicles if v["name"].lower() == vehicle_name.lower()), None)
     if not matched:
-        return json.dumps({"type": "error", "message": f"Vehicle '{vehicle_name}' not found."})
+        names = ", ".join(v["name"] for v in vehicles)
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["vehicle_name"],
+            "message": f"No vehicle named {vehicle_name!r}. Available: {names}",
+        })
 
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {
-        "action": "set_vehicle_type",
-        "vehicle_id": matched["id"],
-        "vehicle_type": vehicle_type,
-    })
+    proposal_id = pending_proposals.create(
+        "vehicle_type",
+        {"vehicle_id": matched["id"], "vehicle_type": vehicle_type},
+        created_by=None,
+    )
 
     return json.dumps({
         "type": "vehicle_reminder",
-        "id": action_id,
+        "id": proposal_id,
         "vehicle_id": matched["id"],
         "vehicle_name": matched["name"],
         "vehicles": vehicles,
@@ -742,24 +786,28 @@ async def propose_set_vehicle_active(vehicle_name: str, active: bool) -> str:
     Propose marking a vehicle as active or inactive (e.g. after it's sold).
     Returns a confirmation card — does NOT write yet.
     """
-    from difflib import get_close_matches
-    from backend.tools import vehicle_status_actions
+    from backend.core import pending_proposals
 
     client = _get_client()
     vehicles = await client.list_vehicles(active_only=False)
-    all_names = [v["name"] for v in vehicles]
-    exact = next((n for n in all_names if n.lower() == vehicle_name.lower()), None)
-    resolved_name = exact or (get_close_matches(vehicle_name, all_names, n=1, cutoff=0.6) or [None])[0]
-    if not resolved_name:
-        return json.dumps({"type": "error", "message": f"Vehicle not found: {vehicle_name!r}. Available: {', '.join(all_names)}"})
+    matched = next((v for v in vehicles if v["name"].lower() == vehicle_name.lower()), None)
+    if not matched:
+        names = ", ".join(v["name"] for v in vehicles)
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["vehicle_name"],
+            "message": f"No vehicle named {vehicle_name!r}. Available: {names}",
+        })
 
-    matched = next(v for v in vehicles if v["name"] == resolved_name)
-    action_id = uuid.uuid4().hex[:8]
-    vehicle_status_actions.store(action_id, {"vehicle_id": matched["id"], "vehicle_name": resolved_name, "active": active})
+    proposal_id = pending_proposals.create(
+        "vehicle_status",
+        {"vehicle_id": matched["id"], "vehicle_name": matched["name"], "active": active},
+        created_by=None,
+    )
     return json.dumps({
-        "type": "vehicle_status", "id": action_id,
+        "type": "vehicle_status", "id": proposal_id,
         "vehicle_id": matched["id"],
-        "vehicle_name": resolved_name, "active": active,
+        "vehicle_name": matched["name"], "active": active,
         "vehicles": vehicles,
     })
 

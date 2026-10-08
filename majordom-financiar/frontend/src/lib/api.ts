@@ -1410,11 +1410,14 @@ export interface VehicleLogActionData {
 }
 
 export async function confirmVehicleLogAction(id: string): Promise<{ message: string }> {
-  return request(`/vehicle-log-actions/${id}/confirm`, { method: 'POST' })
+  return request(`/pending-proposals/${id}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify({ overrides: {} }),
+  })
 }
 
 export async function cancelVehicleLogAction(id: string): Promise<void> {
-  return request<void>(`/vehicle-log-actions/${id}/cancel`, { method: 'POST' })
+  return request<void>(`/pending-proposals/${id}/reject`, { method: 'POST' })
 }
 
 // --- Vehicle reminder actions ---
@@ -1440,14 +1443,14 @@ export async function confirmVehicleReminder(
   id: string,
   override?: { due_date?: string; vehicle_id?: number; required?: boolean; vehicle_type?: string }
 ): Promise<{ message: string }> {
-  return request(`/vehicle-reminder-actions/${id}/confirm`, {
+  return request(`/pending-proposals/${id}/confirm`, {
     method: 'POST',
-    body: JSON.stringify(override ?? {}),
+    body: JSON.stringify({ overrides: override ?? {} }),
   })
 }
 
 export async function cancelVehicleReminder(id: string): Promise<void> {
-  return request<void>(`/vehicle-reminder-actions/${id}/cancel`, { method: 'POST' })
+  return request<void>(`/pending-proposals/${id}/reject`, { method: 'POST' })
 }
 
 // --- Vehicle status actions ---
@@ -1464,14 +1467,14 @@ export async function confirmVehicleStatus(
   id: string,
   override?: { vehicle_id?: number }
 ): Promise<{ message: string }> {
-  return request(`/vehicle-status-actions/${id}/confirm`, {
+  return request(`/pending-proposals/${id}/confirm`, {
     method: 'POST',
-    body: JSON.stringify(override ?? {}),
+    body: JSON.stringify({ overrides: override ?? {} }),
   })
 }
 
 export async function cancelVehicleStatus(id: string): Promise<void> {
-  return request<void>(`/vehicle-status-actions/${id}/cancel`, { method: 'POST' })
+  return request<void>(`/pending-proposals/${id}/reject`, { method: 'POST' })
 }
 
 // --- Notification actions ---
@@ -1482,14 +1485,14 @@ export interface NotificationTimeData {
 }
 
 export async function confirmNotificationTime(id: string, override?: { time?: string }): Promise<{ message: string }> {
-  return request(`/notification-actions/${id}/confirm`, {
+  return request(`/pending-proposals/${id}/confirm`, {
     method: 'POST',
-    body: JSON.stringify(override ?? {}),
+    body: JSON.stringify({ overrides: override ?? {} }),
   })
 }
 
 export async function cancelNotificationTime(id: string): Promise<void> {
-  return request<void>(`/notification-actions/${id}/cancel`, { method: 'POST' })
+  return request<void>(`/pending-proposals/${id}/reject`, { method: 'POST' })
 }
 
 // --- Settings ---
