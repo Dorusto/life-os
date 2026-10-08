@@ -5045,13 +5045,18 @@ class ActualBudgetClient:
                 )
                 # Account id → name, for resolving transfer payees (#313). No
                 # closed-account filter: a transfer payee of a closed account
-                # still deserves its name.
-                account_names = {
-                    str(a.id): a.name for a in get_accounts(actual.session)
-                }
+                # still deserves its name. Deleted accounts are looked up too,
+                # so their leftover transfer payees can be hidden below.
+                all_accounts = get_accounts(actual.session, include_deleted=True)
+                account_names = {str(a.id): a.name for a in all_accounts}
+                deleted_accounts = {str(a.id) for a in all_accounts if a.tombstone}
                 result = []
                 for p in get_payees(actual.session):
                     if p.tombstone:
+                        continue
+                    # Actual Budget hides the transfer payee of a deleted
+                    # account; it is not a real counterparty.
+                    if p.transfer_acct and str(p.transfer_acct) in deleted_accounts:
                         continue
                     # A transfer payee (Payees.transfer_acct set) has no name of
                     # its own — surface the destination account's name instead of
