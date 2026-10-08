@@ -868,7 +868,7 @@ TOOLS: list[dict] = [
                     },
                     "target_account_id": {
                         "type": "string",
-                        "description": "The destination account's id, as shown by finance__get_accounts.",
+                        "description": "Destination account id or exact account name.",
                     },
                     "target_account_name": {
                         "type": "string",

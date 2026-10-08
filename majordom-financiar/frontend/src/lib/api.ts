@@ -1182,15 +1182,14 @@ export async function confirmTransferConversion(
   id: string,
   override?: { target_account_id?: string }
 ): Promise<{ message: string }> {
-  return abRequest(`/transfer-conversion/${id}/confirm`, {
+  return abRequest(`/pending-proposals/${id}/confirm`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(override ?? {}),
+    body: JSON.stringify({ overrides: override ?? {} }),
   })
 }
 
-export async function cancelTransferConversion(id: string): Promise<void> {
-  return request<void>(`/transfer-conversion/${id}/cancel`, { method: 'POST' })
+export async function rejectTransferConversion(id: string): Promise<void> {
+  return request<void>(`/pending-proposals/${id}/reject`, { method: 'POST' })
 }
 
 // --- Close Account ---

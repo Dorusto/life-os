@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { confirmTransferConversion, cancelTransferConversion, type TransferConversionData } from '../lib/api'
+import { confirmTransferConversion, rejectTransferConversion, type TransferConversionData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
 import { formatCurrency } from '../lib/formatCurrency'
 import { Card, SectionLabel } from './kit/Card'
@@ -38,8 +38,10 @@ export default function TransferConversionCard({ data, onConfirmed, onCancelled 
   async function handleCancel() {
     setLoading(true)
     try {
-      await cancelTransferConversion(data.id)
-    } catch {}
+      await rejectTransferConversion(data.id)
+    } catch (err) {
+      console.warn('Failed to reject transfer-conversion proposal', err)
+    }
     onCancelled()
   }
 

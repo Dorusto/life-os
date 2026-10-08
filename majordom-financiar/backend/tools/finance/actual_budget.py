@@ -1152,40 +1152,61 @@ async def propose_transfer_conversion(
     payee, the same mechanism create_transfer() uses, not a delete+recreate.
     Returns a JSON string with type='transfer_conversion' for the frontend to
     render as a card. Does NOT write to Actual Budget yet.
+
+    The target account is resolved by exact id, then exact case-insensitive
+    name — never a fuzzy/substring guess (decisions.md#operator-not-brain).
+    Anything unknown returns needs_input and the door asks the user.
+    `target_account_name` is kept for backwards compatibility and only used in
+    messages.
     """
     import json
-    import uuid
-    from backend.tools import transfer_conversion as store
+    from backend.core import pending_proposals
 
     client = get_provider()
     accounts = await client.get_accounts()
 
     matched = next((a for a in accounts if str(a.id) == target_account_id), None)
     if not matched:
+        matched = next(
+            (a for a in accounts if a.name.lower() == target_account_id.lower()),
+            None,
+        )
+    if not matched:
         names = ", ".join(a.name for a in accounts)
         return json.dumps({
-            "type": "error",
-            "message": f"Destination account '{target_account_name or target_account_id}' not found. Available: {names}",
+            "type": "needs_input",
+            "missing": ["target_account_id"],
+            "message": (
+                f"Destination account '{target_account_name or target_account_id}' not found. "
+                f"Available: {names}"
+            ),
         })
 
     tx = await client.get_transaction_by_id(transaction_id)
     if not tx:
         return json.dumps({
-            "type": "error",
-            "message": f"Transaction not found: {transaction_id}. Use finance__get_transactions to find its id first.",
+            "type": "needs_input",
+            "missing": ["transaction_id"],
+            "message": (
+                f"Transaction not found: {transaction_id}. Use finance__get_transactions "
+                "to find its id first."
+            ),
         })
     if tx["account_id"] and tx["account_id"] == matched.id:
         return json.dumps({
-            "type": "error",
-            "message": f"Transaction is already in account '{matched.name}' — cannot convert it into a transfer to the same account.",
+            "type": "needs_input",
+            "missing": ["target_account_id"],
+            "message": (
+                f"Transaction is already in account '{matched.name}' — cannot convert it "
+                "into a transfer to the same account."
+            ),
         })
 
-    proposal_id = uuid.uuid4().hex[:8]
-    store.store(proposal_id, {
+    proposal_id = pending_proposals.create("transfer_conversion", {
         "transaction_id": transaction_id,
         "target_account_id": matched.id,
         "target_account_name": matched.name,
-    })
+    }, created_by=None)
 
     return json.dumps({
         "type": "transfer_conversion",

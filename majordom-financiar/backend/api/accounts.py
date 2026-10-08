@@ -13,6 +13,7 @@ from backend.core.finance.provider import get_provider
 from backend.services import account_transfer_service  # noqa: F401
 from backend.services import balance_adjustment_service  # noqa: F401
 from backend.services import close_account_service  # noqa: F401
+from backend.services import transfer_conversion_service  # noqa: F401
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
