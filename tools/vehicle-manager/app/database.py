@@ -8,6 +8,7 @@ plus `service_interval_km`, `service_interval_months`, `last_service_km`,
 """
 import os
 import sqlite3
+import statistics
 from pathlib import Path
 import logging
 
@@ -396,6 +397,7 @@ def fuel_intervals_from_rows(rows: list[dict]) -> list[dict]:
             if distance > 0 and not missed_since:
                 intervals.append({
                     "date": (row.get("date") or "")[:10],
+                    "start_date": (prev_full.get("date") or "")[:10],
                     "distance_km": distance,
                     "liters": liters_since,
                     "consumption": liters_since / distance * 100,
@@ -406,6 +408,52 @@ def fuel_intervals_from_rows(rows: list[dict]) -> list[dict]:
         missed_since = False
 
     return intervals
+
+
+def missing_refuel_warnings(intervals: list[dict], tank_capacity: float | None,
+                            period_filter: str | None = None) -> list[dict]:
+    """Flag intervals that suggest a refuel is missing from the log.
+
+    A missing refuel between two full fills shows up as an interval whose
+    distance is longer than one tank can cover, or whose consumption is far
+    below the vehicle's usual. The median is taken over ``intervals`` (the
+    vehicle's whole history) so a short period still has a reliable baseline;
+    ``period_filter`` (a YYYY-MM or YYYY prefix) then narrows the returned
+    warnings to that period by the interval's end date.
+
+    Returns a list of dicts, empty when there are fewer than 3 intervals or
+    nothing looks off.
+    """
+    if len(intervals) < 3:
+        return []
+
+    median = statistics.median(iv["consumption"] for iv in intervals)
+    if median <= 0:
+        return []
+
+    max_range_km = None
+    if tank_capacity and tank_capacity > 0:
+        max_range_km = 1.25 * tank_capacity / median * 100
+
+    warnings: list[dict] = []
+    for iv in intervals:
+        end_date = iv["date"]
+        if period_filter and not (end_date or "").startswith(period_filter):
+            continue
+        too_far = max_range_km is not None and iv["distance_km"] > max_range_km
+        too_thrifty = iv["consumption"] < 0.6 * median
+        if not (too_far or too_thrifty):
+            continue
+        warnings.append({
+            "type": "possible_missing_refuel",
+            "start_date": iv.get("start_date"),
+            "end_date": end_date,
+            "distance_km": round(iv["distance_km"]),
+            "consumption": round(iv["consumption"], 1),
+            "typical_consumption": round(median, 1),
+            "max_range_km": round(max_range_km) if max_range_km is not None else None,
+        })
+    return warnings
 
 
 def get_vehicle_stats_data(vehicle_id: int, period: str = "",
@@ -419,7 +467,8 @@ def get_vehicle_stats_data(vehicle_id: int, period: str = "",
 
     Returns structured JSON (not formatted text):
         profile, fill_count, total_liters, total_fuel_cost, total_distance,
-        avg_consumption, cost_per_km, cost_count, total_other_cost, total_cost
+        avg_consumption, cost_per_km, cost_count, total_other_cost, total_cost,
+        data_quality_warnings
     """
     conn = _get_conn(db_path)
     try:
@@ -455,10 +504,8 @@ def get_vehicle_stats_data(vehicle_id: int, period: str = "",
         odos = [float(r["odo_km"]) for r in period_fuel if r.get("odo_km") is not None]
         total_distance = max(odos) - min(odos) if len(odos) >= 2 and max(odos) > min(odos) else 0
 
-        intervals = [
-            iv for iv in fuel_intervals_from_rows(fuel_rows)
-            if _in_period(iv["date"])
-        ]
+        all_intervals = fuel_intervals_from_rows(fuel_rows)
+        intervals = [iv for iv in all_intervals if _in_period(iv["date"])]
         interval_liters = sum(iv["liters"] for iv in intervals)
         interval_distance = sum(iv["distance_km"] for iv in intervals)
         avg_consumption = (
@@ -504,6 +551,11 @@ def get_vehicle_stats_data(vehicle_id: int, period: str = "",
             "cost_count": cost_count,
             "total_other_cost": total_other_cost,
             "total_cost": total_cost,
+            "data_quality_warnings": missing_refuel_warnings(
+                all_intervals,
+                profile_dict.get("tank_capacity"),
+                period_filter=period or None,
+            ),
         }
     finally:
         conn.close()
