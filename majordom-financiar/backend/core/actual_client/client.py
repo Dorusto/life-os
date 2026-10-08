@@ -554,22 +554,33 @@ def _compute_budget_vs_spent(
         allocated = round(budget_by_category.get(cat_id, 0.0), 2)
         budgeted = allocated
         spent = round(spent_by_category.get(cat_id, 0.0), 2)
+        # Look up this category's BudgetCategory once — reused both for the
+        # rollover-aware `budgeted` fallback below and for `balance`. The
+        # lookup is a cheap slice of the already-built history (rule 41).
+        budget_category = None
+        if cat_id in cat_obj_map and budget_history:
+            try:
+                budget_category = budget_history[-1].from_category(cat_obj_map[cat_id])
+            except Exception as e:
+                logger.debug("accumulated-budget lookup failed for this category, budgeted amount unchanged: %s", e)
         # A category with rollover enabled that got no fresh allocation this
         # month (relying entirely on last month's carried-over balance) shows
         # budgeted=0 here, even though real money is still available. Must run
         # BEFORE the budgeted==0-and-spent==0 skip below, otherwise a rollover
         # category with no spending yet this month gets filtered out before
         # ever checking its balance.
-        if budgeted == 0 and cat_id in cat_obj_map and budget_history:
-            try:
-                budget_category = budget_history[-1].from_category(cat_obj_map[cat_id])
-                if budget_category is not None:
-                    budgeted = round(float(budget_category.accumulated_balance), 2)
-            except Exception as e:
-                logger.debug("accumulated-budget lookup failed for this category, budgeted amount unchanged: %s", e)
+        if budgeted == 0 and budget_category is not None:
+            budgeted = round(float(budget_category.accumulated_balance), 2)
         # Skip system/unbudgeted categories with no activity
         if not include_zero and budgeted == 0 and spent == 0:
             continue
+        # balance = Actual Budget's real end-of-month balance for the category
+        # (carry-in + allocated − spent), rollover-aware. Falls back to
+        # allocated − spent when the history lookup is unavailable.
+        if budget_category is not None:
+            balance = round(float(budget_category.accumulated_balance), 2)
+        else:
+            balance = round(allocated - spent, 2)
         percentage = round(spent / budgeted * 100, 1) if budgeted > 0 else 0.0
         result.append({
             "category_id": cat_id,
@@ -578,6 +589,7 @@ def _compute_budget_vs_spent(
             "budgeted": budgeted,
             "allocated": allocated,
             "spent": spent,
+            "balance": balance,
             "percentage": percentage,
             "carryover": carryover_by_category.get(cat_id, False),
         })
@@ -1877,6 +1889,8 @@ class ActualBudgetClient:
             "budgeted": float,   # amount available (EUR, rollover-aware)
             "allocated": float,  # amount assigned this month (EUR, raw allocation)
             "spent": float,      # amount actually spent (EUR, always positive)
+            "balance": float,    # end-of-month balance (EUR, rollover-aware, after
+                                 # this month's spending: carry-in + allocated − spent)
             "percentage": float, # spent / budgeted * 100 (0 if budgeted == 0)
         }
         """

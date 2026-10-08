@@ -1365,7 +1365,7 @@ export interface BudgetOverviewData {
   month: string
   groups: {
     name: string
-    categories: { id: string; name: string; budgeted: number; spent: number; balance: number; carryover: boolean }[]
+    categories: { id: string; name: string; allocated: number; spent: number; balance: number; carryover: boolean }[]
   }[]
 }
 

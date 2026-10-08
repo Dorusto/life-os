@@ -2124,7 +2124,7 @@ async def propose_budget_copy(month: str = "") -> str:
 
 async def get_budget_overview(month: str = "") -> str:
     """Show the full budget table for a month (default: current) — every expense category
-    grouped, with Budgeted (editable), Spent, Balance, and Rollover overspending state.
+    grouped, with Allocated (editable), Spent, Balance, and Rollover overspending state.
     Use when the user asks to see/manage/edit their budget, not just check status."""
     from datetime import date as _date
 
@@ -2145,9 +2145,9 @@ async def get_budget_overview(month: str = "") -> str:
         by_group.setdefault(r["group_name"], []).append({
             "id": r["category_id"],
             "name": r["category_name"],
-            "budgeted": r["budgeted"],
+            "allocated": r["allocated"],
             "spent": r["spent"],
-            "balance": round(r["budgeted"] - r["spent"], 2),
+            "balance": r["balance"],
             "carryover": r["carryover"],
         })
 

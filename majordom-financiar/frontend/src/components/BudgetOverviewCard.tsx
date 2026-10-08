@@ -13,7 +13,7 @@ export default function BudgetOverviewCard({ data, onConfirmed, onCancelled }: P
   const allCategories = data.groups.flatMap(g => g.categories)
 
   const [amounts, setAmounts] = useState<Record<string, string>>(
-    Object.fromEntries(allCategories.map(c => [c.id, c.budgeted.toFixed(2)]))
+    Object.fromEntries(allCategories.map(c => [c.id, c.allocated.toFixed(2)]))
   )
   const [carryover, setCarryover] = useState<Record<string, boolean>>(
     Object.fromEntries(allCategories.map(c => [c.id, c.carryover]))
@@ -21,7 +21,7 @@ export default function BudgetOverviewCard({ data, onConfirmed, onCancelled }: P
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const originalAmounts = Object.fromEntries(allCategories.map(c => [c.id, c.budgeted]))
+  const originalAmounts = Object.fromEntries(allCategories.map(c => [c.id, c.allocated]))
   const originalCarryover = Object.fromEntries(allCategories.map(c => [c.id, c.carryover]))
   const nameById = Object.fromEntries(allCategories.map(c => [c.id, c.name]))
 
@@ -71,7 +71,10 @@ export default function BudgetOverviewCard({ data, onConfirmed, onCancelled }: P
             <div className="space-y-2">
               {group.categories.map(cat => {
                 const parsed = parseFloat(amounts[cat.id])
-                const liveBalance = (isNaN(parsed) ? cat.budgeted : parsed) - cat.spent
+                // Balance moves by exactly the edit: AB's real balance already
+                // includes carry-in + allocated − spent, so only the delta
+                // between the edited amount and the original allocation applies.
+                const liveBalance = isNaN(parsed) ? cat.balance : cat.balance + (parsed - cat.allocated)
                 return (
                   <div key={cat.id} className="space-y-1">
                     <div className="flex items-center justify-between gap-2">
