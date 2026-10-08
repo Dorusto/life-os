@@ -5029,7 +5029,7 @@ class ActualBudgetClient:
         the most-used payees first.
         """
         def _get():
-            from actual.queries import get_payees
+            from actual.queries import get_payees, get_accounts
             from actual.database import Transactions
             from sqlalchemy import func
             with self._get_actual() as actual:
@@ -5043,10 +5043,22 @@ class ActualBudgetClient:
                     .group_by(Transactions.payee_id)
                     .all()
                 )
+                # Account id → name, for resolving transfer payees (#313). No
+                # closed-account filter: a transfer payee of a closed account
+                # still deserves its name.
+                account_names = {
+                    str(a.id): a.name for a in get_accounts(actual.session)
+                }
                 result = []
                 for p in get_payees(actual.session):
                     if p.tombstone:
                         continue
+                    # A transfer payee (Payees.transfer_acct set) has no name of
+                    # its own — surface the destination account's name instead of
+                    # the "Unnamed" fallback below.
+                    transfer_account = None
+                    if p.transfer_acct:
+                        transfer_account = account_names.get(str(p.transfer_acct))
                     result.append({
                         "id": str(p.id),
                         # Some payees (e.g. the transfer/unset placeholder) have a
@@ -5054,6 +5066,7 @@ class ActualBudgetClient:
                         # PayeeItem.name: str doesn't reject the row.
                         "name": p.name or "Unnamed",
                         "transaction_count": int(counts.get(p.id, 0)),
+                        "transfer_account": transfer_account,
                     })
                 result.sort(key=lambda x: x["transaction_count"], reverse=True)
                 return result

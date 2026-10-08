@@ -464,17 +464,39 @@ function PayeesPage() {
   if (isLoading) return <p className="text-sm text-token-ink-3 px-1">Loading…</p>
   if (!payees || payees.length === 0) return <p className="text-sm text-token-ink-3 px-1">No payees yet.</p>
 
+  // Transfer payees (one per account, created by Actual Budget) have no name of
+  // their own — list them separately as "Transfer → <account>" (#313).
+  const normalPayees = payees.filter((p: PayeeItem) => !p.transfer_account)
+  const transferPayees = payees.filter((p: PayeeItem) => p.transfer_account)
+
   return (
-    <div className="bg-token-surface border border-token-line rounded-2xl px-4 py-1.5">
-      {payees.map((p: PayeeItem) => (
-        <div key={p.id} className="flex items-center justify-between gap-3 py-2.5 border-b border-token-line last:border-b-0">
-          <span className="text-sm font-medium text-token-ink truncate">{p.name}</span>
-          <span className="text-xs text-token-ink-3 flex-shrink-0">
-            {p.transaction_count} transaction{p.transaction_count !== 1 ? 's' : ''}
-          </span>
-        </div>
-      ))}
-    </div>
+    <>
+      <div className="bg-token-surface border border-token-line rounded-2xl px-4 py-1.5">
+        {normalPayees.map((p: PayeeItem) => (
+          <div key={p.id} className="flex items-center justify-between gap-3 py-2.5 border-b border-token-line last:border-b-0">
+            <span className="text-sm font-medium text-token-ink truncate">{p.name}</span>
+            <span className="text-xs text-token-ink-3 flex-shrink-0">
+              {p.transaction_count} transaction{p.transaction_count !== 1 ? 's' : ''}
+            </span>
+          </div>
+        ))}
+      </div>
+      {transferPayees.length > 0 && (
+        <>
+          <SectionLabel>Transfers</SectionLabel>
+          <div className="bg-token-surface border border-token-line rounded-2xl px-4 py-1.5">
+            {transferPayees.map((p: PayeeItem) => (
+              <div key={p.id} className="flex items-center justify-between gap-3 py-2.5 border-b border-token-line last:border-b-0">
+                <span className="text-sm font-medium text-token-ink truncate">Transfer → {p.transfer_account}</span>
+                <span className="text-xs text-token-ink-3 flex-shrink-0">
+                  {p.transaction_count} transaction{p.transaction_count !== 1 ? 's' : ''}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </>
   )
 }
 

@@ -1501,6 +1501,8 @@ export interface PayeeItem {
   id: string
   name: string
   transaction_count: number
+  /** Set for a transfer payee — the destination account's name (#313). */
+  transfer_account: string | null
 }
 
 export async function getPayees(): Promise<PayeeItem[]> {

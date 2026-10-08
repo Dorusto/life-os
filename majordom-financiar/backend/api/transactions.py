@@ -365,6 +365,10 @@ class PayeeItem(BaseModel):
     id: str
     name: str
     transaction_count: int
+    # Set for a transfer payee (Payees.transfer_acct) — the destination
+    # account's name, so the Payees screen can show "Transfer → <account>"
+    # instead of the payee's own (empty) name (#313).
+    transfer_account: Optional[str] = None
 
 
 class ScheduleItem(BaseModel):
