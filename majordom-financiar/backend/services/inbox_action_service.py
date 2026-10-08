@@ -19,13 +19,12 @@ from backend.core.memory.database import MemoryDB
 logger = logging.getLogger(__name__)
 
 
-async def _resolve_payee_id(client, name: str) -> str | None:
-    """Resolve an edited payee name to an id, creating the payee if needed."""
-    try:
-        return await client.get_or_create_payee_id(name)
-    except Exception as e:
-        logger.warning("Failed to resolve payee '%s': %s", name, e)
-        return None
+async def _resolve_payee_id(client, name: str) -> str:
+    """Resolve an edited payee name to an id, creating the payee if needed.
+
+    A failure propagates — never silently drop the user's edited payee.
+    """
+    return await client.get_or_create_payee_id(name)
 
 
 async def _resolve_category_id(client, name: str) -> str:
