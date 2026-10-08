@@ -432,7 +432,9 @@ TOOLS: list[dict] = [
                 "Use when the user says 'create category X in group Y', 'add category X to group Y', "
                 "'create subcategory X under Y'. "
                 "Groups are the top-level buckets (e.g. Housing, Savings, Food). "
-                "Categories are the items inside groups."
+                "Categories are the items inside groups. "
+                "Returns needs_input when the group is unknown — ask the user, then call again "
+                "with create_group=true only if they confirm it is a new group to create."
             ),
             "parameters": {
                 "type": "object",
@@ -444,6 +446,10 @@ TOOLS: list[dict] = [
                     "group_name": {
                         "type": "string",
                         "description": "Name of the group to create the category in.",
+                    },
+                    "create_group": {
+                        "type": "boolean",
+                        "description": "Set true only after the user confirmed the group is a new one to create.",
                     },
                 },
                 "required": ["name", "group_name"],

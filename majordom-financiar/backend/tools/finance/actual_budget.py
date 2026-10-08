@@ -1349,49 +1349,93 @@ async def set_account_goal(
 
 async def rename_category(old_name: str, new_name: str) -> str:
     """Propose renaming a budget category. Returns a confirmation card — does NOT rename yet."""
-    import uuid
-    from difflib import get_close_matches
-    from backend.tools import category_actions as action_store
+    from backend.core import pending_proposals
     client = get_provider()
     cats = await client.get_categories()
     all_names = [c.name for c in cats]
-    exact = next((n for n in all_names if n.lower() == old_name.lower()), None)
-    resolved = exact or (get_close_matches(old_name, all_names, n=1, cutoff=0.6) or [None])[0]
+    # Exact case-insensitive match only — never a fuzzy guess
+    # (decisions.md#operator-not-brain). No match → ask the user.
+    resolved = next((n for n in all_names if n.lower() == old_name.lower()), None)
     if not resolved:
-        return json.dumps({"type": "error", "message": f"Category not found: {old_name!r}. Available: {', '.join(all_names)}"})
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {"action": "rename", "category_name": resolved, "new_name": new_name})
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["old_name"],
+            "message": f"Category not found: {old_name!r}. Available: {', '.join(all_names)}",
+        })
+    if not new_name or any(n.lower() == new_name.lower() for n in all_names):
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["new_name"],
+            "message": (
+                f"Invalid new name: {new_name!r}. It must be non-empty and not already "
+                f"an existing category. Available: {', '.join(all_names)}"
+            ),
+        })
+    action_id = pending_proposals.create("category_rename", {
+        "category_name": resolved,
+        "new_name": new_name,
+    }, created_by=None)
     return json.dumps({"type": "category_action", "id": action_id, "action": "rename", "category_name": resolved, "new_name": new_name})
 
 
 async def delete_category(name: str) -> str:
     """Propose deleting a budget category. Returns a confirmation card — does NOT delete yet."""
-    import uuid
-    from difflib import get_close_matches
-    from backend.tools import category_actions as action_store
+    from backend.core import pending_proposals
     client = get_provider()
     cats = await client.get_categories()
     all_names = [c.name for c in cats]
-    exact = next((n for n in all_names if n.lower() == name.lower()), None)
-    resolved = exact or (get_close_matches(name, all_names, n=1, cutoff=0.6) or [None])[0]
+    # Exact case-insensitive match only — never a fuzzy guess
+    # (decisions.md#operator-not-brain). No match → ask the user.
+    resolved = next((n for n in all_names if n.lower() == name.lower()), None)
     if not resolved:
-        return json.dumps({"type": "error", "message": f"Category not found: {name!r}. Available: {', '.join(all_names)}"})
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {"action": "delete", "category_name": resolved})
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["name"],
+            "message": f"Category not found: {name!r}. Available: {', '.join(all_names)}",
+        })
+    action_id = pending_proposals.create("category_delete", {
+        "category_name": resolved,
+    }, created_by=None)
     return json.dumps({"type": "category_action", "id": action_id, "action": "delete", "category_name": resolved})
 
 
-async def create_category(name: str, group_name: str) -> str:
+async def create_category(name: str, group_name: str, create_group: bool = False) -> str:
     """Propose creating a new category in a group. Returns a confirmation card — does NOT create yet."""
-    import uuid
-    from difflib import get_close_matches
-    from backend.tools import category_actions as action_store
+    from backend.core import pending_proposals
     client = get_provider()
+    cats = await client.get_categories()
+    all_names = [c.name for c in cats]
+    if not name or any(n.lower() == name.lower() for n in all_names):
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["name"],
+            "message": (
+                f"Invalid category name: {name!r}. It must be non-empty and not already "
+                f"an existing category. Available: {', '.join(all_names)}"
+            ),
+        })
     groups = await client.get_category_groups()
-    exact = next((g for g in groups if g.lower() == group_name.lower()), None)
-    resolved_group = exact or (get_close_matches(group_name, groups, n=1, cutoff=0.5) or [group_name])[0]
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {"action": "create", "category_name": name, "group_name": resolved_group, "available_groups": groups})
+    # Exact case-insensitive match only — never a fuzzy guess
+    # (decisions.md#operator-not-brain). No match → ask the user, unless the
+    # caller explicitly confirmed the group is a new one to create.
+    resolved_group = next((g for g in groups if g.lower() == group_name.lower()), None)
+    if not resolved_group:
+        if not create_group:
+            return json.dumps({
+                "type": "needs_input",
+                "missing": ["group_name"],
+                "message": (
+                    f"No category group named '{group_name}'. Pick one of: {', '.join(groups)} — "
+                    "or, if the user confirms it is a new group, call again with create_group=true."
+                ),
+            })
+        resolved_group = group_name
+    action_id = pending_proposals.create("category_create", {
+        "category_name": name,
+        "group_name": resolved_group,
+        "create_group": create_group,
+        "available_groups": groups,
+    }, created_by=None)
     return json.dumps({"type": "category_action", "id": action_id, "action": "create", "category_name": name, "group_name": resolved_group, "available_groups": groups})
 
 

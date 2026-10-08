@@ -24,6 +24,10 @@ from backend.services import budget_service  # noqa: F401
 # Imported for its side effect: registers the "set_category_goal" and "set_goal"
 # handlers on the shared pending-proposal store.
 from backend.services import goal_service  # noqa: F401
+# Imported for its side effect: registers the "category_create",
+# "category_rename" and "category_delete" handlers on the shared
+# pending-proposal store.
+from backend.services import category_structure_service  # noqa: F401
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -69,8 +73,9 @@ async def confirm_category_action(
 ):
     # Proposals on the shared pending-proposal store (categorize_with_rule,
     # set_budget, budget_copy, budget_rebalance, set_budget_carryover,
-    # set_category_goal, set_goal) carry their own id so MCP can confirm the
-    # same one — route them there first.
+    # set_category_goal, set_goal, category_create, category_rename,
+    # category_delete) carry their own id so MCP can confirm the same one —
+    # route them there first.
     if pending_proposals.get(action_id) is not None:
         try:
             return await pending_proposals.confirm(
@@ -98,18 +103,7 @@ async def confirm_category_action(
     client = get_provider()
     errors: list[str] = []
     try:
-        if action["action"] == "rename":
-            await client.rename_category(action["category_name"], action["new_name"])
-            message = f"Category renamed: '{action['category_name']}' → '{action['new_name']}'"
-        elif action["action"] == "delete":
-            await client.delete_category(action["category_name"])
-            message = f"Category deleted: '{action['category_name']}'"
-        elif action["action"] == "create":
-            cat_name = override.category_name or action["category_name"]
-            grp_name = override.group_name or action["group_name"]
-            await client.create_category(cat_name, grp_name)
-            message = f"Category created: '{cat_name}' in group '{grp_name}'"
-        elif action["action"] == "classify_income":
+        if action["action"] == "classify_income":
             cat_name = override.category_name or action["category_name"]
             income_type = override.income_type or action["income_type"]
             await client.set_income_classification(cat_name, income_type)
@@ -515,8 +509,8 @@ async def cancel_category_action(
 ):
     # Proposals on the shared pending-proposal store (categorize_with_rule,
     # set_budget, budget_copy, budget_rebalance, set_budget_carryover,
-    # set_category_goal, set_goal) — reject through the store so the same id
-    # works from MCP.
+    # set_category_goal, set_goal, category_create, category_rename,
+    # category_delete) — reject through the store so the same id works from MCP.
     if pending_proposals.get(action_id) is not None:
         try:
             await pending_proposals.reject(action_id, rejected_by=current_user)

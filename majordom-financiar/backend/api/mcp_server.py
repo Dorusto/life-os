@@ -68,6 +68,9 @@ MCP_TOOLS: frozenset[str] = frozenset({
     "finance__propose_set_budget_carryover",
     "finance__propose_set_category_goal",
     "finance__set_account_goal",
+    "finance__create_category",
+    "finance__rename_category",
+    "finance__delete_category",
 })
 
 
