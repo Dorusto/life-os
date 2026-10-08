@@ -76,15 +76,15 @@ POST /api/transactions/proposals/{id}/confirm
   → ActualBudgetClient.add_transaction()
 ```
 
-## In-memory proposal stores
+## The proposal store
 
-Each proposal type has its own in-memory store (dict in process):
-- `backend/tools/category_actions.py` → category rename/delete/create proposals
-- `backend/tools/vehicle_proposals.py` → refuel proposals
-- `backend/tools/vehicle_log_actions.py` → log delete proposals
-- `backend/tools/vehicle_reminder_actions.py` → reminder proposals
+Every proposal type lives in one in-memory store, `backend/core/pending_proposals.py` (#322/#329):
+the tool calls `pending_proposals.create(type, payload)`, a handler registered by a
+`backend/services/*_service.py` module does the write on confirm, and an optional `on_reject` hook
+runs on reject (the Inbox uses it to dismiss the finding). Any door confirms by id — the PWA card,
+`/api/pending-proposals/{id}/confirm`, or MCP's `system__confirm_proposal`.
 
-These expire on restart. The confirmation flow takes ~30s — acceptable.
+Proposals expire after 24h or on restart — acceptable, the confirmation flow takes seconds.
 
 ## Tool arguments — OpenAI vs Ollama format
 

@@ -99,20 +99,18 @@ majordom-financiar/
 │   │   ├── receipts.py                  ← Receipt photo flow (grocery + fuel)
 │   │   ├── proposals.py                 ← POST /proposals/{id}/confirm|cancel (thin wrapper, shared store)
 │   │   ├── vehicle_proposals.py         ← POST /vehicle/proposals/{id}/confirm
-│   │   ├── vehicle_log_actions.py       ← POST /vehicle-log-actions/{id}/confirm|cancel
-│   │   ├── vehicle_reminder_actions.py  ← POST /vehicle-reminder-actions/{id}/confirm|cancel
+│   │   ├── pending_proposals.py         ← POST /pending-proposals/{id}/confirm|reject (any proposal type)
+│   │   ├── category_actions.py          ← POST /category-actions/{id}/confirm|cancel (thin wrapper, shared store)
 │   │   └── csv_import.py                ← CSV import flow
 │   ├── tools/
 │   │   ├── registry.py                  ← TOOLS list + execute_tool dispatcher
-│   │   ├── category_actions.py          ← In-memory store for pending category proposals
-│   │   ├── vehicle_log_actions.py       ← In-memory store for pending log deletes
-│   │   ├── vehicle_reminder_actions.py  ← In-memory store for pending reminder proposals
 │   │   └── finance/
 │   │       ├── actual_budget.py         ← AB client wrapper
 │   │       └── vehicle.py               ← log_refuel, get_vehicle_stats, etc.
 │   ├── services/
 │   │   ├── chat_service.py              ← ChatService (Ollama/OpenRouter wrapper)
 │   │   ├── receipt_service.py           ← ReceiptService (OCR + confirm)
+│   │   ├── *_service.py                 ← confirm handlers registered on core/pending_proposals.py (one store for every proposal type, #329)
 │   │   └── notifications.py             ← daily digest, import nudge, vehicle reminders
 │   └── core/
 │       ├── ocr/             ← VisionEngine
@@ -662,8 +660,7 @@ write tools one at a time as each moves onto the shared proposal store (#322).
 |---|---|---|
 | **Read, text result** | `finance__get_accounts`, `get_monthly_stats`, `get_budget_status`, `get_transactions`, `get_untagged_transactions`, `get_transactions_by_tag`, `get_spending_history`, `get_budget_pacing_status`, `get_tag_goal_progress`, `get_unprotected_goals`, `get_reached_goals`, `get_recurring_schedules_summary`, `get_income_classifications`, `get_expense_coverage`, `get_reconciliation_suspects`, `get_uncategorized_groups`, `suggest_category` (#324); `vehicle__list_vehicles`, `get_vehicle_stats`, `get_vehicle_log`; `system__get_backup_status` | **Yes** (#323) |
 | **Read, PWA card/chart result** | `finance__list_transactions`, `list_categories`, `get_budget_overview`, all `*_chart` tools, `get_spending_trend`; `vehicle__get_vehicle_*_chart` | Not yet — the result is card JSON for the PWA; the text-result tools above already answer the same questions |
-| **Write, proposal (shared store)** | `vehicle__log_refuel`, `finance__propose_transaction`, `finance__propose_categorize_with_rule` (#329); MCP-only `system__confirm_proposal` / `system__reject_proposal` | **Yes** (#322/#328) |
-| **Write, proposal card (own store)** | every `*propose_*`, `create/rename/delete_category`, `set_account_goal`, `vehicle__set_*`, `vehicle__delete_vehicle_log_entry`, `system__set_notification_time` | After it moves onto the shared store |
+| **Write, proposal (shared store)** | every `*propose_*`, `create/rename/delete_category`, `set_account_goal`, `vehicle__log_refuel`, `vehicle__set_*`, `vehicle__delete_vehicle_log_entry`, `system__set_notification_time` (all on `pending_proposals` since #329); MCP-only `system__confirm_proposal` / `system__reject_proposal`. Inbox actions (duplicates, reconcile, outlier, schedules) are created by the `/home/*` endpoints, not a tool, but confirm by id the same way | **Yes** (#322/#328/#329) |
 | **Write, no card** | `finance__sync_accounts` (bank re-sync, same as the Home sync icon) | No — exception to critical rule 5 kept for the PWA only |
 
 The MCP layer wraps the existing registry (`backend/tools/registry.py`): tool descriptions are
