@@ -17,8 +17,8 @@ from backend.core.finance.provider import get_provider
 # Imported for its side effect: registers the "categorize_with_rule" handler
 # on the shared pending-proposal store.
 from backend.services import category_rule_service  # noqa: F401
-# Imported for its side effect: registers the "set_budget" handler on the
-# shared pending-proposal store.
+# Imported for its side effect: registers the "set_budget" and "budget_copy"
+# handlers on the shared pending-proposal store.
 from backend.services import budget_service  # noqa: F401
 
 logger = logging.getLogger(__name__)
@@ -64,8 +64,8 @@ async def confirm_category_action(
     current_user: str = Depends(get_current_user),
 ):
     # Proposals on the shared pending-proposal store (categorize_with_rule,
-    # set_budget) carry their own id so MCP can confirm the same one — route
-    # them there first.
+    # set_budget, budget_copy) carry their own id so MCP can confirm the same
+    # one — route them there first.
     if pending_proposals.get(action_id) is not None:
         try:
             return await pending_proposals.confirm(
@@ -124,32 +124,6 @@ async def confirm_category_action(
             monthly_needed = calc_monthly_needed(target, balance, deadline)
             action_store.delete(action_id)
             return {"message": message, "monthly_needed": monthly_needed}
-        elif action["action"] == "budget_copy":
-            from datetime import date as _date
-            target_month_str = action["target_month"]
-            year, mth = int(target_month_str[:4]), int(target_month_str[5:7])
-            target_month = _date(year, mth, 1)
-            overrides = override.category_amounts or {}
-            updated = 0
-            for cat in action["categories"]:
-                final_amount = overrides.get(cat["category_id"], cat["amount"])
-                try:
-                    await client.set_budget_amount(
-                        category_name=cat["category_name"],
-                        new_amount=final_amount,
-                        month=target_month,
-                    )
-                    updated += 1
-                except Exception as e:
-                    logger.warning("Failed to set budget for '%s': %s", cat["category_name"], e)
-                    errors.append(cat["category_name"])
-            if errors:
-                message = (
-                    f"Budget copied to {target_month_str} — {updated} categories set, "
-                    f"{len(errors)} failed: {', '.join(errors)}."
-                )
-            else:
-                message = f"Budget copied to {target_month_str} — {updated} categories set."
         elif action["action"] == "set_budget_carryover":
             from datetime import date as _date
             cat_name = override.category_name or action["category_name"]
@@ -581,7 +555,8 @@ async def cancel_category_action(
     current_user: str = Depends(get_current_user),
 ):
     # Proposals on the shared pending-proposal store (categorize_with_rule,
-    # set_budget) — reject through the store so the same id works from MCP.
+    # set_budget, budget_copy) — reject through the store so the same id works
+    # from MCP.
     if pending_proposals.get(action_id) is not None:
         try:
             await pending_proposals.reject(action_id, rejected_by=current_user)

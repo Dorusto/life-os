@@ -1850,16 +1850,23 @@ async def propose_budget_copy(month: str = "") -> str:
     needed (see issue #125).
     """
     import json
-    import uuid
     from datetime import date as _date
-    from backend.tools import category_actions as action_store
+    from backend.core import pending_proposals
 
     today = _date.today()
     if month:
         try:
             year, m = int(month[:4]), int(month[5:7])
+            _date(year, m, 1)
         except (ValueError, IndexError):
-            year, m = today.year, today.month
+            # Never silently fall back to the current month — a budget copied
+            # into the wrong month is worse than asking
+            # (decisions.md#operator-not-brain).
+            return json.dumps({
+                "type": "needs_input",
+                "missing": ["month"],
+                "message": f"Invalid month {month!r} — expected YYYY-MM.",
+            })
     else:
         year, m = today.year, today.month
 
@@ -1875,12 +1882,10 @@ async def propose_budget_copy(month: str = "") -> str:
         return json.dumps({"type": "error", "message": "No expense categories found to copy."})
 
     target_month_str = f"{year:04d}-{m:02d}"
-    action_id = uuid.uuid4().hex[:8]
-    action_store.store(action_id, {
-        "action": "budget_copy",
+    action_id = pending_proposals.create("budget_copy", {
         "target_month": target_month_str,
         "categories": source["categories"],
-    })
+    }, created_by=None)
     return json.dumps({
         "type": "category_action",
         "id": action_id,
