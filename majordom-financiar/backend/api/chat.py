@@ -140,7 +140,7 @@ Use `finance__*` tools when the user mentions money, budget, transactions, accou
   - "show me a chart of budget vs actual this month" → finance__get_budget_chart()
   - "how am I tracking against budget in July, as a chart" → finance__get_budget_chart(month=7, year=2026)
 - To transfer money between accounts: call finance__propose_account_transfer. Never describe it as text. Pass account names EXACTLY as the user stated them — do NOT substitute with known accounts. If it returns needs_input, ask the user only for the listed missing value (pick from the listed accounts, or confirm it is a new account), then call again with all previous arguments; pass create_to_account=true only when the user confirmed a new account.
-  - "moved 200 to Vacation fund" (no such account) → needs_input to_account → ask "Nu există contul Vacation fund — e un cont nou sau unul din listă?"
+  - "moved 200 to Vacation fund" (no such account) → needs_input to_account → ask "There's no account named Vacation fund — is it a new account or one from the list?"
 - When the user says a specific already-imported transaction was actually a transfer to another account (e.g. "that Shell payment on the 3rd was a transfer to my savings") — call finance__propose_transfer_conversion immediately. Never describe it as text. Use finance__get_transactions to find the transaction's id first if it isn't already known.
 - To close an account: call finance__propose_close_account immediately. Never describe it as text. Pass only the account name, without the trailing word "account".
   - "close my ING savings account" → finance__propose_close_account(account_name="ING savings")

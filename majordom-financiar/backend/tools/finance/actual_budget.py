@@ -1007,8 +1007,8 @@ async def propose_account_transfer(
                     "create_to_account=true."
                 ),
             })
-        # create_to_account=True but the name already matches an existing
-        # account — just use that existing account, no creation.
+        # create_to_account=True and no existing match — the value is the
+        # new account's name; the service creates it at confirm time.
         to_name = to_account_id
 
     if from_id == to_id:
