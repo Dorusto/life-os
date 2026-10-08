@@ -1200,19 +1200,19 @@ export interface CloseAccountData {
   id: string
   account_name: string
   balance: number
+  destination_account_id?: string
   accounts?: { id: string; name: string; balance: number }[]
 }
 
 export async function confirmCloseAccount(id: string, destinationAccountId?: string): Promise<{ message: string }> {
-  return abRequest(`/close-account/${id}/confirm`, {
+  return abRequest(`/pending-proposals/${id}/confirm`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ destination_account_id: destinationAccountId ?? null }),
+    body: JSON.stringify({ overrides: destinationAccountId ? { destination_account_id: destinationAccountId } : {} }),
   })
 }
 
-export async function cancelCloseAccount(id: string): Promise<void> {
-  return request<void>(`/close-account/${id}/cancel`, { method: 'POST' })
+export async function rejectCloseAccount(id: string): Promise<void> {
+  return request<void>(`/pending-proposals/${id}/reject`, { method: 'POST' })
 }
 
 

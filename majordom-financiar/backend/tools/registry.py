@@ -891,6 +891,10 @@ TOOLS: list[dict] = [
                         "type": "string",
                         "description": "The name of the account to close, e.g. 'ING savings' or 'Revolut'.",
                     },
+                    "destination_account": {
+                        "type": "string",
+                        "description": "Account (id or exact name) that receives the remaining balance. Required when the account still holds money — the tool returns needs_input otherwise.",
+                    },
                 },
                 "required": ["account_name"],
             },

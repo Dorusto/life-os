@@ -1205,14 +1205,17 @@ async def propose_transfer_conversion(
     })
 
 
-async def propose_close_account(account_name: str) -> str:
+async def propose_close_account(account_name: str, destination_account: str = "") -> str:
     """
     Propose closing an Actual Budget account.
     Returns a JSON string with type='close_account' for the frontend to render as a card.
+
+    A non-zero balance needs a destination account chosen up front — the tool
+    returns needs_input and the door asks, never a silent first-account pick
+    (decisions.md#operator-not-brain). The balance is re-read at confirm time.
     """
     import json
-    import uuid
-    from backend.tools import close_account as close_store
+    from backend.core import pending_proposals
 
     client = get_provider()
     accounts = await client.get_accounts()
@@ -1220,23 +1223,59 @@ async def propose_close_account(account_name: str) -> str:
     matched = _match_account(accounts, account_name)
     if not matched:
         names = ", ".join(a.name for a in accounts)
-        return json.dumps({"type": "error", "message": f"Account '{account_name}' not found. Available: {names}"})
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["account_name"],
+            "message": f"Account '{account_name}' not found. Available: {names}",
+        })
 
-    proposal_id = uuid.uuid4().hex[:8]
-    close_store.store(proposal_id, {
+    other_accounts = [a for a in accounts if a.id != matched.id]
+
+    destination_id = ""
+    if abs(matched.balance) >= 0.01:
+        if not destination_account:
+            names = ", ".join(a.name for a in other_accounts)
+            return json.dumps({
+                "type": "needs_input",
+                "missing": ["destination_account"],
+                "message": (
+                    f"'{matched.name}' still holds €{matched.balance:.2f}. Which account "
+                    f"should receive it? Pick one of: {names}."
+                ),
+            })
+        # Exact id first, then exact case-insensitive name among the OTHER
+        # accounts — never a fuzzy/substring guess, never the account being
+        # closed (decisions.md#operator-not-brain).
+        dest = next((a for a in other_accounts if a.id == destination_account), None)
+        if not dest:
+            dest = next(
+                (a for a in other_accounts if a.name.lower() == destination_account.lower()),
+                None,
+            )
+        if not dest:
+            names = ", ".join(a.name for a in other_accounts)
+            return json.dumps({
+                "type": "needs_input",
+                "missing": ["destination_account"],
+                "message": (
+                    f"No other account named '{destination_account}'. Pick one of: {names}."
+                ),
+            })
+        destination_id = dest.id
+
+    proposal_id = pending_proposals.create("close_account", {
         "account_id": matched.id,
         "account_name": matched.name,
-        "balance": matched.balance,
-    })
-
-    other_accounts = [{"id": a.id, "name": a.name, "balance": a.balance} for a in accounts if a.id != matched.id]
+        "destination_account_id": destination_id,
+    }, created_by=None)
 
     return json.dumps({
         "type": "close_account",
         "id": proposal_id,
         "account_name": matched.name,
         "balance": matched.balance,
-        "accounts": other_accounts,
+        "destination_account_id": destination_id,
+        "accounts": [{"id": a.id, "name": a.name, "balance": a.balance} for a in other_accounts],
     })
 
 

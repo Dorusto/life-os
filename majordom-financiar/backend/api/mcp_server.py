@@ -72,6 +72,7 @@ MCP_TOOLS: frozenset[str] = frozenset({
     "finance__create_category",
     "finance__rename_category",
     "finance__delete_category",
+    "finance__propose_close_account",
 })
 
 

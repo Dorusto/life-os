@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { confirmCloseAccount, cancelCloseAccount, type CloseAccountData } from '../lib/api'
+import { confirmCloseAccount, rejectCloseAccount, type CloseAccountData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
 import { formatCurrency } from '../lib/formatCurrency'
 import { Card, SectionLabel } from './kit/Card'
@@ -15,7 +15,7 @@ export default function CloseAccountCard({ data, onConfirmed, onCancelled }: Pro
   const [error, setError] = useState<string | null>(null)
   const accounts = data.accounts ?? []
   const hasBalance = Math.abs(data.balance) >= 0.01
-  const [destinationId, setDestinationId] = useState(accounts[0]?.id ?? '')
+  const [destinationId, setDestinationId] = useState(data.destination_account_id || accounts[0]?.id || '')
 
   async function handleConfirm() {
     setLoading(true)
@@ -34,8 +34,10 @@ export default function CloseAccountCard({ data, onConfirmed, onCancelled }: Pro
   async function handleCancel() {
     setLoading(true)
     try {
-      await cancelCloseAccount(data.id)
-    } catch {}
+      await rejectCloseAccount(data.id)
+    } catch (err) {
+      console.warn('Failed to reject close-account proposal', err)
+    }
     onCancelled()
   }
 
