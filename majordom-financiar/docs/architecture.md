@@ -289,6 +289,7 @@ Unlike a typical dev setup, `majordom-api` in `docker-compose.yml` only bind-mou
 `backend/core/actual_client/client.py` has module-level helpers (defined just above `class Account`), used by `get_monthly_stats()`, `get_budget_status()`, `get_home_data()`, and `get_goals()`:
 - `_compute_monthly_totals(session, txs)` — total/income/count/per-category breakdown for a month, including tombstoned-category fuzzy-match remap.
 - `_compute_budget_vs_spent(session, txs, all_cats, year, month)` — budget vs. spent per category, including the rollover-aware balance fallback (`get_accumulated_budgeted_balance`) for categories funded in a prior month.
+  Each row has two amounts: `budgeted` = money available (rollover-aware — for a category with no allocation this month it is the carried-over balance) and `allocated` = what was actually assigned this month in AB. Anything that writes or proposes an allocation (set budget, rebalance) must start from `allocated`; using `budgeted` turned a €0 allocation with a rollover balance into a larger allocation on rebalance — creating money instead of moving it.
 - `_tombstoned_category_remap(session, all_cats)` — fuzzy-matches a deleted category's past spending to its closest living equivalent; returns `(dead_names, remap)` so each caller decides what to do with an unmatched id.
 - `_compute_goal_progress(session, accounts)` — parses `TARGET:`/`DEADLINE:` from account notes and computes balance/percentage/monthly_needed per savings goal. Used by `get_goals()` and `get_home_data()` (added #143 audit, 2026-07-05).
 
