@@ -321,6 +321,24 @@ Confirmed AB also has a native transfer mechanism usable the same way: every acc
 ---
 
 <a id="174-code-audit"></a>
+### #315 code audit — two duplicate percentage calculations removed, nothing else
+
+**Date:** 2026-10-08
+
+**Decision:** Fourth sweep (scheduled-check trigger: 130 issues closed since #174), right after #329 moved every proposal onto `pending_proposals`. Same checkpoints as #93/#143/#174. Fixed directly: `notification_service.py` (budget alert) and `actual_budget.py` (budget progress chart) recomputed `spent / budgeted` instead of using the helper's `percentage` — now read it from `_compute_budget_vs_spent`. The third consumption formula (refuel replies) found by the pre-commit review was fixed as #327 C.
+
+**Checked, no findings:**
+- `get_budget_history`/`accumulated_balance` used only inside `client.py`'s helpers (`_compute_budget_vs_spent` and the pacing hoist).
+- Provider wiring and silent-exception checks pass (80 methods).
+- All 63 registered tools have a dispatch branch and a system-prompt bullet; every MCP name exists in the registry (plus the two `system__*_proposal` tools defined in `mcp_server.py`).
+- No leftovers of the stores retired by #329 (`_action_store`, `category_actions` store, vehicle/notification stores); every frontend API path maps to a backend route.
+- `HTTPException(detail=str(e))` handlers all catch narrow, deliberately user-facing errors (`ValueError`/`LookupError`/`VehicleClientError`), never a broad `Exception`.
+- Card buttons: the 7 cards without `ActionCardButtons` are read-only or multi-branch (Clarification, CSV/Fuelio import, fuel receipt, income source, setup balances, transaction list) — not an oversight.
+
+**Open question (not changed):** `getBudgetPacingStatus` in `frontend/src/lib/api.ts` has no caller — Settings shows pacing config but no status. Left in place until the user says whether that was intentional.
+
+---
+
 ### #174 code audit — dead/broken `FinanceProvider` method removed, CSV error-handling leak fixed
 
 **Date:** 2026-08-28
