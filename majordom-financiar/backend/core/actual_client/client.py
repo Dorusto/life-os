@@ -569,8 +569,19 @@ def _compute_budget_vs_spent(
         # BEFORE the budgeted==0-and-spent==0 skip below, otherwise a rollover
         # category with no spending yet this month gets filtered out before
         # ever checking its balance.
+        #
+        # `budgeted` here is the carried-in amount — the money available at the
+        # START of the month — NOT the end-of-month balance. actualpy's
+        # accumulated_balance already has this month's spending subtracted
+        # (accumulated_balance = previous carried balance + this month's own
+        # balance, where balance = budgeted + spent), so using it directly made
+        # `budgeted` equal the money left and every consumer divided spending by
+        # an amount that already had the spending removed (#333). carried-in =
+        # accumulated_balance − balance.
         if budgeted == 0 and budget_category is not None:
-            budgeted = round(float(budget_category.accumulated_balance), 2)
+            budgeted = round(
+                float(budget_category.accumulated_balance - budget_category.balance), 2
+            )
         # Skip system/unbudgeted categories with no activity
         if not include_zero and budgeted == 0 and spent == 0:
             continue
@@ -1886,7 +1897,9 @@ class ActualBudgetClient:
         Each item: {
             "category_id": str,
             "category_name": str,
-            "budgeted": float,   # amount available (EUR, rollover-aware)
+            "budgeted": float,   # amount available this month (EUR): the allocation,
+                                 # or for a rollover category with no allocation the
+                                 # carried-in balance (start-of-month available)
             "allocated": float,  # amount assigned this month (EUR, raw allocation)
             "spent": float,      # amount actually spent (EUR, always positive)
             "balance": float,    # end-of-month balance (EUR, rollover-aware, after
