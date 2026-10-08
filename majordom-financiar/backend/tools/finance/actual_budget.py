@@ -936,14 +936,38 @@ async def propose_account_transfer(
     amount: float,
     date: str,
     notes: str = "",
+    create_to_account: bool = False,
+    to_account_off_budget: bool = False,
 ) -> str:
     """
     Propose a transfer between two bank accounts in Actual Budget.
     Always fetches all accounts so the frontend can show account selectors.
-    Fuzzy-matches the LLM's input (may be a name, not an ID) to real account IDs.
+
+    Accounts are resolved by exact id, then exact case-insensitive name — never
+    a fuzzy guess, never a first-account fallback, never a silent swap
+    (decisions.md#operator-not-brain). Anything unknown or contradictory returns
+    needs_input and the door asks the user. A new destination account is created
+    only when the caller explicitly asked for it (create_to_account=True).
     """
     import json
-    from difflib import get_close_matches
+    from datetime import date as _date
+    from backend.core import pending_proposals
+
+    if amount <= 0:
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["amount"],
+            "message": "The transfer amount must be positive.",
+        })
+
+    try:
+        _date.fromisoformat(date)
+    except (ValueError, TypeError):
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["date"],
+            "message": f"Invalid date {date!r} — expected YYYY-MM-DD.",
+        })
 
     client = get_provider()
     accounts = await client.get_accounts()
@@ -951,46 +975,75 @@ async def propose_account_transfer(
     accounts_list = [{"id": a.id, "name": a.name, "balance": a.balance} for a in accounts]
 
     def _resolve(value: str) -> tuple[str | None, str | None]:
-        """Return (id, name) for value — tries exact ID match, then fuzzy name match. Returns (None, None) if not found."""
+        """Return (id, name) for value — exact id first, then exact
+        case-insensitive name. Never a fuzzy guess."""
         for a in accounts:
             if a.id == value:
                 return a.id, a.name
         for a in accounts:
             if a.name.lower() == value.lower():
                 return a.id, a.name
-        names = [a.name for a in accounts]
-        matches = get_close_matches(value, names, n=1, cutoff=0.4)
-        if matches:
-            matched = next(a for a in accounts if a.name == matches[0])
-            return matched.id, matched.name
         return None, None
 
     from_id, from_name = _resolve(from_account_id)
+    if from_id is None:
+        names = ", ".join(a.name for a in accounts)
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["from_account"],
+            "message": f"No account named '{from_account_id}'. Pick one of: {names}.",
+        })
+
     to_id, to_name = _resolve(to_account_id)
+    if to_id is None:
+        if not create_to_account:
+            names = ", ".join(a.name for a in accounts)
+            return json.dumps({
+                "type": "needs_input",
+                "missing": ["to_account"],
+                "message": (
+                    f"No account named '{to_account_id}'. Pick one of: {names} — or, "
+                    "if the user confirms it is a new account, call again with "
+                    "create_to_account=true."
+                ),
+            })
+        # create_to_account=True but the name already matches an existing
+        # account — just use that existing account, no creation.
+        to_name = to_account_id
 
-    # Destination not found — show the transfer card with an inline "create
-    # account" option instead of a separate clarification round-trip.
-    to_account_missing = to_id is None
+    if from_id == to_id:
+        return json.dumps({
+            "type": "needs_input",
+            "missing": ["to_account"],
+            "message": "Source and destination are the same account — pick a different destination.",
+        })
 
-    # If source not found, fall back to first account (user can correct via selector)
-    if from_id is None and accounts:
-        from_id, from_name = accounts[0].id, accounts[0].name
+    creating = bool(create_to_account and to_id is None)
 
-    # Avoid same-account transfers (only applies when destination already exists)
-    if not to_account_missing and from_id == to_id and len(accounts) >= 2:
-        other = next(a for a in accounts if a.id != from_id)
-        to_id, to_name = other.id, other.name
-
-    return json.dumps({
-        "type": "account_transfer",
+    proposal_id = pending_proposals.create("account_transfer", {
         "from_account_id": from_id,
         "from_account_name": from_name,
         "to_account_id": to_id or "",
-        "to_account_name": to_name or to_account_id,
-        "to_account_missing": to_account_missing,
+        "to_account_name": to_name,
+        "create_to_account": creating,
+        "to_account_off_budget": to_account_off_budget,
         "amount": amount,
         "date": date,
         "notes": notes,
+    }, created_by=None)
+
+    return json.dumps({
+        "type": "account_transfer",
+        "id": proposal_id,
+        "from_account_id": from_id,
+        "from_account_name": from_name,
+        "to_account_id": to_id or "",
+        "to_account_name": to_name,
+        "to_account_missing": creating,
+        "amount": amount,
+        "date": date,
+        "notes": notes,
+        "to_account_off_budget": to_account_off_budget,
         "accounts": accounts_list,
     })
 

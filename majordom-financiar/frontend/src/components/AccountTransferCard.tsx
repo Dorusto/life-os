@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ArrowRight } from 'lucide-react'
-import { confirmAccountTransfer, type AccountTransferData } from '../lib/api'
+import { confirmAccountTransfer, rejectAccountTransfer, type AccountTransferData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
 import { formatCurrency } from '../lib/formatCurrency'
 import { Card, SectionLabel } from './kit/Card'
@@ -19,32 +19,28 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
   const [amount, setAmount] = useState(data.amount)
   const [creatingNew, setCreatingNew] = useState(data.to_account_missing ?? false)
   const [newAccountName, setNewAccountName] = useState(data.to_account_name ?? '')
-  const [newAccountOffBudget, setNewAccountOffBudget] = useState(false)
+  const [newAccountOffBudget, setNewAccountOffBudget] = useState(data.to_account_off_budget ?? false)
 
   const accounts = data.accounts ?? [
     { id: data.from_account_id, name: data.from_account_name, balance: 0 },
     { id: data.to_account_id, name: data.to_account_name, balance: 0 },
   ]
 
-  const fromAcc = accounts.find(a => a.id === fromId) ?? accounts[0]
-  const toAcc = accounts.find(a => a.id === toId) ?? accounts[1] ?? accounts[0]
-
   async function handleConfirm() {
     setLoading(true)
     setError(null)
     try {
       const result = creatingNew
-        ? await confirmAccountTransfer(
-            { ...data, amount, from_account_id: fromId, from_account_name: fromAcc?.name ?? fromId, to_account_id: '', to_account_name: newAccountName.trim() },
-            { name: newAccountName.trim(), offBudget: newAccountOffBudget }
-          )
-        : await confirmAccountTransfer({
-            ...data,
-            amount,
+        ? await confirmAccountTransfer(data.id, {
             from_account_id: fromId,
-            from_account_name: fromAcc?.name ?? fromId,
+            amount,
+            create_account_name: newAccountName.trim(),
+            create_account_off_budget: newAccountOffBudget,
+          })
+        : await confirmAccountTransfer(data.id, {
+            from_account_id: fromId,
             to_account_id: toId,
-            to_account_name: toAcc?.name ?? toId,
+            amount,
           })
       onConfirmed(result.message)
     } catch (err) {
@@ -53,6 +49,15 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleCancel() {
+    try {
+      await rejectAccountTransfer(data.id)
+    } catch (err) {
+      console.warn('Failed to reject account transfer proposal', err)
+    }
+    onCancelled()
   }
 
   const selectClass = `
@@ -171,9 +176,9 @@ export default function AccountTransferCard({ data, onConfirmed, onCancelled }: 
 
         <ActionCardButtons
           onConfirm={handleConfirm}
-          onCancel={onCancelled}
+          onCancel={handleCancel}
           loading={loading}
-          confirmDisabled={creatingNew ? !newAccountName.trim() : fromId === toId}
+          confirmDisabled={amount <= 0 || (creatingNew ? !newAccountName.trim() : fromId === toId)}
           confirmLabel={loading ? 'Processing…' : 'Confirm'}
         />
       </div>

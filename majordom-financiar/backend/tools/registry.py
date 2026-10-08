@@ -336,18 +336,19 @@ TOOLS: list[dict] = [
             "name": "finance__propose_account_transfer",
             "description": (
                 "Propose a transfer between two bank accounts in Actual Budget. "
-                "Use when the user says they moved or transferred money between their own accounts."
+                "Use when the user says they moved or transferred money between their own accounts. "
+                "Returns needs_input when an account is unknown — ask the user, then call again."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "from_account_id": {
                         "type": "string",
-                        "description": "Source account ID to transfer money FROM.",
+                        "description": "Account id or exact account name as the user said it.",
                     },
                     "to_account_id": {
                         "type": "string",
-                        "description": "Destination account ID to transfer money TO.",
+                        "description": "Account id or exact account name as the user said it.",
                     },
                     "amount": {
                         "type": "number",
@@ -360,6 +361,14 @@ TOOLS: list[dict] = [
                     "notes": {
                         "type": "string",
                         "description": "Optional notes about the transfer.",
+                    },
+                    "create_to_account": {
+                        "type": "boolean",
+                        "description": "Set true only after the user confirmed the destination is a new account to create.",
+                    },
+                    "to_account_off_budget": {
+                        "type": "boolean",
+                        "description": "For a new destination account: tracking-only, off-budget.",
                     },
                 },
                 "required": ["from_account_id", "to_account_id", "amount", "date"],

@@ -1057,11 +1057,13 @@ export interface ClarificationData {
 
 export interface AccountTransferData {
   type: 'account_transfer'
+  id: string
   from_account_id: string
   from_account_name: string
   to_account_id: string
   to_account_name: string
   to_account_missing?: boolean
+  to_account_off_budget?: boolean
   amount: number
   date: string
   notes: string
@@ -1069,21 +1071,23 @@ export interface AccountTransferData {
 }
 
 export async function confirmAccountTransfer(
-  data: AccountTransferData,
-  newAccount?: { name: string; offBudget: boolean }
+  id: string,
+  overrides: {
+    from_account_id: string
+    amount: number
+    to_account_id?: string
+    create_account_name?: string
+    create_account_off_budget?: boolean
+  }
 ): Promise<{ message: string }> {
-  return abRequest('/accounts/transfer', {
+  return abRequest(`/pending-proposals/${id}/confirm`, {
     method: 'POST',
-    body: JSON.stringify({
-      from_account_id: data.from_account_id,
-      to_account_id: data.to_account_id,
-      amount: data.amount,
-      date: data.date,
-      notes: data.notes,
-      create_account_name: newAccount?.name,
-      create_account_off_budget: newAccount?.offBudget ?? false,
-    }),
+    body: JSON.stringify({ overrides }),
   })
+}
+
+export async function rejectAccountTransfer(id: string): Promise<void> {
+  return request<void>(`/pending-proposals/${id}/reject`, { method: 'POST' })
 }
 
 // --- Income Sources ---
