@@ -51,6 +51,7 @@ MANIFEST = {
     "kit/Charts.tsx": (ALL_APPS, "src/components/kit/Charts.tsx"),
     "kit/Segmented.tsx": (ALL_APPS, "src/components/kit/Segmented.tsx"),
     "kit/Button.tsx": (ALL_APPS, "src/components/kit/Button.tsx"),
+    "kit/Field.tsx": (ALL_APPS, "src/components/kit/Field.tsx"),
 }
 
 # Dark tile (the apps default to dark) — the favicon can't follow the in-app theme.
