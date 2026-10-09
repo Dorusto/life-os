@@ -14,7 +14,6 @@ import BalanceAdjustmentCard from '../components/BalanceAdjustmentCard'
 import CloseAccountCard from '../components/CloseAccountCard'
 import TransferConversionCard from '../components/TransferConversionCard'
 import PayeeActionCard from '../components/PayeeActionCard'
-import PayeeActionCard from '../components/PayeeActionCard'
 import IncomeSourceCard from '../components/IncomeSourceCard'
 import FuelReceiptCard from '../components/FuelReceiptCard'
 import ReceiptFlow, { type ReceiptSaved } from './ReceiptFlow'
@@ -296,16 +295,6 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
       return (
         <TransferConversionCard
           data={msg.transferConversion}
-          onConfirmed={(message) => replaceWithStatus(idx, message)}
-          onCancelled={() => cancelAt(idx)}
-        />
-      )
-    },
-    payee_action: (msg, idx) => {
-      if (!msg.payeeAction) return null
-      return (
-        <PayeeActionCard
-          data={msg.payeeAction}
           onConfirmed={(message) => replaceWithStatus(idx, message)}
           onCancelled={() => cancelAt(idx)}
         />
@@ -897,10 +886,6 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
         }
         if (parsed.type === 'transfer_conversion') {
           setMessages(prev => [...prev, { role: 'transfer_conversion' as const, content: '', transferConversion: parsed as TransferConversionData }])
-          return
-        }
-        if (parsed.type === 'payee_action') {
-          setMessages(prev => [...prev, { role: 'payee_action' as const, content: '', payeeAction: parsed as PayeeActionData }])
           return
         }
         if (parsed.type === 'payee_action') {

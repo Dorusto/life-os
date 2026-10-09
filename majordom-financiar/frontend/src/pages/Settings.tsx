@@ -28,9 +28,6 @@ import { Button } from '../components/kit/Button'
 import IconButton from '../components/IconButton'
 import BottomSheet from '../components/BottomSheet'
 import PayeeActionCard from '../components/PayeeActionCard'
-import IconButton from '../components/IconButton'
-import BottomSheet from '../components/BottomSheet'
-import PayeeActionCard from '../components/PayeeActionCard'
 
 type PageKey =
   | 'menu'
