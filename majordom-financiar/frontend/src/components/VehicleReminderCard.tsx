@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Bell, Check } from 'lucide-react'
 import { confirmVehicleReminder, cancelVehicleReminder, type VehicleReminderData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
+import { Input, Select } from './kit/Field'
 
 interface Props {
   data: VehicleReminderData
@@ -73,15 +74,14 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
         {data.vehicles.length > 1 && (
           <div className="space-y-1">
             <p className="text-token-ink-3 text-xs">Vehicle</p>
-            <select
+            <Select
               value={vehicleId}
               onChange={e => setVehicleId(Number(e.target.value))}
-              className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
             >
               {data.vehicles.map(v => (
                 <option key={v.id} value={v.id}>{v.name}</option>
               ))}
-            </select>
+            </Select>
           </div>
         )}
 
@@ -90,43 +90,39 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
             <div className="flex gap-2">
               <div className="flex-1 space-y-1">
                 <p className="text-token-ink-3 text-xs">Every (km)</p>
-                <input
+                <Input
                   type="number"
                   value={intervalKm}
                   onChange={e => setIntervalKm(e.target.value)}
                   placeholder="15000"
-                  className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
                 />
               </div>
               <div className="flex-1 space-y-1">
                 <p className="text-token-ink-3 text-xs">Every (months)</p>
-                <input
+                <Input
                   type="number"
                   value={intervalMonths}
                   onChange={e => setIntervalMonths(e.target.value)}
                   placeholder="12"
-                  className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
                 />
               </div>
             </div>
             <div className="flex gap-2">
               <div className="flex-1 space-y-1">
                 <p className="text-token-ink-3 text-xs">Last service (km)</p>
-                <input
+                <Input
                   type="number"
                   value={lastServiceKm}
                   onChange={e => setLastServiceKm(e.target.value)}
                   placeholder="48535"
-                  className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
                 />
               </div>
               <div className="flex-1 space-y-1">
                 <p className="text-token-ink-3 text-xs">Last service date</p>
-                <input
+                <Input
                   type="date"
                   value={lastServiceDate}
                   onChange={e => setLastServiceDate(e.target.value)}
-                  className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
                 />
               </div>
             </div>
@@ -154,15 +150,14 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
         ) : isVehicleType ? (
           <div className="space-y-1">
             <p className="text-token-ink-3 text-xs">Vehicle type</p>
-            <select
+            <Select
               value={vehicleType}
               onChange={e => setVehicleType(e.target.value as 'car' | 'motorcycle' | 'other')}
-              className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
             >
               <option value="car">🚗 Car</option>
               <option value="motorcycle">🏍️ Motorcycle</option>
               <option value="other">🚙 Other</option>
-            </select>
+            </Select>
           </div>
         ) : (
           <div className="space-y-1">
@@ -172,11 +167,10 @@ export default function VehicleReminderCard({ data, onConfirmed, onCancelled }: 
                 {daysLabel}
               </p>
             )}
-            <input
+            <Input
               type="date"
               value={dueDate}
               onChange={e => setDueDate(e.target.value)}
-              className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
             />
           </div>
         )}

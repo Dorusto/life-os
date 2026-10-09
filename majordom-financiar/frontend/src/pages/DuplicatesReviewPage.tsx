@@ -12,6 +12,7 @@ import {
 } from '../lib/api'
 import { PageHeader } from '../components/shell/PageHeader'
 import { Card } from '../components/kit/Card'
+import { Input, Select } from '../components/kit/Field'
 import { ListRow } from '../components/kit/Stats'
 import ActionCardButtons from '../components/ActionCardButtons'
 import StandardHeaderActions from '../components/StandardHeaderActions'
@@ -213,42 +214,38 @@ function DuplicatePairCard({
       <div className="mt-3 space-y-2">
         <div className="space-y-1">
           <label className="text-xs text-token-ink-3">Payee</label>
-          <input
+          <Input
             type="text"
             value={payee}
             onChange={e => setPayee(e.target.value)}
-            className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
           />
         </div>
         <div className="space-y-1">
           <label className="text-xs text-token-ink-3">Category</label>
-          <select
+          <Select
             value={category}
             onChange={e => setCategory(e.target.value)}
-            className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
           >
             {!category && <option value="" disabled>Select a category…</option>}
             {availableCategories.map(c => (
               <option key={c} value={c}>{c}</option>
             ))}
-          </select>
+          </Select>
         </div>
         <div className="space-y-1">
           <label className="text-xs text-token-ink-3">Notes</label>
-          <input
+          <Input
             type="text"
             value={notes}
             onChange={e => setNotes(e.target.value)}
-            className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
           />
         </div>
         <div className="space-y-1">
           <label className="text-xs text-token-ink-3">Date</label>
-          <input
+          <Input
             type="date"
             value={date}
             onChange={e => setDate(e.target.value)}
-            className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
           />
         </div>
       </div>

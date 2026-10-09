@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { confirmNotificationTime, cancelNotificationTime, type NotificationTimeData } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
+import { Input } from './kit/Field'
 
 interface Props {
   data: NotificationTimeData
@@ -40,11 +41,10 @@ export default function NotificationTimeCard({ data, onConfirmed, onCancelled }:
 
       <div className="space-y-1">
         <p className="text-token-ink-3 text-xs">Time</p>
-        <input
+        <Input
           type="time"
           value={time}
           onChange={e => setTime(e.target.value)}
-          className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
         />
       </div>
 

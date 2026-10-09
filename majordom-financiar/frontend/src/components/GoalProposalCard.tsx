@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { confirmCategoryAction, cancelCategoryAction } from '../lib/api'
 import ActionCardButtons from './ActionCardButtons'
 import { Card, SectionLabel } from './kit/Card'
+import { Input } from './kit/Field'
 
 export interface GoalProposalData {
   id: string
@@ -72,23 +73,22 @@ export default function GoalProposalCard({ data, onConfirmed, onCancelled }: Pro
         {/* Editable deadline — input type="month" gives native picker on mobile */}
         <div className="space-y-1">
           <SectionLabel>Deadline (optional)</SectionLabel>
-          <input
+          <Input
             type="month"
             value={deadline}
             onChange={e => setDeadline(e.target.value)}
-            className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm font-mono outline-none focus:border-token-brand"
+            className="font-mono"
           />
         </div>
 
         {/* Editable purpose — shown later in the goal card's (i) info popup */}
         <div className="space-y-1">
           <SectionLabel>Description (optional)</SectionLabel>
-          <input
+          <Input
             type="text"
             value={note}
             onChange={e => setNote(e.target.value)}
             placeholder="e.g. trip to Scandinavia"
-            className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
           />
         </div>
 

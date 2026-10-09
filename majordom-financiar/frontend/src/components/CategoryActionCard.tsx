@@ -5,6 +5,8 @@ import ActionCardButtons from './ActionCardButtons'
 import OwnAccountPanel from './OwnAccountPanel'
 import { formatCurrency } from '../lib/formatCurrency'
 import { Card } from './kit/Card'
+import { Button } from './kit/Button'
+import { Input, Select } from './kit/Field'
 
 interface Props {
   data: CategoryActionData
@@ -341,13 +343,12 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
             <p className="text-token-ink-3 text-xs">
               Current: {formatCurrency(data.current_amount ?? 0)} → New amount (€)
             </p>
-            <input
+            <Input
               type="number"
               min="0"
               step="0.01"
               value={budgetAmount}
               onChange={e => setBudgetAmount(e.target.value)}
-              className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
             />
           </div>
         </div>
@@ -359,37 +360,34 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
             <p className="text-token-ink-3 text-xs">
               {data.goal_type === 'by' ? 'Target amount (€)' : 'Monthly amount (€)'}
             </p>
-            <input
+            <Input
               type="number"
               min="0"
               step="0.01"
               value={goalAmount}
               onChange={e => setGoalAmount(e.target.value)}
-              className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
             />
           </div>
           {data.goal_type === 'by' ? (
             <div className="space-y-1">
               <p className="text-token-ink-3 text-xs">Target month (YYYY-MM)</p>
-              <input
+              <Input
                 type="text"
                 value={goalByMonth}
                 onChange={e => setGoalByMonth(e.target.value)}
                 placeholder="YYYY-MM"
-                className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
               />
             </div>
           ) : (
             <div className="space-y-1">
               <p className="text-token-ink-3 text-xs">Cumulative cap — stop at total (€)</p>
-              <input
+              <Input
                 type="number"
                 min="0"
                 step="0.01"
                 value={goalMonthlyLimit}
                 onChange={e => setGoalMonthlyLimit(e.target.value)}
                 placeholder="Optional"
-                className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
               />
             </div>
           )}
@@ -400,23 +398,21 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         <div className="space-y-2">
           <div className="space-y-1">
             <p className="text-token-ink-3 text-xs">Target amount (€)</p>
-            <input
+            <Input
               type="number"
               min="0"
               step="0.01"
               value={tagGoalAmount}
               onChange={e => setTagGoalAmount(e.target.value)}
-              className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
             />
           </div>
           <div className="space-y-1">
             <p className="text-token-ink-3 text-xs">Target month (YYYY-MM)</p>
-            <input
+            <Input
               type="text"
               value={tagGoalByMonth}
               onChange={e => setTagGoalByMonth(e.target.value)}
               placeholder="YYYY-MM"
-              className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
             />
           </div>
         </div>
@@ -426,31 +422,28 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         <div className="space-y-2">
           <div className="space-y-1">
             <p className="text-token-ink-3 text-xs">Category name</p>
-            <input
+            <Input
               type="text"
               value={categoryName}
               onChange={e => setCategoryName(e.target.value)}
-              className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
             />
           </div>
           <div className="space-y-1">
             <p className="text-token-ink-3 text-xs">Group</p>
             {data.available_groups && data.available_groups.length > 0 ? (
-              <select
+              <Select
                 value={groupName}
                 onChange={e => setGroupName(e.target.value)}
-                className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
               >
                 {data.available_groups.map(g => (
                   <option key={g} value={g}>{g}</option>
                 ))}
-              </select>
+              </Select>
             ) : (
-              <input
+              <Input
                 type="text"
                 value={groupName}
                 onChange={e => setGroupName(e.target.value)}
-                className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
               />
             )}
           </div>
@@ -460,11 +453,10 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
       {isTagTransaction && (
         <div className="space-y-1">
           <p className="text-token-ink-3 text-xs">Tag</p>
-          <input
+          <Input
             type="text"
             value={tag}
             onChange={e => setTag(e.target.value.startsWith('#') ? e.target.value : `#${e.target.value}`)}
-            className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
           />
         </div>
       )}
@@ -482,23 +474,21 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
           )}
           <div className="space-y-1">
             <p className="text-token-ink-3 text-xs">Payee</p>
-            <input
+            <Input
               type="text"
               value={payee}
               onChange={e => setPayee(e.target.value)}
-              className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
             />
           </div>
           <div className="space-y-1">
             <p className="text-token-ink-3 text-xs">Category</p>
             {data.available_categories && data.available_categories.length > 0 ? (
-              <select
+              <Select
                 value={selectedCategory}
                 onChange={e => {
                   setSelectedCategory(e.target.value)
                   setSuggestNotice(null)
                 }}
-                className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
               >
                 {/* No suggested category (Inbox groups without AB history) leaves
                     selectedCategory === '' — without this option, a bare <select>
@@ -508,16 +498,15 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
                 {data.available_categories.map(c => (
                   <option key={c} value={c}>{c}</option>
                 ))}
-              </select>
+              </Select>
             ) : (
-              <input
+              <Input
                 type="text"
                 value={selectedCategory}
                 onChange={e => {
                   setSelectedCategory(e.target.value)
                   setSuggestNotice(null)
                 }}
-                className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
               />
             )}
             {/* On-demand suggestion (#309). Offered only while nothing is
@@ -527,17 +516,18 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
                 Categorize button is still what applies it. */}
             {!selectedCategory && (
               <div className="space-y-1.5 pt-1">
-                <button
+                <Button
                   type="button"
+                  size="sm"
+                  variant="secondary"
                   aria-label="Suggest category"
                   onClick={handleSuggestCategory}
                   disabled={suggestingCategory}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-token-line text-token-ink text-xs hover:border-token-brand transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   {suggestingCategory
                     ? <><Loader2 size={12} className="animate-spin" /> Suggesting…</>
                     : 'Suggest category'}
-                </button>
+                </Button>
                 {suggestError && <p className="text-token-loss text-xs">{suggestError}</p>}
               </div>
             )}
@@ -570,11 +560,10 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
           {createRule && (
             <div className="space-y-1">
               <p className="text-token-ink-3 text-xs">Rule matches text</p>
-              <input
+              <Input
                 type="text"
                 value={rulePrefix}
                 onChange={e => setRulePrefix(e.target.value)}
-                className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
               />
             </div>
           )}
@@ -587,56 +576,50 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <p className="text-token-ink-3 text-xs">Years to transition</p>
-              <input
+              <Input
                 type="number" min="0" step="0.5"
                 value={fireYearsToTransition}
                 onChange={e => setFireYearsToTransition(e.target.value)}
-                className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
               />
             </div>
             <div className="space-y-1">
               <p className="text-token-ink-3 text-xs">Years in retirement</p>
-              <input
+              <Input
                 type="number" min="0" step="0.5"
                 value={fireYearsInRetirement}
                 onChange={e => setFireYearsInRetirement(e.target.value)}
-                className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
               />
             </div>
             <div className="space-y-1">
               <p className="text-token-ink-3 text-xs">Monthly contribution (€)</p>
-              <input
+              <Input
                 type="number" min="0" step="10"
                 value={fireMonthlyContribution}
                 onChange={e => setFireMonthlyContribution(e.target.value)}
-                className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
               />
             </div>
             <div className="space-y-1">
               <p className="text-token-ink-3 text-xs">Desired monthly spend (€)</p>
-              <input
+              <Input
                 type="number" min="0" step="50"
                 value={fireDesiredMonthlySpend}
                 onChange={e => setFireDesiredMonthlySpend(e.target.value)}
-                className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
               />
             </div>
             <div className="space-y-1">
               <p className="text-token-ink-3 text-xs">Accumulation return (%)</p>
-              <input
+              <Input
                 type="number" min="0" max="100" step="0.1"
                 value={fireAccumulationReturn}
                 onChange={e => setFireAccumulationReturn(e.target.value)}
-                className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
               />
             </div>
             <div className="space-y-1">
               <p className="text-token-ink-3 text-xs">Decumulation return (%)</p>
-              <input
+              <Input
                 type="number" min="0" max="100" step="0.1"
                 value={fireDecumulationReturn}
                 onChange={e => setFireDecumulationReturn(e.target.value)}
-                className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
               />
             </div>
           </div>
@@ -647,34 +630,31 @@ export default function CategoryActionCard({ data, onConfirmed, onCancelled }: P
         <div className="space-y-2">
           <div className="space-y-1">
             <p className="text-token-ink-3 text-xs">Schedule name</p>
-            <input
+            <Input
               type="text"
               value={scheduleName}
               onChange={e => setScheduleName(e.target.value)}
-              className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
             />
           </div>
           <div className="flex gap-2">
             <div className="flex-1 space-y-1">
               <p className="text-token-ink-3 text-xs">Amount (€)</p>
-              <input
+              <Input
                 type="number"
                 min="0"
                 step="0.01"
                 value={scheduleAmount}
                 onChange={e => setScheduleAmount(e.target.value)}
-                className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
               />
             </div>
             <div className="w-24 space-y-1">
               <p className="text-token-ink-3 text-xs">Day</p>
-              <input
+              <Input
                 type="number"
                 min="1"
                 max="31"
                 value={scheduleDay}
                 onChange={e => setScheduleDay(e.target.value)}
-                className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
               />
             </div>
           </div>

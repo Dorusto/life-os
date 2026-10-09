@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getAccountList, sendChatMessageStreaming } from '../lib/api'
 import BottomSheet from './BottomSheet'
 import GoalProposalCard, { type GoalProposalData } from './GoalProposalCard'
+import { Input, Select } from './kit/Field'
 import { formatMonthYear } from '../lib/formatDate'
 
 interface Props {
@@ -123,17 +124,16 @@ export default function NewGoalSheet({ open, onClose, onCreated }: Props) {
         <form onSubmit={handleSubmit} className="space-y-3">
           <div className="space-y-1">
             <p className="text-token-ink-3 text-xs">Account</p>
-            <select
+            <Select
               value={accountName}
               onChange={e => setAccountName(e.target.value)}
               required
-              className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
             >
               <option value="" disabled>Select an account</option>
               {accounts?.map(a => (
                 <option key={a.id} value={a.name}>{a.name}</option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div className="space-y-1">
@@ -153,22 +153,21 @@ export default function NewGoalSheet({ open, onClose, onCreated }: Props) {
 
           <div className="space-y-1">
             <p className="text-token-ink-3 text-xs">Deadline <span className="text-token-ink-3">(optional)</span></p>
-            <input
+            <Input
               type="month"
               value={deadline}
               onChange={e => setDeadline(e.target.value)}
-              className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm font-plex-mono outline-none focus:border-token-brand"
+              className="font-plex-mono"
             />
           </div>
 
           <div className="space-y-1">
             <p className="text-token-ink-3 text-xs">Description <span className="text-token-ink-3">(optional)</span></p>
-            <input
+            <Input
               type="text"
               value={note}
               onChange={e => setNote(e.target.value)}
               placeholder="e.g. trip to Scandinavia"
-              className="w-full bg-token-paper border border-token-line rounded-xl px-3 py-2 text-token-ink text-sm outline-none focus:border-token-brand"
             />
           </div>
 
