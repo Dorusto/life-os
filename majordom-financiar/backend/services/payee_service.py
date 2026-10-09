@@ -22,12 +22,15 @@ async def build_payee_proposal(
     new_name: str = "",
     target: dict | None = None,
     category: dict | None = None,
+    created_by: str | None = None,
 ) -> dict:
     """Create a pending payee proposal and return its card JSON.
 
     `payee`/`target` are rows from get_provider().get_payees() (id, name,
     transaction_count, transfer_account); `category` is {"id", "name"} or None.
     Every card key is always present — empty string when not applicable.
+    `created_by` is required from REST routes, which set no request-scoped
+    actor; chat/MCP tools leave it None and the store falls back to the actor.
     """
     current_category_name = ""
     if action == "default_category":
@@ -51,7 +54,7 @@ async def build_payee_proposal(
         "current_category_name": current_category_name,
         "transaction_count": payee.get("transaction_count", 0),
     }
-    proposal_id = pending_proposals.create(f"payee_{action}", payload, created_by=None)
+    proposal_id = pending_proposals.create(f"payee_{action}", payload, created_by=created_by)
     return {"type": "payee_action", "id": proposal_id, **payload}
 
 

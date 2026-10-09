@@ -433,6 +433,7 @@ async def create_payee_proposal(
         new_name=body.new_name,
         target=target,
         category=category,
+        created_by=current_user,
     )
 
 
