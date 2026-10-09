@@ -16,3 +16,4 @@ httpx==0.28.1
 APScheduler==3.10.4
 pywebpush==2.0.0
 mcp==1.12.4                # MCP server for external agents (#323); newest that installs with fastapi 0.115.0
+pydantic==2.13.5           # pinned: 2.14 removed the private eval_type_backport that mcp 1.12.4 imports — the API crash-looped on a fresh build
