@@ -13,6 +13,8 @@ import SetupBalancesCard from '../components/SetupBalancesCard'
 import BalanceAdjustmentCard from '../components/BalanceAdjustmentCard'
 import CloseAccountCard from '../components/CloseAccountCard'
 import TransferConversionCard from '../components/TransferConversionCard'
+import PayeeActionCard from '../components/PayeeActionCard'
+import PayeeActionCard from '../components/PayeeActionCard'
 import IncomeSourceCard from '../components/IncomeSourceCard'
 import FuelReceiptCard from '../components/FuelReceiptCard'
 import ReceiptFlow, { type ReceiptSaved } from './ReceiptFlow'
@@ -37,7 +39,7 @@ import { formatCurrency, formatNumber } from '../lib/formatCurrency'
 
 
 export interface Message {
-  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'close_account' | 'csv_import' | 'fuelio_import' | 'income_source' | 'category_action' | 'category_overview' | 'budget_overview' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder' | 'vehicle_status' | 'transfer_conversion' | 'chart' | 'notification_time' | 'transaction_list'
+  role: 'user' | 'assistant' | 'status' | 'proposal' | 'budget_rebalance' | 'clarification' | 'account_transfer' | 'setup_balances' | 'balance_adjustment' | 'close_account' | 'csv_import' | 'fuelio_import' | 'income_source' | 'category_action' | 'category_overview' | 'budget_overview' | 'goal_proposal' | 'fuel_log' | 'vehicle_log_action' | 'vehicle_reminder' | 'vehicle_status' | 'transfer_conversion' | 'payee_action' | 'chart' | 'notification_time' | 'transaction_list'
 
   content: string
   ts?: number
@@ -68,6 +70,7 @@ export interface Message {
   vehicleReminder?: VehicleReminderData
   vehicleStatus?: VehicleStatusData
   transferConversion?: TransferConversionData
+  payeeAction?: PayeeActionData
   notificationTime?: NotificationTimeData
 }
 
@@ -293,6 +296,26 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
       return (
         <TransferConversionCard
           data={msg.transferConversion}
+          onConfirmed={(message) => replaceWithStatus(idx, message)}
+          onCancelled={() => cancelAt(idx)}
+        />
+      )
+    },
+    payee_action: (msg, idx) => {
+      if (!msg.payeeAction) return null
+      return (
+        <PayeeActionCard
+          data={msg.payeeAction}
+          onConfirmed={(message) => replaceWithStatus(idx, message)}
+          onCancelled={() => cancelAt(idx)}
+        />
+      )
+    },
+    payee_action: (msg, idx) => {
+      if (!msg.payeeAction) return null
+      return (
+        <PayeeActionCard
+          data={msg.payeeAction}
           onConfirmed={(message) => replaceWithStatus(idx, message)}
           onCancelled={() => cancelAt(idx)}
         />
@@ -874,6 +897,14 @@ export default function Chat({ messages, setMessages, input, setInput }: ChatPro
         }
         if (parsed.type === 'transfer_conversion') {
           setMessages(prev => [...prev, { role: 'transfer_conversion' as const, content: '', transferConversion: parsed as TransferConversionData }])
+          return
+        }
+        if (parsed.type === 'payee_action') {
+          setMessages(prev => [...prev, { role: 'payee_action' as const, content: '', payeeAction: parsed as PayeeActionData }])
+          return
+        }
+        if (parsed.type === 'payee_action') {
+          setMessages(prev => [...prev, { role: 'payee_action' as const, content: '', payeeAction: parsed as PayeeActionData }])
           return
         }
         if (parsed.type === 'category_action') {

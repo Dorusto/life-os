@@ -1509,6 +1509,47 @@ export async function getPayees(): Promise<PayeeItem[]> {
   return abRequest<PayeeItem[]>('/payees')
 }
 
+// --- Payee rename / merge / default-category actions (#313) ---
+
+export interface PayeeActionData {
+  type: 'payee_action'
+  id: string
+  action: 'rename' | 'merge' | 'default_category'
+  payee_id: string
+  payee_name: string
+  new_name: string
+  target_payee_id: string
+  target_payee_name: string
+  category_id: string
+  category_name: string
+  current_category_name: string
+  transaction_count: number
+}
+
+export async function proposePayeeAction(
+  payeeId: string,
+  action: PayeeActionData['action']
+): Promise<PayeeActionData> {
+  return abRequest<PayeeActionData>(`/payees/${payeeId}/proposals`, {
+    method: 'POST',
+    body: JSON.stringify({ action }),
+  })
+}
+
+export async function confirmPayeeAction(
+  id: string,
+  overrides: { new_name?: string; target_payee_id?: string; category_id?: string }
+): Promise<{ message: string }> {
+  return abRequest(`/pending-proposals/${id}/confirm`, {
+    method: 'POST',
+    body: JSON.stringify({ overrides }),
+  })
+}
+
+export async function rejectPayeeAction(id: string): Promise<void> {
+  return request<void>(`/pending-proposals/${id}/reject`, { method: 'POST' })
+}
+
 export interface ScheduleItem {
   id: string
   name: string

@@ -6,7 +6,7 @@ import {
   ChevronRight, ChevronDown, LogOut, RefreshCw, Wallet, Database, Car, LineChart,
   Languages, Settings2, ShieldCheck, Coins, Tags, Users, CalendarClock,
   ArrowRightLeft, Sparkles, Plug, Link2, Bell, Info, Monitor, Check,
-  Lock, Hash, TrendingUp, EyeOff, X,
+  Lock, Hash, TrendingUp, EyeOff, X, MoreHorizontal,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { AnimatePresence, motion } from 'framer-motion'
@@ -15,7 +15,8 @@ import {
   getBudgetPacingConfig, saveBudgetPacingConfig, getSetupStatus, getVehicleCostsSummary,
   getInvestmentStatus,
   getFireExcludedAccounts, saveFireExcludedAccounts, getAccountList,
-  type PayeeItem, type ScheduleItem,
+  proposePayeeAction,
+  type PayeeItem, type ScheduleItem, type PayeeActionData,
 } from '../lib/api'
 import { isAbDown, subscribeAbDown } from '../lib/abConnectionStatus'
 import { clearAuth } from '../lib/auth'
@@ -24,6 +25,12 @@ import { APP_LINKS } from '../components/shell/appLinks'
 import { PageHeader } from '../components/shell/PageHeader'
 import { AppearanceSettings } from '../components/shell/AppearanceSettings'
 import { Button } from '../components/kit/Button'
+import IconButton from '../components/IconButton'
+import BottomSheet from '../components/BottomSheet'
+import PayeeActionCard from '../components/PayeeActionCard'
+import IconButton from '../components/IconButton'
+import BottomSheet from '../components/BottomSheet'
+import PayeeActionCard from '../components/PayeeActionCard'
 
 type PageKey =
   | 'menu'
@@ -455,11 +462,40 @@ function CategoriesPage() {
 }
 
 function PayeesPage() {
+  const queryClient = useQueryClient()
   const { data: payees, isLoading } = useQuery({
     queryKey: ['payees'],
     queryFn: () => getPayees(),
     staleTime: 120_000,
   })
+
+  // Actions sheet state: which payee's sheet is open, the proposal card it
+  // produced (null while still choosing an action), and the last result line.
+  const [sheetPayee, setSheetPayee] = useState<PayeeItem | null>(null)
+  const [proposal, setProposal] = useState<PayeeActionData | null>(null)
+  const [proposing, setProposing] = useState(false)
+  const [proposalError, setProposalError] = useState<string | null>(null)
+  const [status, setStatus] = useState<string | null>(null)
+
+  function closeSheet() {
+    setSheetPayee(null)
+    setProposal(null)
+    setProposing(false)
+    setProposalError(null)
+  }
+
+  async function handleAction(payee: PayeeItem, action: PayeeActionData['action']) {
+    setProposing(true)
+    setProposalError(null)
+    try {
+      const data = await proposePayeeAction(payee.id, action)
+      setProposal(data)
+    } catch (err) {
+      setProposalError(err instanceof Error ? err.message : 'Failed to prepare action.')
+    } finally {
+      setProposing(false)
+    }
+  }
 
   if (isLoading) return <p className="text-sm text-token-ink-3 px-1">Loading…</p>
   if (!payees || payees.length === 0) return <p className="text-sm text-token-ink-3 px-1">No payees yet.</p>
@@ -471,14 +507,23 @@ function PayeesPage() {
 
   return (
     <>
+      {status && <p className="text-token-gain text-sm px-1">{status}</p>}
       {normalPayees.length > 0 && (
         <div className="bg-token-surface border border-token-line rounded-2xl px-4 py-1.5">
           {normalPayees.map((p: PayeeItem) => (
             <div key={p.id} className="flex items-center justify-between gap-3 py-2.5 border-b border-token-line last:border-b-0">
               <span className="text-sm font-medium text-token-ink truncate">{p.name}</span>
-              <span className="text-xs text-token-ink-3 flex-shrink-0">
-                {p.transaction_count} transaction{p.transaction_count !== 1 ? 's' : ''}
-              </span>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <span className="text-xs text-token-ink-3">
+                  {p.transaction_count} transaction{p.transaction_count !== 1 ? 's' : ''}
+                </span>
+                <IconButton
+                  icon={MoreHorizontal}
+                  onClick={() => { setStatus(null); setSheetPayee(p) }}
+                  label={`Actions for ${p.name}`}
+                  size={16}
+                />
+              </div>
             </div>
           ))}
         </div>
@@ -498,6 +543,40 @@ function PayeesPage() {
           </div>
         </>
       )}
+
+      <BottomSheet open={!!sheetPayee} onClose={closeSheet} title={sheetPayee?.name ?? ''}>
+        {proposal ? (
+          <PayeeActionCard
+            data={proposal}
+            className=""
+            onConfirmed={(message) => {
+              queryClient.invalidateQueries({ queryKey: ['payees'] })
+              closeSheet()
+              setStatus(message)
+            }}
+            onCancelled={closeSheet}
+          />
+        ) : proposing ? (
+          <p className="px-1 py-3 text-token-ink-3 text-sm">Preparing…</p>
+        ) : (
+          <div className="-mx-6 border-t border-token-line divide-y divide-token-line">
+            {proposalError && <p className="px-6 py-3 text-token-loss text-sm">{proposalError}</p>}
+            {([
+              { action: 'rename' as const, label: 'Rename' },
+              { action: 'merge' as const, label: 'Merge into…' },
+              { action: 'default_category' as const, label: 'Default category' },
+            ]).map(({ action, label }) => (
+              <button
+                key={action}
+                onClick={() => sheetPayee && handleAction(sheetPayee, action)}
+                className="w-full flex items-center gap-3 px-6 py-3 text-left hover:bg-white/5 transition-colors"
+              >
+                <span className="flex-1 text-token-ink text-sm">{label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </BottomSheet>
     </>
   )
 }
