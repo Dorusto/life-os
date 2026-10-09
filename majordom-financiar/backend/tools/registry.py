@@ -805,6 +805,82 @@ TOOLS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "finance__propose_payee_rename",
+            "description": (
+                "Rename a payee (merchant). Use when the user says 'rename payee X to Y' "
+                "or 'call X something else'. This is for a payee name, never a category. "
+                "Shows a confirmation card — nothing changes until the user confirms."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "payee": {
+                        "type": "string",
+                        "description": "Current payee name, exactly as shown in the payee list.",
+                    },
+                    "new_name": {
+                        "type": "string",
+                        "description": "New payee name, exactly as the user specified.",
+                    },
+                },
+                "required": ["payee", "new_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "finance__propose_payee_merge",
+            "description": (
+                "Merge two payees that are the same counterparty under two bank spellings. "
+                "Use when the user says 'merge X into Y'. The source payee disappears and its "
+                "transactions move to the target. Shows a confirmation card — nothing changes "
+                "until the user confirms."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "source_payee": {
+                        "type": "string",
+                        "description": "Payee to merge away (will disappear).",
+                    },
+                    "target_payee": {
+                        "type": "string",
+                        "description": "Payee to keep.",
+                    },
+                },
+                "required": ["source_payee", "target_payee"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "finance__propose_payee_default_category",
+            "description": (
+                "Give a payee a default category. Creates an Actual Budget rule: transactions "
+                "from this payee get this category. Applies to new transactions. Shows a "
+                "confirmation card — nothing changes until the user confirms."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "payee": {
+                        "type": "string",
+                        "description": "Payee name, exactly as shown in the payee list.",
+                    },
+                    "category": {
+                        "type": "string",
+                        "description": "Category name to assign to this payee's transactions.",
+                    },
+                },
+                "required": ["payee", "category"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "finance__propose_balance_adjustment",
             "description": "Propose adjusting an account balance to match the real bank balance. Use when the user says the account balance is wrong, or wants to sync/reconcile an account balance.",
             "parameters": {
@@ -1556,6 +1632,18 @@ async def execute_tool(name: str, arguments: dict[str, Any]) -> str:
     if name == "finance__rename_category":
         from backend.tools.finance.actual_budget import rename_category
         return await rename_category(**arguments)
+
+    if name == "finance__propose_payee_rename":
+        from backend.tools.finance.payees import propose_payee_rename
+        return await propose_payee_rename(**arguments)
+
+    if name == "finance__propose_payee_merge":
+        from backend.tools.finance.payees import propose_payee_merge
+        return await propose_payee_merge(**arguments)
+
+    if name == "finance__propose_payee_default_category":
+        from backend.tools.finance.payees import propose_payee_default_category
+        return await propose_payee_default_category(**arguments)
 
     if name == "system__set_notification_time":
         from backend.tools.settings.notifications import set_notification_time

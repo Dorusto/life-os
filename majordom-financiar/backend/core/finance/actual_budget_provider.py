@@ -360,6 +360,18 @@ class ActualBudgetProvider:
             payee_name_prefix, category_id
         )
 
+    async def rename_payee(self, payee_id: str, new_name: str) -> None:
+        return await self._client().rename_payee(payee_id, new_name)
+
+    async def merge_payee(self, source_id: str, target_id: str) -> dict:
+        return await self._client().merge_payee(source_id, target_id)
+
+    async def set_payee_default_category(self, payee_id: str, category_id: str) -> dict:
+        return await self._client().set_payee_default_category(payee_id, category_id)
+
+    async def get_payee_default_category(self, payee_id: str) -> str | None:
+        return await self._client().get_payee_default_category(payee_id)
+
     async def create_payee_notes_rule(
         self, payee_name_prefix: str, notes_contains: str, category_id: str
     ) -> None:

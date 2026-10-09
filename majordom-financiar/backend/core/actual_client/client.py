@@ -4322,6 +4322,205 @@ class ActualBudgetClient:
                 actual.commit()
         await self._run(_create)
 
+    async def rename_payee(self, payee_id: str, new_name: str) -> None:
+        """Rename a payee by id. Raises ValueError if the payee is missing, is a
+        transfer payee, or another payee already has the same name."""
+        def _rename():
+            from actual.database import Payees
+            with self._get_actual() as actual:
+                payee = actual.session.query(Payees).filter(
+                    Payees.id == payee_id,
+                    Payees.tombstone == 0,
+                ).first()
+                if not payee:
+                    raise ValueError(f"Payee not found: {payee_id}")
+                if payee.transfer_acct:
+                    raise ValueError("Cannot rename a transfer payee")
+                others = actual.session.query(Payees).filter(
+                    Payees.tombstone == 0,
+                    Payees.id != payee_id,
+                ).all()
+                if any((p.name or "").lower() == new_name.lower() for p in others):
+                    raise ValueError(
+                        f"A payee named {new_name!r} already exists — merge instead"
+                    )
+                payee.name = new_name
+                actual.commit()
+        return await self._run(_rename)
+
+    async def merge_payee(self, source_id: str, target_id: str) -> dict:
+        """Merge one payee into another, mirroring Actual Budget's own merge.
+
+        Moves every transaction's payee_id, repoints the PayeeMapping rows,
+        rewrites any rule that references the source id, then tombstones the
+        source payee. Returns {"transactions_moved", "rules_updated"}.
+        """
+        def _merge():
+            from actual.database import Payees, Transactions, PayeeMapping, Rules
+            with self._get_actual() as actual:
+                source = actual.session.query(Payees).filter(
+                    Payees.id == source_id,
+                    Payees.tombstone == 0,
+                ).first()
+                target = actual.session.query(Payees).filter(
+                    Payees.id == target_id,
+                    Payees.tombstone == 0,
+                ).first()
+                if not source:
+                    raise ValueError(f"Payee not found: {source_id}")
+                if not target:
+                    raise ValueError(f"Payee not found: {target_id}")
+                if source_id == target_id:
+                    raise ValueError("Cannot merge a payee into itself")
+                if source.transfer_acct or target.transfer_acct:
+                    raise ValueError("Cannot merge a transfer payee")
+
+                txs = actual.session.query(Transactions).filter(
+                    Transactions.payee_id == source_id,
+                    Transactions.tombstone == 0,
+                ).all()
+                for tx in txs:
+                    tx.payee_id = target_id
+                transactions_moved = len(txs)
+
+                mapping = actual.session.query(PayeeMapping).filter(
+                    PayeeMapping.id == source_id,
+                ).first()
+                if mapping:
+                    mapping.target_id = target_id
+                else:
+                    actual.session.add(PayeeMapping(id=source_id, target_id=target_id))
+                for m in actual.session.query(PayeeMapping).filter(
+                    PayeeMapping.target_id == source_id,
+                ).all():
+                    m.target_id = target_id
+
+                rules_updated = 0
+                for rule in actual.session.query(Rules).filter(Rules.tombstone == 0).all():
+                    changed = False
+                    for attr in ("conditions", "actions"):
+                        raw = getattr(rule, attr) or ""
+                        if source_id in raw:
+                            setattr(rule, attr, raw.replace(source_id, target_id))
+                            changed = True
+                    if changed:
+                        rules_updated += 1
+
+                source.tombstone = 1
+                actual.commit()
+                return {
+                    "transactions_moved": transactions_moved,
+                    "rules_updated": rules_updated,
+                }
+        return await self._run(_merge)
+
+    async def set_payee_default_category(self, payee_id: str, category_id: str) -> dict:
+        """Create or replace the AB rule that gives a payee a default category.
+
+        The rule is a single condition on the payee field ("description" is the
+        payee id in actualpy rules) and a single "set category" action. Returns
+        {"replaced": bool} — True when an existing rule was updated in place.
+        """
+        def _set():
+            import json
+            from actual.database import Payees, Categories, Rules
+            from actual.rules import Rule, Condition, Action
+            from actual.queries import create_rule
+            with self._get_actual() as actual:
+                payee = actual.session.query(Payees).filter(
+                    Payees.id == payee_id,
+                    Payees.tombstone == 0,
+                ).first()
+                if not payee:
+                    raise ValueError(f"Payee not found: {payee_id}")
+                if payee.transfer_acct:
+                    raise ValueError("Cannot set a default category on a transfer payee")
+                cat = actual.session.query(Categories).filter(
+                    Categories.id == category_id,
+                    Categories.tombstone == 0,
+                ).first()
+                if not cat:
+                    raise ValueError(f"Category not found: {category_id}")
+
+                existing = None
+                for rule in actual.session.query(Rules).filter(Rules.tombstone == 0).all():
+                    try:
+                        conds = json.loads(rule.conditions) if rule.conditions else []
+                        acts = json.loads(rule.actions) if rule.actions else []
+                    except (json.JSONDecodeError, TypeError) as e:
+                        logger.debug(
+                            "Skipping rule %s — conditions/actions not valid JSON: %s",
+                            rule.id, e,
+                        )
+                        continue
+                    if len(conds) != 1 or len(acts) != 1:
+                        continue
+                    c, a = conds[0], acts[0]
+                    if not isinstance(c, dict) or not isinstance(a, dict):
+                        continue
+                    if (
+                        c.get("field") == "description"
+                        and c.get("op") == "is"
+                        and c.get("value") == payee_id
+                        and a.get("op") == "set"
+                        and a.get("field") == "category"
+                    ):
+                        existing = rule
+                        break
+
+                if existing is not None:
+                    acts = json.loads(existing.actions)
+                    acts[0]["value"] = category_id
+                    existing.actions = json.dumps(acts)
+                    actual.commit()
+                    return {"replaced": True}
+
+                rule = Rule(
+                    conditions=[
+                        Condition(field="description", op="is", value=payee_id)
+                    ],
+                    operation="and",
+                    actions=[
+                        Action(op="set", field="category", value=category_id)
+                    ],
+                )
+                create_rule(actual.session, rule)
+                actual.commit()
+                return {"replaced": False}
+        return await self._run(_set)
+
+    async def get_payee_default_category(self, payee_id: str) -> str | None:
+        """Return the category id of a payee's default-category rule, or None."""
+        def _get():
+            import json
+            from actual.database import Rules
+            with self._get_cached_read_actual() as actual:
+                for rule in actual.session.query(Rules).filter(Rules.tombstone == 0).all():
+                    try:
+                        conds = json.loads(rule.conditions) if rule.conditions else []
+                        acts = json.loads(rule.actions) if rule.actions else []
+                    except (json.JSONDecodeError, TypeError) as e:
+                        logger.debug(
+                            "Skipping rule %s — conditions/actions not valid JSON: %s",
+                            rule.id, e,
+                        )
+                        continue
+                    if len(conds) != 1 or len(acts) != 1:
+                        continue
+                    c, a = conds[0], acts[0]
+                    if not isinstance(c, dict) or not isinstance(a, dict):
+                        continue
+                    if (
+                        c.get("field") == "description"
+                        and c.get("op") == "is"
+                        and c.get("value") == payee_id
+                        and a.get("op") == "set"
+                        and a.get("field") == "category"
+                    ):
+                        return a.get("value")
+                return None
+        return await self._run(_get)
+
     async def create_payee_notes_rule(
         self, payee_name_prefix: str, notes_contains: str, category_id: str,
     ) -> None:

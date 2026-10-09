@@ -14,7 +14,7 @@ import logging
 import re
 from datetime import date
 from pathlib import Path
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -23,6 +23,7 @@ from backend.api.auth import get_current_user
 from backend.api.receipts import ConfirmResponse, NearDuplicateMatch
 from backend.core.config import settings
 from backend.core.finance.provider import get_provider
+from backend.services import payee_service
 from backend.services.receipt_service import ReceiptService
 
 logger = logging.getLogger(__name__)
@@ -386,6 +387,53 @@ async def list_payees(current_user: str = Depends(get_current_user)):
     except Exception as e:
         logger.error("Failed to fetch payees: %s", e)
         raise HTTPException(status_code=500, detail="Could not fetch payees")
+
+
+class PayeeProposalRequest(BaseModel):
+    action: Literal["rename", "merge", "default_category"]
+    new_name: str = ""
+    target_payee_id: str = ""
+    category_id: str = ""
+
+
+@router.post("/payees/{payee_id}/proposals")
+async def create_payee_proposal(
+    payee_id: str,
+    body: PayeeProposalRequest,
+    current_user: str = Depends(get_current_user),
+):
+    """Create a pending payee proposal (rename / merge / default category).
+
+    The Settings page's row actions call this; the returned card JSON is the
+    same shape the chat/MCP tools produce. Values may be empty — the card
+    collects them and the confirm handler re-validates.
+    """
+    payees = await get_provider().get_payees()
+    payee = next((p for p in payees if p["id"] == payee_id), None)
+    if payee is None or payee.get("transfer_account"):
+        raise HTTPException(status_code=404, detail="Payee not found")
+
+    target = None
+    if body.target_payee_id:
+        target = next((p for p in payees if p["id"] == body.target_payee_id), None)
+        if target is None or target.get("transfer_account"):
+            raise HTTPException(status_code=400, detail="Target payee not found")
+
+    category = None
+    if body.category_id:
+        cats = await get_provider().get_categories()
+        cat = next((c for c in cats if c.id == body.category_id), None)
+        if cat is None:
+            raise HTTPException(status_code=400, detail="Category not found")
+        category = {"id": cat.id, "name": cat.name}
+
+    return await payee_service.build_payee_proposal(
+        body.action,
+        payee,
+        new_name=body.new_name,
+        target=target,
+        category=category,
+    )
 
 
 @router.get("/schedules", response_model=list[ScheduleItem])
