@@ -1643,3 +1643,17 @@ Each app keeps working standalone; each step is tested before the next one start
 **Not a priority change:** connecting Majordom to engines other than AB (#224, #325) stays where the 2026-09-12 sequencing put it — after personal completeness.
 
 **Rejected:** dropping Majordom's tool layer for an agent with direct data access (would rebuild the adapter and the safe-write code as untested, per-door scripts, and send raw ledgers to a cloud model); keeping weak-signal heuristics and tuning them (each new edge case needs a new rule, while the door's model already sees the context).
+
+<a id="payee-actions"></a>
+### Payee rename / merge / default category — one card per action, default category as an AB rule on the payee id (#313, 2026-10-09)
+
+**Decision:** each payee action is its own proposal on `pending_proposals` (`payee_rename`, `payee_merge`, `payee_default_category`), created by the Settings → Payees row actions (`POST /payees/{id}/proposals`) or by the chat/MCP tools, confirmed by the same handlers (`backend/services/payee_service.py`). Default category is an Actual Budget rule `payee is <id> → set category` (actualpy field `"description"`); a second call replaces the existing rule instead of adding another. Merge mirrors AB's own merge (payee_mapping + tombstone) and also moves `Transactions.payee_id` and rewrites rules that reference the source.
+
+**Rejected:** a Settings management page with one confirmation on Save — a second confirmation path the Telegram door can't use. Reusing `create_payee_rule()` for the default category — it matches the raw bank text (`imported_description contains`), which breaks after a rename or merge; it stays for the import flow.
+
+<a id="session-2026-10-09-parking"></a>
+### Annual pacing status stays a notification; Invest prices already settled; #42, #307, #260 parked (2026-10-09)
+
+- **Pacing:** the status was never shown in the PWA — `getBudgetPacingStatus` had no caller since #112. It stays what #112 designed: a pending item only when over pace, plus the chat tool. The dead frontend helper is removed; `GET /budget-pacing/status` stays (the smoke test checks it). Rejected: a status line in Settings or a Home card ("notices, not displays").
+- **Invest market data (#292):** already decided and built 2026-09-23 — keyless Yahoo primary, Twelve Data optional fallback, no blocking sleep, key kept out of logs. #292 closes once live prices are confirmed on the real deployment. Börse Frankfurt not added — Yahoo covers XETRA.
+- **Parked:** #42 (market-correction alert, now unblocked), #307 (Ctrl K palette), #260 (period-over-period in Analytics) — none serves the current platform step (visual polish).
