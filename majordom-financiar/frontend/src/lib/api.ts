@@ -949,16 +949,6 @@ export interface BudgetPacingConfig {
   categories: { id: string; name: string; group_name: string }[]
 }
 
-export interface BudgetPacingStatus {
-  configured: boolean
-  annual_income: number | null
-  months_elapsed: number | null
-  expected_by_now: number | null
-  actual_by_now: number | null
-  over_by: number | null
-  on_pace: boolean | null
-}
-
 export async function getBudgetPacingConfig(): Promise<BudgetPacingConfig> {
   return abRequest<BudgetPacingConfig>('/budget-pacing/config')
 }
@@ -974,17 +964,10 @@ export async function saveBudgetPacingConfig(data: {
   })
 }
 
-export async function getBudgetPacingStatus(): Promise<BudgetPacingStatus> {
-  // Not abRequest: when pacing is unconfigured the handler returns
-  // {configured: false} WITHOUT any AB call (compute_pacing_status early-
-  // returns) — a 200 here proves nothing about AB health (audit finding 57).
-  return request<BudgetPacingStatus>('/budget-pacing/status')
-}
-
 // --- FIRE excluded accounts (#299) ---
 // Not abRequest: both handlers only read/write a user preference in SQLite and
 // never call Actual Budget, so a 200 proves nothing about AB health (audit
-// finding 57) — same reasoning as getBudgetPacingStatus above.
+// finding 57).
 
 export async function getFireExcludedAccounts(): Promise<{ terms: string[] }> {
   return request<{ terms: string[] }>('/fire/excluded-accounts')
