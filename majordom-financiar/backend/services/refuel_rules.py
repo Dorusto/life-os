@@ -18,8 +18,8 @@ async def vehicle_refuel_context(client, vehicles: list[dict]) -> list[dict]:
     """Enrich each vehicle with refuel defaults derived from the user's own history.
 
     Adds three keys to a copy of each vehicle dict:
-      max_liters            — tank_capacity * 1.05, else the largest logged
-                              fuel_liters * 1.10, else None
+      max_liters            — tank_capacity * 1.05, else None (a guess from
+                              past refuels must never block a real receipt)
       default_category_name — category of the vehicle's most recent fuel entry
                               that has a financial_id, else None
       default_account_id    — account of that same transaction, else None
@@ -45,14 +45,6 @@ async def vehicle_refuel_context(client, vehicles: list[dict]) -> list[dict]:
         tank_capacity = vehicle.get("tank_capacity")
         if tank_capacity:
             ctx["max_liters"] = round(float(tank_capacity) * 1.05, 2)
-        else:
-            logged_liters = [
-                float(e["fuel_liters"])
-                for e in entries
-                if e.get("fuel_liters")
-            ]
-            if logged_liters:
-                ctx["max_liters"] = round(max(logged_liters) * 1.10, 2)
 
         # get_log() is ordered by date DESC; financial_id is None for
         # Fuelio-imported entries — walk to the first non-empty one.
