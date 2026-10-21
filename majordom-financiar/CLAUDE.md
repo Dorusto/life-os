@@ -147,7 +147,7 @@ Cloning is not enough — git auth, `.env`, Docker, the LLM endpoint and gitigno
 (`.claude/settings.local.json`, `CLAUDE.local.md`, `PRIVATE_context.md`) need separate setup. Deploy: `DEPLOY.md`.
 
 - `git config core.hooksPath scripts/hooks` (repo root) — activates the tracked pre-commit hook
-  (timestamp check, provider wiring, private-data scanner)
+  (provider wiring, private-data scanner)
 - Optional backend hot-reload: a gitignored `docker-compose.override.yml` bind-mounting `backend/`
   with `uvicorn --reload`
 

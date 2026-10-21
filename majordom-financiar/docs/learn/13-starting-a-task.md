@@ -93,7 +93,7 @@ When the task works and you're satisfied:
 
 1. Tell Claude: "This works" or "Confirmed"
 2. Claude will:
-   - Commit with correct timestamp
+   - Commit
    - Close the GitHub issue
    - Update `docs/roadmap.md` if it was a milestone item; otherwise the issue's own label/milestone on GitHub already reflects it being done (closed)
    - Add entry to `docs/sessions/YYYY-WNN.md`

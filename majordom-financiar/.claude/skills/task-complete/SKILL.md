@@ -19,7 +19,7 @@ Run the `pre-commit-review` subagent (`.claude/agents/pre-commit-review.md`) on 
 
 ## 2 — Always, do not report the task as done until all of these are checked
 
-1. Commit with correct timestamp.
+1. Commit.
 2. Close GitHub issue: `gh issue list` → find relevant open issue → `gh issue close NNN -c "message"`.
 3. Update `docs/roadmap.md` if it's a milestone item (mark ✅ done); closing the GitHub issue already updates its priority tracking (label/milestone) automatically — no separate doc to touch. If the feature has a spec in `docs/specs/`, update it too.
 4. Add an entry to `docs/sessions/YYYY-WNN.md` (current week's file).
