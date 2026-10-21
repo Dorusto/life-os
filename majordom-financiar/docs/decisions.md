@@ -954,12 +954,9 @@ no background run needed for a task this size.
    tracked `.gitignore`, uncommitted, requiring a manual `git checkout -- .gitignore`
    revert. Mitigation: always pass `--no-gitignore`, and never run `aider` directly
    against the main checkout for anything, including read-only lookups — always a worktree.
-2. **Aider's own commit uses the real system clock**, unaffected by the personal
-   `CLAUDE.local.md` commit-timestamp-window rule (that file is gitignored and never
-   part of any prompt sent to Aider). If a delegated run happens outside the allowed
-   window, `GIT_AUTHOR_DATE`/`GIT_COMMITTER_DATE` must be exported *before* invoking
-   `aider`, not after — the commit happens during the run itself, not at a separate
-   post-review commit step like the old manual DeepSeek flow.
+2. **Aider commits during the run itself**, not at a separate post-review commit
+   step like the old manual DeepSeek flow — anything that must apply to the commit
+   has to be set *before* invoking `aider`, not after.
 3. **Opposite failure signature for missing external context**: opencode refused loudly
    (`external_directory ... auto-rejecting`) when it needed a fact not in the prompt;
    Aider has no such refusal and will attempt to generate code anyway, risking a

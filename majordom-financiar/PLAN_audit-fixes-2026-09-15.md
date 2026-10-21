@@ -13,7 +13,7 @@ login using the local dev fixture account, serves current main).
 **The user must do at deploy:** (1) push 33 commits (origin 3 ahead-pushed + 30 local); (2) set
 user_preferences key `fire.excluded_accounts` (JSON list of account-name substrings) on the
 real memory.db or FIRE numbers change; (3) add VAPID_CONTACT=mailto:... to .env.
-Open follow-ups filed/noted: #296 unified receipt popup, #297 doc drift, #298 timestamp window,
+Open follow-ups filed/noted: #296 unified receipt popup, #297 doc drift, #298 hook cleanup,
 plus noted-in-reports: sw.js nginx no-cache, apple-touch-icon, Duplicates month-key staleness,
 setup retry duplicate-account edge, real AB health probe.
 
